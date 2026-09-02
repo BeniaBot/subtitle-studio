@@ -76,10 +76,16 @@ namespace SubtitleStudio
             if (ViewStart < 0) ViewStart = 0;
         }
 
-        /// <summary>נקרא אחרי שהפריסה מוכנה, כדי לתקן זום שחושב לפני שהרוחב היה ידוע.</summary>
+        private bool _userZoomed;
+
+        /// <summary>נקרא אחרי שהפריסה מוכנה, כדי לתקן זום שחושב לפני שהרוחב היה ידוע.
+        /// כל עוד המשתמש לא שינה זום בעצמו - הציר תמיד מציג את כל הסרט.</summary>
         public void FitIfNeeded()
         {
-            if (DurationMs > 0 && Width >= 50 && PxPerSec <= 0.06) ZoomToFit();
+            if (DurationMs <= 0 || Width < 50) return;
+            if (_userZoomed && PxPerSec > 0.06) return;
+            double want = (Width - 20) / (DurationMs / 1000.0);
+            if (Math.Abs(want - PxPerSec) > 0.01) ZoomToFit();
         }
 
         public void ZoomBy(double factor, int anchorX)
@@ -89,6 +95,7 @@ namespace SubtitleStudio
             if (np < 0.05) np = 0.05;
             if (np > 600) np = 600;
             PxPerSec = np;
+            _userZoomed = true;
             ViewStart = anchorMs - (long)(anchorX / PxPerSec * 1000.0);
             ClampView();
             Invalidate();
@@ -99,6 +106,7 @@ namespace SubtitleStudio
         {
             if (DurationMs <= 0 || Width < 50) return;   // עוד לא נפרס - אין ממה לחשב
             PxPerSec = Math.Max(0.05, (Width - 20) / (DurationMs / 1000.0));
+            _userZoomed = false;
             ViewStart = 0;
             Invalidate();
             if (ViewChanged != null) ViewChanged(this, EventArgs.Empty);
@@ -114,6 +122,7 @@ namespace SubtitleStudio
             a -= pad; b += pad;
             if (a < 0) a = 0;
             PxPerSec = Math.Max(0.05, Math.Min(400, (Width - 20) / ((b - a) / 1000.0)));
+            _userZoomed = true;
             ViewStart = a;
             ClampView();
             Invalidate();
@@ -750,6 +759,7 @@ namespace SubtitleStudio
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.WaveBack, Theme.Panel, 0.4f)))
                 g.FillRectangle(b, 0, y, Width, ScrollH);
             if (DurationMs <= 0) return;
+            if (VisibleMs >= DurationMs) return;          // הכל נראה - אין מה לגלול
             float x1 = (float)(ViewStart / (double)DurationMs * Width);
             float w = (float)(VisibleMs / (double)DurationMs * Width);
             if (w > Width) w = Width;

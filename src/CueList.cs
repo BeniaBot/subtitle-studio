@@ -17,9 +17,9 @@ namespace SubtitleStudio
 
         private int _scroll;
         private int _rowH = 46;
-        private static int NumW { get { return Theme.S(34); } }
-        private static int StartW { get { return Theme.S(62); } }
-        private static int DurW { get { return Theme.S(50); } }
+        private static int NumW { get { return Theme.S(26); } }
+        private static int StartW { get { return Theme.S(56); } }
+        private static int DurW { get { return Theme.S(42); } }
         private int _hoverRow = -1;
         private int _anchor = -1;
         private bool _dragScroll;
@@ -174,7 +174,7 @@ namespace SubtitleStudio
             int numX = Width - pad - NumW;
             int startX = pad + DurW + Theme.S(6);
             int textX = startX + StartW + Theme.S(10);
-            int textW = numX - textX - Theme.S(22);
+            int textW = numX - textX - Theme.S(20);
             Theme.Str(g, "#", Theme.SmallBold, Theme.TextDim, new RectangleF(numX, 0, NumW, HeaderH), Theme.SfCenter);
             Theme.Str(g, "טקסט", Theme.SmallBold, Theme.TextDim, new RectangleF(textX, 0, textW, HeaderH), Theme.SfRtl);
             Theme.Str(g, "התחלה", Theme.SmallBold, Theme.TextDim, new RectangleF(startX, 0, StartW, HeaderH), Theme.SfCenter);
@@ -183,13 +183,15 @@ namespace SubtitleStudio
             if (Doc == null || Doc.Cues.Count == 0)
             {
                 float cy = HeaderH + (Height - HeaderH) / 2f;
-                Icons.Draw(g, Ico.List, new RectangleF(Width / 2f - 20, cy - 74, 40, 40), Theme.Mix(Theme.Panel, Theme.TextFaint, 0.55f), 1.6f);
+                float d = Theme.S(40), m = Theme.S(10), w = Width - Theme.S(20);
+                Icons.Draw(g, Ico.List, new RectangleF((Width - d) / 2f, cy - Theme.S(74), d, d),
+                    Theme.Mix(Theme.Panel, Theme.TextFaint, 0.55f), 1.6f);
                 Theme.Str(g, "עוד אין כתוביות", Theme.Big, Theme.TextDim,
-                    new RectangleF(10, cy - 26, Width - 20, 24), Theme.SfCenter);
+                    new RectangleF(m, cy - Theme.S(26), w, Theme.S(26)), Theme.SfCenter);
                 Theme.Str(g, "לחצו ״כתובית חדשה״ כדי לכתוב אחת,", Theme.Ui, Theme.TextFaint,
-                    new RectangleF(10, cy + 2, Width - 20, 22), Theme.SfCenter);
+                    new RectangleF(m, cy + Theme.S(4), w, Theme.S(22)), Theme.SfCenter);
                 Theme.Str(g, "או ״ייבוא כתוביות״ כדי לטעון קובץ מוכן.", Theme.Ui, Theme.TextFaint,
-                    new RectangleF(10, cy + 24, Width - 20, 22), Theme.SfCenter);
+                    new RectangleF(m, cy + Theme.S(26), w, Theme.S(22)), Theme.SfCenter);
                 return;
             }
 

@@ -234,10 +234,13 @@ namespace SubtitleStudio
 
                     Icons.Draw(g, ic, new RectangleF(r.Right - Theme.S(26), r.Y + (r.Height - Theme.S(16)) / 2, Theme.S(16), Theme.S(16)),
                         exists ? (hover ? Theme.Accent : Theme.TextDim) : Theme.TextFaint, 1.8f);
-                    Theme.Str(g, Theme.Ltr(name), Theme.Ui, exists ? Theme.Text : Theme.TextFaint,
-                        new RectangleF(r.X + Theme.S(120), r.Y, r.Width - Theme.S(154), r.Height), Theme.SfRtl);
-                    Theme.Str(g, exists ? "בתיקייה " + Theme.Ltr(dir) : "הקובץ לא נמצא", Theme.Small, Theme.TextFaint,
-                        new RectangleF(r.X + Theme.S(8), r.Y, Theme.S(200), r.Height), Theme.SfNear);
+                    string shown = Theme.Ltr(name);
+                    float nameW = Math.Min(Theme.Measure(g, shown, Theme.Ui).Width + Theme.S(6), r.Width * 0.5f);
+                    float nameX = r.Right - Theme.S(34) - nameW;
+                    Theme.Str(g, shown, Theme.Ui, exists ? Theme.Text : Theme.TextFaint,
+                        new RectangleF(nameX, r.Y, nameW, r.Height), Theme.SfRtl);
+                    Theme.Str(g, exists ? "· " + Theme.Ltr(dir) : "· הקובץ לא נמצא", Theme.Small, Theme.TextFaint,
+                        new RectangleF(r.X + Theme.S(8), r.Y, nameX - r.X - Theme.S(14), r.Height), Theme.SfRtl);
                 }
             }
 
