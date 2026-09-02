@@ -1,9 +1,19 @@
 ﻿# פותח כל חלון דיאלוג של התוכנה ומצלם אותו (ביקורת עיצוב)
 param([string]$Only = "")
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
-$dest = "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad\gallery"
+# תיקיית פלט קבועה - לא תלויה במספר הסשן
+$dest = "$env:TEMP\ss-gallery"
 New-Item -ItemType Directory -Force $dest | Out-Null
-$scratch = "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad"
+$scratch = $dest
+
+# קובץ דוגמה - נוצר פעם אחת עם ffmpeg המוטמע
+if (-not (Test-Path "$scratch\test.mp4")) {
+    $ff = "$env:LOCALAPPDATA\SubtitleStudio\runtime\ffmpeg.exe"
+    if (-not (Test-Path $ff)) { $ff = "D:\Claude\subtitle-studio\tools\ffmpeg.exe" }
+    & $ff -y -f lavfi -i "testsrc=size=640x360:rate=25:duration=40" `
+          -f lavfi -i "sine=frequency=440:duration=40" `
+          -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$scratch\test.mp4" 2>$null | Out-Null
+}
 
 Add-Type @"
 using System;using System.Runtime.InteropServices;
@@ -65,7 +75,14 @@ $dialogs = @(
         $tool = $all[0]
         NewOf "ToolRunDlg" @($null, $tool, $mi, [int64]-1, [int64]-1, [int64]0) } },    @{ n = "Help";       make = { NewOf "HelpDlg" @() } },
     @{ n = "Export";     make = { NewOf "ExportVideoDlg" @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
-    @{ n = "About";      make = { NewOf "AboutDlg" @() } }
+    @{ n = "About";      make = { NewOf "AboutDlg" @() } },
+    @{ n = "AiSetup";    make = { NewOf "AiSetupDlg" @() } },
+    @{ n = "AiTranslate"; make = { NewOf "AiTranslateDlg" @($doc) } },
+    @{ n = "Reverse";    make = {
+        $all = (T "MediaTools").GetMethod("All", $NP -bor $PB -bor $ST).Invoke($null, @())
+        $tool = $null
+        foreach ($x in $all) { if ((T "MediaTool").GetField("Name", $NP -bor $PB -bor $IN).GetValue($x) -like "*ריוורס*") { $tool = $x } }
+        NewOf "ToolRunDlg" @($null, $tool, $mi, [int64]-1, [int64]-1, [int64]0) } }
 )
 
 foreach ($d in $dialogs) {

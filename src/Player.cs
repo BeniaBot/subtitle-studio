@@ -19,6 +19,8 @@ namespace SubtitleStudio
         public const int PeriodMs = 10;
         public volatile bool Ready;
         public volatile bool Failed;
+        /// <summary>מתיחה לשיא של הקובץ - בלעדיה הקלטה שקטה נראית קו ישר.</summary>
+        private volatile float _gain = 1f;
         public double Progress;
         public long DurationMs;
         private Process _proc;
@@ -89,8 +91,13 @@ namespace SubtitleStudio
                     Peak[bucket] = (byte)Math.Min(255, peak * 255 / 32768);
                     Rms[bucket] = (byte)Math.Min(255, (int)(rms * 255 / 32768));
                     bucket++;
-                    if ((bucket & 511) == 0) Progress = bucket / (double)buckets;
+                    if ((bucket & 511) == 0)
+                    {
+                        Progress = bucket / (double)buckets;
+                        Recalc(bucket);
+                    }
                 }
+                Recalc(bucket);
                 Progress = 1;
                 Ready = true;
                 try { if (!_proc.HasExited) _proc.Kill(); }
@@ -103,6 +110,22 @@ namespace SubtitleStudio
             }
         }
 
+        /// <summary>מחשב מתיחה לפי השיא שנמצא עד כה. מוגבל כדי ששקט לא ייהפוך לרעש.</summary>
+        private void Recalc(int upto)
+        {
+            if (Peak == null) return;
+            int mx = 0;
+            int n = Math.Min(upto, Peak.Length);
+            for (int i = 0; i < n; i++) if (Peak[i] > mx) mx = Peak[i];
+            _gain = mx > 8 ? (float)Math.Min(5.0, 236.0 / mx) : 1f;
+        }
+
+        private int Scale(int v)
+        {
+            int r = (int)(v * _gain);
+            return r > 255 ? 255 : r;
+        }
+
         /// <summary>ערך שיא בטווח זמן (לציור).</summary>
         public int PeakAt(long msFrom, long msTo)
         {
@@ -113,7 +136,7 @@ namespace SubtitleStudio
             if (b > Peak.Length) b = Peak.Length;
             int m = 0;
             for (int i = a; i < b; i++) if (Peak[i] > m) m = Peak[i];
-            return m;
+            return Scale(m);
         }
 
         public int RmsAt(long msFrom, long msTo)
@@ -125,7 +148,7 @@ namespace SubtitleStudio
             if (b > Rms.Length) b = Rms.Length;
             int m = 0;
             for (int i = a; i < b; i++) if (Rms[i] > m) m = Rms[i];
-            return m;
+            return Scale(m);
         }
 
         /// <summary>איתור גבולות דיבור סביב נקודה - לקיצור/הארכה אוטומטית.</summary>

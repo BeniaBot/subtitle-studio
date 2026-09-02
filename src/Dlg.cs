@@ -24,6 +24,7 @@ namespace SubtitleStudio
         {
             _title = title;
             _icon = icon;
+            AutoScaleMode = AutoScaleMode.None;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
             BackColor = Theme.Panel;
@@ -260,7 +261,9 @@ namespace SubtitleStudio
             Field f = new Field();
             f.Placeholder = placeholder;
             f.Ltr = true;
+            f.PathMode = true;
             f.Text = initial == null ? "" : initial;
+            Shown += delegate { f.ShowTail(); };
             int fh = Theme.S(36);
             f.SetBounds(Pad + Theme.S(48), Y, ContentW - Theme.S(48), fh);
             Btn b = new Btn();

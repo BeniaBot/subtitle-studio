@@ -47,13 +47,17 @@ namespace SubtitleStudio
         public MainForm()
         {
             Text = "אולפן הכתוביות";
+            // התוכנה מקנה סקאלה בעצמה (Theme.S) - מתיחה נוספת של WinForms
+            // מכפילה פעמיים ומנפחת את MinimumSize
+            AutoScaleMode = AutoScaleMode.None;
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
             Font = Theme.Ui;
             RightToLeft = RightToLeft.Yes;
-            MinimumSize = new Size(Theme.S(1120), Theme.S(720));
+            // מחשב נייד זול הוא 1366x768 - המינימום חייב להיכנס שם גם ב-125%
+            MinimumSize = new Size(Theme.S(940), Theme.S(680));
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(Theme.S(1180), Theme.S(760));
+            ClientSize = FitToScreen(Theme.S(1180), Theme.S(760));
             KeyPreview = true;
             AllowDrop = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
@@ -149,6 +153,21 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(b, tip);
             Controls.Add(b);
             return b;
+        }
+
+        /// <summary>גודל פתיחה שלא חורג מהמסך הזמין.</summary>
+        private static Size FitToScreen(int w, int h)
+        {
+            try
+            {
+                Rectangle wa = Screen.PrimaryScreen.WorkingArea;
+                int maxW = wa.Width - Theme.S(40);
+                int maxH = wa.Height - Theme.S(40);
+                if (w > maxW) w = maxW;
+                if (h > maxH) h = maxH;
+            }
+            catch { }
+            return new Size(Math.Max(Theme.S(700), w), Math.Max(Theme.S(480), h));
         }
 
         private void BuildHero()
@@ -330,6 +349,11 @@ namespace SubtitleStudio
                 delegate { TrimMedia(); }));
 
             items.Add(MenuItem.Group("המרה ועיבוד"));
+            MenuItem fitItem = MenuItem.Make("הקטנה לגודל מבוקש",
+                "למשל ״שייכנס ל-200MB לוואטסאפ/גוגל ׳אט״ - באיכות הכי טובה שנכנסת", Ico.Download,
+                delegate { OpenFitSize(); });
+            fitItem.Enabled = _mi != null;
+            items.Add(fitItem);
             items.Add(MenuItem.Make("כלים לסרט ולקול", "עוצמת שמע, המרה, דחיסה לגודל, חילוץ אודיו ועוד", Ico.Sliders,
                 delegate { OpenTools(); }));
 
@@ -448,7 +472,7 @@ namespace SubtitleStudio
             _text.WordWrap = true;
             _text.Enabled = false;
             _textEmptyHint = new Lbl();
-            _textEmptyHint.Text = "בחרו כתובית מהרשימה, או צרו כתובית חדשה";
+            _textEmptyHint.Text = "בחרו כתובית, או צרו חדשה";
             _textEmptyHint.Font = Theme.Ui;
             _textEmptyHint.Color = Theme.TextFaint;
             _editCard.Controls.Add(_textEmptyHint);
@@ -458,6 +482,11 @@ namespace SubtitleStudio
                 if (!_textDirty) { _doc.Push("עריכת טקסט"); _textDirty = true; }
                 _editing.Text = _text.Text;
                 _doc.Dirty = true;
+                if (_textEmptyHint.Visible == (_text.Text.Length > 0))
+                {
+                    _textEmptyHint.Visible = _text.Text.Length == 0;
+                    _textEmptyHint.Invalidate();
+                }
                 _list.Invalidate();
                 _tl.Invalidate();
                 UpdateCps();
@@ -467,7 +496,8 @@ namespace SubtitleStudio
             _editCard.Controls.Add(_text);
 
             _timesLbl = new Lbl();
-            _timesLbl.Text = "מתי היא מופיעה על המסך";
+            _timesLbl.Text = "";
+            _timesLbl.Visible = false;
             _timesLbl.Font = Theme.Small;
             _timesLbl.Color = Theme.TextDim;
             _editCard.Controls.Add(_timesLbl);
@@ -712,6 +742,7 @@ namespace SubtitleStudio
             b.Kind = kind;
             b.Font = Theme.Small;
             b.Size = new Size(Theme.S(w), Theme.S(36));
+            b.PrefWidth = b.Width;
             if (h != null) b.Click += h;
             Ui.Tip.SetToolTip(b, tip);
             _editCard.Controls.Add(b);
@@ -767,6 +798,8 @@ namespace SubtitleStudio
         /// <summary>מציג בכותרת הציר את הקטע שסומן, כדי שיהיה ברור מה יקרה בחיתוך.</summary>
         private void UpdateRangeChip()
         {
+            // נקודה אחת בלבד, או סוף שלפני ההתחלה, היא לא קטע
+            if (_tl.InPoint >= 0 && _tl.OutPoint >= 0 && _tl.OutPoint <= _tl.InPoint) _tl.OutPoint = -1;
             bool has = _tl.InPoint >= 0 || _tl.OutPoint >= 0;
             if (_clearMark != null && _clearMark.Visible != has)
             {
@@ -824,11 +857,21 @@ namespace SubtitleStudio
             int btnH = S(42);
             int by = (toolbarH - btnH) / 2;
 
-            int leftBlock = _exportBtn.Width + S(12) + _undoBtn.Width + S(4) + _redoBtn.Width
-                            + S(14) + _moreBtn.Width * 4 + S(6) + pad * 2;
-            int need = leftBlock + S(24);
-            foreach (Btn b in _toolbarBtns) need += b.Width + S(8);
-            bool compact = need > W;
+            // במיזעור הרוחב הוא כמאתיים פיקסלים - לא לקבוע לפיו מצב מצומצם
+            if (WindowState == FormWindowState.Minimized) return;
+
+            // הידרדות מדורגת: קודם מקצרים את הכפתור הראשי,
+            // ורק אם זה לא מספיק מוותרים על התוויות של התפריטים (שאז המסך נראה לא מובן)
+            int fixedPart = S(12) + _undoBtn.Width + S(4) + _redoBtn.Width
+                            + S(14) + _moreBtn.Width * 4 + S(6) + pad * 2 + S(24);
+            int menusPart = 0;
+            foreach (Btn b in _toolbarBtns) menusPart += b.Width + S(8);
+
+            int wide = S(214), narrow = S(150);
+            bool shortLabel = fixedPart + menusPart + wide > W;
+            _exportBtn.Text = shortLabel ? "יצירת הסרט" : "יצירת סרט עם כתוביות";
+            _exportBtn.Width = shortLabel ? narrow : wide;
+            bool compact = fixedPart + menusPart + _exportBtn.Width > W;
 
             int x = W - pad - S(10);
             foreach (Btn b in _toolbarBtns)
@@ -876,14 +919,23 @@ namespace SubtitleStudio
             _aiBtn.Visible = true;
             _hintLbl.Visible = true;
             _statsLbl.Visible = true;
-            int tlH = Math.Max(S(180), Math.Min(S(270), (int)(H * 0.235)));
+            // תקציב גובה לפי עדיפות: לכל אזור מינימום שמתחתיו הוא נראה שבור.
+            // מסך נמוך של מחשב נייד זול חייב לעבוד גם הוא.
+            int avail = H - top - statusH - pad * 2;
+            int tlMin = S(140), editMin = S(168), videoMin = S(190);
+
+            int tlH = Math.Max(tlMin, Math.Min(S(270), (int)(H * 0.235)));
             int editH = S(192);
-            int mainH = H - top - tlH - statusH - pad * 2;
-            if (mainH < S(300))
+            int mainH = avail - tlH;
+
+            if (mainH < videoMin + editMin + pad)
             {
-                mainH = S(300);
-                tlH = Math.Max(S(150), H - top - mainH - statusH - pad * 2);
+                // קודם מקצצים את הציר, ורק אחר כך את כרטיס העריכה
+                tlH = Math.Max(tlMin, avail - videoMin - editMin - pad);
+                mainH = avail - tlH;
+                editH = Math.Max(editMin, Math.Min(S(192), mainH - videoMin - pad));
             }
+            if (mainH < S(260)) mainH = S(260);
 
             int listW = Math.Max(S(300), Math.Min(S(390), (int)(W * 0.23)));
             _listCard.SetBounds(pad, top, listW, mainH);
@@ -891,27 +943,28 @@ namespace SubtitleStudio
 
             int leftX = pad + listW + pad;
             int leftW = W - leftX - pad;
-            int videoH = mainH - editH - pad;
+            int videoH = Math.Max(S(120), mainH - editH - pad);
             _videoCard.SetBounds(leftX, top, leftW, videoH);
             _editCard.SetBounds(leftX, top + videoH + pad, leftW, editH);
 
-            // כרטיס הווידאו
-            int transH = S(58);
+            // כרטיס הווידאו - שורת הניגון מתכווצת כשאין גובה
+            int transH = videoH < S(230) ? S(48) : S(58);
             _mediaLbl.SetBounds(S(14), (_videoCard.HeaderH - S(18)) / 2, Math.Max(S(60), leftW - S(200)), S(18));
             _video.SetBounds(S(10), _videoCard.HeaderH, leftW - S(20),
                 Math.Max(S(40), videoH - _videoCard.HeaderH - transH));
             int ty = videoH - transH;
             int bx = leftW - S(14) - _playBtn.Width;
-            _playBtn.SetBounds(bx, ty + S(6), _playBtn.Width, S(44));
+            int playH = transH - S(12);
+            _playBtn.SetBounds(bx, ty + S(6), _playBtn.Width, playH);
             bx -= S(10);
             foreach (Btn b in _transportBtns)
             {
                 bx -= b.Width;
-                b.SetBounds(bx, ty + S(6), b.Width, S(44));
+                b.SetBounds(bx, ty + S(6), b.Width, playH);
                 bx -= S(2);
             }
             int timeW = S(170);
-            _timeLbl.SetBounds(Math.Max(S(190), bx - timeW - S(6)), ty + S(6), timeW, S(44));
+            _timeLbl.SetBounds(Math.Max(S(190), bx - timeW - S(6)), ty + S(6), timeW, playH);
             _volume.SetBounds(S(14), ty + S(15), S(160), S(28));
 
             // כרטיס העריכה:
@@ -920,11 +973,13 @@ namespace SubtitleStudio
             int colW = S(344);
             int fieldW = S(88);
             int textW = Math.Max(S(200), ew - S(28) - colW - S(18));
-            int labelY = _editCard.HeaderH + S(6);
-            int rowY = _editCard.HeaderH + S(28);
+            bool tightEdit = editH < S(186);
+            int labelY = _editCard.HeaderH + S(4);
+            int rowY = _editCard.HeaderH + (tightEdit ? S(8) : S(28));
             int row2Y = rowY + S(38);
+            _textLbl.Visible = !tightEdit;
             _textLbl.SetBounds(ew - S(14) - S(260), labelY, S(260), S(18));
-            _text.SetBounds(ew - S(14) - textW, rowY, textW, S(72));
+            _text.SetBounds(ew - S(14) - textW, rowY, textW, tightEdit ? S(62) : S(72));
             _textEmptyHint.SetBounds(ew - S(14) - textW + S(10), rowY + S(6), textW - S(20), S(24));
             _timesLbl.SetBounds(S(14), labelY, colW, S(18));
 
@@ -933,11 +988,22 @@ namespace SubtitleStudio
 
             int eby = editH - S(46);
             int ebx = ew - S(14);
+
+            // כשאין רוחב - הכפתורים המשניים הופכים לאייקונים בלבד (עם הסבר בריחוף),
+            // כדי שלא ייחתכו וכדי ש"כתובית חדשה" יישאר קריא
+            int btnsW = 0;
+            foreach (Btn b in _editBtns) btnsW += b.PrefWidth + S(7);
+            // שורת הכפתורים נמצאת מתחת לשורות הזמן, אז היא יכולה לנצל את כל רוחב הכרטיס
+            bool tinyBtns = btnsW > ew - S(60);
+            bool first = true;
             foreach (Btn b in _editBtns)
             {
-                ebx -= b.Width;
-                b.SetBounds(ebx, eby, b.Width, b.Height);
+                b.IconOnly = tinyBtns && !first;
+                int bw = b.IconOnly ? S(46) : b.PrefWidth;
+                ebx -= bw;
+                b.SetBounds(ebx, eby, bw, b.Height);
                 ebx -= S(7);
+                first = false;
             }
             _durLbl.SetBounds(S(14), eby + S(1), S(160), S(18));
             _cpsLbl.SetBounds(S(14), eby + S(18), S(200), S(16));
@@ -1125,12 +1191,15 @@ namespace SubtitleStudio
                 _startF.Text = "";
                 _endF.Text = "";
                 _text.Enabled = false;
+                _textEmptyHint.Text = "בחרו כתובית, או צרו חדשה";
                 _textEmptyHint.Visible = true;
             }
             else
             {
                 _text.Enabled = true;
-                _textEmptyHint.Visible = false;
+                // כתובית ריקה צריכה להגיד מה לעשות - אחרת זו רק תיבה לבנה
+                _textEmptyHint.Text = "כתבו כאן מה נאמר בקטע הזה";
+                _textEmptyHint.Visible = c.Text.Length == 0;
                 if (_text.Text != c.Text) _text.Text = c.Text;
                 _startF.Text = Tc.Short(c.Start);
                 _endF.Text = Tc.Short(c.End);
@@ -1589,6 +1658,13 @@ namespace SubtitleStudio
             d.ShowDialog(this);
             d.Dispose();
             SyncAfterDocChange();
+        }
+
+        /// <summary>קיצור ישיר לכלי הנפוץ ביותר - הקטנה לגודל מבוקש.</summary>
+        private void OpenFitSize()
+        {
+            if (_mi == null) return;
+            ToolsDlg.RunNamed(this, "התאמה לגודל קובץ מבוקש", _mi, _tl.InPoint, _tl.OutPoint, _engine.Position);
         }
 
         private void OpenTools()

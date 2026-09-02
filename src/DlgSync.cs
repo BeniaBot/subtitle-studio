@@ -135,7 +135,9 @@ namespace SubtitleStudio
             fps.Click += delegate { ShowFps(); };
             Row(fps, 30, 6);
 
-            Buttons("סגירה", Ico.Close, null);
+            Btn done = Buttons("סגירה", Ico.Close, null);
+            // הפעולות האמיתיות למעלה - כפתור הסגירה לא צריך למשוך את העין
+            done.Kind = BtnKind.Ghost;
         }
 
         private string DeltaText()
@@ -216,7 +218,7 @@ namespace SubtitleStudio
                 float left = pad, right = Width - pad;
 
                 // הכתובית
-                string cueLabel = "כתובית " + CueNumber + (CueText.Length > 0 ? ":  " + Short(CueText, 28) : "");
+                string cueLabel = "כתובית " + Theme.Ltr(CueNumber.ToString()) + (CueText.Length > 0 ? "   ·   " + Short(CueText, 28) : "");
                 Theme.Str(g, cueLabel, Theme.UiBold, Theme.Text,
                     new RectangleF(pad, Theme.S(10), Width - pad * 2, Theme.S(22)), Theme.SfRtl);
 

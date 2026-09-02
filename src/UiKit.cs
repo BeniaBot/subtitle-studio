@@ -16,6 +16,8 @@ namespace SubtitleStudio
         public bool Checkable = false;
         public bool Checked = false;
         public Color Tint = Color.Empty;
+        /// <summary>הרוחב המקורי, לפני שהפריסה מצמצמת לאייקון בלבד.</summary>
+        public int PrefWidth;
         public string Sub = null;          // שורת משנה קטנה
         public int IconSize = Theme.S(18);
         public Color Swatch = Color.Empty;
@@ -327,6 +329,22 @@ namespace SubtitleStudio
             }
         }
 
+        /// <summary>שדה שמחזיק נתיב: מה שחשוב למשתמש הוא שם הקובץ בסוף, לא אות הכונן.</summary>
+        public bool PathMode;
+
+        /// <summary>מגלגל את התצוגה לסוף הנתיב כשאין מיקוד בתיבה.</summary>
+        public void ShowTail()
+        {
+            if (!PathMode || Box == null || !Box.IsHandleCreated || Box.Focused) return;
+            try
+            {
+                Box.SelectionStart = Box.Text.Length;
+                Box.SelectionLength = 0;
+                Box.ScrollToCaret();
+            }
+            catch { }
+        }
+
         public Field(bool multiline)
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
@@ -335,6 +353,9 @@ namespace SubtitleStudio
             Box.BackColor = Theme.PanelAlt;
             Box.ForeColor = Theme.Text;
             Box.Font = Theme.Ui;
+            Box.TextChanged += delegate { ShowTail(); };
+            Box.LostFocus += delegate { ShowTail(); };
+            Box.HandleCreated += delegate { ShowTail(); };
             Box.Multiline = multiline;
             if (multiline) { Box.ScrollBars = ScrollBars.None; Box.AcceptsReturn = true; Box.WordWrap = true; }
             Controls.Add(Box);

@@ -49,10 +49,38 @@ namespace SubtitleStudio
         }
 
         // ---------- מידות ----------
-        private int RecentCount { get { return Recent == null ? 0 : Math.Min(3, Recent.Count); } }
+        // המסך חייב להיכנס גם במחשב נייד נמוך: קודם מוותרים על הקבצים
+        // האחרונים, ואז מקטינים את אזור הגרירה.
+        private int RecentCount
+        {
+            get
+            {
+                if (Recent == null || Recent.Count == 0) return 0;
+                if (!ShowRecent) return 0;
+                return Math.Min(3, Recent.Count);
+            }
+        }
+
+        private bool ShowRecent
+        {
+            get { return Height >= Theme.S(600); }
+        }
+
         private int RowH { get { return Theme.S(36); } }
-        private int ZoneH { get { return Theme.S(250); } }
-        private int TitleH { get { return Theme.S(78); } }
+
+        private int ZoneH
+        {
+            get
+            {
+                int want = Theme.S(250);
+                int room = Height - TitleH - StepsH - Theme.S(70)
+                           - (RecentCount > 0 ? Theme.S(26) + RecentCount * RowH : 0);
+                if (room < want) want = room;
+                return Math.Max(Theme.S(150), want);
+            }
+        }
+
+        private int TitleH { get { return Height < Theme.S(560) ? Theme.S(58) : Theme.S(78); } }
         private int StepsH { get { return Theme.S(78); } }
 
         private int BlockH

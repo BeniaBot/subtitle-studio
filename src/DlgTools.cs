@@ -592,6 +592,19 @@ namespace SubtitleStudio
             d.ShowDialog(this);
             d.Dispose();
         }
+
+        /// <summary>פתיחת כלי בודד ישירות, בלי לעבור דרך רשימת הכלים.</summary>
+        public static void RunNamed(MainForm main, string name, MediaInfo mi, long a, long b, long pos)
+        {
+            foreach (MediaTool t in MediaTools.All())
+            {
+                if (t.Name != name) continue;
+                ToolRunDlg d = new ToolRunDlg(main, t, mi, a, b, pos);
+                d.ShowDialog(main);
+                d.Dispose();
+                return;
+            }
+        }
     }
 
     /// <summary>הפעלת כלי בודד: פרמטר אחד + קובץ יעד.</summary>

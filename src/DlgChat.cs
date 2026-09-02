@@ -44,6 +44,7 @@ namespace SubtitleStudio
         {
             _host = host;
             Text = "עוזר AI";
+            AutoScaleMode = AutoScaleMode.None;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
             BackColor = Theme.Bg;
