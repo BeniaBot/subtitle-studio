@@ -1,0 +1,17 @@
+# build output
+dist/
+build/payload/
+build/app.ico
+obj/
+bin/
+
+# the bundled engine (194MB) - fetched separately, see THIRD-PARTY.md
+tools/ffmpeg.exe
+tools/ffprobe.exe
+
+# local test scratch
+_freshtest/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
