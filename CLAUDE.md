@@ -181,7 +181,7 @@ build.cmd
   `LICENSE` (MIT), `THIRD-PARTY.md` (‏FFmpeg תחת GPLv3 + הצעת קוד מקור), `CHANGELOG.md`,
   `.gitignore`, `.gitattributes`, `tools\README.md`, צילומי מסך ב-`docs\screenshots`
 - **מאגר git אותחל** עם קומיט ראשון (הכתובת `237136058+BeniaBot@users.noreply.github.com`)
-- **`build	est-logic.ps1` חדש** — 59 בדיקות אוטומטיות, כולן עוברות
+- **`build\test-logic.ps1` חדש** — 59 בדיקות אוטומטיות, כולן עוברות
 - מסך העבודה: ציר הזמן מתאים את עצמו לכל אורך הסרט עד שהמשתמש משנה זום בעצמו
   (‏`_userZoomed`), פס גלילה נעלם כשאין מה לגלול, עמודת הטקסט ברשימה התרחבה
 - מסך הפתיחה: שם התיקייה מוצג צמוד לשם הקובץ ולא בקצה השני של השורה
