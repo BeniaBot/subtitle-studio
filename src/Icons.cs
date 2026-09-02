@@ -70,6 +70,18 @@ namespace SubtitleStudio
                 G.FillPolygon(B, pts);
             }
 
+            /// <summary>טבעת מלאה (עיגול עם חור) - למשל גלגל שיניים.</summary>
+            public void Donut(float cx, float cy, float rOuter, float rInner)
+            {
+                using (GraphicsPath gp = new GraphicsPath())
+                {
+                    gp.FillMode = FillMode.Alternate;
+                    gp.AddEllipse(R(cx - rOuter, cy - rOuter, rOuter * 2, rOuter * 2));
+                    gp.AddEllipse(R(cx - rInner, cy - rInner, rInner * 2, rInner * 2));
+                    G.FillPath(B, gp);
+                }
+            }
+
             /// <summary>מלבן בקואורדינטות האייקון.</summary>
             public RectangleF R(float x, float y, float w, float h)
             {
@@ -174,9 +186,9 @@ namespace SubtitleStudio
                     d.L(4, 6.5f, 20, 6.5f); d.Poly(9.5f, 6.5f, 9.5f, 4, 14.5f, 4, 14.5f, 6.5f);
                     d.Poly(6, 6.5f, 7, 20, 17, 20, 18, 6.5f); d.L(10, 10, 10, 17); d.L(14, 10, 14, 17); break;
                 case Ico.Save:
-                    d.Rect(3.5f, 3.5f, 17, 17, 2.5f);
-                    d.FRect(8, 3.5f, 8, 6, 1f);
-                    d.Rect(7, 13, 10, 7.5f, 1.2f);
+                    d.Poly(4, 20.5f, 4, 5.5f, 5.5f, 4, 15.5f, 4, 20, 8.5f, 20, 20.5f, 4, 20.5f);
+                    d.Rect(8, 4, 8, 5.5f, 1f);
+                    d.Rect(7, 13.5f, 10, 7, 1.2f);
                     break;
                 case Ico.Open:
                 case Ico.Folder:
@@ -200,28 +212,44 @@ namespace SubtitleStudio
                     d.FPoly(3.5f, 9.5f, 7.5f, 9.5f, 12, 5, 12, 19, 7.5f, 14.5f, 3.5f, 14.5f);
                     d.L(15.5f, 9.5f, 20.5f, 14.5f); d.L(20.5f, 9.5f, 15.5f, 14.5f); break;
                 case Ico.Gear:
-                    for (int i = 0; i < 8; i++)
                     {
-                        double a = i * Math.PI / 4;
-                        double w = 0.22;
-                        d.FPoly(
-                            12 + 7.2f * (float)Math.Cos(a - w), 12 + 7.2f * (float)Math.Sin(a - w),
-                            12 + 10.4f * (float)Math.Cos(a - w * 0.7), 12 + 10.4f * (float)Math.Sin(a - w * 0.7),
-                            12 + 10.4f * (float)Math.Cos(a + w * 0.7), 12 + 10.4f * (float)Math.Sin(a + w * 0.7),
-                            12 + 7.2f * (float)Math.Cos(a + w), 12 + 7.2f * (float)Math.Sin(a + w));
+                        // טבעת חיצונית + שמונה שיניים קצרות: קריא גם ב-16 פיקסל
+                        // שיניים רחבות (מלאות) מבדילות את הגלגל מהשמש
+                        for (int i = 0; i < 8; i++)
+                        {
+                            double a = i * Math.PI / 4;
+                            const double hw = 0.20;
+                            d.FPoly(
+                                12 + 6.6f * (float)Math.Cos(a - hw), 12 + 6.6f * (float)Math.Sin(a - hw),
+                                12 + 10.6f * (float)Math.Cos(a - hw * 0.72), 12 + 10.6f * (float)Math.Sin(a - hw * 0.72),
+                                12 + 10.6f * (float)Math.Cos(a + hw * 0.72), 12 + 10.6f * (float)Math.Sin(a + hw * 0.72),
+                                12 + 6.6f * (float)Math.Cos(a + hw), 12 + 6.6f * (float)Math.Sin(a + hw));
+                        }
+                        d.Donut(12, 12, 7.4f, 4.2f);
+                        break;
                     }
-                    d.Ell(4.6f, 4.6f, 14.8f, 14.8f);
-                    d.Ell(9.4f, 9.4f, 5.2f, 5.2f);
-                    break;
                 case Ico.Undo:
-                    d.ArcArrow(12, 13, 7f, 25, -220, 4.4f);
+                    // חץ שמאלה וקשת חזרה - כמו בערכות מודרניות
+                    d.Poly(9, 14.5f, 4, 9.5f, 9, 4.5f);
+                    d.L(4, 9.5f, 14.5f, 9.5f);
+                    d.Arc(9, 9.5f, 11, 11, 270, 90);
+                    d.L(20, 15, 20, 15.5f);
+                    d.Arc(9, 9.5f, 11, 11, 0, 45);
                     break;
                 case Ico.Redo:
-                    d.ArcArrow(12, 13, 7f, 155, 220, 4.4f);
+                    d.Poly(15, 14.5f, 20, 9.5f, 15, 4.5f);
+                    d.L(20, 9.5f, 9.5f, 9.5f);
+                    d.Arc(4, 9.5f, 11, 11, 180, 90);
+                    d.Arc(4, 9.5f, 11, 11, 135, 45);
                     break;
                 case Ico.Scissors:
                 case Ico.Cut:
-                    d.Ell(4, 15, 5, 5); d.Ell(15, 15, 5, 5); d.L(8, 15.5f, 18, 4); d.L(16, 15.5f, 6, 4); break;
+                    d.Ell(3.5f, 15, 5.5f, 5.5f);
+                    d.Ell(15, 15, 5.5f, 5.5f);
+                    d.L(8.4f, 15.2f, 19, 3.5f);
+                    d.L(15.6f, 15.2f, 5, 3.5f);
+                    d.L(9.6f, 12.2f, 12, 14.6f);
+                    break;
                 case Ico.Wand:
                     d.L(4, 20, 15, 9); d.FRect(14, 4.5f, 6, 6, 1.5f);
                     d.L(5, 5, 5, 8); d.L(3.5f, 6.5f, 6.5f, 6.5f); break;
@@ -237,8 +265,17 @@ namespace SubtitleStudio
                 case Ico.ChevronLeft: d.Poly(14.5f, 5, 8.5f, 12, 14.5f, 19); break;
                 case Ico.ChevronRight: d.Poly(9.5f, 5, 15.5f, 12, 9.5f, 19); break;
                 case Ico.Copy: d.Rect(8, 3, 13, 13, 2f); d.Poly(16, 19.5f, 3.5f, 19.5f, 3.5f, 7); break;
-                case Ico.Split: d.L(12, 3, 12, 21); d.Poly(7, 8, 3.5f, 12, 7, 16); d.Poly(17, 8, 20.5f, 12, 17, 16); break;
-                case Ico.Merge: d.L(3, 12, 21, 12); d.Poly(8, 7, 12, 12, 8, 17); d.Poly(16, 7, 12, 12, 16, 17); break;
+                case Ico.Split:
+                    d.L(12, 3, 12, 10);
+                    d.Poly(6, 21, 12, 10, 18, 21);
+                    d.Poly(3.5f, 17.5f, 6, 21, 9, 19.5f);
+                    d.Poly(20.5f, 17.5f, 18, 21, 15, 19.5f);
+                    break;
+                case Ico.Merge:
+                    d.L(12, 21, 12, 14);
+                    d.Poly(6, 3, 12, 14, 18, 3);
+                    d.Poly(9, 6.5f, 12, 14, 15, 6.5f);
+                    break;
                 case Ico.ShiftLR: d.L(3, 12, 21, 12); d.Poly(7.5f, 7, 3, 12, 7.5f, 17); d.Poly(16.5f, 7, 21, 12, 16.5f, 17); break;
                 case Ico.Import: d.Poly(4, 15, 4, 20, 20, 20, 20, 15); d.L(12, 3, 12, 15); d.Poly(7.5f, 10.5f, 12, 15.2f, 16.5f, 10.5f); break;
                 case Ico.Export: d.Poly(4, 15, 4, 20, 20, 20, 20, 15); d.L(12, 15, 12, 3.5f); d.Poly(7.5f, 8, 12, 3.3f, 16.5f, 8); break;
@@ -270,8 +307,12 @@ namespace SubtitleStudio
                     break;
                 case Ico.Moon: d.Crescent(12.5f, 12, 8.5f, 3.4f, -3.4f, 8f); break;
                 case Ico.Flame:
-                    d.FCurve(12, 2.6f, 16.4f, 7.6f, 18.4f, 13.2f, 15.4f, 19.4f,
-                             12, 21.4f, 8.6f, 19.4f, 5.6f, 13.2f, 9.4f, 8.4f, 10.6f, 12.4f);
+                    // קודקוד חד למעלה וגוף מעוגל - צורת להבה מזוהה גם בקטן
+                    d.FPoly(12, 1.8f, 14.4f, 5.6f, 16.6f, 8.4f, 18.2f, 11.4f,
+                            18.7f, 14.4f, 17.8f, 18.2f, 14.8f, 21.2f, 12, 21.9f,
+                            9.2f, 21.2f, 6.2f, 18.2f, 5.3f, 14.4f,
+                            5.8f, 11.2f, 7.6f, 9.2f, 9.1f, 11.9f,
+                            9.4f, 8.6f, 10.6f, 5.2f);
                     break;
                 case Ico.Layers:
                     d.Poly(12, 3, 21, 8, 12, 13, 3, 8, 12, 3); d.Poly(4.5f, 12, 12, 16.5f, 19.5f, 12);
@@ -290,9 +331,8 @@ namespace SubtitleStudio
                     }
                 case Ico.Chat:
                     {
-                        d.Rect(2.5f, 3.5f, 19, 13, 4);
-                        d.L(7.5f, 16.5f, 6.2f, 21.2f);
-                        d.L(6.2f, 21.2f, 12.4f, 16.5f);
+                        d.Rect(3, 4, 18, 13, 4);
+                        d.Poly(8.5f, 17, 7, 21, 12.5f, 17);
                         d.FEll(8.2f - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
                         d.FEll(12 - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
                         d.FEll(15.8f - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
@@ -300,10 +340,10 @@ namespace SubtitleStudio
                     }
                 case Ico.Key:
                     {
-                        d.Ell(3.2f, 7.6f, 8.8f, 8.8f);
-                        d.L(11.6f, 12, 21, 12);
-                        d.L(18.2f, 12, 18.2f, 15.6f);
-                        d.L(21, 12, 21, 16.4f);
+                        d.Ell(3, 12, 8, 8);
+                        d.L(9.6f, 14.4f, 20.5f, 3.5f);
+                        d.L(17.5f, 6.5f, 20, 9);
+                        d.L(14.6f, 9.4f, 17, 11.8f);
                         break;
                     }
                 case Ico.Refresh:

@@ -586,7 +586,8 @@ namespace SubtitleStudio
 
             int w = Theme.S(490);
             Lbl tl = Label(title, Theme.Big, Theme.Text);
-            tl.SetBounds(Theme.S(62), Theme.S(22), w - Theme.S(84), Theme.S(26));
+            // הכותרת נעצרת לפני אזור האייקון - אחרת הרקע שלה מכסה אותו
+            tl.SetBounds(Theme.S(22), Theme.S(22), w - Theme.S(22) - Theme.S(78), Theme.S(26));
             Lbl bl = Label(body, Theme.Ui, Theme.TextDim);
             bl.Wrap = true;
             int bodyH = 0;

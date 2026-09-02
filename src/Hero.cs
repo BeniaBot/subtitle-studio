@@ -136,6 +136,12 @@ namespace SubtitleStudio
                 _hoverRecent = h;
                 _hoverLink = l;
                 Cursor = (h >= 0 || l >= 0) ? Cursors.Hand : Cursors.Default;
+                // בלי תוויות - ההסבר מגיע בריחוף
+                string tip = "";
+                if (l == 0) tip = "איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)";
+                else if (l == 1) tip = Theme.Dark ? "מעבר למצב בהיר" : "מעבר למצב כהה";
+                else if (l == 2) tip = "על התוכנה, מנוע הווידאו ועדכונים";
+                Ui.Tip.SetToolTip(this, tip);
                 Invalidate();
             }
             base.OnMouseMove(e);
@@ -275,41 +281,23 @@ namespace SubtitleStudio
             DrawLinks(g, Theme.S(14));
         }
 
+        /// <summary>שלושה כפתורי אייקון בפינה - אותה שפה של הסרגל במסך העבודה.</summary>
         private void DrawLinks(Graphics g, float y)
         {
-            string[] labels = new string[]
-            {
-                "איך זה עובד",
-                Theme.Dark ? "מצב בהיר" : "מצב כהה",
-                "על התוכנה"
-            };
             Ico[] icons = new Ico[] { Ico.Question, Theme.Dark ? Ico.Sun : Ico.Moon, Ico.Info };
-
-            float pad = Theme.S(12);
-            float gap = Theme.S(26);
-            float[] widths = new float[labels.Length];
-            float total = 0;
-            for (int i = 0; i < labels.Length; i++)
+            float d = Theme.S(38);
+            float gap = Theme.S(6);
+            float x = Theme.S(18);
+            for (int i = 0; i < icons.Length; i++)
             {
-                widths[i] = Theme.Measure(g, labels[i], Theme.Ui).Width + Theme.S(24) + pad;
-                total += widths[i];
-            }
-            total += gap * (labels.Length - 1);
-
-            float x = Theme.S(20) + total;                        // פינה שמאלית עליונה, מימין לשמאל
-            for (int i = 0; i < labels.Length; i++)
-            {
-                RectangleF r = new RectangleF(x - widths[i], y, widths[i], Theme.S(26));
+                RectangleF r = new RectangleF(x, y - Theme.S(6), d, d);
                 _links[i] = r;
                 bool hover = i == _hoverLink;
-                Color col = hover ? Theme.Accent : Theme.TextDim;
-                Icons.Draw(g, icons[i], new RectangleF(r.Right - Theme.S(18), r.Y + Theme.S(5), Theme.S(16), Theme.S(16)), col, 1.8f);
-                Theme.Str(g, labels[i], Theme.Ui, col,
-                    new RectangleF(r.X, r.Y, r.Width - Theme.S(22), r.Height), Theme.SfRtl);
-                if (hover)
-                    using (Pen p = new Pen(Theme.Accent, 1f))
-                        g.DrawLine(p, r.X + Theme.S(2), r.Bottom - Theme.S(2), r.Right - Theme.S(24), r.Bottom - Theme.S(2));
-                x -= widths[i] + gap;
+                if (hover) Theme.FillRound(g, r, Theme.S(10), Theme.Mix(Theme.Bg, Theme.Hover, 0.8f));
+                float ic = Theme.S(19);
+                Icons.Draw(g, icons[i], new RectangleF(r.X + (d - ic) / 2, r.Y + (d - ic) / 2, ic, ic),
+                    hover ? Theme.Accent : Theme.TextDim, 1.9f);
+                x += d + gap;
             }
         }
 
