@@ -1811,14 +1811,19 @@ namespace SubtitleStudio
 
         private void ToggleTheme()
         {
+            // שומרים את הפלטה הישנה כדי למפות את הצבעים שנשמרו בפקדים
+            Color[] before = Theme.Palette();
             Theme.Dark = !Theme.Dark;
+            Color[] after = Theme.Palette();
             if (_themeBtn != null) _themeBtn.Icon = Theme.Dark ? Ico.Sun : Ico.Moon;
+            Theme.Swap(this, before, after);
+            Theme.Reapply(this, Theme.Bg);
+            if (_chat != null && !_chat.IsDisposed)
+            {
+                Theme.Swap(_chat, before, after);
+                Theme.Reapply(_chat, Theme.Bg);
+            }
             BackColor = Theme.Bg;
-            _toolbar.BackColor = Theme.Bg;
-            _list.BackColor = Theme.Panel;
-            _tl.BackColor = Theme.WaveBack;
-            _text.BackColor = Theme.PanelAlt;
-            _text.ForeColor = Theme.Text;
             Native.SetDarkTitleBar(Handle, Theme.Dark);
             Native.SetCaptionColor(Handle, Theme.Bg);
             Settings.Save(_style);

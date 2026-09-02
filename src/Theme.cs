@@ -93,6 +93,84 @@ namespace SubtitleStudio
         }
 
         // ---------- ציור ----------
+        /// <summary>הפלטה הנוכחית, לפי סדר קבוע - למיפוי צבעים בהחלפת ערכה.</summary>
+        public static Color[] Palette()
+        {
+            return new Color[]
+            {
+                Bg, Panel, PanelAlt, Hover, Border, BorderSoft,
+                Text, TextDim, TextFaint,
+                Accent, AccentSoft, Good, Warn, Bad, Purple,
+                WaveBack, Wave, WaveTop, Ruler
+            };
+        }
+
+        private static readonly System.Reflection.BindingFlags PubInst =
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
+
+        /// <summary>ממיר כל צבע מהפלטה הישנה למקביל לו בחדשה, בכל עץ הפקדים.</summary>
+        public static void Swap(Control c, Color[] from, Color[] to)
+        {
+            if (c == null) return;
+            try
+            {
+                c.BackColor = Map(c.BackColor, from, to);
+                if (!(c is Form)) c.ForeColor = Map(c.ForeColor, from, to);
+
+                foreach (System.Reflection.FieldInfo f in c.GetType().GetFields(PubInst))
+                {
+                    if (f.FieldType != typeof(Color)) continue;
+                    Color v = (Color)f.GetValue(c);
+                    if (v.IsEmpty) continue;
+                    Color n = Map(v, from, to);
+                    if (n != v) f.SetValue(c, n);
+                }
+            }
+            catch { }
+            foreach (Control k in c.Controls) Swap(k, from, to);
+            c.Invalidate(true);
+        }
+
+        private static Color Map(Color v, Color[] from, Color[] to)
+        {
+            for (int i = 0; i < from.Length && i < to.Length; i++)
+                if (v.A == from[i].A && v.R == from[i].R && v.G == from[i].G && v.B == from[i].B)
+                    return to[i];
+            return v;
+        }
+
+        /// <summary>מרענן צבעים בכל עץ הפקדים אחרי החלפת ערכה.
+        /// הפקדים מציירים את הרקע שלהם לפי BackColor, ובלי זה חצי המסך נשאר לבן.</summary>
+        public static void Reapply(Control c, Color back)
+        {
+            if (c == null) return;
+            string t = c.GetType().Name;
+
+            if (c is TextBox)
+            {
+                c.BackColor = t == "TextBox" && c.Parent != null && c.Parent.GetType().Name == "Field"
+                    ? PanelAlt : PanelAlt;
+                c.ForeColor = Text;
+                return;
+            }
+
+            Color mine = back;
+            Color childBack = back;
+            switch (t)
+            {
+                case "Card": mine = Bg; childBack = Panel; break;
+                case "TimelineControl": mine = WaveBack; childBack = WaveBack; break;
+                case "CueList": mine = Panel; childBack = Panel; break;
+                case "HeroPanel": mine = Bg; childBack = Bg; break;
+                case "VideoPreview": mine = Panel; childBack = Panel; break;
+            }
+            c.BackColor = mine;
+            if (!(c is Form)) c.ForeColor = Text;
+
+            foreach (Control k in c.Controls) Reapply(k, childBack);
+            c.Invalidate(true);
+        }
+
         public static void Smooth(Graphics g)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
