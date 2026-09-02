@@ -176,6 +176,23 @@ namespace SubtitleStudio
         public static StringFormat SfFar { get { return _sfFar; } }
         public static StringFormat SfRtl { get { return _sfRtl; } }
 
+        private static readonly StringFormat _sfRtlWrap = MakeWrap(true);
+        private static readonly StringFormat _sfWrap = MakeWrap(false);
+
+        /// <summary>גלישת שורות אמיתית - לבועות טקסט ולפסקאות.</summary>
+        private static StringFormat MakeWrap(bool rtl)
+        {
+            StringFormat f = new StringFormat(StringFormat.GenericTypographic);
+            f.Alignment = StringAlignment.Near;
+            f.LineAlignment = StringAlignment.Near;
+            f.Trimming = StringTrimming.Word;
+            if (rtl) f.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
+            return f;
+        }
+
+        public static StringFormat SfRtlWrap { get { return _sfRtlWrap; } }
+        public static StringFormat SfWrap { get { return _sfWrap; } }
+
         public static void Str(Graphics g, string s, Font f, Color c, RectangleF r, StringFormat sf)
         {
             if (string.IsNullOrEmpty(s)) return;

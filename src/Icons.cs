@@ -278,7 +278,6 @@ namespace SubtitleStudio
                     d.Poly(4.5f, 16, 12, 20.5f, 19.5f, 16); break;
                 case Ico.List: d.L(8, 6, 20, 6); d.L(8, 12, 20, 12); d.L(8, 18, 20, 18); d.FEll(3.5f, 4.5f, 3, 3); d.FEll(3.5f, 10.5f, 3, 3); d.FEll(3.5f, 16.5f, 3, 3); break;
                 case Ico.Grid: d.Rect(3.5f, 3.5f, 7, 7, 1.5f); d.Rect(13.5f, 3.5f, 7, 7, 1.5f); d.Rect(3.5f, 13.5f, 7, 7, 1.5f); d.Rect(13.5f, 13.5f, 7, 7, 1.5f); break;
-                case Ico.Refresh:
                 case Ico.Target:
                     {
                         d.Ell(4.8f, 4.8f, 14.4f, 14.4f);
@@ -307,6 +306,7 @@ namespace SubtitleStudio
                         d.L(21, 12, 21, 16.4f);
                         break;
                     }
+                case Ico.Refresh:
                 case Ico.Sync:
                     d.ArcArrow(12, 12, 7.4f, 55, 270, 4.2f);
                     break;

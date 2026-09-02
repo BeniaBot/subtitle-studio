@@ -107,6 +107,8 @@ namespace SubtitleStudio
                 sb.AppendLine("dark=" + (Theme.Dark ? "1" : "0"));
                 sb.AppendLine("autoupdate=" + (AutoUpdate ? "1" : "0"));
                 sb.AppendLine("lastcheck=" + LastCheck);
+                sb.AppendLine("aikey=" + Ai.Protect(Ai.Key));
+                sb.AppendLine("aimodel=" + Ai.Model);
                 sb.AppendLine("font=" + s.FontName);
                 sb.AppendLine("size=" + s.FontPct.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("bold=" + (s.Bold ? "1" : "0"));
@@ -150,6 +152,8 @@ namespace SubtitleStudio
                         case "recent": if (v.Length > 0 && Recent.Count < 6) Recent.Add(v); break;
                         case "autoupdate": AutoUpdate = v != "0"; break;
                         case "lastcheck": LastCheck = v; break;
+                        case "aikey": Ai.Key = Ai.Unprotect(v); break;
+                        case "aimodel": if (v.Length > 0) Ai.Model = v; break;
                     }
                 }
             }

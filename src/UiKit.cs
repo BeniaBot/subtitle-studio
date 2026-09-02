@@ -69,7 +69,9 @@ namespace SubtitleStudio
                     break;
                 case BtnKind.Tool:
                     bg = Checked ? Theme.AccentSoft : (_down ? Theme.Hover : (_hover ? Theme.Mix(Theme.Panel, Theme.Hover, 0.8f) : Color.Transparent));
-                    fg = Checked ? accent : (Enabled ? Theme.Text : Theme.TextFaint);
+                    // כפתור כלי עם גוון משלו (למשל ה-AI) - הצבע הוא סימן ההיכר שלו
+                    fg = Checked || Tint != Color.Empty ? accent : (Enabled ? Theme.Text : Theme.TextFaint);
+                    if (!Enabled) fg = Theme.TextFaint;
                     break;
                 default:
                     bg = Checked ? Theme.AccentSoft : (_down ? Theme.Mix(Theme.PanelAlt, Color.Black, 0.15f) : (_hover ? Theme.Hover : Theme.PanelAlt));

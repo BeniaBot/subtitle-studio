@@ -9,7 +9,7 @@ using System.Windows.Forms;
 namespace SubtitleStudio
 {
     /// <summary>שלב בסרגל ההדרכה העליון.</summary>
-    internal class MainForm : Form
+    internal partial class MainForm : Form
     {
         // ---------- מצב ----------
         private Doc _doc = new Doc();
@@ -32,7 +32,7 @@ namespace SubtitleStudio
         private Lbl _startLbl, _endLbl;
         private Btn _startMinus, _startPlus, _startHere, _endMinus, _endPlus, _endHere;
         private Slider _volume;
-        private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn;
+        private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn, _aiBtn;
         private readonly List<Btn> _needMedia = new List<Btn>();
         private readonly List<Btn> _toolbarBtns = new List<Btn>();
         private readonly List<Btn> _editBtns = new List<Btn>();
@@ -242,6 +242,9 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_redoBtn, "ביצוע מחדש (Ctrl+Y)");
             _toolbar.Controls.Add(_redoBtn);
 
+            _aiBtn = SmallBtn(Ico.Sparkles, "עוזר AI - לבקש פעולות במילים רגילות (Ctrl+K)",
+                delegate { OpenAiChat(); });
+            _aiBtn.Tint = Theme.Purple;
             _moreBtn = SmallBtn(Ico.Question, "איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)",
                 delegate { ShowHelp(); });
             _themeBtn = SmallBtn(Theme.Dark ? Ico.Sun : Ico.Moon, "מעבר בין מצב כהה לבהיר",
@@ -293,6 +296,14 @@ namespace SubtitleStudio
             items.Add(fix);
 
             items.Add(MenuItem.Group("תרגום"));
+            MenuItem trAi = MenuItem.Make("תרגום אוטומטי עם AI",
+                "בוחרים שפה והכתוביות מתורגמות במקום - התזמונים נשמרים", Ico.Sparkles,
+                delegate { AiTranslate(); });
+            trAi.Enabled = cues;
+            items.Add(trAi);
+            MenuItem aiSet = MenuItem.Make("הגדרות ה-AI", "המפתח החינמי מגוגל - הזנה ובדיקה", Ico.Key,
+                delegate { AiSettings(); });
+            items.Add(aiSet);
             MenuItem tr1 = MenuItem.Make("ייצוא הטקסט לתרגום", "יוצר קובץ טקסט ממוספר, בלי לגעת בתזמונים", Ico.Translate,
                 delegate { ExportForTranslation(); });
             tr1.Enabled = cues;
@@ -597,6 +608,91 @@ namespace SubtitleStudio
             _text.SelectAll();
         }
 
+        // ---------- AI ----------
+
+        /// <summary>מוודא שיש מפתח; אם אין - פותח את מסך ההגדרה.</summary>
+        private bool EnsureAiKey()
+        {
+            if (Ai.HasKey) return true;
+            AiSetupDlg d = new AiSetupDlg();
+            d.ShowDialog(this);
+            return Ai.HasKey;
+        }
+
+        private void AiSettings()
+        {
+            AiSetupDlg d = new AiSetupDlg();
+            d.ShowDialog(this);
+        }
+
+        /// <summary>תרגום כל הכתוביות בכמה קליקים.</summary>
+        private void AiTranslate()
+        {
+            if (_doc == null || _doc.Cues.Count == 0)
+            {
+                Ui.Info(this, "אין מה לתרגם", "צריך קודם לטעון או לכתוב כתוביות.");
+                return;
+            }
+            if (!EnsureAiKey()) return;
+
+            AiTranslateDlg d = new AiTranslateDlg(_doc);
+            d.ShowDialog(this);
+            if (!d.Ok) return;
+
+            List<Cue> cues = new List<Cue>(_doc.Cues);
+            AiRunDlg run = new AiRunDlg(cues, d.Lang, d.Context);
+            run.ShowDialog(this);
+            if (!run.Ok || run.Translated == null)
+            {
+                if (!string.IsNullOrEmpty(run.Error)) Ui.Error(this, "התרגום לא הושלם", run.Error);
+                return;
+            }
+
+            if (d.ReplaceInPlace)
+            {
+                _doc.Push("תרגום אוטומטי");
+                for (int i = 0; i < cues.Count && i < run.Translated.Count; i++) cues[i].Text = run.Translated[i];
+                _doc.Dirty = true;
+                _doc.RaiseChanged();
+                LoadEditor();
+                _list.Invalidate();
+                _tl.Invalidate();
+                _video.Invalidate();
+                _hintLbl.Text = "הכתוביות תורגמו ל" + d.Lang + ". לביטול - Ctrl+Z.";
+                UpdateHint();
+            }
+            else
+            {
+                List<Cue> copy = new List<Cue>();
+                for (int i = 0; i < cues.Count; i++)
+                {
+                    Cue c = cues[i].Clone();
+                    if (i < run.Translated.Count) c.Text = run.Translated[i];
+                    copy.Add(c);
+                }
+                SaveFileDialog sd = new SaveFileDialog();
+                sd.Filter = "SubRip (*.srt)|*.srt|WebVTT (*.vtt)|*.vtt|ASS (*.ass)|*.ass";
+                try
+                {
+                    if (_mediaPath != null)
+                    {
+                        sd.InitialDirectory = System.IO.Path.GetDirectoryName(_mediaPath);
+                        sd.FileName = System.IO.Path.GetFileNameWithoutExtension(_mediaPath) + " - " + d.Lang + ".srt";
+                    }
+                    else sd.FileName = "כתוביות - " + d.Lang + ".srt";
+                }
+                catch { sd.FileName = "subtitles.srt"; }
+                if (sd.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    Formats.Save(sd.FileName, copy, Formats.FormatFromExt(sd.FileName), _style,
+                        _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
+                    _hintLbl.Text = "נשמר: " + Theme.Ltr(System.IO.Path.GetFileName(sd.FileName));
+                }
+                catch (Exception ex) { Ui.Error(this, "שגיאה בשמירה", ex.Message); }
+            }
+        }
+
         private void ShowCueMenu(Control anchor)
         {
             List<MenuItem> items = new List<MenuItem>();
@@ -729,7 +825,7 @@ namespace SubtitleStudio
             int by = (toolbarH - btnH) / 2;
 
             int leftBlock = _exportBtn.Width + S(12) + _undoBtn.Width + S(4) + _redoBtn.Width
-                            + S(14) + _moreBtn.Width * 3 + S(4) + pad * 2;
+                            + S(14) + _moreBtn.Width * 4 + S(6) + pad * 2;
             int need = leftBlock + S(24);
             foreach (Btn b in _toolbarBtns) need += b.Width + S(8);
             bool compact = need > W;
@@ -749,9 +845,11 @@ namespace SubtitleStudio
             _moreBtn.SetBounds(_undoBtn.Right + S(14), by, _moreBtn.Width, btnH);
             _themeBtn.SetBounds(_moreBtn.Right + S(2), by, _themeBtn.Width, btnH);
             _aboutBtn.SetBounds(_themeBtn.Right + S(2), by, _aboutBtn.Width, btnH);
+            _aiBtn.SetBounds(_aboutBtn.Right + S(2), by, _aiBtn.Width, btnH);
             _moreBtn.BringToFront();
             _themeBtn.BringToFront();
             _aboutBtn.BringToFront();
+            _aiBtn.BringToFront();
 
             // ---- אזורי העבודה ----
             int top = toolbarH + pad;
@@ -765,6 +863,7 @@ namespace SubtitleStudio
                 _moreBtn.Visible = false;
                 _themeBtn.Visible = false;
                 _aboutBtn.Visible = false;
+                _aiBtn.Visible = false;
                 _hero.SetBounds(0, 0, W, H);
                 _hero.Reposition();
                 Invalidate();
@@ -774,6 +873,7 @@ namespace SubtitleStudio
             _moreBtn.Visible = true;
             _themeBtn.Visible = true;
             _aboutBtn.Visible = true;
+            _aiBtn.Visible = true;
             _hintLbl.Visible = true;
             _statsLbl.Visible = true;
             int tlH = Math.Max(S(180), Math.Min(S(270), (int)(H * 0.235)));
@@ -1775,6 +1875,7 @@ namespace SubtitleStudio
                     case Keys.Z: _doc.Undo(); SyncAfterDocChange(); return true;
                     case Keys.Y: _doc.Redo(); SyncAfterDocChange(); return true;
                     case Keys.T: OpenTools(); return true;
+                    case Keys.K: OpenAiChat(); return true;
                     case Keys.E: EditStyle(); return true;
                     case Keys.H: ShiftTiming(); return true;
                     case Keys.A:
