@@ -424,6 +424,47 @@ namespace SubtitleStudio
             };
             t.Add(denoise);
 
+            MediaTool reverse = new MediaTool();
+            reverse.Group = "וידאו";
+            reverse.Name = "היפוך לאחור (ריוורס)";
+            reverse.Desc = "מריץ את הסרט מהסוף להתחלה";
+            reverse.Icon = Ico.Undo;
+            reverse.ParamKind = 2;
+            reverse.ParamLabel = "מה להפוך";
+            reverse.Options = new string[] { "את התמונה ואת הקול", "רק את התמונה (הקול נשאר רגיל)", "רק את הקול" };
+            reverse.UseRange = true;
+            reverse.OutSuffix = " - הפוך";
+            reverse.Hint = delegate (ToolCtx c)
+            {
+                double sec = c.Mi != null ? c.Mi.DurationSec : 0;
+                if (c.HasRange) sec = (c.B - c.A) / 1000.0;
+                string s2 = "ההיפוך טוען את כל הקטע לזיכרון, אז עדיף על קטעים קצרים.";
+                if (sec > 120)
+                    s2 = "שימו לב: קטע של " + Tc.Short((long)(sec * 1000)) +
+                         " ידרוש הרבה זיכרון. כדאי לסמן קטע על הציר ולהפוך רק אותו.";
+                return s2;
+            };
+            reverse.Build = delegate (ToolCtx c)
+            {
+                bool hasV = c.Mi == null || c.Mi.HasVideo;
+                bool hasA = c.Mi != null && c.Mi.HasAudio;
+                string range = c.RangeArgs();
+                if (c.Opt == 2 || !hasV)
+                {
+                    // רק הקול
+                    return "-i " + Ff.Q(c.In) + " " + range + "-af areverse " +
+                           (hasV ? "-c:v copy " : "") + Q.MaxAudio + " " + Ff.Q(c.Out);
+                }
+                if (c.Opt == 1 || !hasA)
+                {
+                    return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse " + Q.MaxVideo + " " +
+                           (hasA ? Q.MaxAudio + " " : "-an ") + Ff.Q(c.Out);
+                }
+                return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse -af areverse " +
+                       Q.MaxVideo + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
+            };
+            t.Add(reverse);
+
             MediaTool fit = new MediaTool();
             fit.Group = "לשיתוף";
             fit.Name = "התאמה לגודל קובץ מבוקש";

@@ -10,7 +10,7 @@ namespace SubtitleStudio
         Film, Speaker, SpeakerOff, Gear, Undo, Redo, Scissors, Wand, Clock, Search, Close, Check,
         ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, Split, Merge, ZoomIn, ZoomOut,
         Import, Export, Info, Warning, Sliders, TextIcon, Sun, Moon, Flame, Layers, ShiftLR, List,
-        Refresh, Download, Upload, Image, Sparkles, Translate, Mic, Cut, Eye, Grid, Question, Sync
+        Refresh, Download, Upload, Image, Sparkles, Translate, Mic, Cut, Eye, Grid, Question, Sync, Target, Chat, Key
     }
 
     /// <summary>אייקונים וקטוריים מצוירים בקוד - בלי גופן אייקונים ובלי קבצים.</summary>
@@ -279,6 +279,34 @@ namespace SubtitleStudio
                 case Ico.List: d.L(8, 6, 20, 6); d.L(8, 12, 20, 12); d.L(8, 18, 20, 18); d.FEll(3.5f, 4.5f, 3, 3); d.FEll(3.5f, 10.5f, 3, 3); d.FEll(3.5f, 16.5f, 3, 3); break;
                 case Ico.Grid: d.Rect(3.5f, 3.5f, 7, 7, 1.5f); d.Rect(13.5f, 3.5f, 7, 7, 1.5f); d.Rect(3.5f, 13.5f, 7, 7, 1.5f); d.Rect(13.5f, 13.5f, 7, 7, 1.5f); break;
                 case Ico.Refresh:
+                case Ico.Target:
+                    {
+                        d.Ell(4.8f, 4.8f, 14.4f, 14.4f);
+                        d.FEll(10.2f, 10.2f, 3.6f, 3.6f);
+                        d.L(12, 1.6f, 12, 4.4f);
+                        d.L(12, 19.6f, 12, 22.4f);
+                        d.L(1.6f, 12, 4.4f, 12);
+                        d.L(19.6f, 12, 22.4f, 12);
+                        break;
+                    }
+                case Ico.Chat:
+                    {
+                        d.Rect(2.5f, 3.5f, 19, 13, 4);
+                        d.L(7.5f, 16.5f, 6.2f, 21.2f);
+                        d.L(6.2f, 21.2f, 12.4f, 16.5f);
+                        d.FEll(8.2f - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
+                        d.FEll(12 - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
+                        d.FEll(15.8f - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
+                        break;
+                    }
+                case Ico.Key:
+                    {
+                        d.Ell(3.2f, 7.6f, 8.8f, 8.8f);
+                        d.L(11.6f, 12, 21, 12);
+                        d.L(18.2f, 12, 18.2f, 15.6f);
+                        d.L(21, 12, 21, 16.4f);
+                        break;
+                    }
                 case Ico.Sync:
                     d.ArcArrow(12, 12, 7.4f, 55, 270, 4.2f);
                     break;

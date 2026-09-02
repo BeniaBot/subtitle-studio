@@ -312,16 +312,30 @@ namespace SubtitleStudio
                 return;
             }
 
-            // אזור ריק
-            if ((ModifierKeys & Keys.Alt) != 0)
+            // אזור ריק - ההתנהגות תלויה בגובה, וזה מה שהופך את הציר למובן:
+            // על פס הקול גוררים כדי לנווט בסרט, ובפס הכתוביות גוררים כדי ליצור אחת חדשה.
+            bool inLane = e.Y >= TrackTop;
+            bool ctrlDown = (ModifierKeys & Keys.Control) != 0;
+
+            if ((ModifierKeys & Keys.Alt) != 0 || (inLane && !ctrlDown))
             {
                 _mode = Mode.CreateNew;
                 _newA = _newB = _dragStartMs;
+                Cursor = Cursors.Cross;
+                Invalidate();
                 return;
             }
+
+            if (!inLane && !ctrlDown)
+            {
+                _mode = Mode.Seek;
+                if (SeekRequested != null) SeekRequested(this, Math.Max(0, _dragStartMs));
+                return;
+            }
+
             _mode = Mode.Rubber;
             _rubberA = _rubberB = _dragStartMs;
-            if ((ModifierKeys & Keys.Control) == 0 && Doc != null)
+            if (!ctrlDown && Doc != null)
             {
                 Doc.SelectNone();
                 if (SelectionChanged != null) SelectionChanged(this, EventArgs.Empty);
@@ -353,7 +367,8 @@ namespace SubtitleStudio
                             _hoverPart = h.Part;
                             Cursor = (h.Part == HitPart.Left || h.Part == HitPart.Right || h.Part == HitPart.InMark || h.Part == HitPart.OutMark)
                                 ? Cursors.SizeWE
-                                : (h.Part == HitPart.Body ? Cursors.SizeAll : Cursors.Default);
+                                : (h.Part == HitPart.Body ? Cursors.SizeAll
+                                   : (e.Y >= TrackTop && e.Y < Height - ScrollH ? Cursors.Cross : Cursors.Default));
                             Invalidate();
                         }
                         break;
@@ -555,8 +570,11 @@ namespace SubtitleStudio
             }
             else if (Doc != null && Doc.Cues.Count == 0)
             {
-                Theme.Str(g, "לחצו פעמיים על הפס התחתון כדי ליצור כתובית · או Alt+גרירה לאורך הרצוי",
-                    Theme.Small, Theme.TextFaint, new RectangleF(0, TrackTop + (Height - ScrollH - TrackTop) / 2f - 9, Width, 18), Theme.SfCenter);
+                float hy = TrackTop + (Height - ScrollH - TrackTop) / 2f;
+                Theme.Str(g, "גררו כאן כדי ליצור כתובית", Theme.Big, Theme.TextDim,
+                    new RectangleF(0, hy - Theme.S(20), Width, Theme.S(22)), Theme.SfCenter);
+                Theme.Str(g, "מסמנים מאיפה עד איפה היא תופיע - ואז כותבים את הטקסט",
+                    Theme.Small, Theme.TextFaint, new RectangleF(0, hy + Theme.S(3), Width, Theme.S(18)), Theme.SfCenter);
             }
         }
 
@@ -655,6 +673,18 @@ namespace SubtitleStudio
         {
             if (Doc == null) return;
             int laneH = LaneH;
+
+            // רקע לפס הכתוביות - מפריד ויזואלית בין "פס הקול" (ניווט) ל"פס הכתוביות" (יצירה)
+            int laneTop = TrackTop;
+            int laneBottom = Height - ScrollH;
+            if (laneBottom > laneTop)
+            {
+                using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.WaveBack, Theme.PanelAlt, Theme.Dark ? 0.55f : 0.75f)))
+                    g.FillRectangle(b, 0, laneTop, Width, laneBottom - laneTop);
+                using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, laneTop, Width, laneTop);
+                Theme.Str(g, "כתוביות", Theme.Small, Theme.TextFaint,
+                    new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfRtl);
+            }
             for (int i = 0; i < Doc.Cues.Count; i++)
             {
                 Cue c = Doc.Cues[i];

@@ -55,17 +55,30 @@ namespace SubtitleStudio
             string key = size.ToString("0.##") + "|" + (int)style;
             Font f;
             if (_fonts.TryGetValue(key, out f)) return f;
-            f = new Font("Segoe UI", size, style, GraphicsUnit.Point);
+            f = Fonts.Make(size, style);
             _fonts[key] = f;
             return f;
         }
         public static Font F(float size) { return F(size, FontStyle.Regular); }
-        public static Font Ui { get { return F(9.75f); } }
-        public static Font UiBold { get { return F(9.75f, FontStyle.Bold); } }
-        public static Font Small { get { return F(8.25f); } }
-        public static Font SmallBold { get { return F(8.25f, FontStyle.Bold); } }
-        public static Font Title { get { return F(13.5f, FontStyle.Bold); } }
-        public static Font Big { get { return F(11f, FontStyle.Bold); } }
+
+        /// <summary>חצי-מודגש: נראה נקי ויקר יותר מבולד מלא, ומדגיש מספיק.</summary>
+        public static Font Semi(float size)
+        {
+            string key = size.ToString("0.##") + "|semi";
+            Font f;
+            if (_fonts.TryGetValue(key, out f)) return f;
+            f = Fonts.MakeSemi(size);
+            _fonts[key] = f;
+            return f;
+        }
+
+        public static Font Ui { get { return F(10.25f); } }
+        public static Font UiBold { get { return Semi(10.25f); } }
+        public static Font UiHeavy { get { return F(10.25f, FontStyle.Bold); } }
+        public static Font Small { get { return F(8.75f); } }
+        public static Font SmallBold { get { return Semi(8.75f); } }
+        public static Font Title { get { return F(14f, FontStyle.Bold); } }
+        public static Font Big { get { return Semi(11.5f); } }
         public static Font Mono { get { return MonoFont(9f); } }
 
         private static readonly Dictionary<float, Font> _mono = new Dictionary<float, Font>();
@@ -102,6 +115,22 @@ namespace SubtitleStudio
             p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
             p.CloseFigure();
             return p;
+        }
+
+        /// <summary>צל רך מתחת לכרטיס. עדיף על מסגרת דקה - נותן עומק במקום קו.</summary>
+        public static void Shadow(Graphics g, RectangleF r, float radius, int layers, int strength)
+        {
+            if (r.Width <= 2 || r.Height <= 2) return;
+            Color c = Dark ? Color.Black : C(0x2A, 0x35, 0x4A);
+            for (int i = layers; i >= 1; i--)
+            {
+                RectangleF rr = new RectangleF(r.X - i, r.Y - i * 0.35f, r.Width + i * 2, r.Height + i * 1.6f);
+                int a = strength / i;
+                if (a < 1) continue;
+                using (GraphicsPath p = RoundRect(rr, radius + i))
+                using (Pen pen = new Pen(Color.FromArgb(a, c), 1.7f))
+                    g.DrawPath(pen, p);
+            }
         }
 
         public static void FillRound(Graphics g, RectangleF r, float radius, Color color)

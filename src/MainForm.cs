@@ -29,6 +29,8 @@ namespace SubtitleStudio
         private TextBox _text;
         private Field _startF, _endF;
         private Lbl _durLbl, _cpsLbl, _hintLbl, _statsLbl, _timeLbl, _mediaLbl, _textLbl, _timesLbl, _textEmptyHint;
+        private Lbl _startLbl, _endLbl;
+        private Btn _startMinus, _startPlus, _startHere, _endMinus, _endPlus, _endHere;
         private Slider _volume;
         private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn;
         private readonly List<Btn> _needMedia = new List<Btn>();
@@ -454,45 +456,145 @@ namespace SubtitleStudio
             _editCard.Controls.Add(_text);
 
             _timesLbl = new Lbl();
-            _timesLbl.Text = "מתי היא מופיעה";
+            _timesLbl.Text = "מתי היא מופיעה על המסך";
             _timesLbl.Font = Theme.Small;
             _timesLbl.Color = Theme.TextDim;
             _editCard.Controls.Add(_timesLbl);
 
+            _startLbl = new Lbl();
+            _startLbl.Text = "מופיעה";
+            _startLbl.Font = Theme.SmallBold;
+            _startLbl.Color = Theme.Text;
+            _startLbl.Align = StringAlignment.Far;
+            _editCard.Controls.Add(_startLbl);
+
             _startF = new Field();
-            _startF.Placeholder = "התחלה";
+            _startF.Placeholder = "0:00.0";
             _startF.Box.TextChanged += delegate { CommitTimes(); };
             Ui.Tip.SetToolTip(_startF.Box, "הזמן שבו הכתובית מופיעה. אפשר גם לגרור את הבלוק על הציר.");
             _editCard.Controls.Add(_startF);
 
+            _startMinus = AddNudge("−", "מקדים בעשירית שנייה", true, -100);
+            _startPlus = AddNudge("+", "מאחר בעשירית שנייה", true, 100);
+            _startHere = AddHere(true);
+
+            _endLbl = new Lbl();
+            _endLbl.Text = "נעלמת";
+            _endLbl.Font = Theme.SmallBold;
+            _endLbl.Color = Theme.Text;
+            _endLbl.Align = StringAlignment.Far;
+            _editCard.Controls.Add(_endLbl);
+
             _endF = new Field();
-            _endF.Placeholder = "סיום";
+            _endF.Placeholder = "0:00.0";
             _endF.Box.TextChanged += delegate { CommitTimes(); };
             Ui.Tip.SetToolTip(_endF.Box, "הזמן שבו הכתובית נעלמת.");
             _editCard.Controls.Add(_endF);
 
+            _endMinus = AddNudge("−", "מקדים בעשירית שנייה", false, -100);
+            _endPlus = AddNudge("+", "מאחר בעשירית שנייה", false, 100);
+            _endHere = AddHere(false);
+
             _durLbl = new Lbl();
             _durLbl.Font = Theme.SmallBold;
             _durLbl.Color = Theme.TextDim;
-            _durLbl.Align = StringAlignment.Near;
+            _durLbl.Align = StringAlignment.Far;
             _editCard.Controls.Add(_durLbl);
 
             _cpsLbl = new Lbl();
             _cpsLbl.Font = Theme.Small;
             _cpsLbl.Color = Theme.TextDim;
-            _cpsLbl.Align = StringAlignment.Near;
+            _cpsLbl.Align = StringAlignment.Far;
             _editCard.Controls.Add(_cpsLbl);
 
             AddEdit("כתובית חדשה", Ico.Plus, "יוצר כתובית חדשה במקום שבו נמצא הסמן על הציר (Ctrl+N)",
-                delegate { NewCueAtPlayhead(); }, BtnKind.Primary, 140);
-            AddEdit("שתתחיל כאן", Ico.ChevronRight, "קובע שהכתובית מתחילה בדיוק במקום הסמן (Q)",
-                delegate { SetEdge(true); }, BtnKind.Subtle, 124);
-            AddEdit("שתיגמר כאן", Ico.ChevronLeft, "קובע שהכתובית נגמרת בדיוק במקום הסמן (W)",
-                delegate { SetEdge(false); }, BtnKind.Subtle, 124);
+                delegate { NewCueAtPlayhead(); }, BtnKind.Primary, 142);
+            AddEdit("הקודמת", Ico.ChevronRight, "מעבר לכתובית שלפני זו",
+                delegate { StepCue(-1); }, BtnKind.Subtle, 100);
+            AddEdit("הבאה", Ico.ChevronLeft, "מעבר לכתובית שאחרי זו (Tab)",
+                delegate { StepCue(1); }, BtnKind.Subtle, 92);
             AddEdit("מחיקה", Ico.Trash, "מוחק את הכתוביות המסומנות (Delete)",
                 delegate { DeleteCues(); }, BtnKind.Ghost, 104);
             Btn more = AddEdit("עוד", Ico.ChevronDown, "חלוקה לשתיים, חיבור כתוביות", null, BtnKind.Tool, 78);
             more.Click += delegate { ShowCueMenu(more); };
+        }
+
+        /// <summary>כפתור קטן להזזת זמן בעשירית שנייה - עדיף על הקלדת זמן.</summary>
+        private Btn AddNudge(string sign, string tip, bool start, int deltaMs)
+        {
+            Btn b = new Btn();
+            b.Icon = deltaMs < 0 ? Ico.Minus : Ico.Plus;
+            b.Kind = BtnKind.Tool;
+            b.Font = Theme.Small;
+            b.Size = new Size(Theme.S(32), Theme.S(32));
+            b.Radius = Theme.S(8);
+            b.Click += delegate { NudgeEdge(start, deltaMs); };
+            Ui.Tip.SetToolTip(b, tip);
+            _editCard.Controls.Add(b);
+            return b;
+        }
+
+        /// <summary>קובע את הזמן לפי המקום שבו הסרט עומד עכשיו.</summary>
+        private Btn AddHere(bool start)
+        {
+            Btn b = new Btn();
+            b.Text = "מהסרט";
+            b.Icon = Ico.Target;
+            b.Kind = BtnKind.Subtle;
+            b.Font = Theme.Small;
+            b.Size = new Size(Theme.S(104), Theme.S(32));
+            b.Radius = Theme.S(8);
+            b.Click += delegate { SetEdge(start); };
+            Ui.Tip.SetToolTip(b, start
+                ? "לוקח את הזמן שבו הסרט עומד עכשיו כזמן ההופעה (מקש Q)"
+                : "לוקח את הזמן שבו הסרט עומד עכשיו כזמן ההיעלמות (מקש W)");
+            _editCard.Controls.Add(b);
+            return b;
+        }
+
+        /// <summary>מזיז קצה של כתובית בלי לתת
+        /// לה להתהפך.</summary>
+        private void NudgeEdge(bool start, int deltaMs)
+        {
+            if (_editing == null) return;
+            _doc.Push("כוונון תזמון");
+            if (start)
+            {
+                long v = Math.Max(0, _editing.Start + deltaMs);
+                if (v > _editing.End - 200) v = Math.Max(0, _editing.End - 200);
+                _editing.Start = v;
+            }
+            else
+            {
+                _editing.End = Math.Max(_editing.Start + 200, _editing.End + deltaMs);
+            }
+            _doc.Dirty = true;
+            _doc.Sort();
+            LoadEditor();
+            _list.Invalidate();
+            _tl.Invalidate();
+            _video.Invalidate();
+        }
+
+        /// <summary>מעבר לכתובית הקודמת או הבאה.</summary>
+        private void StepCue(int dir)
+        {
+            if (_doc == null || _doc.Cues.Count == 0) return;
+            int i = _editing != null ? _doc.Cues.IndexOf(_editing) : -1;
+            i = i < 0 ? (dir > 0 ? 0 : _doc.Cues.Count - 1) : i + dir;
+            if (i < 0) i = 0;
+            if (i > _doc.Cues.Count - 1) i = _doc.Cues.Count - 1;
+            Cue c = _doc.Cues[i];
+            _doc.SelectNone();
+            c.Selected = true;
+            LoadEditor();
+            _list.ScrollToCue(c);
+            _list.Invalidate();
+            _tl.EnsureVisible(c.Start, false);
+            _tl.Invalidate();
+            Seek(c.Start);
+            _text.Focus();
+            _text.SelectAll();
         }
 
         private void ShowCueMenu(Control anchor)
@@ -675,7 +777,7 @@ namespace SubtitleStudio
             _hintLbl.Visible = true;
             _statsLbl.Visible = true;
             int tlH = Math.Max(S(180), Math.Min(S(270), (int)(H * 0.235)));
-            int editH = S(164);
+            int editH = S(192);
             int mainH = H - top - tlH - statusH - pad * 2;
             if (mainH < S(300))
             {
@@ -712,30 +814,33 @@ namespace SubtitleStudio
             _timeLbl.SetBounds(Math.Max(S(190), bx - timeW - S(6)), ty + S(6), timeW, S(44));
             _volume.SetBounds(S(14), ty + S(15), S(160), S(28));
 
-            // כרטיס העריכה
+            // כרטיס העריכה:
+            // מימין תיבת הטקסט, משמאל שתי שורות זמן עם כפתורי כוונון.
             int ew = leftW;
-            int colW = S(232);
-            int fieldW = S(106);
-            int textW = Math.Max(S(200), ew - S(28) - colW - S(16));
-            int labelY = _editCard.HeaderH + S(8);
-            int rowY = _editCard.HeaderH + S(30);
-            _textLbl.SetBounds(ew - S(14) - S(240), labelY, S(240), S(18));
-            _text.SetBounds(ew - S(14) - textW, rowY, textW, S(52));
-            _textEmptyHint.SetBounds(ew - S(14) - textW + S(10), rowY + S(4), textW - S(20), S(24));
+            int colW = S(344);
+            int fieldW = S(88);
+            int textW = Math.Max(S(200), ew - S(28) - colW - S(18));
+            int labelY = _editCard.HeaderH + S(6);
+            int rowY = _editCard.HeaderH + S(28);
+            int row2Y = rowY + S(38);
+            _textLbl.SetBounds(ew - S(14) - S(260), labelY, S(260), S(18));
+            _text.SetBounds(ew - S(14) - textW, rowY, textW, S(72));
+            _textEmptyHint.SetBounds(ew - S(14) - textW + S(10), rowY + S(6), textW - S(20), S(24));
             _timesLbl.SetBounds(S(14), labelY, colW, S(18));
-            _startF.SetBounds(S(14) + colW - fieldW, rowY, fieldW, S(34));
-            _endF.SetBounds(S(14) + colW - fieldW * 2 - S(8), rowY, fieldW, S(34));
-            _durLbl.SetBounds(S(14) + colW - fieldW, rowY + S(38), fieldW, S(18));
-            _cpsLbl.SetBounds(S(14) + colW - fieldW * 2 - S(8), rowY + S(38), fieldW, S(18));
 
-            int ebx = ew - S(14);
+            LayoutTimeRow(rowY, colW, fieldW, _startLbl, _startMinus, _startF, _startPlus, _startHere);
+            LayoutTimeRow(row2Y, colW, fieldW, _endLbl, _endMinus, _endF, _endPlus, _endHere);
+
             int eby = editH - S(46);
+            int ebx = ew - S(14);
             foreach (Btn b in _editBtns)
             {
                 ebx -= b.Width;
                 b.SetBounds(ebx, eby, b.Width, b.Height);
                 ebx -= S(7);
             }
+            _durLbl.SetBounds(S(14), eby + S(1), S(160), S(18));
+            _cpsLbl.SetBounds(S(14), eby + S(18), S(200), S(16));
 
             // ציר הזמן
             int tlY = top + mainH + pad;
@@ -754,6 +859,23 @@ namespace SubtitleStudio
             _hintLbl.SetBounds(W - hintW - pad - S(10), H - statusH + S(2), hintW, S(22));
             _statsLbl.SetBounds(pad + S(12), H - statusH + S(2), Math.Max(S(80), W - hintW - S(60)), S(22));
             Invalidate();
+        }
+
+        /// <summary>שורת זמן אחת: תווית, מינוס, שדה, פלוס, וכפתור מהסרט - מימין לשמאל.</summary>
+        private void LayoutTimeRow(int y, int colW, int fieldW, Lbl lbl, Btn minus, Field field, Btn plus, Btn here)
+        {
+            int right = S(14) + colW;
+            int lblW = S(54), h = S(32);
+            int x = right - lblW;
+            lbl.SetBounds(x, y + S(7), lblW, S(18));
+            x -= S(6) + fieldW;
+            field.SetBounds(x, y, fieldW, h);
+            x -= S(6) + plus.Width;
+            plus.SetBounds(x, y, plus.Width, h);
+            x -= S(2) + minus.Width;
+            minus.SetBounds(x, y, minus.Width, h);
+            x -= S(8) + here.Width;
+            here.SetBounds(x, y, here.Width, h);
         }
 
         protected override void OnPaintBackground(PaintEventArgs e)
@@ -910,8 +1032,8 @@ namespace SubtitleStudio
                 _text.Enabled = true;
                 _textEmptyHint.Visible = false;
                 if (_text.Text != c.Text) _text.Text = c.Text;
-                _startF.Text = Tc.Clock(c.Start);
-                _endF.Text = Tc.Clock(c.End);
+                _startF.Text = Tc.Short(c.Start);
+                _endF.Text = Tc.Short(c.End);
             }
             _loadingEditor = false;
             UpdateCps();
@@ -929,7 +1051,7 @@ namespace SubtitleStudio
             }
             else
             {
-                _durLbl.Text = "משך: " + (_editing.Duration / 1000.0).ToString("0.00") + " שנ׳";
+                _durLbl.Text = "משך " + (_editing.Duration / 1000.0).ToString("0.0") + " שניות";
                 double cps = _editing.Cps;
                 _cpsLbl.Text = _editing.PlainText.Length == 0 ? "" :
                     (cps > 25 ? "מהיר מדי לקריאה" : (cps > 20 ? "קצת מהיר" : "קצב קריאה טוב"));

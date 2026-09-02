@@ -152,23 +152,28 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Bg)) g.FillRectangle(b, ClientRectangle);
-            RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
+            int pad = Theme.S(3);
+            RectangleF r = new RectangleF(pad, pad, Width - 1 - pad * 2, Height - 1 - pad * 2);
+            Theme.Shadow(g, r, Radius, Theme.S(3), Theme.Dark ? 46 : 26);
             Theme.FillRound(g, r, Radius, Fill == Color.Empty ? Theme.Panel : Fill);
             if (Outlined) Theme.DrawRound(g, r, Radius, Theme.BorderSoft, 1f);
             if (HeaderH > 0)
             {
-                float tx = Width - 14;
+                int m = Theme.S(15), ic = Theme.S(18);
+                float tx = Width - m;
                 if (CaptionIcon != Ico.None)
                 {
-                    Icons.Draw(g, CaptionIcon, new RectangleF(tx - 18, HeaderH / 2f - 9, 18, 18), Theme.TextDim, 1.9f);
-                    tx -= 26;
+                    Icons.Draw(g, CaptionIcon, new RectangleF(tx - ic, HeaderH / 2f - ic / 2f, ic, ic), Theme.TextDim, 1.9f);
+                    tx -= ic + Theme.S(8);
                 }
                 if (!string.IsNullOrEmpty(Caption))
-                    Theme.Str(g, Caption, Theme.UiBold, Theme.Text, new RectangleF(14, 0, tx - 14, HeaderH), Theme.SfRtl);
-                using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 8, HeaderH - 1, Width - 9, HeaderH - 1);
+                    Theme.Str(g, Caption, Theme.UiBold, Theme.Text, new RectangleF(m, 0, tx - m, HeaderH), Theme.SfRtl);
+                using (Pen p = new Pen(Theme.BorderSoft, 1))
+                    g.DrawLine(p, m, HeaderH - 1, Width - m, HeaderH - 1);
             }
             else if (!string.IsNullOrEmpty(Caption))
-                Theme.Str(g, Caption, Theme.SmallBold, Theme.TextDim, new RectangleF(12, 6, Width - 24, 18), Theme.SfRtl);
+                Theme.Str(g, Caption, Theme.SmallBold, Theme.TextDim,
+                    new RectangleF(Theme.S(13), Theme.S(6), Width - Theme.S(26), Theme.S(20)), Theme.SfRtl);
         }
     }
 
