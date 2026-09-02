@@ -19,7 +19,7 @@ public class PM{
 }
 "@
 [void][PM]::SetProcessDPIAware()
-$dest = "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad"
+$dest = "$env:TEMP\ss-gallery"
 $p = Get-Process SubtitleStudio -ErrorAction SilentlyContinue
 if (-not $p) { Write-Host "app not running"; exit 1 }
 $wins = [PM]::Wins([uint32]$p.Id)

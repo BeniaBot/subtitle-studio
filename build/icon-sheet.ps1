@@ -1,6 +1,6 @@
 ﻿# מצייר את כל האייקונים של התוכנה לגיליון אחד לבדיקה חזותית
 Add-Type -AssemblyName System.Drawing
-$dest = "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad"
+$dest = "$env:TEMP\ss-gallery"
 $asm = [Reflection.Assembly]::LoadFrom("D:\Claude\subtitle-studio\dist\SubtitleStudio.exe")
 $NP = [Reflection.BindingFlags]::NonPublic
 $PB = [Reflection.BindingFlags]::Public

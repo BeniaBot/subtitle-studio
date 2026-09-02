@@ -27,7 +27,7 @@ public class PW{
 "@ -ErrorAction SilentlyContinue
 [void][PW]::SetProcessDPIAware()
 
-$dest = "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad"
+$dest = "$env:TEMP\ss-gallery"
 $p = Start-Process "dist\SubtitleStudio.exe" -ArgumentList $Media -PassThru
 Start-Sleep -Seconds 7
 

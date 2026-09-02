@@ -69,7 +69,7 @@ $g = [System.Drawing.Graphics]::FromImage($bmp)
 $hdc = $g.GetHdc()
 [void][WW]::PrintWindow($h, $hdc, 2)
 $g.ReleaseHdc($hdc)
-$dest = Join-Path "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad" $Shot
+$dest = Join-Path "$env:TEMP\ss-gallery" $Shot
 $bmp.Save($dest, [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose(); $bmp.Dispose()
 Write-Host "SHOT $dest ($w x $ht)"

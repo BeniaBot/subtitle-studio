@@ -1,6 +1,6 @@
 ﻿# בדיקת קצה-לקצה: פותח את התוכנה, מפעיל הטמעה בסרט, ובודק שהקובץ נוצר
 $root = Split-Path $PSScriptRoot -Parent
-$scratch = "$env:TEMP\claude\D--Claude\a7f901d1-facb-465f-a4c9-637652910880\scratchpad"
+$scratch = "$env:TEMP\ss-gallery"
 $media = "$scratch\test.mp4"
 $expected = "$scratch\test - עם כתוביות צרובות.mp4"
 Remove-Item $expected -ErrorAction SilentlyContinue
@@ -57,6 +57,11 @@ Write-Host "dialog at $($r.L),$($r.T) size ${w}x${h}"
 $bx = $r.L + [int]($w * 0.20)
 $by = $r.B - [int]($h * 0.075)
 Write-Host "clicking OK at $bx,$by"
+# הקלקה על חלון שאינו בחזית נבלעת בהפעלה - ממקדים קודם
+[MS]::Focus($dlg)
+Start-Sleep -Milliseconds 500
+[MS]::Click($bx, $by)
+Start-Sleep -Milliseconds 400
 [MS]::Click($bx, $by)
 
 # ממתינים לסיום הקידוד
