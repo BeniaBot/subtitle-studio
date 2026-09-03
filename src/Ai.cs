@@ -65,6 +65,7 @@ namespace SubtitleStudio
         public string Text = "";
         public AiCall Call;
         public string Error;
+        public string Finish = "";      // סיבת סיום מהשרת (MAX_TOKENS וכדומה)
         public bool Ok { get { return Error == null; } }
     }
 
@@ -156,6 +157,13 @@ namespace SubtitleStudio
         private static string Endpoint(string model)
         {
             return "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + Uri.EscapeDataString(Key);
+        }
+
+        /// <summary>מערך מ-JSON מגיע לפעמים כ-object[] ולפעמים כ-ArrayList,
+        /// תלוי איך פוענח. המרה קשיחה ל-object[] מחזירה null ושוברת הכל.</summary>
+        private static System.Collections.IList Arr(object o)
+        {
+            return o as System.Collections.IList;
         }
 
         private static JavaScriptSerializer Ser()
@@ -267,18 +275,20 @@ namespace SubtitleStudio
 
             try
             {
-                Dictionary<string, object> root = Ser().Deserialize<Dictionary<string, object>>(reply);
+                Dictionary<string, object> root = Ser().DeserializeObject(reply) as Dictionary<string, object>;
+                if (root == null) { r.Error = "השרת החזיר תשובה לא צפויה: " + Snip(reply); return r; }
                 object cands;
                 if (!root.TryGetValue("candidates", out cands)) { r.Error = ErrorFrom(root, reply); return r; }
-                object[] arr = cands as object[];
-                if (arr == null || arr.Length == 0) { r.Error = ErrorFrom(root, reply); return r; }
+                System.Collections.IList arr = Arr(cands);
+                if (arr == null || arr.Count == 0) { r.Error = ErrorFrom(root, reply); return r; }
+                r.Finish = FinishOf(arr[0]);
                 Dictionary<string, object> c0 = arr[0] as Dictionary<string, object>;
                 object content;
                 if (c0 == null || !c0.TryGetValue("content", out content)) { r.Error = "התשובה מהשרת ריקה."; return r; }
                 Dictionary<string, object> cd = content as Dictionary<string, object>;
                 object parts;
                 if (cd == null || !cd.TryGetValue("parts", out parts)) { r.Error = "התשובה מהשרת ריקה."; return r; }
-                object[] pa = parts as object[];
+                System.Collections.IList pa = Arr(parts);
                 StringBuilder text = new StringBuilder();
                 if (pa != null)
                 {
@@ -309,11 +319,47 @@ namespace SubtitleStudio
                     }
                 }
                 r.Text = text.ToString().Trim();
-                if (r.Text.Length == 0 && r.Call == null) r.Error = "המודל לא החזיר תשובה. נסו לנסח אחרת.";
+                if (r.Text.Length == 0 && r.Call == null)
+                {
+                    if (r.Finish == "MAX_TOKENS")
+                        r.Error = "התשובה נקטעה באמצע (הגבלת אורך). נסו בקשה קצרה יותר.";
+                    else if (r.Finish == "SAFETY" || r.Finish == "PROHIBITED_CONTENT")
+                        r.Error = "גוגל חסמה את התוכן הזה. נסו ניסוח אחר.";
+                    else
+                        r.Error = "המודל לא החזיר תשובה" +
+                                  (string.IsNullOrEmpty(r.Finish) ? "." : " (" + r.Finish + ").") + " נסו לנסח אחרת.";
+                    Log("תשובה ריקה. finish=" + r.Finish + "  גוף: " + Snip(reply));
+                }
             }
-            catch (Exception ex) { r.Error = "לא הצלחתי לקרוא את התשובה: " + ex.Message; }
+            catch (Exception ex)
+            {
+                r.Error = "לא הצלחתי לקרוא את התשובה: " + ex.Message;
+                Log("שגיאת קריאה: " + ex.Message + "  גוף: " + Snip(reply));
+            }
             if (r.Error != null) LastError = r.Error;
             return r;
+        }
+
+        /// <summary>מוציא את סיבת הסיום מהמועמד הראשון.</summary>
+        private static string FinishOf(object cand)
+        {
+            try
+            {
+                Dictionary<string, object> d = cand as Dictionary<string, object>;
+                object f;
+                if (d != null && d.TryGetValue("finishReason", out f)) return Convert.ToString(f);
+            }
+            catch { }
+            return "";
+        }
+
+        /// <summary>קטע קצר מגוף התשובה, ליומן ולהודעות.</summary>
+        private static string Snip(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "(ריק)";
+            string t = raw.Replace("\r", " ").Replace("\n", " ").Trim();
+            if (t.Length > 300) t = t.Substring(0, 300) + "...";
+            return Safe(t);
         }
 
         private static string ErrorFrom(Dictionary<string, object> root, string raw)
@@ -330,9 +376,23 @@ namespace SubtitleStudio
                         if (ed.TryGetValue("message", out m)) return Convert.ToString(m);
                     }
                 }
+
+                // בקשה שנחסמה לפני שהגיעה למודל מחזירה promptFeedback בלבד
+                object pf;
+                if (root.TryGetValue("promptFeedback", out pf))
+                {
+                    Dictionary<string, object> pd = pf as Dictionary<string, object>;
+                    object br;
+                    if (pd != null && pd.TryGetValue("blockReason", out br))
+                    {
+                        Log("נחסם: " + Convert.ToString(br));
+                        return "גוגל חסמה את הבקשה (" + Convert.ToString(br) + "). נסו ניסוח אחר.";
+                    }
+                }
             }
             catch { }
-            return "השרת החזיר תשובה לא צפויה.";
+            Log("גוף לא מוכר: " + Snip(raw));
+            return "השרת החזיר תשובה לא צפויה: " + Snip(raw);
         }
 
         private static bool Post(string url, string json, out string reply, out string error)
@@ -385,7 +445,7 @@ namespace SubtitleStudio
             {
                 if (!string.IsNullOrEmpty(detail))
                 {
-                    Dictionary<string, object> root = Ser().Deserialize<Dictionary<string, object>>(detail);
+                    Dictionary<string, object> root = Ser().DeserializeObject(detail) as Dictionary<string, object>;
                     object e;
                     if (root.TryGetValue("error", out e))
                     {
@@ -499,7 +559,8 @@ namespace SubtitleStudio
                 int a = txt.IndexOf('[');
                 int b = txt.LastIndexOf(']');
                 if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
-                object[] arr = Ser().Deserialize<object[]>(txt);
+                System.Collections.IList arr = Arr(Ser().DeserializeObject(txt));
+                if (arr == null) { error = "התרגום חזר בפורמט לא צפוי."; return null; }
                 string[] byIndex = new string[lines.Count];
                 foreach (object o in arr)
                 {

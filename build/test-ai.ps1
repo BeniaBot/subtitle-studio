@@ -1,6 +1,6 @@
 ﻿# בודק את נתיב ה-AI של התוכנה עצמה (בלי ממשק): בונה בקשה אמיתית ושולח.
 # עם -Key אפשר לבדוק מפתח אמיתי; בלי מפתח נבדקת רק תקינות הבקשה מול השרת.
-param([string]$Key = "INVALID_TEST_KEY", [switch]$WithTools)
+param([string]$Key = "INVALID_TEST_KEY", [switch]$WithTools, [string]$Prompt = "ענה במילה אחת: שלום", [switch]$Translate)
 
 $exe = "D:\Claude\subtitle-studio\dist\SubtitleStudio.exe"
 if (-not (Test-Path $exe)) { Write-Host "no exe"; exit 1 }
@@ -27,7 +27,7 @@ $ai.GetField("Key", $NP -bor $PB -bor $ST).SetValue($null, $Key)
 # שיחה של הודעה אחת
 $msgT = T "AiMsg"
 $msg = [Activator]::CreateInstance($msgT, ($NP -bor $PB -bor $IN -bor $CI), $null, $null, $null)
-$msgT.GetField("Text").SetValue($msg, "ענה במילה אחת: שלום")
+$msgT.GetField("Text").SetValue($msg, $Prompt)
 $listT = [System.Collections.Generic.List``1].MakeGenericType($msgT)
 $hist = [Activator]::CreateInstance($listT)
 $listT.GetMethod("Add").Invoke($hist, (Pack $msg))
@@ -44,6 +44,19 @@ if ($WithTools) {
     $tl.GetType().GetMethod("Add").Invoke($tl, (Pack $t1))
     $tl.GetType().GetMethod("Add").Invoke($tl, (Pack $t2))
     $tools = $tl
+}
+
+if ($Translate) {
+    $strList = [Activator]::CreateInstance([System.Collections.Generic.List``1].MakeGenericType([string]))
+    foreach ($t in @("שלום לכולם", "מה שלומך היום?", "נתראה בשבוע הבא")) { $strList.Add($t) }
+    $tr = $ai.GetMethod("Translate", $NP -bor $PB -bor $ST)
+    $errRef = [Type]::GetType("System.String").MakeByRefType()
+    $params = New-Object object[] 4
+    $params[0] = $strList; $params[1] = "אנגלית"; $params[2] = ""; $params[3] = $null
+    $res = $tr.Invoke($null, $params)
+    "translate err: " + $params[3]
+    if ($res) { foreach ($x in $res) { "  -> $x" } }
+    exit 0
 }
 
 $send = $ai.GetMethod("Send", $NP -bor $PB -bor $ST)
