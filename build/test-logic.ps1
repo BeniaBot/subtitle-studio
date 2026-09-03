@@ -190,6 +190,211 @@ Check 'beta tag parsed'   (Newer 'v0.2.0-beta') ''
 Check 'garbage rejected'  (-not (Newer 'not-a-version')) ''
 Check 'empty rejected'    (-not (Newer '')) ''
 
+# ---------- ניתוח פלט ffmpeg ----------
+Write-Host "זיהוי קבצי מדיה"
+$ffT = & $T "Ff"
+$BF = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Public -bor [Reflection.BindingFlags]::Static
+$parse = $ffT.GetMethod("ParseFfmpegInfo", $BF)
+$miT2 = & $T "MediaInfo"
+
+function Probe($text) {
+    $mi = [Activator]::CreateInstance($miT2)
+    [void]$parse.Invoke($null, (Pack ([string]$text) $mi))
+    return ,$mi
+}
+function MiF($mi, $name) { return $miT2.GetField($name).GetValue($mi) }
+
+# קובץ רגיל
+$t1 = @"
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'x.mp4':
+  Duration: 00:12:34.56, start: 0.000000, bitrate: 1500 kb/s
+  Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], 1400 kb/s, 25 fps, 25 tbr, 90k tbn
+  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
+"@
+$m1 = Probe $t1
+Eq 'probe: duration'  ([math]::Round((MiF $m1 'DurationSec'), 2)) 754.56
+$streamT = & $T "MediaStream"
+function StF($st, $n) { return $streamT.GetField($n).GetValue($st) }
+function Vid($mi) {
+    foreach ($st in (MiF $mi 'Streams')) { if ((StF $st 'Type') -eq 'video') { return ,$st } }
+    return $null
+}
+$v1 = Vid $m1
+Eq 'probe: width'     (StF $v1 'Width')  1920
+Eq 'probe: height'    (StF $v1 'Height') 1080
+Eq 'probe: fps'       (StF $v1 'Fps')    25
+
+# וידאו מסובב 90 מעלות - הציר האמיתי מתהפך
+$t2 = @"
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'phone.mp4':
+  Duration: 00:00:30.00, start: 0.000000, bitrate: 9000 kb/s
+  Stream #0:0(und): Video: h264 (High), yuv420p, 1920x1080, 8900 kb/s, 30 fps, 30 tbr, 90k tbn
+    Side data:
+      displaymatrix: rotation of -90.00 degrees
+  Stream #0:1(und): Audio: aac (LC), 44100 Hz, mono, fltp, 96 kb/s
+"@
+$m2 = Probe $t2
+$v2 = Vid $m2
+Eq 'rotated: rotation read' (StF $v2 'Rotation') -90
+Check 'rotated: raw is landscape' ((StF $v2 'Width') -gt (StF $v2 'Height')) ("{0}x{1}" -f (StF $v2 'Width'), (StF $v2 'Height'))
+
+# שני ערוצי שמע וכתוביות מוטמעות
+$t3 = @"
+Input #0, matroska,webm, from 'movie.mkv':
+  Duration: 01:45:00.00, start: 0.000000, bitrate: 4000 kb/s
+  Stream #0:0: Video: h264 (High), yuv420p, 1280x720, 24 fps, 24 tbr, 1k tbn
+  Stream #0:1(heb): Audio: ac3, 48000 Hz, 5.1(side), fltp, 448 kb/s
+  Stream #0:2(eng): Audio: aac (LC), 48000 Hz, stereo, fltp, 128 kb/s
+  Stream #0:3(heb): Subtitle: subrip
+  Stream #0:4(eng): Subtitle: hdmv_pgs_subtitle
+"@
+$m3 = Probe $t3
+$subs = $miT2.GetMethod("Subtitles").Invoke($m3, $null)
+Eq 'mkv: two subtitle tracks' $subs.Count 2
+$streams = MiF $m3 'Streams'
+Eq 'mkv: five streams' $streams.Count 5
+Eq 'mkv: duration hours' ([math]::Round((MiF $m3 'DurationSec') / 60, 0)) 105
+
+# משך לא ידוע
+$t4 = @"
+Input #0, mp3, from 'stream.mp3':
+  Duration: N/A, start: 0.000000, bitrate: 128 kb/s
+  Stream #0:0: Audio: mp3, 44100 Hz, stereo, fltp, 128 kb/s
+"@
+$m4 = Probe $t4
+Eq 'unknown duration is zero' (MiF $m4 'DurationSec') 0
+
+# קצב פריימים עשרוני
+$t5 = @"
+Input #0, mov,mp4, from 'ntsc.mp4':
+  Duration: 00:00:10.00, start: 0.000000, bitrate: 500 kb/s
+  Stream #0:0: Video: h264, yuv420p, 640x480, 400 kb/s, 29.97 fps, 29.97 tbr, 30k tbn
+"@
+$m5 = Probe $t5
+$v5 = Vid $m5
+Check 'ntsc fps' ([math]::Abs((StF $v5 'Fps') - 29.97) -lt 0.02) (StF $v5 'Fps')
+
+# ---------- קבצים מלוכלכים ----------
+Write-Host "קבצים חריגים"
+
+function WriteSrt($name, $text, $enc) {
+    $path = Join-Path $tmp $name
+    [IO.File]::WriteAllText($path, $text, $enc)
+    return $path
+}
+$utf8bom = New-Object Text.UTF8Encoding($true)
+$utf8 = New-Object Text.UTF8Encoding($false)
+
+# 1. BOM + CRLF + בלי שורה ריקה בסוף
+$p1 = WriteSrt "bom.srt" "1`r`n00:00:01,000 --> 00:00:03,000`r`nעם BOM" $utf8bom
+$c1 = LoadCues $p1
+Eq 'BOM: count' $c1.Count 1
+Eq 'BOM: text'  $c1[0].Text "עם BOM"
+
+# 2. שורות בלי הפרדה ריקה בין הקטעים
+$p2 = WriteSrt "nogap.srt" "1`n00:00:01,000 --> 00:00:02,000`nראשון`n2`n00:00:03,000 --> 00:00:04,000`nשני`n" $utf8
+$c2 = LoadCues $p2
+Eq 'no blank line: count' $c2.Count 2
+Eq 'no blank line: second' $c2[1].Text "שני"
+
+# 3. מספור שבור ולא ממוין
+$p3 = WriteSrt "unordered.srt" "7`n00:00:05,000 --> 00:00:06,000`nמאוחר`n`n3`n00:00:01,000 --> 00:00:02,000`nמוקדם`n" $utf8
+$c3 = LoadCues $p3
+Eq 'unordered: count' $c3.Count 2
+$d3 = [Activator]::CreateInstance($docT)
+$l3 = $docT.GetField('Cues').GetValue($d3)
+foreach ($c in $c3) { $l3.Add($c) }
+Call $d3 'Sort' (Pack) | Out-Null
+Eq 'unordered: sorted first' (Cues $d3)[0].Text "מוקדם"
+
+# 4. תגיות עיצוב ושתי שורות
+$p4 = WriteSrt "tags.srt" "1`n00:00:01,000 --> 00:00:04,000`n<i>מוטה</i> ו<b>מודגש</b>`nשורה שנייה`n" $utf8
+$c4 = LoadCues $p4
+Eq 'tags: count' $c4.Count 1
+Check 'tags: two lines kept' ($c4[0].Text -match "`n") $c4[0].Text
+Check 'tags: plain text strips markup' ($c4[0].PlainText -notmatch '<') $c4[0].PlainText
+
+# 5. זמנים עם נקודה ורווחים חריגים בחץ
+$p5 = WriteSrt "loose.srt" "1`n00:00:01.500-->00:00:03.250`nזמנים חריגים`n" $utf8
+$c5 = LoadCues $p5
+Eq 'loose times: count' $c5.Count 1
+Eq 'loose times: start' $c5[0].Start 1500
+Eq 'loose times: end'   $c5[0].End 3250
+
+# 6. כתובית ריקה באמצע
+$p6 = WriteSrt "empty.srt" "1`n00:00:01,000 --> 00:00:02,000`n`n`n2`n00:00:03,000 --> 00:00:04,000`nיש טקסט`n" $utf8
+$c6 = LoadCues $p6
+Check 'empty cue: at least the real one' ($c6.Count -ge 1) $c6.Count
+
+# 7. קובץ ריק לגמרי
+$p7 = WriteSrt "blank.srt" "" $utf8
+$c7 = LoadCues $p7
+Eq 'blank file' $c7.Count 0
+
+# 8. זמן סיום לפני התחלה
+$p8 = WriteSrt "reversed.srt" "1`n00:00:09,000 --> 00:00:04,000`nהפוך`n" $utf8
+$c8 = LoadCues $p8
+Check 'reversed times survive load' ($c8.Count -eq 1) $c8.Count
+Check 'reversed times not negative duration' ($c8[0].End -ge $c8[0].Start) ("{0}..{1}" -f $c8[0].Start, $c8[0].End)
+
+# ---------- עומס: אלפי כתוביות ----------
+Write-Host "עומס"
+$big = Join-Path $tmp "big.srt"
+$sb = New-Object Text.StringBuilder
+for ($i = 1; $i -le 3000; $i++) {
+    $t0 = [TimeSpan]::FromMilliseconds(($i - 1) * 1200)
+    $t1 = [TimeSpan]::FromMilliseconds(($i - 1) * 1200 + 1400)   # חפיפה מכוונת עם הבאה
+    [void]$sb.AppendLine($i)
+    [void]$sb.AppendLine(("{0:hh\:mm\:ss\,fff} --> {1:hh\:mm\:ss\,fff}" -f $t0, $t1))
+    [void]$sb.AppendLine("שורה $i - טקסט לבדיקת עומס עם מילים ארוכות")
+    [void]$sb.AppendLine("")
+}
+[IO.File]::WriteAllText($big, $sb.ToString(), [Text.UTF8Encoding]::new($false))
+
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$bigCues = LoadCues $big
+$loadMs = $sw.ElapsedMilliseconds
+Eq 'load 3000 cues' $bigCues.Count 3000
+Check 'load under 2s' ($loadMs -lt 2000) "${loadMs}ms"
+
+$bigDoc = [Activator]::CreateInstance($docT)
+$bigList = $docT.GetField('Cues').GetValue($bigDoc)
+foreach ($c in $bigCues) { $bigList.Add($c) }
+
+$sw.Restart()
+$overlaps = Call $bigDoc 'CountOverlaps' (Pack)
+$cntMs = $sw.ElapsedMilliseconds
+Eq 'overlaps found' $overlaps 2999
+Check 'count under 300ms' ($cntMs -lt 300) "${cntMs}ms"
+
+$sw.Restart()
+$fixedN = Call $bigDoc 'FixOverlaps' (Pack ([int]80))
+$fixMs = $sw.ElapsedMilliseconds
+Eq 'fixed all overlaps' (Call $bigDoc 'CountOverlaps' (Pack)) 0
+Check 'fix under 500ms' ($fixMs -lt 500) "${fixMs}ms"
+
+$sw.Restart()
+Call $bigDoc 'Shift' (Pack (Cues $bigDoc) ([long]1500)) | Out-Null
+$shiftMs = $sw.ElapsedMilliseconds
+Eq 'shift kept count' (Cues $bigDoc).Count 3000
+Check 'shift under 200ms' ($shiftMs -lt 200) "${shiftMs}ms"
+
+$bigOut = Join-Path $tmp "big-out.srt"
+$sw.Restart()
+$fmt.GetMethod('Save').Invoke($null, (Pack ([string]$bigOut) (Cues $bigDoc) ([Enum]::Parse($fmtT, 'Srt')) $style ([int]1920) ([int]1080) $true)) | Out-Null
+$saveMs = $sw.ElapsedMilliseconds
+Check 'save under 1.5s' ($saveMs -lt 1500) "${saveMs}ms"
+$back = LoadCues $bigOut
+Eq 'roundtrip 3000' $back.Count 3000
+Eq 'roundtrip text' $back[2999].Text (Cues $bigDoc)[2999].Text
+
+# ביטול אחרי פעולה כבדה
+$before = (Cues $bigDoc)[0].Start
+Call $bigDoc 'Push' (Pack ([string]'test')) | Out-Null
+Call $bigDoc 'Shift' (Pack (Cues $bigDoc) ([long]5000)) | Out-Null
+Call $bigDoc 'Undo' (Pack) | Out-Null
+Eq 'undo on 3000 cues' (Cues $bigDoc)[0].Start $before
+
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })

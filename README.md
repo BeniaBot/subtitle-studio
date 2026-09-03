@@ -1,13 +1,13 @@
 <div align="center">
 
-# אולפן הכתוביות · Subtitle Studio
+# אולפן הכתוביות
 
-**כתיבה, תיקון והטמעה של כתוביות. קובץ אחד, בלי התקנה.**
-*Write, fix and burn subtitles. One file, no install.*
+**תוכנה חינמית לווינדוס שמוסיפה כתוביות לסרטים.**
+בלי התקנה · בלי אינטרנט · בלי הרשמה · הכול בעברית
 
-### [⬇ הורדה · Download](../../releases/latest)
+### [⬇ להורדה](../../releases/latest)
 
-<img src="docs/screenshots/start.png" width="700" alt="מסך הפתיחה">
+<img src="docs/screenshots/editor.png" width="820" alt="מסך העבודה של התוכנה">
 
 </div>
 
@@ -15,54 +15,75 @@
 
 ## מה אפשר לעשות
 
-**כתוביות**
-- לכתוב כתוביות מול פס הקול של הסרט, ולגרור אותן למקום
-- לפתוח קובץ קיים: `SRT` · `VTT` · `ASS` · `SUB`, או טקסט רגיל שיתחלק לבד
-- קבצים ישנים בעברית נפתחים בעברית, לא בג׳יבריש
-- לשלוף כתוביות מתוך סרט — לתרגום או להחלפה
-- לתקן סנכרון: עוצרים את הסרט איפה שהמשפט באמת נשמע, והתוכנה מזיזה בעצמה —
-  את כולן, מכאן והלאה, או אחת בלבד
-- לתקן לבד חפיפות, כתוביות קצרות מדי ושורות ארוכות מדי
-- לבחור גופן, גודל, צבע, מסגרת ומיקום — ולראות מיד איך זה ייראה
+**לכתוב כתוביות לסרט**
+פותחים סרט, רואים את פס הקול, וגוררים על הציר איפה שכל משפט צריך להופיע. כותבים את הטקסט — ורואים אותו מיד על התמונה.
 
-**וידאו**
-- לצרוב את הכתוביות בתוך התמונה (עברית יוצאת נכון) או להוסיף אותן כערוץ נפרד
-- לחתוך קטע מהסרט בסימון על הציר
-- עוצמת שמע · ניקוי רעש · הפרדת שמע · המרה · סיבוב · חיתוך שוליים · האטה והאצה ·
-  עמעום · איחוד קבצים · GIF · תמונה מייצגת · גרסה לנייד
-- להקטין קובץ לגודל מבוקש: אומרים ״עד 200MB״ ומקבלים את האיכות הכי טובה שנכנסת
-- כל פעולה יוצאת באיכות מקסימלית כברירת מחדל, והסרט המקורי לא משתנה
+**לתקן כתוביות שלא מסונכרנות**
+עוצרים את הסרט במקום שבו המשפט באמת נשמע, לוחצים כפתור — והתוכנה מזיזה את הכול בעצמה. אפשר לתקן את כל הכתוביות, רק מכאן והלאה, או רק אחת.
+
+**להוסיף את הכתוביות לסרט עצמו**
+או צרובות בתמונה — כך הן נראות בכל נגן, בוואטסאפ ובטלפון — או כערוץ כתוביות נפרד שאפשר לכבות.
+
+**לפתוח קבצים שאחרים שלחו**
+`SRT` · `VTT` · `ASS` · `SUB`, וגם טקסט רגיל שהתוכנה מחלקת לכתוביות לבד. קבצים ישנים בעברית נפתחים כמו שצריך ולא כג׳יבריש.
+
+**לתרגם כתוביות אוטומטית**
+בוחרים שפה, והתוכנה מתרגמת הכול בלי לגעת בתזמונים. יש גם עוזר שאפשר לבקש ממנו דברים במילים רגילות: "תקן חפיפות", "תגדיל את הכתוביות", "תכין גרסה שנכנסת ב‑200 מגה".
+*(דורש חיבור לאינטרנט ומפתח חינמי מגוגל — התוכנה מסבירה בדיוק איך משיגים אותו.)*
+
+**עוד דברים שימושיים לסרט**
+לחתוך קטע · להגביר או להנמיך את הקול · לנקות רעש רקע · להוציא את הפסקול · להמיר פורמט · לסובב · להאט או להאיץ · להפוך לאחור · ליצור GIF · ולהקטין קובץ לגודל מבוקש (״שייכנס ל‑200MB״).
+
+**הסרט המקורי שלכם אף פעם לא משתנה.** כל פעולה יוצרת קובץ חדש.
+
+---
+
+## איך מתחילים
+
+1. [מורידים את הקובץ](../../releases/latest) — `SubtitleStudio.exe`
+2. לוחצים עליו פעמיים. אין התקנה.
+3. גוררים סרט לחלון — ומתחילים.
+
+בפעם הראשונה התוכנה מתארגנת כמה שניות (היא פורסת את מנוע הווידאו שבתוכה). מהפעם השנייה היא נפתחת מיד.
+
+**דרישות:** ווינדוס 10 או 11. שום דבר נוסף.
+
+**רוצים שהכול יישב על דיסק‑און‑קי?** שימו לצד הקובץ קובץ ריק בשם `portable.txt`.
 
 <div align="center">
-<img src="docs/screenshots/editor.png" width="760" alt="מסך העבודה">
+<img src="docs/screenshots/start.png" width="720" alt="מסך הפתיחה">
 </div>
 
-## הורדה
+---
 
-[הורידו את `SubtitleStudio.exe`](../../releases/latest) והריצו. ווינדוס 10 או 11.
+## שאלות
 
-אין התקנה ואין צורך באינטרנט. בהפעלה הראשונה התוכנה פורסת את מנוע הווידאו — כמה שניות, פעם אחת.
-לשימוש מדיסק‑און‑קי: הניחו לידה קובץ ריק בשם `portable.txt`.
+**זה באמת חינם?** כן, לגמרי. גם בלי פרסומות וגם בלי הרשמה.
+
+**צריך אינטרנט?** לא. הכול עובד על המחשב שלכם. אינטרנט נחוץ רק לתרגום האוטומטי ולבדיקת עדכונים.
+
+**למה הקובץ שוקל 72 מגה?** כי מנוע הווידאו יושב בתוכו. ככה לא צריך להתקין שום דבר בנפרד.
+
+**ווינדוס מזהיר לפני הפתיחה?** זה קורה לכל תוכנה חדשה שאין לה חתימה בתשלום. לוחצים ״מידע נוסף״ ואז ״הפעל בכל זאת״.
+
+**מצאתי תקלה / חסר לי משהו** — [כתבו כאן](../../issues), בעברית, ואשמח לתקן.
 
 ---
 
 ## English
 
-**Subtitles** — write against the waveform and drag into place · open `SRT` `VTT` `ASS`
-`SUB` or plain text · legacy Hebrew encodings open correctly · extract a subtitle track
-from a video · fix sync by pausing where the line is actually spoken (all cues, from
-here on, or just one) · auto-fix overlaps and too-short cues · font, size, colour,
-outline and position with live preview.
+**Free Windows app for adding subtitles to videos.** No install, no internet, no sign‑up.
 
-**Video** — burn subtitles into the picture (correct Hebrew RTL) or mux as a separate
-track · trim visually · volume, denoise, extract audio, convert, rotate, crop, speed,
-fade, join, GIF, thumbnail, phone version · shrink to a target size ("under 200MB")
-with two-pass encoding · max quality by default, original file never modified.
+Write subtitles against the waveform · fix out‑of‑sync subtitles by pointing at where a line is actually spoken · burn them into the picture (correct Hebrew RTL) or add them as a separate track · open SRT/VTT/ASS/SUB or plain text · translate automatically · trim, adjust volume, denoise, convert, reverse, make a GIF, shrink to a target size. Your original file is never modified.
 
-[Download `SubtitleStudio.exe`](../../releases/latest) and run it. Windows 10 or 11,
-no installer, no internet, no dependencies.
+[**Download**](../../releases/latest) `SubtitleStudio.exe` and run it. Windows 10 or 11.
 
 ---
 
-רישוי: קוד התוכנה [MIT](LICENSE) · מנוע הווידאו FFmpeg תחת GPLv3 — [פרטים](THIRD-PARTY.md)
-· בנייה מהמקור: `build.cmd` ([פרטים](CLAUDE.md))
+<div align="center">
+<sub>
+
+קוד התוכנה תחת רישיון [MIT](LICENSE) · מנוע הווידאו [FFmpeg](THIRD-PARTY.md) תחת GPLv3
+
+</sub>
+</div>

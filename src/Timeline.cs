@@ -169,6 +169,47 @@ namespace SubtitleStudio
         private int TrackH { get { return Height - ScrollH - TrackTop; } }
         private int LaneH { get { return Math.Max(Theme.S(16), Math.Min(Theme.S(34), (TrackH - Theme.S(6)) / Math.Max(1, _laneCount))); } }
 
+        /// <summary>האם הכתוביות צפופות מכדי לצייר בלוקים מלאים.</summary>
+        private bool DenseMode()
+        {
+            if (Doc == null || Doc.Cues.Count < 220 || DurationMs <= 0) return false;
+            // המרווח הממוצע בין כתוביות בפיקסלים - יורד כשמתרחקים, עולה כשמתקרבים
+            double avgGapMs = DurationMs / (double)Doc.Cues.Count;
+            return avgGapMs / 1000.0 * PxPerSec < 4.0;
+        }
+
+        /// <summary>ציור מהיר: מלבן לכל כתובית, מברשת אחת, בלי טקסט.</summary>
+        private void DrawDenseCues(Graphics g)
+        {
+            // פס דק וממורכז, עם מקום להערה מעליו
+            int laneTop = TrackTop + Theme.S(20);
+            int laneBottom = Height - ScrollH - Theme.S(4);
+            int laneH = Math.Max(Theme.S(10), (int)((laneBottom - laneTop) * 0.62f));
+            float top = laneTop + (laneBottom - laneTop - laneH) / 2f;
+
+            System.Drawing.Drawing2D.SmoothingMode old = g.SmoothingMode;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Wave, Theme.Accent, 0.45f)))
+            using (SolidBrush warn = new SolidBrush(Theme.Mix(Theme.Bad, Theme.Wave, 0.35f)))
+            using (SolidBrush selb = new SolidBrush(Color.White))
+            {
+                for (int i = 0; i < Doc.Cues.Count; i++)
+                {
+                    Cue c = Doc.Cues[i];
+                    float x1 = MsToX(c.Start);
+                    if (x1 > Width) break;                      // ממוין לפי זמן - אפשר לעצור
+                    float x2 = MsToX(c.End);
+                    if (x2 < 0) continue;
+                    float w = Math.Max(1f, x2 - x1);
+                    g.FillRectangle(c.Selected ? selb : (c.Cps > 25 ? warn : b), x1, top, w, laneH);
+                }
+            }
+            g.SmoothingMode = old;
+
+            Theme.Str(g, Doc.Cues.Count + " כתוביות · התקרבו כדי לערוך אותן", Theme.Small, Theme.TextDim,
+                new RectangleF(Theme.S(80), TrackTop + Theme.S(2), Width - Theme.S(160), Theme.S(17)), Theme.SfCenter);
+        }
+
         private RectangleF CueRect(Cue c)
         {
             int lane;
@@ -685,6 +726,14 @@ namespace SubtitleStudio
                 Theme.Str(g, "כתוביות", Theme.Small, Theme.TextFaint,
                     new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfRtl);
             }
+            // כשכל הקובץ על המסך, כל כתובית צרה מפיקסל. ציור בלוקים מעוגלים
+            // עם טקסט לכל אחת הוא בזבוז - עוברים למצב צפוף.
+            if (DenseMode())
+            {
+                DrawDenseCues(g);
+                return;
+            }
+
             for (int i = 0; i < Doc.Cues.Count; i++)
             {
                 Cue c = Doc.Cues[i];
