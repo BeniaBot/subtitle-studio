@@ -13,8 +13,8 @@ link against it.*
 
 | | |
 |---|---|
-| בילד · Build | `full_build` by [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) |
-| גרסה · Version | `2025-08-20-git-4d7c609be3` |
+| בילד · Build | `essentials_build` by [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) |
+| גרסה · Version | `9.0.1-essentials_build` |
 | רישיון · License | **GNU General Public License v3** (`--enable-gpl --enable-version3`) |
 | קוד מקור · Source | https://ffmpeg.org/download.html · https://git.ffmpeg.org/ffmpeg.git (commit `4d7c609be3`) |
 | טקסט הרישיון · License text | https://www.gnu.org/licenses/gpl-3.0.html |
