@@ -7,7 +7,6 @@
 
 ### [⬇ להורדה](../../releases/latest)
 
-<img src="docs/screenshots/editor.png" width="820" alt="מסך העבודה של התוכנה">
 
 </div>
 
