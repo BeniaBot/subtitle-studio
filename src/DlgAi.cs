@@ -51,7 +51,15 @@ namespace SubtitleStudio
             _test.Icon = Ico.Check;
             _test.Kind = BtnKind.Subtle;
             _test.Click += delegate { TestKey(); };
-            Row(_test, 38, 8);
+            Row(_test, 38, 6);
+
+            Btn diag = new Btn();
+            diag.Text = "בדיקה מפורטת - מה לא עובד?";
+            diag.Icon = Ico.Info;
+            diag.Kind = BtnKind.Ghost;
+            diag.Font = Theme.Small;
+            diag.Click += delegate { RunDiagnose(diag); };
+            Row(diag, 34, 8);
 
             _status = Hint("");
             Row(_status, 40, 4);
@@ -88,6 +96,38 @@ namespace SubtitleStudio
                         _test.Enabled = true;
                         if (r != null && r.Ok) Say("החיבור עובד. אפשר לשמור.", Theme.Good);
                         else { Ai.Key = old; Say(r != null ? r.Error : "לא התקבלה תשובה.", Theme.Bad); }
+                    });
+                }
+                catch { }
+            });
+            t.IsBackground = true;
+            t.Start();
+        }
+
+        /// <summary>מריצה בדיקה מלאה ומציגה את הדוח כמו שהוא.</summary>
+        private void RunDiagnose(Btn b)
+        {
+            if (_busy) return;
+            _busy = true;
+            b.Enabled = false;
+            Say("בודק...", Theme.TextDim);
+            Ai.Key = _key.Text.Trim();
+            string report = null;
+            Thread t = new Thread(delegate ()
+            {
+                try { report = Ai.Diagnose(); }
+                catch (Exception ex) { report = "שגיאה בבדיקה: " + ex.Message; }
+                try
+                {
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        _busy = false;
+                        b.Enabled = true;
+                        Say("", Theme.TextDim);
+                        Ui.Msg(this, "מה נמצא",
+                            report + Environment.NewLine +
+                            "הפרטים נשמרו גם בקובץ ai-log.txt בתיקיית ההגדרות.",
+                            Ico.Info, "סגירה", "פתיחת התיקייה");
                     });
                 }
                 catch { }
@@ -251,8 +291,10 @@ namespace SubtitleStudio
                     List<string> batch = new List<string>();
                     for (int j = 0; j < n; j++) batch.Add(_cues[i + j].Text);
 
-                    string err;
-                    List<string> res = Ai.Translate(batch, _lang, _context, out err);
+                    string err = null;
+                    List<string> res = null;
+                    try { res = Ai.Translate(batch, _lang, _context, out err); }
+                    catch (Exception ex) { err = ex.Message; Ai.Log("חריגה בתרגום: " + ex); }
                     if (res == null)
                     {
                         Error = err;

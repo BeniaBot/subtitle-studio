@@ -87,6 +87,43 @@ namespace SubtitleStudio
 
         public static bool HasKey { get { return !string.IsNullOrEmpty(Key); } }
 
+        /// <summary>קובץ יומן לאבחון. המפתח לעולם לא נכתב לתוכו.</summary>
+        public static string LogPath
+        {
+            get
+            {
+                try
+                {
+                    string dir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SubtitleStudio");
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    return Path.Combine(dir, "ai-log.txt");
+                }
+                catch { return null; }
+            }
+        }
+
+        public static void Log(string what)
+        {
+            try
+            {
+                string p = LogPath;
+                if (p == null) return;
+                string line = DateTime.Now.ToString("HH:mm:ss") + "  " + what + Environment.NewLine;
+                if (File.Exists(p) && new FileInfo(p).Length > 200000) File.Delete(p);
+                File.AppendAllText(p, line, Encoding.UTF8);
+            }
+            catch { }
+        }
+
+        /// <summary>מסתיר את המפתח מכל מחרוזת לפני כתיבה ליומן.</summary>
+        private static string Safe(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            if (!string.IsNullOrEmpty(Key)) s = s.Replace(Key, "***");
+            return s;
+        }
+
         // ---------- הצפנת המפתח ----------
         public static string Protect(string plain)
         {
@@ -183,14 +220,14 @@ namespace SubtitleStudio
                     List<string> req = new List<string>();
                     foreach (string[] p in t.Params)
                     {
-                        props[p[0]] = new Dictionary<string, object> { { "type", p[1] }, { "description", p[2] } };
+                        props[p[0]] = new Dictionary<string, object> { { "type", p[1].ToUpperInvariant() }, { "description", p[2] } };
                         if (p[3] == "req") req.Add(p[0]);
                     }
                     Dictionary<string, object> d = new Dictionary<string, object>();
                     d["name"] = t.Name;
                     d["description"] = t.Desc;
                     Dictionary<string, object> schema = new Dictionary<string, object>();
-                    schema["type"] = "object";
+                    schema["type"] = "OBJECT";
                     schema["properties"] = props;
                     if (req.Count > 0) schema["required"] = req.ToArray();
                     d["parameters"] = schema;
@@ -200,6 +237,8 @@ namespace SubtitleStudio
             }
 
             string json = Ser().Serialize(body);
+            Log("בקשה: " + contents.Count + " הודעות, " +
+                (tools != null ? tools.Count : 0) + " פעולות, " + json.Length + " תווים");
             string reply = null, err = null;
 
             // אם שם הדגם לא קיים בחשבון - מנסים את הבא ברשימה
@@ -217,7 +256,14 @@ namespace SubtitleStudio
                 if (err == null || err.IndexOf("404") < 0) break;    // שגיאה אמיתית - לא מנסים דגם אחר
             }
 
-            if (reply == null) { r.Error = err != null ? err : "לא התקבלה תשובה מהשרת."; LastError = r.Error; return r; }
+            if (reply == null)
+            {
+                r.Error = err != null ? err : "לא התקבלה תשובה מהשרת.";
+                LastError = r.Error;
+                Log("נכשל: " + Safe(r.Error));
+                return r;
+            }
+            Log("תשובה: " + reply.Length + " תווים");
 
             try
             {
@@ -363,6 +409,58 @@ namespace SubtitleStudio
             }
             if (!string.IsNullOrEmpty(inner)) return inner;
             return "אין חיבור לאינטרנט, או שהחיבור נחסם. (" + fallback + ")";
+        }
+
+        /// <summary>בדיקה מפורטת שמחזירה דוח קריא - למקרה שמשהו לא עובד.</summary>
+        public static string Diagnose()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("דגם: " + Model);
+            sb.AppendLine("מפתח: " + (HasKey ? (Key.Length + " תווים") : "לא הוגדר"));
+
+            // 1. חיבור לשרת
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
+                HttpWebRequest probe = (HttpWebRequest)WebRequest.Create("https://generativelanguage.googleapis.com/");
+                probe.Method = "HEAD";
+                probe.Timeout = 15000;
+                using (HttpWebResponse res = (HttpWebResponse)probe.GetResponse())
+                    sb.AppendLine("חיבור לשרת: תקין (" + (int)res.StatusCode + ")");
+            }
+            catch (WebException wex)
+            {
+                HttpWebResponse res = wex.Response as HttpWebResponse;
+                if (res != null) sb.AppendLine("חיבור לשרת: מגיע (" + (int)res.StatusCode + ")");
+                else sb.AppendLine("חיבור לשרת: נכשל - " + wex.Status + " - " + wex.Message);
+            }
+            catch (Exception ex) { sb.AppendLine("חיבור לשרת: שגיאה - " + ex.Message); }
+
+            // 2. בקשה אמיתית
+            if (HasKey)
+            {
+                List<AiMsg> h = new List<AiMsg>();
+                AiMsg m = new AiMsg();
+                m.Text = "1+1";
+                h.Add(m);
+                AiReply r = Send("ענה במספר בלבד.", h, null, false);
+                sb.AppendLine("בקשה רגילה: " + (r.Ok ? "עובדת" : "נכשלה - " + r.Error));
+
+                if (r.Ok)
+                {
+                    List<AiTool> tools = new List<AiTool>();
+                    tools.Add(new AiTool("get_state", "מצב נוכחי"));
+                    List<AiMsg> h2 = new List<AiMsg>();
+                    AiMsg m2 = new AiMsg();
+                    m2.Text = "מה המצב?";
+                    h2.Add(m2);
+                    AiReply r2 = Send("קרא לפונקציה אם אפשר.", h2, tools, false);
+                    sb.AppendLine("בקשה עם פעולות: " + (r2.Ok ? "עובדת" : "נכשלה - " + r2.Error));
+                }
+            }
+            string txt = sb.ToString();
+            Log("--- אבחון ---" + Environment.NewLine + Safe(txt));
+            return txt;
         }
 
         // ---------- תרגום ----------

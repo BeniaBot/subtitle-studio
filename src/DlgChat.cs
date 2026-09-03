@@ -285,7 +285,14 @@ namespace SubtitleStudio
             AiReply reply = null;
             Thread t = new Thread(delegate ()
             {
-                reply = Ai.Send(sys, snapshot, tools, false);
+                try { reply = Ai.Send(sys, snapshot, tools, false); }
+                catch (Exception ex)
+                {
+                    // חריגה בחוט הרקע השאירה את הצ'אט תקוע על שלוש נקודות
+                    reply = new AiReply();
+                    reply.Error = ex.Message;
+                    Ai.Log("חריגה: " + ex);
+                }
                 try { BeginInvoke((MethodInvoker)delegate { AfterReply(reply, round); }); }
                 catch { }
             });
