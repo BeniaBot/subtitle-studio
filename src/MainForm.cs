@@ -33,6 +33,8 @@ namespace SubtitleStudio
         private Btn _startMinus, _startPlus, _startHere, _endMinus, _endPlus, _endHere;
         private Slider _volume;
         private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn, _aiBtn;
+        private Btn _speedBtn;
+        private Btn _addCueBtn;
         private readonly List<Btn> _needMedia = new List<Btn>();
         private readonly List<Btn> _toolbarBtns = new List<Btn>();
         private readonly List<Btn> _editBtns = new List<Btn>();
@@ -68,6 +70,7 @@ namespace SubtitleStudio
             BuildHero();
             BuildListCard();
             BuildVideoCard();
+            BuildAddButton();
             BuildEditCard();
             BuildTimelineCard();
             BuildStatusBar();
@@ -377,6 +380,11 @@ namespace SubtitleStudio
             _list.Doc = _doc;
             _list.SelectionChanged += delegate { LoadEditor(); _tl.Invalidate(); };
             _list.CueActivated += delegate (object s, Cue c) { Seek(c.Start); _text.Focus(); _text.SelectAll(); };
+            _list.ContextRequested += delegate (object s, Point pt)
+            {
+                Point screen = _list.PointToScreen(pt);
+                ShowCueMenuAt(screen);
+            };
             _listCard.Controls.Add(_list);
         }
 
@@ -431,6 +439,71 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_volume, "עוצמת ההשמעה בתוכנה (לא משנה את הקובץ)");
             _videoCard.Controls.Add(_volume);
             _engine.Volume = 80;
+
+            // מהירות ניגון - להאטה עוזרת לדיוק בתזמון ולשמוע מילה לא ברורה
+            _speedBtn = new Btn();
+            _speedBtn.Icon = Ico.Gauge;
+            _speedBtn.Text = SpeedText(1.0);
+            _speedBtn.Kind = BtnKind.Tool;
+            _speedBtn.Menu = true;
+            _speedBtn.Size = new Size(Theme.S(84), Theme.S(34));
+            _speedBtn.Click += delegate { ShowSpeedMenu(); };
+            Ui.Tip.SetToolTip(_speedBtn, "מהירות השמעה. האטה עוזרת לתפוס בדיוק את הרגע שבו מתחיל הדיבור" +
+                Environment.NewLine + "לא משנה את הקובץ, רק את ההשמעה כאן");
+            _videoCard.Controls.Add(_speedBtn);
+        }
+
+        private static readonly double[] Speeds = new double[] { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+
+        /// <summary>תצוגת מהירות: בלי אפסים מיותרים.</summary>
+        private static string SpeedText(double v)
+        {
+            return Theme.Ltr(v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "×");
+        }
+
+        private void ShowSpeedMenu()
+        {
+            List<MenuItem> items = new List<MenuItem>();
+            foreach (double sp in Speeds)
+            {
+                double captured = sp;
+                string desc = sp < 1 ? "איטי יותר - נוח לתזמון מדויק"
+                            : sp > 1 ? "מהיר יותר - למעבר מהיר על החומר"
+                            : "המהירות הרגילה";
+                items.Add(MenuItem.Make(SpeedText(sp), desc,
+                    Math.Abs(_engine.Speed - sp) < 0.001 ? Ico.Check : Ico.None,
+                    delegate { SetSpeed(captured); }));
+            }
+            PopupMenu m = new PopupMenu(items, 300);
+            m.ShowUnder(_speedBtn);
+        }
+
+        /// <summary>מעבר למהירות הבאה/הקודמת ברשימה (Ctrl+חצים למעלה/למטה).</summary>
+        private void SetSpeedStep(int dir)
+        {
+            int at = 2;
+            for (int i = 0; i < Speeds.Length; i++)
+                if (Math.Abs(Speeds[i] - _engine.Speed) < 0.001) { at = i; break; }
+            at = Math.Max(0, Math.Min(Speeds.Length - 1, at + dir));
+            SetSpeed(Speeds[at]);
+            _hintLbl.Text = "מהירות השמעה: " + Theme.Ltr(SpeedText(Speeds[at]));
+            _hintLbl.Invalidate();
+        }
+
+        /// <summary>בחלון צר אין מקום לשני זמנים - מציגים רק את המיקום.</summary>
+        private string ClockText(long pos)
+        {
+            string a = Tc.Short(pos);
+            if (_timeLbl.Width < Theme.S(140)) return a;
+            return a + "   /   " + Tc.Short(_engine.DurationMs);
+        }
+
+        private void SetSpeed(double v)
+        {
+            _engine.Speed = v;
+            _speedBtn.Text = SpeedText(_engine.Speed);
+            _speedBtn.Tint = Math.Abs(_engine.Speed - 1.0) < 0.001 ? System.Drawing.Color.Empty : Theme.Accent;
+            _speedBtn.Invalidate();
         }
 
         private void AddTransport(Ico ico, string tip, EventHandler h)
@@ -446,13 +519,28 @@ namespace SubtitleStudio
             _transportBtns.Add(b);
         }
 
+        /// <summary>הפעולה הבסיסית: כפתור אחד גדול מתחת לסרט.</summary>
+        private void BuildAddButton()
+        {
+            _addCueBtn = new Btn();
+            _addCueBtn.Text = "כתובית חדשה כאן";
+            _addCueBtn.Icon = Ico.Plus;
+            _addCueBtn.Kind = BtnKind.Primary;
+            _addCueBtn.Font = Theme.F(11.5f, FontStyle.Bold);
+            _addCueBtn.IconSize = Theme.S(20);
+            _addCueBtn.Radius = Theme.S(11);
+            _addCueBtn.Enabled = false;
+            _addCueBtn.Click += delegate { NewCueAtPlayhead(); };
+            Ui.Tip.SetToolTip(_addCueBtn,
+                "יוצר כתובית במקום שבו הסרט עומד, עוצר, ושם את הסמן במקום לכתיבה (Ctrl+N)");
+            _videoCard.Controls.Add(_addCueBtn);
+            _needMedia.Add(_addCueBtn);
+        }
+
         private void BuildEditCard()
         {
-            _editCard = new Card();
-            _editCard.Caption = "עריכת הכתובית";
-            _editCard.CaptionIcon = Ico.TextIcon;
-            _editCard.HeaderH = Theme.S(42);
-            Controls.Add(_editCard);
+            // אותו אזור של הרשימה - ״הכתוביות״ הוא מקום אחד במסך
+            _editCard = _listCard;
 
             _textLbl = new Lbl();
             _textLbl.Text = "הטקסט שיופיע על המסך";
@@ -503,10 +591,10 @@ namespace SubtitleStudio
             _editCard.Controls.Add(_timesLbl);
 
             _startLbl = new Lbl();
-            _startLbl.Text = "מופיעה";
+            _startLbl.Text = "מ־";
             _startLbl.Font = Theme.SmallBold;
             _startLbl.Color = Theme.Text;
-            _startLbl.Align = StringAlignment.Far;
+            _startLbl.Align = StringAlignment.Center;
             _editCard.Controls.Add(_startLbl);
 
             _startF = new Field();
@@ -515,15 +603,13 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_startF.Box, "הזמן שבו הכתובית מופיעה. אפשר גם לגרור את הבלוק על הציר.");
             _editCard.Controls.Add(_startF);
 
-            _startMinus = AddNudge("−", "מקדים בעשירית שנייה", true, -100);
-            _startPlus = AddNudge("+", "מאחר בעשירית שנייה", true, 100);
             _startHere = AddHere(true);
 
             _endLbl = new Lbl();
-            _endLbl.Text = "נעלמת";
+            _endLbl.Text = "עד";
             _endLbl.Font = Theme.SmallBold;
             _endLbl.Color = Theme.Text;
-            _endLbl.Align = StringAlignment.Far;
+            _endLbl.Align = StringAlignment.Center;
             _editCard.Controls.Add(_endLbl);
 
             _endF = new Field();
@@ -532,8 +618,6 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_endF.Box, "הזמן שבו הכתובית נעלמת.");
             _editCard.Controls.Add(_endF);
 
-            _endMinus = AddNudge("−", "מקדים בעשירית שנייה", false, -100);
-            _endPlus = AddNudge("+", "מאחר בעשירית שנייה", false, 100);
             _endHere = AddHere(false);
 
             _durLbl = new Lbl();
@@ -548,16 +632,10 @@ namespace SubtitleStudio
             _cpsLbl.Align = StringAlignment.Far;
             _editCard.Controls.Add(_cpsLbl);
 
-            AddEdit("כתובית חדשה", Ico.Plus, "יוצר כתובית חדשה במקום שבו נמצא הסמן על הציר (Ctrl+N)",
-                delegate { NewCueAtPlayhead(); }, BtnKind.Primary, 142);
-            AddEdit("הקודמת", Ico.ChevronRight, "מעבר לכתובית שלפני זו",
-                delegate { StepCue(-1); }, BtnKind.Subtle, 100);
-            AddEdit("הבאה", Ico.ChevronLeft, "מעבר לכתובית שאחרי זו (Tab)",
-                delegate { StepCue(1); }, BtnKind.Subtle, 92);
+            // מעבר בין כתוביות = לחיצה ברשימה או Tab. הוספה = הכפתור הגדול.
+            // כפתור אחד בלבד. חלוקה וחיבור בקליק ימני על הרשימה.
             AddEdit("מחיקה", Ico.Trash, "מוחק את הכתוביות המסומנות (Delete)",
-                delegate { DeleteCues(); }, BtnKind.Ghost, 104);
-            Btn more = AddEdit("עוד", Ico.ChevronDown, "חלוקה לשתיים, חיבור כתוביות", null, BtnKind.Tool, 78);
-            more.Click += delegate { ShowCueMenu(more); };
+                delegate { DeleteCues(); }, BtnKind.Ghost, 100);
         }
 
         /// <summary>כפתור קטן להזזת זמן בעשירית שנייה - עדיף על הקלדת זמן.</summary>
@@ -723,6 +801,20 @@ namespace SubtitleStudio
             }
         }
 
+        /// <summary>אותן פעולות, במיקום של עכבר.</summary>
+        private void ShowCueMenuAt(Point screen)
+        {
+            List<MenuItem> items = new List<MenuItem>();
+            items.Add(MenuItem.Make("לחלק לשתי כתוביות", "מחלק במקום שבו נמצא הסמן", Ico.Split,
+                delegate { SplitCue(); }));
+            items.Add(MenuItem.Make("לחבר כתוביות לאחת", "מאחד את המסומנות", Ico.Merge,
+                delegate { MergeCues(); }));
+            items.Add(MenuItem.Make("מחיקה", "מוחק את המסומנות (Delete)", Ico.Trash,
+                delegate { DeleteCues(); }));
+            PopupMenu m = new PopupMenu(items, 300);
+            m.ShowAt(screen);
+        }
+
         private void ShowCueMenu(Control anchor)
         {
             List<MenuItem> items = new List<MenuItem>();
@@ -752,11 +844,8 @@ namespace SubtitleStudio
 
         private void BuildTimelineCard()
         {
-            _tlCard = new Card();
-            _tlCard.Caption = "ציר הזמן";
-            _tlCard.CaptionIcon = Ico.Sliders;
-            _tlCard.HeaderH = Theme.S(42);
-            Controls.Add(_tlCard);
+            // פס הקול הוא חלק מכרטיס הסרט, לא אזור נפרד
+            _tlCard = _videoCard;
 
             _tl = new TimelineControl();
             _tl.Doc = _doc;
@@ -775,22 +864,14 @@ namespace SubtitleStudio
                 _text.SelectAll();
             };
             _tl.RangeChanged += delegate { UpdateHint(); UpdateRangeChip(); };
-            _tlCard.Controls.Add(_tl);
+            _videoCard.Controls.Add(_tl);
 
-            AddTl("תחילת קטע", Ico.ChevronRight,
-                "מסמן כאן את תחילת הקטע לחיתוך (I)." + Environment.NewLine +
-                "אחר כך: ״פעולות על הסרט ← חיתוך קטע״",
-                delegate { MarkIn(); }, Theme.Good, 118);
-            AddTl("סוף קטע", Ico.ChevronLeft,
-                "מסמן כאן את סוף הקטע לחיתוך (O)",
-                delegate { MarkOut(); }, Theme.Warn, 104);
-            _clearMark = AddTl("", Ico.Close, "ניקוי הסימון", delegate
+            // סימון קטע וזום עברו למקלדת ולתפריט (I / O / Ctrl+גלגלת)
+            _clearMark = AddTl("", Ico.Close, "ניקוי הסימון שעל הציר", delegate
             {
                 _tl.InPoint = -1; _tl.OutPoint = -1; _tl.Invalidate(); UpdateHint(); UpdateRangeChip();
-            }, Color.Empty, 36);
+            }, Color.Empty, 34);
             _clearMark.Visible = false;
-            AddTl("", Ico.ZoomIn, "התקרבות לציר (או Ctrl+גלגלת)", delegate { _tl.ZoomBy(1.4, _tl.Width / 2); }, Color.Empty, 38);
-            AddTl("", Ico.ZoomOut, "התרחקות - להראות יותר מהסרט", delegate { _tl.ZoomBy(0.7, _tl.Width / 2); }, Color.Empty, 38);
         }
 
         private Btn _clearMark;
@@ -919,107 +1000,126 @@ namespace SubtitleStudio
             _aiBtn.Visible = true;
             _hintLbl.Visible = true;
             _statsLbl.Visible = true;
-            // תקציב גובה לפי עדיפות: לכל אזור מינימום שמתחתיו הוא נראה שבור.
-            // מסך נמוך של מחשב נייד זול חייב לעבוד גם הוא.
-            int avail = H - top - statusH - pad * 2;
-            int tlMin = S(140), editMin = S(168), videoMin = S(190);
+            // שני אזורים בלבד: מימין ״הכתוביות״, משמאל ״הסרט״.
+            int avail = H - top - statusH - pad;
 
-            int tlH = Math.Max(tlMin, Math.Min(S(270), (int)(H * 0.235)));
-            int editH = S(192);
-            int mainH = avail - tlH;
-
-            if (mainH < videoMin + editMin + pad)
-            {
-                // קודם מקצצים את הציר, ורק אחר כך את כרטיס העריכה
-                tlH = Math.Max(tlMin, avail - videoMin - editMin - pad);
-                mainH = avail - tlH;
-                editH = Math.Max(editMin, Math.Min(S(192), mainH - videoMin - pad));
-            }
-            if (mainH < S(260)) mainH = S(260);
-
-            int listW = Math.Max(S(300), Math.Min(S(390), (int)(W * 0.23)));
-            _listCard.SetBounds(pad, top, listW, mainH);
-            _list.SetBounds(1, _listCard.HeaderH, listW - 2, mainH - _listCard.HeaderH - 1);
-
+            int listW = Math.Max(S(330), Math.Min(S(430), (int)(W * 0.32)));
             int leftX = pad + listW + pad;
             int leftW = W - leftX - pad;
-            int videoH = Math.Max(S(120), mainH - editH - pad);
-            _videoCard.SetBounds(leftX, top, leftW, videoH);
-            _editCard.SetBounds(leftX, top + videoH + pad, leftW, editH);
 
-            // כרטיס הווידאו - שורת הניגון מתכווצת כשאין גובה
-            int transH = videoH < S(230) ? S(48) : S(58);
-            _mediaLbl.SetBounds(S(14), (_videoCard.HeaderH - S(18)) / 2, Math.Max(S(60), leftW - S(200)), S(18));
-            _video.SetBounds(S(10), _videoCard.HeaderH, leftW - S(20),
-                Math.Max(S(40), videoH - _videoCard.HeaderH - transH));
-            int ty = videoH - transH;
+            // ---------- ימין: רשימה + עורך באותו כרטיס ----------
+            _listCard.SetBounds(pad, top, listW, avail);
+            int headH = _listCard.HeaderH;
+            int editH = Math.Max(S(132), Math.Min(S(152), avail / 4));
+            int listH = Math.Max(S(90), avail - headH - editH);
+            _list.SetBounds(1, headH, listW - 2, listH);
+            _listCard.SepY = headH + listH;
+
+            int ex = S(16);
+            int ew = listW - ex * 2;
+            int ey = headH + listH + S(10);
+
+            _textLbl.Visible = false;
+            _timesLbl.Visible = false;
+            _startLbl.Visible = true;
+            _endLbl.Visible = true;
+
+            _text.SetBounds(ex, ey, ew, S(56));
+            _textEmptyHint.SetBounds(ex + S(8), ey + S(4), ew - S(16), S(22));
+
+            // שורה אחת: מימין הזמנים (״מ־״ ו״עד״), משמאל הפעולות.
+            // קודם מחשבים כמה מקום הקבוצה הימנית באמת צריכה, ורק אז מציבים -
+            // אחרת בכרטיס צר השדות דורסים את כפתור המחיקה.
+            int ry = ey + S(56) + S(8);
+            int rh = S(32);
+            int hw = S(32), lw = S(26);
+            int fw = S(74);
+            int minBtns = S(38) + S(10);          // מקום מזערי לכפתור פעולה אחד
+            bool showLbls = true;
+
+            int groupW = 2 * (lw + S(2) + fw + S(3) + hw) + S(12);
+            if (groupW + minBtns > ew) { showLbls = false; groupW -= 2 * (lw + S(2)); }
+            if (groupW + minBtns > ew)
+            {
+                int over = groupW + minBtns - ew;
+                fw = Math.Max(S(56), fw - (over + 1) / 2);
+                groupW = 2 * ((showLbls ? lw + S(2) : 0) + fw + S(3) + hw) + S(12);
+            }
+            _startLbl.Visible = showLbls;
+            _endLbl.Visible = showLbls;
+
+            int rx = ex + ew;
+            if (showLbls) { _startLbl.SetBounds(rx - lw, ry + S(7), lw, S(18)); rx -= lw + S(2); }
+            _startF.SetBounds(rx - fw, ry, fw, rh);
+            rx -= fw + S(3);
+            _startHere.SetBounds(rx - hw, ry, hw, rh);
+            rx -= hw + S(12);
+
+            if (showLbls) { _endLbl.SetBounds(rx - lw, ry + S(7), lw, S(18)); rx -= lw + S(2); }
+            _endF.SetBounds(rx - fw, ry, fw, rh);
+            rx -= fw + S(3);
+            _endHere.SetBounds(rx - hw, ry, hw, rh);
+
+            // מה שנשאר משמאל לזמנים שייך לכפתורי הפעולה
+            int roomForBtns = (rx - hw) - ex - S(10);
+            int fullBtns = 0;
+            foreach (Btn b in _editBtns) fullBtns += b.PrefWidth + S(5);
+            bool tinyBtns2 = fullBtns > roomForBtns;
+            int bx2 = ex;
+            foreach (Btn b in _editBtns)
+            {
+                b.IconOnly = tinyBtns2;
+                int bw = tinyBtns2 ? S(38) : b.PrefWidth;
+                if (bx2 + bw > ex + roomForBtns) bw = Math.Max(S(28), ex + roomForBtns - bx2);
+                b.SetBounds(bx2, ry, bw, rh);
+                bx2 += bw + S(5);
+            }
+            _durLbl.Visible = false;
+            _cpsLbl.SetBounds(ex, ry + rh + S(3), ew, S(16));
+
+            // ---------- שמאל: סרט + ניגון + פס קול + כפתור אחד ----------
+            _videoCard.SetBounds(leftX, top, leftW, avail);
+            int vHead = _videoCard.HeaderH;
+            int addH = S(50);
+            int transH = S(54);
+            int waveH = Math.Max(S(88), Math.Min(S(150), (int)(avail * 0.2)));
+            int videoH = Math.Max(S(90), avail - vHead - transH - waveH - addH - S(24));
+
+            _mediaLbl.SetBounds(S(14), (vHead - S(18)) / 2, Math.Max(S(60), leftW - S(200)), S(18));
+            _video.SetBounds(S(10), vHead, leftW - S(20), videoH);
+
+            int ty = vHead + videoH + S(2);
+            int playH = transH - S(10);
             int bx = leftW - S(14) - _playBtn.Width;
-            int playH = transH - S(12);
-            _playBtn.SetBounds(bx, ty + S(6), _playBtn.Width, playH);
+            _playBtn.SetBounds(bx, ty + S(5), _playBtn.Width, playH);
             bx -= S(10);
             foreach (Btn b in _transportBtns)
             {
                 bx -= b.Width;
-                b.SetBounds(bx, ty + S(6), b.Width, playH);
+                b.SetBounds(bx, ty + S(5), b.Width, playH);
                 bx -= S(2);
             }
-            int timeW = S(170);
-            _timeLbl.SetBounds(Math.Max(S(190), bx - timeW - S(6)), ty + S(6), timeW, playH);
-            _volume.SetBounds(S(14), ty + S(15), S(160), S(28));
+            // משמאל: עוצמה ומהירות. באמצע: השעון. הכול נחתך מהמקום שבאמת נשאר,
+            // אחרת בחלון צר הזמן נדרס על ידי כפתורי הניגון.
+            int volW = leftW < S(660) ? S(92) : S(126);
+            int spW = _speedBtn.Width;
+            int room = bx - S(10) - (S(14) + volW + S(10) + spW + S(10));
+            if (room < S(112)) { volW = S(64); room = bx - S(10) - (S(14) + volW + S(10) + spW + S(10)); }
+            if (room < S(96)) { spW = S(60); room = bx - S(10) - (S(14) + volW + S(10) + spW + S(10)); }
 
-            // כרטיס העריכה:
-            // מימין תיבת הטקסט, משמאל שתי שורות זמן עם כפתורי כוונון.
-            int ew = leftW;
-            int colW = S(344);
-            int fieldW = S(88);
-            int textW = Math.Max(S(200), ew - S(28) - colW - S(18));
-            bool tightEdit = editH < S(186);
-            int labelY = _editCard.HeaderH + S(4);
-            int rowY = _editCard.HeaderH + (tightEdit ? S(8) : S(28));
-            int row2Y = rowY + S(38);
-            _textLbl.Visible = !tightEdit;
-            _textLbl.SetBounds(ew - S(14) - S(260), labelY, S(260), S(18));
-            _text.SetBounds(ew - S(14) - textW, rowY, textW, tightEdit ? S(62) : S(72));
-            _textEmptyHint.SetBounds(ew - S(14) - textW + S(10), rowY + S(6), textW - S(20), S(24));
-            _timesLbl.SetBounds(S(14), labelY, colW, S(18));
+            _volume.SetBounds(S(14), ty + S(14), volW, S(26));
+            _speedBtn.SetBounds(S(14) + volW + S(10), ty + S(10), spW, _speedBtn.Height);
 
-            LayoutTimeRow(rowY, colW, fieldW, _startLbl, _startMinus, _startF, _startPlus, _startHere);
-            LayoutTimeRow(row2Y, colW, fieldW, _endLbl, _endMinus, _endF, _endPlus, _endHere);
+            int timeLeft = S(14) + volW + S(10) + spW + S(10);
+            int timeW = Math.Max(S(80), Math.Min(S(200), room));
+            _timeLbl.SetBounds(timeLeft, ty + S(5), timeW, playH);
 
-            int eby = editH - S(46);
-            int ebx = ew - S(14);
-
-            // כשאין רוחב - הכפתורים המשניים הופכים לאייקונים בלבד (עם הסבר בריחוף),
-            // כדי שלא ייחתכו וכדי ש"כתובית חדשה" יישאר קריא
-            int btnsW = 0;
-            foreach (Btn b in _editBtns) btnsW += b.PrefWidth + S(7);
-            // שורת הכפתורים נמצאת מתחת לשורות הזמן, אז היא יכולה לנצל את כל רוחב הכרטיס
-            bool tinyBtns = btnsW > ew - S(60);
-            bool first = true;
-            foreach (Btn b in _editBtns)
-            {
-                b.IconOnly = tinyBtns && !first;
-                int bw = b.IconOnly ? S(46) : b.PrefWidth;
-                ebx -= bw;
-                b.SetBounds(ebx, eby, bw, b.Height);
-                ebx -= S(7);
-                first = false;
-            }
-            _durLbl.SetBounds(S(14), eby + S(1), S(160), S(18));
-            _cpsLbl.SetBounds(S(14), eby + S(18), S(200), S(16));
-
-            // ציר הזמן
-            int tlY = top + mainH + pad;
-            _tlCard.SetBounds(pad, tlY, W - pad * 2, tlH);
-            int tbx = S(14);
-            foreach (Btn b in _tlBtns)
-            {
-                b.SetBounds(tbx, S(5), b.Width, b.Height);
-                tbx += b.Width + S(5);
-            }
-            _tl.SetBounds(S(8), _tlCard.HeaderH, _tlCard.Width - S(16),
-                Math.Max(S(60), tlH - _tlCard.HeaderH - S(8)));
+            int wy = ty + transH;
+            _tl.SetBounds(S(8), wy, leftW - S(16), waveH);
             _tl.FitIfNeeded();
+            foreach (Btn b in _tlBtns) b.SetBounds(S(12), wy + S(4), b.Width, b.Height);
+
+            _addCueBtn.SetBounds(S(14), avail - addH - S(10), leftW - S(28), addH);
 
             int hintW = Math.Min(W - S(360), S(720));
             _hintLbl.SetBounds(W - hintW - pad - S(10), H - statusH + S(2), hintW, S(22));
@@ -1065,7 +1165,7 @@ namespace SubtitleStudio
             if (_lastShownDuration != _engine.DurationMs)
             {
                 _lastShownDuration = _engine.DurationMs;
-                _timeLbl.Text = Tc.Short(pos) + "   /   " + Tc.Short(_engine.DurationMs);
+                _timeLbl.Text = ClockText(pos);
                 _timeLbl.Invalidate();
             }
             if (_tl.Position != pos)
@@ -1075,7 +1175,7 @@ namespace SubtitleStudio
                 _tl.Invalidate();
                 _list.Position = pos;
                 _list.Invalidate();
-                _timeLbl.Text = Tc.Short(pos) + "   /   " + Tc.Short(_engine.DurationMs);
+                _timeLbl.Text = ClockText(pos);
                 _timeLbl.Invalidate();
                 _lastShownDuration = _engine.DurationMs;
             }
@@ -1206,7 +1306,6 @@ namespace SubtitleStudio
             }
             _loadingEditor = false;
             UpdateCps();
-            _editCard.Caption = c == null ? "עריכת הכתובית" : "עריכת כתובית מספר " + (_doc.Cues.IndexOf(c) + 1);
             _editCard.Invalidate();
             _video.Invalidate();
         }
@@ -1250,6 +1349,8 @@ namespace SubtitleStudio
         // ---------- פעולות כתוביות ----------
         private void NewCueAtPlayhead()
         {
+            // עוצרים כדי שאפשר יהיה לכתוב בנחת
+            if (_engine.IsPlaying) _engine.Pause();
             long pos = _engine.Position;
             _doc.Push("כתובית חדשה");
             long end = pos + 2500;
@@ -1265,6 +1366,8 @@ namespace SubtitleStudio
             _list.ScrollToCue(nc);
             _tl.EnsureVisible(pos, false);
             _text.Focus();
+            _hintLbl.Text = "כתבו את מה שנאמר. לחיצה על הנגנ תמשיך את הסרט.";
+            _hintLbl.Invalidate();
         }
 
         private void SetEdge(bool start)
@@ -1963,6 +2066,14 @@ namespace SubtitleStudio
                         if (InTextBox) return false;
                         _doc.SelectAll(); LoadEditor(); _list.Invalidate(); _tl.Invalidate();
                         return true;
+
+                    // קפיצות קטנות שעובדות גם כשהסמן בתוך תיבת הטקסט -
+                    // במהלך כתיבה רוצים כל רגע לחזור שנייה ולשמוע שוב.
+                    case Keys.Left: Seek(_engine.Position - (shift ? 500 : 2000)); return true;
+                    case Keys.Right: Seek(_engine.Position + (shift ? 500 : 2000)); return true;
+                    case Keys.Space: TogglePlay(); return true;
+                    case Keys.Up: SetSpeedStep(1); return true;
+                    case Keys.Down: SetSpeedStep(-1); return true;
                 }
                 return false;
             }
@@ -1974,8 +2085,8 @@ namespace SubtitleStudio
             switch (key)
             {
                 case Keys.Space: TogglePlay(); return true;
-                case Keys.Left: Seek(_engine.Position - (shift ? 1000 : 5000)); return true;
-                case Keys.Right: Seek(_engine.Position + (shift ? 1000 : 5000)); return true;
+                case Keys.Left: Seek(_engine.Position - (shift ? 500 : 2000)); return true;
+                case Keys.Right: Seek(_engine.Position + (shift ? 500 : 2000)); return true;
                 case Keys.Delete: DeleteCues(); return true;
                 case Keys.Q: SetEdge(true); return true;
                 case Keys.W: SetEdge(false); return true;

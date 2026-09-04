@@ -611,11 +611,10 @@ namespace SubtitleStudio
             }
             else if (Doc != null && Doc.Cues.Count == 0)
             {
+                // רמז שקט בלבד - הדרך הראשית היא הכפתור הכחול, לא שתי הוראות מתחרות.
                 float hy = TrackTop + (Height - ScrollH - TrackTop) / 2f;
-                Theme.Str(g, "גררו כאן כדי ליצור כתובית", Theme.Big, Theme.TextDim,
-                    new RectangleF(0, hy - Theme.S(20), Width, Theme.S(22)), Theme.SfCenter);
-                Theme.Str(g, "מסמנים מאיפה עד איפה היא תופיע - ואז כותבים את הטקסט",
-                    Theme.Small, Theme.TextFaint, new RectangleF(0, hy + Theme.S(3), Width, Theme.S(18)), Theme.SfCenter);
+                Theme.Str(g, "אפשר גם לגרור כאן", Theme.Small, Theme.TextFaint,
+                    new RectangleF(0, hy - Theme.S(9), Width, Theme.S(18)), Theme.SfCenter);
             }
         }
 

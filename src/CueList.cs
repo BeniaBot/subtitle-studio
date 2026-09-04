@@ -74,9 +74,26 @@ namespace SubtitleStudio
             base.OnMouseWheel(e);
         }
 
+        /// <summary>קליק ימני על שורה - לפעולות נדירות שלא צריכות כפתור קבוע במסך.</summary>
+        public event EventHandler<Point> ContextRequested;
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             Focus();
+            if (e.Button == MouseButtons.Right)
+            {
+                int ri = RowAt(e.Y);
+                if (ri >= 0 && Doc != null && ri < Doc.Cues.Count && !Doc.Cues[ri].Selected)
+                {
+                    Doc.SelectNone();
+                    Doc.Cues[ri].Selected = true;
+                    _anchor = ri;
+                    if (SelectionChanged != null) SelectionChanged(this, EventArgs.Empty);
+                    Invalidate();
+                }
+                if (ContextRequested != null) ContextRequested(this, new Point(e.X, e.Y));
+                return;
+            }
             if (e.X > Width - ScrollW - 2 && TotalH > ViewH)
             {
                 _dragScroll = true;
@@ -159,11 +176,55 @@ namespace SubtitleStudio
             e.Handled = true;
         }
 
+        /// <summary>מצב ריק: שלושה שלבים במקום משפט אחד עמום.
+        /// המשתמש רואה את זה בדיוק ליד הכפתור שאליו הטקסט מכוון.</summary>
+        private void DrawSteps(Graphics g)
+        {
+            string[] steps = new string[]
+            {
+                "נגנו את הסרט ועצרו במקום שבו מתחיל הדיבור",
+                "לחצו על הכפתור הכחול שלמטה",
+                "הקלידו את מה שנאמר. ושוב."
+            };
+
+            int m = Theme.S(18);
+            int w = Width - m * 2;
+            int rowH = Theme.S(46);
+            int total = Theme.S(30) + steps.Length * rowH;
+            int y = Math.Max(Theme.S(16), (Height - total) / 2);
+
+            Theme.Str(g, "איך כותבים כתוביות", Theme.Semi(11.5f), Theme.Text,
+                new RectangleF(m, y, w, Theme.S(26)), Theme.SfRtl);
+            y += Theme.S(34);
+
+            int d = Theme.S(26);
+            for (int i = 0; i < steps.Length; i++)
+            {
+                RectangleF circle = new RectangleF(Width - m - d, y + Theme.S(2), d, d);
+                using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Accent, 0.16f)))
+                    g.FillEllipse(b, circle);
+                Theme.Str(g, (i + 1).ToString(), Theme.Semi(8.75f), Theme.Accent, circle, Theme.SfCenter);
+
+                float tx = m;
+                float tw = Width - m - d - Theme.S(10) - tx;
+                Theme.Str(g, steps[i], Theme.Ui, Theme.TextDim,
+                    new RectangleF(tx, y, tw, rowH - Theme.S(6)), Theme.SfRtlWrap);
+                y += rowH;
+            }
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
+
+            if (Doc == null || Doc.Cues.Count == 0)
+            {
+                // בלי כותרת טבלה מעל טבלה ריקה - רק השלבים.
+                DrawSteps(g);
+                return;
+            }
 
             // כותרת
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.PanelAlt, 0.8f)))
@@ -179,21 +240,6 @@ namespace SubtitleStudio
             Theme.Str(g, "טקסט", Theme.SmallBold, Theme.TextDim, new RectangleF(textX, 0, textW, HeaderH), Theme.SfRtl);
             Theme.Str(g, "התחלה", Theme.SmallBold, Theme.TextDim, new RectangleF(startX, 0, StartW, HeaderH), Theme.SfCenter);
             Theme.Str(g, "שניות", Theme.SmallBold, Theme.TextDim, new RectangleF(pad, 0, DurW, HeaderH), Theme.SfCenter);
-
-            if (Doc == null || Doc.Cues.Count == 0)
-            {
-                float cy = HeaderH + (Height - HeaderH) / 2f;
-                float d = Theme.S(40), m = Theme.S(10), w = Width - Theme.S(20);
-                Icons.Draw(g, Ico.List, new RectangleF((Width - d) / 2f, cy - Theme.S(74), d, d),
-                    Theme.Mix(Theme.Panel, Theme.TextFaint, 0.55f), 1.6f);
-                Theme.Str(g, "עוד אין כתוביות", Theme.Big, Theme.TextDim,
-                    new RectangleF(m, cy - Theme.S(26), w, Theme.S(26)), Theme.SfCenter);
-                Theme.Str(g, "לחצו ״כתובית חדשה״ כדי לכתוב אחת,", Theme.Ui, Theme.TextFaint,
-                    new RectangleF(m, cy + Theme.S(4), w, Theme.S(22)), Theme.SfCenter);
-                Theme.Str(g, "או ״ייבוא כתוביות״ כדי לטעון קובץ מוכן.", Theme.Ui, Theme.TextFaint,
-                    new RectangleF(m, cy + Theme.S(26), w, Theme.S(22)), Theme.SfCenter);
-                return;
-            }
 
             Rectangle clip = new Rectangle(0, HeaderH, Width, ViewH);
             g.SetClip(clip);

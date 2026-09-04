@@ -190,6 +190,35 @@ namespace SubtitleStudio
         public bool IsOpen { get { return _hwo != IntPtr.Zero; } }
         public int BytesPerSec { get { return Rate * Channels * Bits / 8; } }
 
+        /// <summary>מהירות ניגון. נקבעת לפני Start ומופעלת דרך atempo של ffmpeg (בלי שינוי גובה).</summary>
+        public double Speed = 1.0;
+        private double _playSpeed = 1.0;
+
+        /// <summary>atempo תקף רק בטווח 0.5-2, אז שרשרת עותקים לערכים שמעבר.</summary>
+        public static string TempoChain(double sp)
+        {
+            if (sp <= 0) sp = 1;
+            if (Math.Abs(sp - 1.0) < 0.001) return "";
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            double left = sp;
+            int guard = 0;
+            while (left < 0.5 && guard++ < 6)
+            {
+                if (sb.Length > 0) sb.Append(',');
+                sb.Append("atempo=0.5");
+                left /= 0.5;
+            }
+            while (left > 2.0 && guard++ < 6)
+            {
+                if (sb.Length > 0) sb.Append(',');
+                sb.Append("atempo=2.0");
+                left /= 2.0;
+            }
+            if (sb.Length > 0) sb.Append(',');
+            sb.Append("atempo=").Append(left.ToString("0.####", CultureInfo.InvariantCulture));
+            return sb.ToString();
+        }
+
         public long PositionMs
         {
             get
@@ -198,7 +227,9 @@ namespace SubtitleStudio
                 Native.MmTime t = new Native.MmTime();
                 t.wType = Native.TIME_BYTES;
                 Native.waveOutGetPosition(_hwo, ref t, Marshal.SizeOf(typeof(Native.MmTime)));
-                return _startMs + (long)(t.units * 1000L / BytesPerSec);
+                // המונה סופר את הפלט, ובמהירות מופחתת שניית פלט = פחות משנייה בסרט.
+                long played = (long)(t.units * 1000L / BytesPerSec);
+                return _startMs + (long)(played * _playSpeed);
             }
         }
 
@@ -261,14 +292,18 @@ namespace SubtitleStudio
                 OpenDevice();
                 if (_hwo == IntPtr.Zero) return;
                 _startMs = fromMs;
+                _playSpeed = Speed > 0 ? Speed : 1.0;
                 _stop = false;
                 _eof = false;
                 Finished = false;
                 Native.waveOutReset(_hwo);
 
+                string tempo = TempoChain(_playSpeed);
                 string args = "-hide_banner -nostdin -v quiet " +
                     (fromMs > 0 ? "-ss " + (fromMs / 1000.0).ToString("0.###", CultureInfo.InvariantCulture) + " " : "") +
-                    "-i \"" + path + "\" -vn -sn -dn -ac " + Channels + " -ar " + Rate +
+                    "-i \"" + path + "\" -vn -sn -dn " +
+                    (tempo.Length > 0 ? "-af \"" + tempo + "\" " : "") +
+                    "-ac " + Channels + " -ar " + Rate +
                     " -f s16le -acodec pcm_s16le pipe:1";
                 ProcessStartInfo psi = new ProcessStartInfo(Ff.Exe, args);
                 psi.UseShellExecute = false;
@@ -634,6 +669,25 @@ namespace SubtitleStudio
         private bool _playing;
         private long _pos;
         private long _durationMs;
+        private double _speed = 1.0;
+
+        /// <summary>מהירות הניגון. שינוי תוך כדי ניגון מפעיל מחדש מאותו מקום.</summary>
+        public double Speed
+        {
+            get { return _speed; }
+            set
+            {
+                double v = Math.Max(0.25, Math.Min(4.0, value));
+                if (Math.Abs(v - _speed) < 0.001) return;
+                bool was = _playing;
+                long at = Position;
+                if (was) Pause();
+                _speed = v;
+                _audio.Speed = v;
+                _pos = at;
+                if (was) Play();
+            }
+        }
 
         public bool IsPlaying { get { return _playing; } }
         public long DurationMs { get { return _durationMs; } }
@@ -677,7 +731,7 @@ namespace SubtitleStudio
                 if (!_playing) return _pos;
                 long p;
                 if (HasAudio && _audio.IsOpen) p = _audio.PositionMs;
-                else p = _clockBase + _clock.ElapsedMilliseconds;
+                else p = _clockBase + (long)(_clock.ElapsedMilliseconds * _speed);
                 if (_durationMs > 0 && p > _durationMs) p = _durationMs;
                 return p;
             }

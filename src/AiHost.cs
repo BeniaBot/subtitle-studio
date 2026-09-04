@@ -90,8 +90,70 @@ namespace SubtitleStudio
 
             t.Add(new AiTool("trim_video", "פותח את חלון חיתוך הקטע המסומן"));
 
-            t.Add(new AiTool("run_media_tool", "פותח את חלון הכלים לסרט (עוצמה, המרה, דחיסה, ריוורס וכו׳)")
-                .P("tool", "string", "שם הכלי בעברית או באנגלית, למשל: volume, reverse, fit_size"));
+            t.Add(new AiTool("run_media_tool", "מפעיל כלי על קובץ הווידאו: עוצמה, המרה, דחיסה, מהירות, סיבוב, היפוך, GIF, חילוץ פס קול ועוד")
+                .P("tool", "string", "שם הכלי בדיוק כפי שהוא חוזר מ-list_media_tools. בלי שם - נפתחת רשימת הכלים"));
+
+            t.Add(new AiTool("list_media_tools", "מחזיר את שמות כל הכלים שאפשר להפעיל על הסרט"));
+
+            // ---------- קבצים ויבוא ----------
+            t.Add(new AiTool("open_file", "פותח בתוכנה קובץ וידאו, אודיו או כתוביות")
+                .P("path", "string", "נתיב מלא לקובץ. בלי נתיב - נפתח למשתמש דיאלוג בחירת קובץ"));
+
+            t.Add(new AiTool("create_subtitles_from_text",
+                    "הופך טקסט חופשי לכתוביות מתוזמנות. זו הדרך ליצור כתוביות מאפס מתוך תמליל, תרגום או כל טקסט")
+                .Req("text", "string", "הטקסט. כל שורה היא כתובית, אלא אם צוין אחרת")
+                .P("start_sec", "number", "מאיזה זמן להתחיל. ברירת מחדל: מיקום הנגן")
+                .P("chars_per_sec", "number", "קצב קריאה לחישוב המשך. ברירת מחדל 15")
+                .P("split_by_blank_line", "boolean", "true = פסקה שלמה היא כתובית אחת")
+                .P("replace", "boolean", "true = להחליף את הקיימות. ברירת מחדל: לצרף"));
+
+            t.Add(new AiTool("extract_subtitles_from_video",
+                "שולף ערוץ כתוביות שמוטמע בתוך קובץ הווידאו (MKV/MP4) וטוען אותו לעריכה"));
+
+            t.Add(new AiTool("save_subtitles_as", "שומר את הכתוביות לקובץ חדש, בפורמט לבחירת המשתמש"));
+
+            // ---------- עריכה מתקדמת ----------
+            t.Add(new AiTool("set_cue_times", "משנה את הזמנים של כתובית אחת")
+                .Req("index", "integer", "מספר הכתובית, מ-1")
+                .P("start_sec", "number", "זמן התחלה חדש")
+                .P("end_sec", "number", "זמן סיום חדש"));
+
+            t.Add(new AiTool("split_cue", "מפצל כתובית לשתיים")
+                .Req("index", "integer", "מספר הכתובית")
+                .P("at_sec", "number", "באיזה זמן לפצל. ברירת מחדל: באמצע"));
+
+            t.Add(new AiTool("merge_cues", "מאחד כמה כתוביות רצופות לאחת")
+                .Req("from_index", "integer", "מהכתובית הזו")
+                .Req("to_index", "integer", "ועד הכתובית הזו"));
+
+            t.Add(new AiTool("replace_text", "חיפוש והחלפה בכל הכתוביות")
+                .Req("find", "string", "מה לחפש")
+                .Req("replace", "string", "במה להחליף. מחרוזת ריקה = מחיקה")
+                .P("match_case", "boolean", "להקפיד על אותיות גדולות/קטנות"));
+
+            t.Add(new AiTool("wrap_lines", "מסדר מחדש את שבירות השורה בכל הכתוביות")
+                .P("max_chars", "integer", "אורך שורה מרבי. ברירת מחדל 42"));
+
+            t.Add(new AiTool("clear_all_cues", "מוחק את כל הכתוביות ומתחיל מדף ריק"));
+
+            t.Add(new AiTool("stretch_timing",
+                    "מותח או מכווץ את כל התזמון לפי שתי נקודות עוגן - לתיקון כתוביות שמתנוות לאט מהסרט")
+                .Req("first_index", "integer", "מספר כתובית ראשונה לעיגון")
+                .Req("first_sec", "number", "הזמן הנכון שלה בסרט")
+                .Req("last_index", "integer", "מספר כתובית אחרונה לעיגון")
+                .Req("last_sec", "number", "הזמן הנכון שלה בסרט"));
+
+            // ---------- נגן ומצב ----------
+            t.Add(new AiTool("play_pause", "מפעיל או עוצר את הניגון")
+                .P("play", "boolean", "true לנגן, false לעצור. אם חסר - מחליף"));
+
+            t.Add(new AiTool("set_playback_speed", "משנה את מהירות ההשמעה בתוכנה (לא את הקובץ)")
+                .Req("speed", "number", "בין 0.5 ל-2. למשל 0.5 להאטה"));
+
+            t.Add(new AiTool("undo", "מבטל את הפעולה האחרונה"));
+
+            t.Add(new AiTool("set_theme", "מעביר בין מצב בהיר לכהה")
+                .Req("dark", "boolean", "true = כהה"));
 
             return t;
         }
@@ -135,6 +197,22 @@ namespace SubtitleStudio
                     case "export_video": return AiExport(call);
                     case "trim_video": return AiTrim();
                     case "run_media_tool": return AiTool_(call);
+                    case "list_media_tools": return AiListTools();
+                    case "open_file": return AiOpenFile(call);
+                    case "create_subtitles_from_text": return AiFromText(call, out refused);
+                    case "extract_subtitles_from_video": return AiExtract();
+                    case "save_subtitles_as": return AiSaveAs();
+                    case "set_cue_times": return AiSetTimes(call);
+                    case "split_cue": return AiSplit(call);
+                    case "merge_cues": return AiMerge(call);
+                    case "replace_text": return AiReplace(call);
+                    case "wrap_lines": return AiWrap(call);
+                    case "clear_all_cues": return AiClear(out refused);
+                    case "stretch_timing": return AiStretch(call);
+                    case "play_pause": return AiPlayPause(call);
+                    case "set_playback_speed": return AiSetSpeed(call);
+                    case "undo": return AiUndo();
+                    case "set_theme": return AiSetTheme(call);
                 }
                 r["error"] = "פעולה לא מוכרת: " + call.Name;
             }
@@ -406,8 +484,324 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null) { r["error"] = "אין קובץ פתוח"; return r; }
+            string want = c.Str("tool", "").Trim();
+            if (want.Length > 0)
+            {
+                foreach (MediaTool t in MediaTools.All())
+                {
+                    if (!string.Equals(t.Name, want, StringComparison.OrdinalIgnoreCase)) continue;
+                    ToolsDlg.RunNamed(this, t.Name, _mi, _tl.InPoint, _tl.OutPoint, _engine.Position);
+                    r["done"] = "נפתח הכלי " + t.Name;
+                    return r;
+                }
+                r["error"] = "אין כלי בשם הזה. קרא ל-list_media_tools כדי לראות את השמות.";
+                return r;
+            }
             OpenTools();
             r["done"] = "נפתח חלון הכלים";
+            return r;
+        }
+
+        // ---------- קבצים ----------
+
+        private Dictionary<string, object> AiOpenFile(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string path = c.Str("path", "");
+            if (path.Length > 0 && !File.Exists(path)) { r["error"] = "לא נמצא קובץ בנתיב הזה"; return r; }
+            if (path.Length > 0) OpenAny(path);
+            else OpenAnyDialog();
+            r["done"] = _mi != null ? "נפתח " + Path.GetFileName(_mi.Path) : "לא נפתח קובץ";
+            r["cue_count"] = _doc != null ? _doc.Cues.Count : 0;
+            return r;
+        }
+
+        private Dictionary<string, object> AiFromText(AiCall c, out bool refused)
+        {
+            refused = false;
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string text = c.Str("text", "");
+            if (text.Trim().Length == 0) { r["error"] = "לא התקבל טקסט"; return r; }
+
+            Formats.TextImportOptions o = new Formats.TextImportOptions();
+            o.StartAt = c.Args.ContainsKey("start_sec")
+                ? (long)(c.Num("start_sec", 0) * 1000)
+                : (_engine != null ? _engine.Position : 0);
+            o.Cps = c.Num("chars_per_sec", 15);
+            if (o.Cps < 3) o.Cps = 15;
+            o.SplitByBlankLine = c.Bool("split_by_blank_line", false);
+            List<Cue> made = Formats.ImportPlainText(text, o);
+            if (made.Count == 0) { r["error"] = "לא נוצרו כתוביות מהטקסט"; return r; }
+
+            bool replace = c.Bool("replace", false);
+            if (_doc.Cues.Count > 0 && replace)
+            {
+                int ans = Ui.Msg(this, "להחליף את הכתוביות הקיימות?",
+                    "הצ׳אט יצר " + made.Count + " כתוביות חדשות. אפשר לבטל אחר כך ב-Ctrl+Z.",
+                    Ico.Question, "להחליף", "לצרף", "ביטול");
+                if (ans == 2) { refused = true; r["cancelled"] = true; return r; }
+                _doc.Push("יצירה מטקסט");
+                if (ans == 0) _doc.Cues.Clear();
+            }
+            else _doc.Push("יצירה מטקסט");
+
+            _doc.Cues.AddRange(made);
+            _doc.Sort();
+            _doc.Dirty = true;
+            AiRefresh();
+            SyncAfterDocChange();
+            r["done"] = "נוצרו " + made.Count + " כתוביות";
+            r["total"] = _doc.Cues.Count;
+            return r;
+        }
+
+        private Dictionary<string, object> AiExtract()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null) { r["error"] = "אין סרט פתוח"; return r; }
+            int before = _doc.Cues.Count;
+            ExtractSubs();
+            int now = _doc.Cues.Count;
+            r["done"] = now == before
+                ? "חלון השליפה נסגר בלי לטעון כתוביות"
+                : "נשלפו כתוביות מתוך הסרט. סך הכול " + now;
+            r["cue_count"] = now;
+            return r;
+        }
+
+        private Dictionary<string, object> AiSaveAs()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (SaveSubtitles(true))
+                r["done"] = "נשמר" + (_doc.FilePath != null ? ": " + Path.GetFileName(_doc.FilePath) : "");
+            else r["error"] = "השמירה לא בוצעה";
+            return r;
+        }
+
+        // ---------- עריכה ----------
+
+        private Dictionary<string, object> AiSetTimes(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            Cue q = AiCueAt((int)c.Num("index", 0));
+            if (q == null) { r["error"] = "אין כתובית במספר הזה"; return r; }
+            _doc.Push("תזמון מהצ׳אט");
+            if (c.Args.ContainsKey("start_sec")) q.Start = Math.Max(0, (long)(c.Num("start_sec", 0) * 1000));
+            if (c.Args.ContainsKey("end_sec")) q.End = Math.Max(0, (long)(c.Num("end_sec", 0) * 1000));
+            if (q.End <= q.Start) q.End = q.Start + 1000;
+            _doc.Sort();
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "התזמון עודכן: " + Theme.Ltr(Tc.Short(q.Start) + " - " + Tc.Short(q.End));
+            return r;
+        }
+
+        private Dictionary<string, object> AiSplit(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            Cue a = AiCueAt((int)c.Num("index", 0));
+            if (a == null) { r["error"] = "אין כתובית במספר הזה"; return r; }
+            long at = c.Args.ContainsKey("at_sec") ? (long)(c.Num("at_sec", 0) * 1000) : (a.Start + a.End) / 2;
+            if (at <= a.Start + 80 || at >= a.End - 80)
+            { r["error"] = "נקודת הפיצול חייבת להיות בתוך הכתובית"; return r; }
+            _doc.Push("פיצול מהצ׳אט");
+            Cue b = a.Clone();
+            b.Start = at;
+            b.End = a.End;
+            a.End = at - 40;
+            string[] lines = a.Text.Replace("\r\n", "\n").Split('\n');
+            if (lines.Length > 1)
+            {
+                int half = lines.Length / 2;
+                a.Text = string.Join("\n", lines, 0, half);
+                b.Text = string.Join("\n", lines, half, lines.Length - half);
+            }
+            _doc.Cues.Add(b);
+            _doc.Sort();
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "הכתובית פוצלה ב-" + Theme.Ltr(Tc.Short(at));
+            return r;
+        }
+
+        private Dictionary<string, object> AiMerge(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            int from = (int)c.Num("from_index", 0);
+            int to = (int)c.Num("to_index", 0);
+            if (_doc == null || from < 1 || to <= from || to > _doc.Cues.Count)
+            { r["error"] = "טווח לא תקין"; return r; }
+            _doc.Push("איחוד מהצ׳אט");
+            Cue first = _doc.Cues[from - 1];
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(first.PlainText);
+            for (int i = from; i < to; i++)
+            {
+                Cue q = _doc.Cues[i];
+                if (q.End > first.End) first.End = q.End;
+                if (q.PlainText.Length > 0)
+                {
+                    if (sb.Length > 0) sb.Append(' ');
+                    sb.Append(q.PlainText);
+                }
+            }
+            _doc.Cues.RemoveRange(from, to - from);
+            first.Text = Formats.WrapText(sb.ToString(), 42);
+            _doc.Sort();
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "אוחדו " + (to - from + 1) + " כתוביות";
+            return r;
+        }
+
+        private Dictionary<string, object> AiReplace(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string find = c.Str("find", "");
+            if (find.Length == 0) { r["error"] = "לא צוין מה לחפש"; return r; }
+            string to = c.Str("replace", "");
+            StringComparison cmp = c.Bool("match_case", false)
+                ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            int hits = 0, touched = 0;
+            _doc.Push("החלפה מהצ׳אט");
+            foreach (Cue q in _doc.Cues)
+            {
+                string src = q.Text;
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                int i = 0, n = 0;
+                while (i < src.Length)
+                {
+                    int j = src.IndexOf(find, i, cmp);
+                    if (j < 0) { sb.Append(src, i, src.Length - i); break; }
+                    sb.Append(src, i, j - i).Append(to);
+                    i = j + find.Length;
+                    n++;
+                }
+                if (n > 0) { q.Text = sb.ToString(); hits += n; touched++; }
+            }
+            if (hits == 0) { _doc.Undo(); r["done"] = "לא נמצאו התאמות"; return r; }
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "הוחלפו " + hits + " מופעים ב-" + touched + " כתוביות";
+            return r;
+        }
+
+        private Dictionary<string, object> AiWrap(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            int max = (int)c.Num("max_chars", 42);
+            if (max < 16) max = 42;
+            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
+            _doc.Push("סידור שורות");
+            int n = 0;
+            foreach (Cue q in _doc.Cues)
+            {
+                string w = Formats.WrapText(q.PlainText, max);
+                if (w != q.Text) { q.Text = w; n++; }
+            }
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "סודרו " + n + " כתוביות";
+            return r;
+        }
+
+        private Dictionary<string, object> AiClear(out bool refused)
+        {
+            refused = false;
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = "אין מה למחוק"; return r; }
+            int n = _doc.Cues.Count;
+            if (!Ui.Confirm(this, "למחוק את כל הכתוביות?",
+                "הצ׳אט ביקש למחוק " + n + " כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.",
+                "מחיקה", "ביטול"))
+            { refused = true; r["cancelled"] = true; return r; }
+            _doc.Push("ניקוי מהצ׳אט");
+            _doc.Cues.Clear();
+            _doc.Dirty = true;
+            AiRefresh();
+            SyncAfterDocChange();
+            r["done"] = "נמחקו " + n + " כתוביות";
+            return r;
+        }
+
+        private Dictionary<string, object> AiStretch(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            Cue a = AiCueAt((int)c.Num("first_index", 0));
+            Cue b = AiCueAt((int)c.Num("last_index", 0));
+            if (a == null || b == null || b.Start <= a.Start)
+            { r["error"] = "צריך שתי כתוביות שונות, השנייה אחרי הראשונה"; return r; }
+            long na = (long)(c.Num("first_sec", 0) * 1000);
+            long nb = (long)(c.Num("last_sec", 0) * 1000);
+            if (nb <= na) { r["error"] = "הזמן השני חייב להיות אחרי הראשון"; return r; }
+            double scale = (nb - na) / (double)(b.Start - a.Start);
+            if (scale <= 0.05 || scale > 20) { r["error"] = "המתיחה יוצאת לא הגיונית"; return r; }
+            long anchor = a.Start;
+            _doc.Push("מתיחת תזמון");
+            foreach (Cue q in _doc.Cues)
+            {
+                q.Start = na + (long)((q.Start - anchor) * scale);
+                q.End = na + (long)((q.End - anchor) * scale);
+                if (q.Start < 0) q.Start = 0;
+                if (q.End <= q.Start) q.End = q.Start + 500;
+            }
+            _doc.Sort();
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "התזמון נמתח פי " + Theme.Ltr(scale.ToString("0.###", CultureInfo.InvariantCulture));
+            return r;
+        }
+
+        // ---------- נגן ומצב ----------
+
+        private Dictionary<string, object> AiPlayPause(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null) { r["error"] = "אין קובץ פתוח"; return r; }
+            bool want = c.Args.ContainsKey("play") ? c.Bool("play", true) : !_engine.IsPlaying;
+            if (want != _engine.IsPlaying) TogglePlay();
+            r["done"] = _engine.IsPlaying ? "מנגן" : "עצר";
+            return r;
+        }
+
+        private Dictionary<string, object> AiSetSpeed(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            SetSpeed(c.Num("speed", 1));
+            r["done"] = "מהירות ההשמעה: " + Theme.Ltr(SpeedText(_engine.Speed));
+            return r;
+        }
+
+        private Dictionary<string, object> AiUndo()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_doc == null || !_doc.CanUndo) { r["error"] = "אין מה לבטל"; return r; }
+            _doc.Undo();
+            SyncAfterDocChange();
+            r["done"] = "הפעולה האחרונה בוטלה";
+            return r;
+        }
+
+        private Dictionary<string, object> AiSetTheme(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            bool dark = c.Bool("dark", false);
+            if (Theme.Dark != dark) ToggleTheme();
+            r["done"] = Theme.Dark ? "עבר למצב כהה" : "עבר למצב בהיר";
+            return r;
+        }
+
+        private Dictionary<string, object> AiListTools()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            List<object> arr = new List<object>();
+            foreach (MediaTool t in MediaTools.All())
+            {
+                Dictionary<string, object> d = new Dictionary<string, object>();
+                d["name"] = t.Name;
+                d["what"] = t.Desc;
+                arr.Add(d);
+            }
+            r["tools"] = arr.ToArray();
             return r;
         }
 

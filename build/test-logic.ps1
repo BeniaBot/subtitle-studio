@@ -182,11 +182,12 @@ function Newer($v) { return $appT.GetMethod('IsNewer').Invoke($null, (Pack ([str
 Check 'version format'   ($cur -match '^\d+\.\d+\.\d+$') $cur
 Check 'same is not newer' (-not (Newer $cur)) $cur
 Check 'v-prefix handled'  (-not (Newer ("v" + $cur))) ''
-Check 'patch newer'       (Newer '0.1.1') ''
-Check 'minor newer'       (Newer '0.2.0') ''
-Check 'major newer'       (Newer '1.0.0') ''
+$pv = [version]$cur
+Check 'patch newer'       (Newer ("{0}.{1}.{2}" -f $pv.Major, $pv.Minor, ($pv.Build + 1))) ''
+Check 'minor newer'       (Newer ("{0}.{1}.0" -f $pv.Major, ($pv.Minor + 1))) ''
+Check 'major newer'       (Newer ("{0}.0.0" -f ($pv.Major + 1))) ''
 Check 'older rejected'    (-not (Newer '0.0.9')) ''
-Check 'beta tag parsed'   (Newer 'v0.2.0-beta') ''
+Check 'beta tag parsed'   (Newer ("v{0}.{1}.0-beta" -f $pv.Major, ($pv.Minor + 1))) ''
 Check 'garbage rejected'  (-not (Newer 'not-a-version')) ''
 Check 'empty rejected'    (-not (Newer '')) ''
 

@@ -10,7 +10,8 @@ namespace SubtitleStudio
         Film, Speaker, SpeakerOff, Gear, Undo, Redo, Scissors, Wand, Clock, Search, Close, Check,
         ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, Split, Merge, ZoomIn, ZoomOut,
         Import, Export, Info, Warning, Sliders, TextIcon, Sun, Moon, Flame, Layers, ShiftLR, List,
-        Refresh, Download, Upload, Image, Sparkles, Translate, Mic, Cut, Eye, Grid, Question, Sync, Target, Chat, Key
+        Refresh, Download, Upload, Image, Sparkles, Translate, Mic, Cut, Eye, Grid, Question, Sync, Target, Chat, Key,
+        Gauge
     }
 
     /// <summary>אייקונים וקטוריים מצוירים בקוד - בלי גופן אייקונים ובלי קבצים.</summary>
@@ -336,6 +337,15 @@ namespace SubtitleStudio
                         d.FEll(8.2f - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
                         d.FEll(12 - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
                         d.FEll(15.8f - 1.05f, 10 - 1.05f, 1.05f * 2, 1.05f * 2);
+                        break;
+                    }
+                case Ico.Gauge:
+                    {
+                        // מד-מהירות: קשת פתוחה למטה ומחוג אלכסוני
+                        d.Arc(3.5f, 5.5f, 17, 17, 180, 180);
+                        d.L(12, 14, 16.5f, 9.5f);
+                        d.FEll(10.7f, 12.7f, 2.6f, 2.6f);
+                        d.L(4, 18.5f, 20, 18.5f);
                         break;
                     }
                 case Ico.Key:

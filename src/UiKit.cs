@@ -139,6 +139,8 @@ namespace SubtitleStudio
         public string Caption = null;
         public Ico CaptionIcon = Ico.None;
         public int HeaderH = 0;
+        /// <summary>קו מפריד בתוך הכרטיס (לשני חלקים באותו אזור). 0 = אין.</summary>
+        public int SepY = 0;
 
         public Card()
         {
@@ -178,6 +180,10 @@ namespace SubtitleStudio
             else if (!string.IsNullOrEmpty(Caption))
                 Theme.Str(g, Caption, Theme.SmallBold, Theme.TextDim,
                     new RectangleF(Theme.S(13), Theme.S(6), Width - Theme.S(26), Theme.S(20)), Theme.SfRtl);
+
+            if (SepY > 0 && SepY < Height - pad)
+                using (Pen p = new Pen(Theme.BorderSoft, 1))
+                    g.DrawLine(p, Theme.S(14), SepY, Width - Theme.S(14), SepY);
         }
     }
 
@@ -833,6 +839,20 @@ namespace SubtitleStudio
         }
 
         /// <summary>פותח את התפריט מתחת לפקד, מיושר לימין שלו.</summary>
+        /// <summary>פתיחה במיקום עכבר (קליק ימני), בתוך גבולות המסך.</summary>
+        public void ShowAt(Point screen)
+        {
+            Screen sc = Screen.FromPoint(screen);
+            int x = screen.X - Width;
+            int y = screen.Y;
+            if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
+            if (y + Height > sc.WorkingArea.Bottom - 4) y = sc.WorkingArea.Bottom - Height - 4;
+            if (y < sc.WorkingArea.Top + 4) y = sc.WorkingArea.Top + 4;
+            Location = new Point(x, y);
+            Show();
+            Activate();
+        }
+
         public void ShowUnder(Control anchor)
         {
             Point p = anchor.PointToScreen(new Point(anchor.Width, anchor.Height + 4));
