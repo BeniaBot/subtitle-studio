@@ -5,6 +5,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\SubtitleStudio.exe'
 if (-not (Test-Path $exe)) { Write-Host 'no exe - run build.cmd first'; exit 1 }
 
+$env:SUBSTUDIO_TEST = '1'   # בלי דיאלוגים ובלי פנייה לרשת בזמן בדיקה
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
@@ -81,6 +82,67 @@ foreach ($size in @(@(940, 680), @(1175, 850), @(1493, 997), @(1920, 1080))) {
     Check ("no overlap at " + $w + "x" + $h) ($problems.Count -eq 0) ("`n     " + ($problems -join "`n     "))
     Check ("no spill at " + $w + "x" + $h)   ($spill.Count -eq 0)    ("`n     " + ($spill -join "`n     "))
 }
+
+# ---------- חלוניות קופצות ----------
+# בלי לבנות MainForm (יקר ואיטי): בודקים שהחלונית עצמה נפתחת ומארחת פקד,
+# ושהמתודות שמפעילות אותה קיימות.
+$ppT = $asm.GetType('SubtitleStudio.PopupPanel')
+$slT = $asm.GetType('SubtitleStudio.Slider')
+Check 'PopupPanel exists' ($null -ne $ppT) ''
+if ($ppT) {
+    $sl = [Activator]::CreateInstance($slT)
+    $pp = $ppT.GetConstructors()[0].Invoke(@($sl, [int]210, [int]58))
+    $pp.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+    $pp.Location = New-Object System.Drawing.Point -3000, -3000
+    $pp.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+    Check 'PopupPanel shows'       $pp.Visible ''
+    Check 'PopupPanel hosts child' ($pp.Controls.Count -eq 1) $pp.Controls.Count
+    Check 'PopupPanel sizes child' ($sl.Width -gt 100 -and $sl.Height -gt 10) ("{0}x{1}" -f $sl.Width, $sl.Height)
+    $pp.Close(); $pp.Dispose()
+    [System.Windows.Forms.Application]::DoEvents()
+}
+$flags = [Reflection.BindingFlags]'NonPublic,Instance'
+foreach ($m in @('ShowVolume', 'ShowSpeedMenu', 'ShowCueMenuAt')) {
+    Check ("$m exists") ($null -ne $formT.GetMethod($m, $flags)) ''
+}
+
+# ---------- מצב כהה ----------
+# אחרי החלפת ערכה אסור שיישאר פקד עם רקע בהיר. זה בדיוק הבאג שהיה.
+$f = [Activator]::CreateInstance($formT)
+$f.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$f.Location = New-Object System.Drawing.Point -3000, -3000
+$f.ClientSize = New-Object System.Drawing.Size 1493, 997
+$f.Show()
+[System.Windows.Forms.Application]::DoEvents()
+
+$dark = $themeT.GetField('Dark').GetValue($null)
+if (-not $dark) {
+    $formT.GetMethod('ToggleTheme', [Reflection.BindingFlags]'NonPublic,Instance').Invoke($f, @()) | Out-Null
+    [System.Windows.Forms.Application]::DoEvents()
+}
+Check 'theme is dark' ($themeT.GetField('Dark').GetValue($null)) ''
+
+$light = @()
+function Lum($c) { return (0.299 * $c.R + 0.587 * $c.G + 0.114 * $c.B) / 255.0 }
+function Scan($c, $path, [ref]$out) {
+    foreach ($k in $c.Controls) {
+        if (-not $k.Visible) { continue }
+        if ($k.Width -lt 8 -or $k.Height -lt 8) { continue }
+        if ((Lum $k.BackColor) -gt 0.72) {
+            $out.Value += ("{0}/{1} back={2} {3}x{4}" -f $path, $k.GetType().Name, $k.BackColor.Name, $k.Width, $k.Height)
+        }
+        Scan $k ($path + '/' + $k.GetType().Name) $out
+    }
+}
+Scan $f 'form' ([ref]$light)
+Check 'no light controls in dark mode' ($light.Count -eq 0) ("`n     " + ($light -join "`n     "))
+
+# חזרה למצב בהיר, כדי שהבדיקה לא תשנה את ההעדפה של המשתמש
+$formT.GetMethod('ToggleTheme', [Reflection.BindingFlags]'NonPublic,Instance').Invoke($f, @()) | Out-Null
+[System.Windows.Forms.Application]::DoEvents()
+$f.Close(); $f.Dispose()
+[System.Windows.Forms.Application]::DoEvents()
 
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)

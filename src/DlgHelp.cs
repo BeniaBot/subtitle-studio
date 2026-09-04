@@ -10,27 +10,31 @@ namespace SubtitleStudio
         private static readonly string[][] Steps = new string[][]
         {
             new string[] { "פותחים סרט", "כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון" },
-            new string[] { "מוסיפים כתוביות", "כותבים בעצמכם, או טוענים קובץ כתוביות קיים" },
-            new string[] { "מתזמנים על הציר", "גוררים על פס הכתוביות ליצירה, ומזיזים בלוק כדי לתקן" },
+            new string[] { "עוצרים איפה שהדיבור מתחיל", "מקש הרווח מנגן ועוצר. אפשר להאט את ההשמעה כדי לדייק" },
+            new string[] { "לוחצים ״כתובית חדשה כאן״ וכותבים", "הכפתור הכחול הגדול. ואז שוב, ושוב" },
             new string[] { "יוצרים את הסרט", "הכפתור הירוק - הסרט המקורי שלכם לא משתנה" }
         };
 
         private static readonly string[][] Keys = new string[][]
         {
             new string[] { "רווח", "ניגון ועצירה" },
-            new string[] { "← →", "דילוג 5 שניות" },
+            new string[] { "← →", "קפיצה של שתי שניות" },
+            new string[] { "Ctrl+← →", "אותו דבר, גם באמצע כתיבה" },
+            new string[] { "Ctrl+רווח", "ניגון ועצירה באמצע כתיבה" },
+            new string[] { "Ctrl+↑ ↓", "מהירות ההשמעה" },
+            new string[] { "Ctrl+N", "כתובית חדשה כאן" },
+            new string[] { "קליק ימני ברשימה", "חלוקה, איחוד ומחיקה" },
             new string[] { "Q / W", "התחלה / סיום כאן" },
-            new string[] { "I / O", "סימון קטע לחיתוך" },
             new string[] { "Tab", "לכתובית הבאה" },
             new string[] { "Delete", "מחיקת המסומנות" },
-            new string[] { "Ctrl+N", "כתובית חדשה" },
+            new string[] { "I / O", "סימון קטע לחיתוך" },
+            new string[] { "Ctrl+גלגלת", "זום בציר הזמן" },
+            new string[] { "גרירה על הציר", "יצירת כתובית חדשה" },
             new string[] { "Ctrl+O", "פתיחת קובץ" },
             new string[] { "Ctrl+S", "שמירת הכתוביות" },
             new string[] { "Ctrl+Z", "ביטול פעולה" },
-            new string[] { "Ctrl+T", "כלים לסרט" },
-            new string[] { "F5", "יצירת הסרט עם הכתוביות" },
-            new string[] { "Ctrl", "עם גלגלת העכבר - זום בציר" },
-            new string[] { "גרירה על הציר", "יצירת כתובית חדשה" }
+            new string[] { "Ctrl+K", "העוזר החכם" },
+            new string[] { "F5", "יצירת הסרט עם הכתוביות" }
         };
 
         public HelpDlg() : base("איך עובדים כאן", Ico.Question, 620)

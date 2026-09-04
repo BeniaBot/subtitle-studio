@@ -33,7 +33,7 @@ namespace SubtitleStudio
         private Btn _startMinus, _startPlus, _startHere, _endMinus, _endPlus, _endHere;
         private Slider _volume;
         private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn, _aiBtn;
-        private Btn _speedBtn;
+        private Btn _speedBtn, _volBtn;
         private Btn _addCueBtn;
         private readonly List<Btn> _needMedia = new List<Btn>();
         private readonly List<Btn> _toolbarBtns = new List<Btn>();
@@ -98,6 +98,8 @@ namespace SubtitleStudio
                 DoLayout();
                 UpdateSteps();
                 UpdateHint();
+                // בבדיקות אוטומטיות אין משתמש שילחץ על דיאלוג, ואין טעם לפנות לרשת
+                if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 if (!Ff.Available)
                     Ui.Error(this, "לא נמצא FFmpeg",
                         "הקובץ ffmpeg.exe צריך לשבת בתיקייה tools שליד התוכנה.\nבלעדיו אי אפשר לפתוח סרטים.");
@@ -420,25 +422,42 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_playBtn, "ניגון / עצירה (מקש הרווח)");
             _videoCard.Controls.Add(_playBtn);
 
-            AddTransport(Ico.StepBack, "אחורה 5 שניות (חץ שמאלה)", delegate { Seek(_engine.Position - 5000); });
+            AddTransport(Ico.StepBack, "אחורה שתי שניות (חץ שמאלה, או Ctrl+חץ תוך כדי כתיבה)",
+                delegate { Seek(_engine.Position - 2000); });
             AddTransport(Ico.Prev, "לכתובית הקודמת", delegate { JumpCue(-1); });
             AddTransport(Ico.Next, "לכתובית הבאה (Tab)", delegate { JumpCue(1); });
-            AddTransport(Ico.StepFwd, "קדימה 5 שניות (חץ ימינה)", delegate { Seek(_engine.Position + 5000); });
+            AddTransport(Ico.StepFwd, "קדימה שתי שניות (חץ ימינה, או Ctrl+חץ תוך כדי כתיבה)",
+                delegate { Seek(_engine.Position + 2000); });
 
             _timeLbl = new Lbl();
             _timeLbl.Font = Theme.MonoFont(10.5f);
             _timeLbl.Color = Theme.Text;
             _timeLbl.Align = StringAlignment.Near;
             _timeLbl.Rtl = false;
-            _timeLbl.Text = "00:00.0   /   00:00.0";
+            _timeLbl.Text = "00:00.0  /  00:00.0";
             _videoCard.Controls.Add(_timeLbl);
 
+            // הסליידר חי בחלונית קופצת, לא בשורת הניגון - הוא נדרש פעם אחת,
+            // ותפס מקום קבוע שהיה חסר לשעון.
             _volume = new Slider();
             _volume.Min = 0; _volume.Max = 100; _volume.Value = 80; _volume.Step = 1; _volume.Suffix = "%";
-            _volume.ValueChanged += delegate { _engine.Volume = (int)_volume.Value; };
-            Ui.Tip.SetToolTip(_volume, "עוצמת ההשמעה בתוכנה (לא משנה את הקובץ)");
-            _videoCard.Controls.Add(_volume);
+            _volume.ValueChanged += delegate
+            {
+                _engine.Volume = (int)_volume.Value;
+                if (_volBtn != null) { _volBtn.Icon = _volume.Value < 1 ? Ico.SpeakerOff : Ico.Speaker; _volBtn.Invalidate(); }
+            };
             _engine.Volume = 80;
+            _volume.Visible = false;
+            _videoCard.Controls.Add(_volume);   // בית קבוע, כדי שהחלפת ערכה תגיע גם אליו
+
+            _volBtn = new Btn();
+            _volBtn.Icon = Ico.Speaker;
+            _volBtn.IconOnly = true;
+            _volBtn.Kind = BtnKind.Tool;
+            _volBtn.Size = new Size(Theme.S(42), Theme.S(34));
+            _volBtn.Click += delegate { ShowVolume(); };
+            Ui.Tip.SetToolTip(_volBtn, "עוצמת ההשמעה בתוכנה (לא משנה את הקובץ)");
+            _videoCard.Controls.Add(_volBtn);
 
             // מהירות ניגון - להאטה עוזרת לדיוק בתזמון ולשמוע מילה לא ברורה
             _speedBtn = new Btn();
@@ -451,6 +470,19 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_speedBtn, "מהירות השמעה. האטה עוזרת לתפוס בדיוק את הרגע שבו מתחיל הדיבור" +
                 Environment.NewLine + "לא משנה את הקובץ, רק את ההשמעה כאן");
             _videoCard.Controls.Add(_speedBtn);
+        }
+
+        private void ShowVolume()
+        {
+            PopupPanel pp = new PopupPanel(_volume, Theme.S(210), Theme.S(58));
+            pp.FormClosed += delegate
+            {
+                // מחזירים את הסליידר לכרטיס כדי שאפשר יהיה לפתוח שוב
+                _volume.Parent = _videoCard;
+                _volume.Visible = false;
+            };
+            _volume.Visible = true;
+            pp.ShowUnder(_volBtn);
         }
 
         private static readonly double[] Speeds = new double[] { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
@@ -494,8 +526,8 @@ namespace SubtitleStudio
         private string ClockText(long pos)
         {
             string a = Tc.Short(pos);
-            if (_timeLbl.Width < Theme.S(140)) return a;
-            return a + "   /   " + Tc.Short(_engine.DurationMs);
+            if (_timeLbl.Width < Theme.S(150)) return a;
+            return a + "  /  " + Tc.Short(_engine.DurationMs);
         }
 
         private void SetSpeed(double v)
@@ -945,20 +977,34 @@ namespace SubtitleStudio
             // ורק אם זה לא מספיק מוותרים על התוויות של התפריטים (שאז המסך נראה לא מובן)
             int fixedPart = S(12) + _undoBtn.Width + S(4) + _redoBtn.Width
                             + S(14) + _moreBtn.Width * 4 + S(6) + pad * 2 + S(24);
-            int menusPart = 0;
+            int menusPart;
+
+            foreach (Btn b in _toolbarBtns) b.IconOnly = false;
+            menusPart = 0;
             foreach (Btn b in _toolbarBtns) menusPart += b.Width + S(8);
 
             int wide = S(214), narrow = S(150);
             bool shortLabel = fixedPart + menusPart + wide > W;
             _exportBtn.Text = shortLabel ? "יצירת הסרט" : "יצירת סרט עם כתוביות";
             _exportBtn.Width = shortLabel ? narrow : wide;
-            bool compact = fixedPart + menusPart + _exportBtn.Width > W;
+
+            // סדר ויתור על תוויות: שמירה (דיסקט מובן), פתיחה (תיקייה מובנת),
+            // ורק בלית ברירה התפריטים - שבלי תווית אף אחד לא יודע מה יש בהם.
+            int iconW = S(48);
+            int[] dropOrder = new int[] { 1, 0, 3, 2 };
+            int need = fixedPart + menusPart + _exportBtn.Width;
+            for (int i = 0; i < dropOrder.Length && need > W; i++)
+            {
+                Btn b = _toolbarBtns[dropOrder[i]];
+                if (b.Width <= iconW) continue;
+                b.IconOnly = true;
+                need -= b.Width - iconW;
+            }
 
             int x = W - pad - S(10);
             foreach (Btn b in _toolbarBtns)
             {
-                b.IconOnly = compact && b != _toolbarBtns[0];
-                int bw = b.IconOnly ? S(48) : b.Width;
+                int bw = b.IconOnly ? iconW : b.Width;
                 x -= bw;
                 b.SetBounds(x, by, bw, btnH);
                 x -= S(8);
@@ -1099,19 +1145,20 @@ namespace SubtitleStudio
                 b.SetBounds(bx, ty + S(5), b.Width, playH);
                 bx -= S(2);
             }
-            // משמאל: עוצמה ומהירות. באמצע: השעון. הכול נחתך מהמקום שבאמת נשאר,
-            // אחרת בחלון צר הזמן נדרס על ידי כפתורי הניגון.
-            int volW = leftW < S(660) ? S(92) : S(126);
+            // משמאל: עוצמה ומהירות (שני כפתורים קטנים). באמצע: השעון,
+            // שמקבל את כל מה שנשאר בין שתי הקבוצות.
+            int volW = _volBtn.Width;
             int spW = _speedBtn.Width;
-            int room = bx - S(10) - (S(14) + volW + S(10) + spW + S(10));
-            if (room < S(112)) { volW = S(64); room = bx - S(10) - (S(14) + volW + S(10) + spW + S(10)); }
-            if (room < S(96)) { spW = S(60); room = bx - S(10) - (S(14) + volW + S(10) + spW + S(10)); }
+            int leftEnd = S(14) + volW + S(6) + spW;
+            int room = bx - S(10) - leftEnd - S(10);
+            if (room < S(96)) { spW = S(58); leftEnd = S(14) + volW + S(6) + spW; room = bx - S(10) - leftEnd - S(10); }
 
-            _volume.SetBounds(S(14), ty + S(14), volW, S(26));
-            _speedBtn.SetBounds(S(14) + volW + S(10), ty + S(10), spW, _speedBtn.Height);
+            _volBtn.SetBounds(S(14), ty + S(10), volW, _volBtn.Height);
+            _speedBtn.SetBounds(S(14) + volW + S(6), ty + S(10), spW, _speedBtn.Height);
+            if (_volume.Parent == _videoCard) _volume.Visible = false;
 
-            int timeLeft = S(14) + volW + S(10) + spW + S(10);
-            int timeW = Math.Max(S(80), Math.Min(S(200), room));
+            int timeLeft = leftEnd + S(10);
+            int timeW = Math.Max(S(80), Math.Min(S(240), room));
             _timeLbl.SetBounds(timeLeft, ty + S(5), timeW, playH);
 
             int wy = ty + transH;
@@ -1260,11 +1307,11 @@ namespace SubtitleStudio
             if (_mi == null)
                 hint = "מתחילים כאן: לחצו ״פתיחת קובץ״, או פשוט גררו קובץ לתוך החלון.";
             else if (_doc.Cues.Count == 0)
-                hint = "עצרו את הסרט במקום הנכון ולחצו ״כתובית חדשה״ - או ייבאו קובץ כתוביות קיים.";
+                hint = "עצרו את הסרט איפה שהדיבור מתחיל, ולחצו על הכפתור הכחול ״כתובית חדשה כאן״.";
             else if (_tl.InPoint >= 0 || _tl.OutPoint >= 0)
                 hint = "קטע מסומן: " + Tc.Short(_tl.InPoint < 0 ? 0 : _tl.InPoint) + " עד " +
                        Tc.Short(_tl.OutPoint < 0 ? _engine.DurationMs : _tl.OutPoint) +
-                       "   ·   ״עריכת הסרט ← חיתוך קטע״ כדי לחתוך אותו.";
+                       "   ·   ״הסרט ← חיתוך קטע״ כדי לחתוך אותו.";
             else
                 hint = "טיפ: גררו בלוק על הציר כדי להזיז אותו, משכו את הקצה כדי להאריך, ולחצו עליו פעמיים כדי לערוך.";
             _hintLbl.Text = hint;
@@ -1366,7 +1413,7 @@ namespace SubtitleStudio
             _list.ScrollToCue(nc);
             _tl.EnsureVisible(pos, false);
             _text.Focus();
-            _hintLbl.Text = "כתבו את מה שנאמר. לחיצה על הנגנ תמשיך את הסרט.";
+            _hintLbl.Text = "כתבו את מה שנאמר. מקש הרווח ימשיך את הסרט.";
             _hintLbl.Invalidate();
         }
 
@@ -1717,6 +1764,24 @@ namespace SubtitleStudio
                 if (d.ShowDialog(this) != DialogResult.OK) return false;
                 path = d.FileName;
             }
+            // כתובית שנוצרה ולא נכתב בה כלום היא תמיד תאונה - לא שומרים אותה,
+            // וגם מוציאים אותה מהרשימה כדי שהמספרים יתאימו לקובץ.
+            int blanks = 0;
+            for (int i = _doc.Cues.Count - 1; i >= 0; i--)
+                if (_doc.Cues[i].PlainText.Trim().Length == 0) { _doc.Cues.RemoveAt(i); blanks++; }
+            if (blanks > 0)
+            {
+                if (_doc.Cues.Count == 0)
+                {
+                    Ui.Info(this, "אין מה לשמור", "כל הכתוביות ריקות מטקסט.");
+                    _doc.RaiseChanged();
+                    SyncAfterDocChange();
+                    return false;
+                }
+                _doc.RaiseChanged();
+                SyncAfterDocChange();
+            }
+
             try
             {
                 _doc.Sort();
@@ -1724,7 +1789,8 @@ namespace SubtitleStudio
                     _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
                 _doc.FilePath = path;
                 _doc.Dirty = false;
-                _hintLbl.Text = "הכתוביות נשמרו:  " + Path.GetFileName(path);
+                _hintLbl.Text = "הכתוביות נשמרו:  " + Path.GetFileName(path) +
+                    (blanks > 0 ? "   (הושמטו " + blanks + " כתוביות בלי טקסט)" : "");
                 _hintLbl.Invalidate();
                 return true;
             }

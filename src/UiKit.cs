@@ -734,6 +734,48 @@ namespace SubtitleStudio
     }
 
     /// <summary>תפריט נפתח מעוצב - עם שם והסבר לכל פעולה.</summary>
+    /// <summary>חלונית קופצת שמארחת פקד כלשהו - אותו מראה כמו תפריט, בלי הרשימה.
+    /// נסגרת כשמאבדים מיקוד, כדי שלא תישאר תלויה על המסך.</summary>
+    internal class PopupPanel : Form
+    {
+        public PopupPanel(Control content, int w, int h)
+        {
+            FormBorderStyle = FormBorderStyle.None;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.Manual;
+            BackColor = Theme.Panel;
+            RightToLeft = RightToLeft.Yes;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            ClientSize = new Size(w, h);
+            content.Location = new Point(Theme.S(12), Theme.S(12));
+            content.Size = new Size(w - Theme.S(24), h - Theme.S(24));
+            Controls.Add(content);
+            Deactivate += delegate { Close(); };
+            Load += delegate { Native.SetRoundedCorners(Handle); };
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Theme.Smooth(e.Graphics);
+            using (SolidBrush b = new SolidBrush(Theme.Panel)) e.Graphics.FillRectangle(b, ClientRectangle);
+            Theme.DrawRound(e.Graphics, new RectangleF(0, 0, Width - 1, Height - 1), 10, Theme.Border, 1f);
+        }
+
+        /// <summary>פותח מתחת לפקד, מיושר לימין שלו ובתוך גבולות המסך.</summary>
+        public void ShowUnder(Control anchor)
+        {
+            Point p = anchor.PointToScreen(new Point(anchor.Width, anchor.Height + 4));
+            int x = p.X - Width;
+            int y = p.Y;
+            Screen sc = Screen.FromControl(anchor);
+            if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
+            if (y + Height > sc.WorkingArea.Bottom - 4) y = anchor.PointToScreen(Point.Empty).Y - Height - 4;
+            Location = new Point(x, y);
+            Show(anchor.FindForm());
+            Activate();
+        }
+    }
+
     internal class PopupMenu : Form
     {
         private readonly System.Collections.Generic.List<MenuItem> _items;
