@@ -395,6 +395,9 @@ namespace SubtitleStudio
             public long Gap = 80;
             public int MaxCharsPerLine = 42;
             public bool AutoWrap = true;
+            /// <summary>לסמן את התוצאה כ״עוד לא תוזמן״ - הזמנים הם הערכה
+            /// והמשתמש יקבע אותם בלחיצות מול הסרט.</summary>
+            public bool MarkUntimed = false;
         }
 
         private static readonly Regex RxLeadTime = new Regex(@"^\s*[\[\(]?\s*(\d{1,2}:\d{1,2}(?::\d{1,2})?(?:[.,]\d{1,3})?)\s*[\]\)]?\s*[-–:]?\s*");
@@ -457,7 +460,10 @@ namespace SubtitleStudio
                     if (limit > start + 300 && limit < end) end = limit;
                     if (limit > end && stamps[i] >= 0) end = Math.Min(limit, start + o.MaxDur);
                 }
-                result.Add(new Cue(start, end, t));
+                Cue c = new Cue(start, end, t);
+                // חותמת זמן אמיתית בטקסט = תזמון אמיתי; אחרת זו רק הערכה
+                c.Untimed = o.MarkUntimed && stamps[i] < 0;
+                result.Add(c);
                 cursor = end + o.Gap;
             }
             return result;

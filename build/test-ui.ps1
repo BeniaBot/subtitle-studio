@@ -152,6 +152,73 @@ if (Test-Path $tmp) {
 $f.Close(); $f.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 
+# ================= תזמון בלחיצה =================
+Write-Host 'תזמון בלחיצה'
+$g = NewForm 1493 997
+$gdoc = Fld $g '_doc'
+$gcues = $gdoc.GetType().GetField('Cues').GetValue($gdoc)
+
+# טקסט חופשי עם שורות ריקות -> שלוש כתוביות בלי תזמון אמיתי
+$fmt = $asm.GetType('SubtitleStudio.Formats')
+$optT = $asm.GetType('SubtitleStudio.Formats+TextImportOptions')
+$o = [Activator]::CreateInstance($optT)
+$optT.GetField('SplitByBlankLine').SetValue($o, $true)
+$optT.GetField('MarkUntimed').SetValue($o, $true)
+$txt = "שלום לכולם`r`n`r`nזו בדיקה של התזמון`r`n`r`nוזו השורה השלישית"
+$made = $fmt.GetMethod('ImportPlainText').Invoke($null, (Pack ([string]$txt) $o))
+Eq 'הטקסט התחלק לשלוש' $made.Count 3
+$allUntimed = $true
+foreach ($c in $made) { if (-not $c.Untimed) { $allUntimed = $false } }
+Check 'כולן מסומנות כלא-מתוזמנות' $allUntimed ''
+
+foreach ($c in $made) { $gcues.Add($c) }
+$gdoc.GetType().GetMethod('RaiseChanged').Invoke($gdoc, @()) | Out-Null
+
+# מדמים סרט פתוח, כדי שהפס יופיע
+$miT = $asm.GetType('SubtitleStudio.MediaInfo')
+$mi = [Activator]::CreateInstance($miT)
+$miT.GetField('DurationSec').SetValue($mi, [double]40)
+$miT.GetField('Path').SetValue($mi, [string]'test.mp4')
+$formT.GetField('_mi', $NP).SetValue($g, $mi)
+Call $g 'UpdateTapUi' (Pack) | Out-Null
+$bar = Fld $g '_tapBar'
+Check 'הפס מופיע כשיש שורות בלי תזמון' $bar.Visible ''
+Check 'הפס מציין כמה נשארו' ($bar.Text -like '*3*') $bar.Text
+
+# נכנסים למצב ידנית (StartTapping מנגן, ואין כאן קובץ אמיתי)
+$formT.GetField('_tapping', $NP).SetValue($g, $true)
+$formT.GetField('_tapIndex', $NP).SetValue($g, [int]0)
+Call $g 'UpdateTapUi' (Pack) | Out-Null
+$add = Fld $g '_addCueBtn'
+Check 'הכפתור הגדול מראה את השורה הבאה' ($add.Text -like '*שלום לכולם*') $add.Text
+
+$geng = Fld $g '_engine'
+function SeekTo($ms) { $geng.GetType().GetMethod('Seek').Invoke($geng, (Pack ([long]$ms))) | Out-Null }
+
+SeekTo 2000
+Call $g 'TapHere' (Pack) | Out-Null
+Eq 'השורה הראשונה מתחילה בלחיצה' $gcues[0].Start 2000
+Check 'וכבר לא מסומנת כהערכה' (-not $gcues[0].Untimed) ''
+Eq 'עברנו לשורה הבאה' ($formT.GetField('_tapIndex', $NP).GetValue($g)) 1
+Check 'הבאות נדחפו אחריה' ($gcues[1].Start -ge $gcues[0].End) ("next=" + $gcues[1].Start + " prevEnd=" + $gcues[0].End)
+
+SeekTo 6000
+Call $g 'TapHere' (Pack) | Out-Null
+Eq 'השנייה מתחילה בלחיצה' $gcues[1].Start 6000
+# הראשונה לא נשארת תלויה עד 6 שניות: נחתכת לפי אורך הטקסט + חסד
+Check 'הראשונה לא נשארת תלויה בשקט' ($gcues[0].End -lt 5500 -and $gcues[0].End -gt 2500) $gcues[0].End
+
+SeekTo 9000
+Call $g 'TapHere' (Pack) | Out-Null
+Eq 'השלישית מתחילה בלחיצה' $gcues[2].Start 9000
+Check 'המצב נסגר לבד בסוף' (-not $formT.GetField('_tapping', $NP).GetValue($g)) ''
+$left = 0
+foreach ($c in $gcues) { if ($c.Untimed) { $left++ } }
+Eq 'לא נשארו שורות בלי תזמון' $left 0
+
+$g.Close(); $g.Dispose()
+[System.Windows.Forms.Application]::DoEvents()
+
 # ================= תוויות הסרגל =================
 # הבאג שהיה: במסך צר כל התוויות ירדו בבת אחת ונשארו אייקונים בלי הסבר.
 Write-Host 'תוויות הסרגל'

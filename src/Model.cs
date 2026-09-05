@@ -15,6 +15,9 @@ namespace SubtitleStudio
         public string Style = "";       // שם סגנון (ASS)
         public string Actor = "";
         public object Tag;
+        /// <summary>הטקסט הגיע בלי תזמון אמיתי - הזמנים כאן הם הערכה בלבד,
+        /// עד שהמשתמש יתזמן אותם לפי הסרט. משפיע רק על התצוגה ועל מצב התזמון.</summary>
+        public bool Untimed;
 
         public long Duration { get { return End - Start; } }
 
@@ -24,7 +27,7 @@ namespace SubtitleStudio
         public Cue Clone()
         {
             Cue c = new Cue(Start, End, Text);
-            c.Style = Style; c.Actor = Actor; c.Selected = Selected;
+            c.Style = Style; c.Actor = Actor; c.Selected = Selected; c.Untimed = Untimed;
             return c;
         }
 

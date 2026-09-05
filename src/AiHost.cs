@@ -105,7 +105,10 @@ namespace SubtitleStudio
                 .P("start_sec", "number", "מאיזה זמן להתחיל. ברירת מחדל: מיקום הנגן")
                 .P("chars_per_sec", "number", "קצב קריאה לחישוב המשך. ברירת מחדל 15")
                 .P("split_by_blank_line", "boolean", "true = פסקה שלמה היא כתובית אחת")
-                .P("replace", "boolean", "true = להחליף את הקיימות. ברירת מחדל: לצרף"));
+                .P("replace", "boolean", "true = להחליף את הקיימות. ברירת מחדל: לצרף")
+                .P("tap_later", "boolean",
+                    "true = לסמן שהתזמון הוא הערכה בלבד, והמשתמש יקבע אותו בלחיצות מול הסרט. " +
+                    "מומלץ כשהטקסט הוא תמליל בלי חותמות זמן ויש סרט פתוח"));
 
             t.Add(new AiTool("extract_subtitles_from_video",
                 "שולף ערוץ כתוביות שמוטמע בתוך קובץ הווידאו (MKV/MP4) וטוען אותו לעריכה"));
@@ -530,6 +533,7 @@ namespace SubtitleStudio
             o.Cps = c.Num("chars_per_sec", 15);
             if (o.Cps < 3) o.Cps = 15;
             o.SplitByBlankLine = c.Bool("split_by_blank_line", false);
+            o.MarkUntimed = c.Bool("tap_later", false) && _mi != null;
             List<Cue> made = Formats.ImportPlainText(text, o);
             if (made.Count == 0) { r["error"] = "לא נוצרו כתוביות מהטקסט"; return r; }
 
@@ -550,7 +554,8 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             AiRefresh();
             SyncAfterDocChange();
-            r["done"] = "נוצרו " + made.Count + " כתוביות";
+            r["done"] = "נוצרו " + made.Count + " כתוביות" +
+                        (o.MarkUntimed ? ". התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן לפי הסרט״ ולסמן כל משפט" : "");
             r["total"] = _doc.Cues.Count;
             return r;
         }

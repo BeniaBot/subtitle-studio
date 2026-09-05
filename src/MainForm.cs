@@ -34,6 +34,9 @@ namespace SubtitleStudio
         private Slider _volume;
         private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn, _aiBtn;
         private Btn _speedBtn, _volBtn;
+        private Btn _tapBar;
+        private bool _tapping;
+        private int _tapIndex = -1;
         private Btn _addCueBtn;
         private readonly List<Btn> _needMedia = new List<Btn>();
         private readonly List<Btn> _toolbarBtns = new List<Btn>();
@@ -559,6 +562,15 @@ namespace SubtitleStudio
         /// <summary>הפעולה הבסיסית: כפתור אחד גדול מתחת לסרט.</summary>
         private void BuildAddButton()
         {
+            // פס שמופיע רק כשיש שורות מיובאות בלי תזמון אמיתי
+            _tapBar = new Btn();
+            _tapBar.Kind = BtnKind.Subtle;
+            _tapBar.Icon = Ico.Clock;
+            _tapBar.Font = Theme.Ui;
+            _tapBar.Visible = false;
+            _tapBar.Click += delegate { if (_tapping) StopTapping(false); else StartTapping(); };
+            _videoCard.Controls.Add(_tapBar);
+
             _addCueBtn = new Btn();
             _addCueBtn.Text = "כתובית חדשה כאן";
             _addCueBtn.Icon = Ico.Plus;
@@ -567,7 +579,7 @@ namespace SubtitleStudio
             _addCueBtn.IconSize = Theme.S(20);
             _addCueBtn.Radius = Theme.S(11);
             _addCueBtn.Enabled = false;
-            _addCueBtn.Click += delegate { NewCueAtPlayhead(); };
+            _addCueBtn.Click += delegate { if (_tapping) TapHere(); else NewCueAtPlayhead(); };
             Ui.Tip.SetToolTip(_addCueBtn,
                 "יוצר כתובית במקום שבו הסרט עומד, עוצר, ושם את הסמן במקום לכתיבה (Ctrl+N)");
             _videoCard.Controls.Add(_addCueBtn);
@@ -1133,8 +1145,9 @@ namespace SubtitleStudio
             int vHead = _videoCard.HeaderH;
             int addH = S(50);
             int transH = S(54);
+            int tapH = _tapBar.Visible ? S(38) : 0;
             int waveH = Math.Max(S(88), Math.Min(S(150), (int)(avail * 0.2)));
-            int videoH = Math.Max(S(90), avail - vHead - transH - waveH - addH - S(24));
+            int videoH = Math.Max(S(90), avail - vHead - transH - waveH - addH - tapH - S(24));
 
             _mediaLbl.SetBounds(S(14), (vHead - S(18)) / 2, Math.Max(S(60), leftW - S(200)), S(18));
             _video.SetBounds(S(10), vHead, leftW - S(20), videoH);
@@ -1172,6 +1185,8 @@ namespace SubtitleStudio
             foreach (Btn b in _tlBtns) b.SetBounds(S(12), wy + S(4), b.Width, b.Height);
 
             _addCueBtn.SetBounds(S(14), avail - addH - S(10), leftW - S(28), addH);
+            if (_tapBar.Visible)
+                _tapBar.SetBounds(S(14), avail - addH - S(10) - S(36), leftW - S(28), S(30));
 
             int hintW = Math.Min(W - S(360), S(720));
             _hintLbl.SetBounds(W - hintW - pad - S(10), H - statusH + S(2), hintW, S(22));
@@ -1323,6 +1338,7 @@ namespace SubtitleStudio
             _hintLbl.Invalidate();
 
             _statsLbl.Text = _doc.Cues.Count > 0 ? _doc.Stats() : "";
+            UpdateTapUi();
             _statsLbl.Invalidate();
 
             _mediaLbl.Text = _mediaPath != null ? Theme.Ltr(Path.GetFileName(_mediaPath)) : "";
@@ -1420,6 +1436,146 @@ namespace SubtitleStudio
             _text.Focus();
             _hintLbl.Text = "כתבו את מה שנאמר. מקש הרווח ימשיך את הסרט.";
             _hintLbl.Invalidate();
+        }
+
+        // ================= תזמון בלחיצה =================
+
+        /// <summary>כמה שורות עוד מחכות לתזמון אמיתי.</summary>
+        private int UntimedCount()
+        {
+            int n = 0;
+            if (_doc != null)
+                foreach (Cue c in _doc.Cues) if (c.Untimed) n++;
+            return n;
+        }
+
+        /// <summary>משך סביר לשורה לפי אורכה - כדי שכתובית לא תישאר תלויה בשקט ארוך.</summary>
+        private static long GuessDur(Cue c)
+        {
+            long d = (long)(c.CharCount / 14.0 * 1000.0);
+            if (d < 1200) d = 1200;
+            if (d > 7000) d = 7000;
+            return d;
+        }
+
+        /// <summary>מעדכן את הכפתור הגדול ואת הפס שמעליו לפי המצב.</summary>
+        private void UpdateTapUi()
+        {
+            if (_addCueBtn == null || _tapBar == null) return;
+            int left = UntimedCount();
+            bool show = _tapping || (left > 0 && _mi != null);
+            if (_tapBar.Visible != show) { _tapBar.Visible = show; DoLayout(); }
+
+            if (_tapping)
+            {
+                string next = _tapIndex >= 0 && _tapIndex < _doc.Cues.Count ? _doc.Cues[_tapIndex].PlainText : "";
+                if (next.Length > 38) next = next.Substring(0, 36) + "…";
+                _addCueBtn.Icon = Ico.Target;
+                _addCueBtn.Text = next.Length > 0 ? "כאן מתחיל:  " + next : "כאן מתחיל";
+                _tapBar.Text = "סיום התזמון  ·  נשארו " + left + "  (Esc)";
+                _tapBar.Icon = Ico.Check;
+            }
+            else
+            {
+                _addCueBtn.Icon = Ico.Plus;
+                _addCueBtn.Text = "כתובית חדשה כאן";
+                if (show)
+                {
+                    _tapBar.Text = "יש " + left + " שורות בלי תזמון  ·  ללחוץ כדי לתזמן אותן לפי הסרט";
+                    _tapBar.Icon = Ico.Clock;
+                }
+            }
+            _addCueBtn.Invalidate();
+            _tapBar.Invalidate();
+        }
+
+        /// <summary>נכנסים למצב: מנגנים, ומחכים ללחיצה בכל פעם שמשפט מתחיל.</summary>
+        private void StartTapping()
+        {
+            if (_mi == null) { Ui.Info(this, "אין סרט פתוח", "פתחו קודם את הסרט שאליו הטקסט שייך."); return; }
+            int first = -1;
+            for (int i = 0; i < _doc.Cues.Count; i++) if (_doc.Cues[i].Untimed) { first = i; break; }
+            if (first < 0) return;
+
+            _tapping = true;
+            _tapIndex = first;
+            // מתחילים מההתחלה אם הנגן עומד בסוף
+            if (_engine.DurationMs > 0 && _engine.Position >= _engine.DurationMs - 200) Seek(0);
+            if (!_engine.IsPlaying) TogglePlay();
+            _doc.SelectNone();
+            _doc.Cues[first].Selected = true;
+            _list.ScrollToCue(_doc.Cues[first]);
+            LoadEditor();
+            UpdateTapUi();
+            _hintLbl.Text = "מקשיבים, ולוחצים על הכפתור הכחול (או Enter) ברגע שכל שורה מתחילה. Esc לסיום.";
+            _hintLbl.Invalidate();
+        }
+
+        /// <summary>לחיצה אחת: כאן נגמרת הקודמת, וכאן מתחילה הבאה.</summary>
+        private void TapHere()
+        {
+            if (!_tapping) return;
+            if (_tapIndex < 0 || _tapIndex >= _doc.Cues.Count) { StopTapping(true); return; }
+
+            long pos = _engine.Position;
+            _doc.Push("תזמון בלחיצה");
+
+            if (_tapIndex > 0)
+            {
+                Cue prev = _doc.Cues[_tapIndex - 1];
+                long end = pos - 40;
+                long cap = prev.Start + GuessDur(prev) + 1500;   // לא להשאיר כתובית תלויה בשקט ארוך
+                if (end > cap) end = cap;
+                if (end < prev.Start + 300) end = prev.Start + 300;
+                prev.End = end;
+            }
+
+            Cue c = _doc.Cues[_tapIndex];
+            c.Start = pos;
+            c.End = pos + GuessDur(c);
+            c.Untimed = false;
+
+            // השורות שעוד לא תוזמנו נדחפות אחריה, כדי שהרשימה תישאר לפי הסדר
+            long cursor = c.End + 80;
+            for (int i = _tapIndex + 1; i < _doc.Cues.Count; i++)
+            {
+                Cue n = _doc.Cues[i];
+                if (!n.Untimed) break;
+                n.Start = cursor;
+                n.End = cursor + GuessDur(n);
+                cursor = n.End + 80;
+            }
+
+            _tapIndex++;
+            bool more = _tapIndex < _doc.Cues.Count && _doc.Cues[_tapIndex].Untimed;
+            if (more)
+            {
+                _doc.SelectNone();
+                _doc.Cues[_tapIndex].Selected = true;
+                _list.ScrollToCue(_doc.Cues[_tapIndex]);
+            }
+            _doc.Dirty = true;
+            _doc.RaiseChanged();
+            LoadEditor();
+            _tl.Invalidate();
+            _video.Invalidate();
+            if (!more) StopTapping(true);
+            else UpdateTapUi();
+        }
+
+        private void StopTapping(bool finished)
+        {
+            if (!_tapping) return;
+            _tapping = false;
+            _tapIndex = -1;
+            if (_engine.IsPlaying) _engine.Pause();
+            UpdateTapUi();
+            UpdateHint();
+            if (finished)
+            {
+                _hintLbl.Text = "סיימתם לתזמן. אפשר לתקן כל שורה בגרירה על הציר, או בשדות הזמן.";
+                _hintLbl.Invalidate();
+            }
         }
 
         private void SetEdge(bool start)
@@ -1699,7 +1855,7 @@ namespace SubtitleStudio
                     {
                         string enc;
                         string text = Formats.ReadTextSmart(path, out enc);
-                        ImportTextDlg d = new ImportTextDlg(_engine.Position);
+                        ImportTextDlg d = new ImportTextDlg(_engine.Position, _mi != null);
                         d.SetText(text);
                         d.ShowDialog(this);
                         if (d.Ok && d.Result != null) ApplyImport(d.Result);
@@ -1748,7 +1904,7 @@ namespace SubtitleStudio
 
         private void ImportText()
         {
-            ImportTextDlg d = new ImportTextDlg(_engine.Position);
+            ImportTextDlg d = new ImportTextDlg(_engine.Position, _mi != null);
             d.ShowDialog(this);
             if (d.Ok && d.Result != null) ApplyImport(d.Result);
             d.Dispose();
@@ -2159,6 +2315,12 @@ namespace SubtitleStudio
                 return false;
             }
 
+            // במצב תזמון המקלדת שייכת לו, גם כשהמיקוד בתיבת הטקסט
+            if (_tapping)
+            {
+                if (key == Keys.Enter) { TapHere(); return true; }
+                if (key == Keys.Escape) { StopTapping(false); return true; }
+            }
             if (key == Keys.F1) { ShowHelp(); return true; }
             if (key == Keys.F5) { ExportVideo(); return true; }
             if (InTextBox) return false;

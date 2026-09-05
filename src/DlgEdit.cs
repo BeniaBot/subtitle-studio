@@ -131,21 +131,26 @@ namespace SubtitleStudio
     {
         private Field _text;
         private Combo _split;
-        private Toggle _stamps, _wrap;
+        private Toggle _stamps, _wrap, _tapLater;
         private Slider _cps, _minDur;
         private Field _startAt;
-        private Lbl _preview;
+        private Lbl _preview, _advHint;
+        private Btn _advBtn;
+        private readonly List<Control> _adv = new List<Control>();
+        private bool _advOpen;
         public List<Cue> Result;
 
-        public ImportTextDlg(long startAt) : base("יבוא טקסט", Ico.Import, 620)
-        {
-            Subtitle = "הדביקו טקסט - התוכנה תחלק אותו לכתוביות ותתזמן אותן";
+        public ImportTextDlg(long startAt) : this(startAt, false) { }
 
-            Section("הטקסט");
+        /// <param name="hasVideo">אם יש סרט פתוח, ברירת המחדל היא לתזמן לפיו בלחיצות.</param>
+        public ImportTextDlg(long startAt, bool hasVideo) : base("טקסט לכתוביות", Ico.Import, 620)
+        {
+            Subtitle = "מדביקים טקסט חופשי - התוכנה מחלקת אותו לכתוביות";
+
             _text = new Field(true);
-            _text.Placeholder = "הדביקו כאן את הטקסט, שורה לכל כתובית...";
+            _text.Placeholder = "הדביקו כאן את הטקסט. שורה ריקה בין קטעים = כתובית נפרדת.";
             _text.Box.TextChanged += delegate { UpdatePreview(); };
-            Row(_text, 112, 8);
+            Row(_text, 150, 8);
 
             Btn load = new Btn();
             load.Text = "טעינה מקובץ";
@@ -169,50 +174,98 @@ namespace SubtitleStudio
                 }
             };
             Controls.Add(load);
-            Y += Theme.S(46);
+            Y += Theme.S(44);
 
-            Section("איך לחלק?");
+            _preview = Hint("");
+            Row(_preview, 40, 6);
+
+            _tapLater = new Toggle();
+            _tapLater.Text = "לתזמן אותן לפי הסרט, בלחיצה על כל משפט";
+            _tapLater.Checked = hasVideo;
+            _tapLater.Enabled = hasVideo;
+            Row(_tapLater, 28, 2);
+
+            Lbl why = Hint(hasVideo
+                ? "אחרי היצירה יופיע כפתור גדול: מנגנים, ולוחצים עליו בכל פעם שמשפט מתחיל."
+                : "אין סרט פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד.");
+            Row(why, 34, 10);
+
+            // ---------- מכאן ומטה: מוסתר עד שמבקשים ----------
+            _advBtn = new Btn();
+            _advBtn.Text = "הגדרות מתקדמות";
+            _advBtn.Icon = Ico.ChevronDown;
+            _advBtn.Kind = BtnKind.Tool;
+            _advBtn.Font = Theme.Small;
+            _advBtn.SetBounds(Pad, Y, Theme.S(180), Theme.S(30));
+            _advBtn.Click += delegate { ToggleAdvanced(); };
+            Controls.Add(_advBtn);
+            Y += Theme.S(38);
+
+            _advHint = Hint("חלוקה, זיהוי חותמות זמן, קצב קריאה ונקודת התחלה");
+            Row(_advHint, 24, 8);
+            _adv.Add(_advHint);
+
             _split = new Combo();
-            _split.Items.AddRange(new object[] { "שורה = כתובית", "פסקה (שורה ריקה) = כתובית" });
+            _split.Items.AddRange(new object[] { "אוטומטי", "שורה = כתובית", "פסקה (שורה ריקה) = כתובית" });
             _split.SelectedIndex = 0;
             _split.SelectedIndexChanged += delegate { UpdatePreview(); };
-            Row(_split, 32, 10);
+            Row(_split, 32, 8);
+            _adv.Add(_split);
 
             _stamps = new Toggle();
             _stamps.Text = "לזהות חותמות זמן בתחילת שורה (למשל 01:23 שלום)";
             _stamps.Checked = true;
             _stamps.CheckedChanged += delegate { UpdatePreview(); };
             Row(_stamps, 26, 6);
+            _adv.Add(_stamps);
 
             _wrap = new Toggle();
             _wrap.Text = "שבירת שורות ארוכות אוטומטית";
             _wrap.Checked = true;
             _wrap.CheckedChanged += delegate { UpdatePreview(); };
             Row(_wrap, 26, 10);
+            _adv.Add(_wrap);
 
-            Section("קצב קריאה (תווים בשנייה) - קובע את משך הכתובית");
+            Lbl cpsL = Hint("קצב קריאה (תווים בשנייה) - קובע את משך הכתובית");
+            Row(cpsL, 22, 2);
+            _adv.Add(cpsL);
             _cps = new Slider();
             _cps.Min = 8; _cps.Max = 25; _cps.Value = 15; _cps.Step = 0.5;
             _cps.ValueChanged += delegate { UpdatePreview(); };
             Row(_cps, 28, 8);
+            _adv.Add(_cps);
 
-            Section("משך מינימלי לכתובית (שניות)");
+            Lbl minL = Hint("משך מינימלי לכתובית (שניות)");
+            Row(minL, 22, 2);
+            _adv.Add(minL);
             _minDur = new Slider();
             _minDur.Min = 0.5; _minDur.Max = 4; _minDur.Value = 1.4; _minDur.Step = 0.1;
             _minDur.ValueChanged += delegate { UpdatePreview(); };
             Row(_minDur, 28, 8);
+            _adv.Add(_minDur);
 
-            Section("להתחיל מהזמן");
+            Lbl startL = Hint("להתחיל מהזמן");
+            Row(startL, 22, 2);
+            _adv.Add(startL);
             _startAt = new Field();
             _startAt.Text = Tc.Clock(startAt);
             _startAt.Box.TextChanged += delegate { UpdatePreview(); };
-            Row(_startAt, 32, 10);
+            Row(_startAt, 32, 8);
+            _adv.Add(_startAt);
 
-            _preview = Hint("");
-            Row(_preview, 46, 4);
+            foreach (Control c in _adv) c.Visible = false;
 
             Buttons("ליצור כתוביות", Ico.Check, "ביטול");
+            Restack();
             UpdatePreview();
+        }
+
+        private void ToggleAdvanced()
+        {
+            _advOpen = !_advOpen;
+            foreach (Control c in _adv) c.Visible = _advOpen;
+            _advBtn.Icon = _advOpen ? Ico.ChevronUp : Ico.ChevronDown;
+            Restack();
         }
 
         /// <summary>מילוי הטקסט מבחוץ.</summary>
@@ -222,16 +275,52 @@ namespace SubtitleStudio
             UpdatePreview();
         }
 
+        /// <summary>האם המשתמש ביקש לתזמן אחר כך מול הסרט.</summary>
+        public bool TapLater { get { return _tapLater != null && _tapLater.Checked && _tapLater.Enabled; } }
+
+        /// <summary>טקסט שהוקלד משמיעה בא בדרך כלל בפסקאות. אם יש שורות ריקות
+        /// שמפרידות בין קטעים - זו הכוונה; אחרת כל שורה היא משפט.</summary>
+        private static bool LooksLikeParagraphs(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            int blanksBetween = 0;
+            bool sawText = false;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                bool empty = lines[i].Trim().Length == 0;
+                if (!empty) { sawText = true; continue; }
+                if (sawText && i + 1 < lines.Length)
+                {
+                    for (int j = i + 1; j < lines.Length; j++)
+                    {
+                        if (lines[j].Trim().Length == 0) continue;
+                        blanksBetween++;
+                        break;
+                    }
+                }
+            }
+            return blanksBetween > 0;
+        }
+
+        private bool SplitByBlank()
+        {
+            if (_split.SelectedIndex == 1) return false;
+            if (_split.SelectedIndex == 2) return true;
+            return LooksLikeParagraphs(_text.Text);
+        }
+
         private Formats.TextImportOptions Opts()
         {
             Formats.TextImportOptions o = new Formats.TextImportOptions();
-            o.SplitByBlankLine = _split.SelectedIndex == 1;
+            o.SplitByBlankLine = SplitByBlank();
             o.UseTimestamps = _stamps.Checked;
             o.AutoWrap = _wrap.Checked;
             o.Cps = _cps.Value;
             o.MinDur = (long)(_minDur.Value * 1000);
             o.Gap = 80;
             o.StartAt = Tc.Parse(_startAt.Text);
+            o.MarkUntimed = TapLater;
             return o;
         }
 
@@ -239,12 +328,17 @@ namespace SubtitleStudio
         {
             if (_preview == null) return;
             List<Cue> cues = Formats.ImportPlainText(_text.Text, Opts());
-            if (cues.Count == 0) { _preview.Text = "אין עדיין טקסט."; _preview.Invalidate(); return; }
-            StringBuilder sb = new StringBuilder();
-            sb.Append("ייווצרו ").Append(cues.Count).Append(" כתוביות, עד ").Append(Tc.Short(cues[cues.Count - 1].End)).Append(".\n");
-            sb.Append("ראשונה: ").Append(Tc.Short(cues[0].Start)).Append(" – ").Append(Tc.Short(cues[0].End)).Append("  ״")
-              .Append(cues[0].PlainText.Length > 40 ? cues[0].PlainText.Substring(0, 40) + "…" : cues[0].PlainText).Append("״");
-            _preview.Text = sb.ToString();
+            if (cues.Count == 0)
+            {
+                _preview.Text = "אין עדיין טקסט. הדביקו למעלה, או טענו קובץ.";
+                _preview.Invalidate();
+                return;
+            }
+            string how = SplitByBlank() ? "כל שורה ריקה מפרידה בין כתוביות" : "כל שורה היא כתובית";
+            string first = cues[0].PlainText;
+            if (first.Length > 44) first = first.Substring(0, 42) + "…";
+            _preview.Text = "ייווצרו " + cues.Count + " כתוביות  ·  " + how + Environment.NewLine +
+                            "הראשונה: ״" + first + "״";
             _preview.Invalidate();
         }
 

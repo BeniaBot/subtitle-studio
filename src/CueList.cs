@@ -276,7 +276,10 @@ namespace SubtitleStudio
                 Theme.Str(g, txt, Theme.Ui, txt.StartsWith("(ריק") ? Theme.TextFaint : Theme.Text, tr, Theme.SfRtl);
 
                 // זמנים
-                Theme.Str(g, Tc.Short(c.Start), Theme.MonoFont(8f), Theme.TextDim, new RectangleF(startX, y, StartW, _rowH), Theme.SfCenter);
+                // ״≈״ מסמן שהזמן הוא הערכה מיבוא טקסט ועוד לא נקבע מול הסרט
+                Theme.Str(g, (c.Untimed ? "≈" : "") + Tc.Short(c.Start), Theme.MonoFont(8f),
+                    c.Untimed ? Theme.TextFaint : Theme.TextDim,
+                    new RectangleF(startX, y, StartW, _rowH), Theme.SfCenter);
                 Color durCol = Theme.TextDim;
                 if (c.Cps > 25) durCol = Theme.Bad;
                 else if (c.Cps > 20) durCol = Theme.Warn;

@@ -23,6 +23,7 @@ namespace SubtitleStudio
             new string[] { "Ctrl+רווח", "ניגון ועצירה באמצע כתיבה" },
             new string[] { "Ctrl+↑ ↓", "מהירות ההשמעה" },
             new string[] { "Ctrl+N", "כתובית חדשה כאן" },
+            new string[] { "Enter", "בתזמון בלחיצה: כאן מתחיל" },
             new string[] { "קליק ימני ברשימה", "חלוקה, איחוד ומחיקה" },
             new string[] { "Q / W", "התחלה / סיום כאן" },
             new string[] { "Tab", "לכתובית הבאה" },

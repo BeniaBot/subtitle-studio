@@ -386,6 +386,7 @@ namespace SubtitleStudio
 
             sb.Append("דוגמאות למה שכן אפשר, כי שאלו על זה בעבר:\n");
             sb.Append("· ליצור כתוביות מאפס מתוך טקסט או תמליל - create_subtitles_from_text\n");
+            sb.Append("  (עם tap_later=true, אם יש סרט פתוח: המשתמש יתזמן כל משפט בלחיצה אחת)\n");
             sb.Append("· לשלוף ערוץ כתוביות שמוטמע בתוך MKV/MP4 - extract_subtitles_from_video\n");
             sb.Append("· לתרגם את כל הכתוביות ולהחליף אותן - translate_subtitles\n");
             sb.Append("· לתקן תזמון שמחליק לאורך הסרט - stretch_timing; הזזה קבועה - shift_cues\n");
