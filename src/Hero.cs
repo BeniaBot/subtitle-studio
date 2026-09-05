@@ -15,12 +15,13 @@ namespace SubtitleStudio
         public bool DropHover;
         public List<string> Recent = new List<string>();
         public event EventHandler OpenClick;
+        public event EventHandler OpenSubsClick;
         public event EventHandler<string> RecentClick;
         public event EventHandler HelpClick;
         public event EventHandler ThemeClick;
         public event EventHandler AboutClick;
 
-        private readonly Btn _open;
+        private readonly Btn _open, _openSubs;
         private int _hoverRecent = -1;
         private int _hoverLink = -1;
         private readonly RectangleF[] _links = new RectangleF[3];
@@ -46,6 +47,16 @@ namespace SubtitleStudio
             _open.Radius = Theme.S(10);
             _open.Click += delegate { if (OpenClick != null) OpenClick(this, EventArgs.Empty); };
             Controls.Add(_open);
+
+            // שתי דרכי כניסה אמיתיות: להתחיל מסרט, או לתקן קובץ כתוביות קיים
+            _openSubs = new Btn();
+            _openSubs.Text = "קובץ כתוביות";
+            _openSubs.Icon = Ico.TextIcon;
+            _openSubs.Kind = BtnKind.Subtle;
+            _openSubs.Size = new Size(Theme.S(160), Theme.S(44));
+            _openSubs.Radius = Theme.S(10);
+            _openSubs.Click += delegate { if (OpenSubsClick != null) OpenSubsClick(this, EventArgs.Empty); };
+            Controls.Add(_openSubs);
         }
 
         // ---------- מידות ----------
@@ -72,7 +83,7 @@ namespace SubtitleStudio
         {
             get
             {
-                int want = Theme.S(250);
+                int want = Theme.S(238);
                 int room = Height - TitleH - StepsH - Theme.S(70)
                            - (RecentCount > 0 ? Theme.S(26) + RecentCount * RowH : 0);
                 if (room < want) want = room;
@@ -97,7 +108,7 @@ namespace SubtitleStudio
 
         private RectangleF Zone()
         {
-            float w = Math.Min(Theme.S(560), Width * 0.72f);
+            float w = Math.Min(Theme.S(720), Width * 0.72f);
             return new RectangleF((Width - w) / 2f, BlockTop + TitleH, w, ZoneH);
         }
 
@@ -119,7 +130,14 @@ namespace SubtitleStudio
         public void Reposition()
         {
             RectangleF z = Zone();
-            _open.Location = new Point((int)(z.X + (z.Width - _open.Width) / 2), (int)(z.Bottom - Theme.S(70)));
+            int gap = Theme.S(10);
+            int total = _open.Width + gap + _openSubs.Width;
+            int x = (int)(z.X + (z.Width - total) / 2);
+            // צמוד לתוכן ולא לתחתית, אחרת נפער חלל באמצע כשהאזור גבוה
+            int y = (int)(z.Y + Theme.S(156));
+            // RTL: הכפתור הראשי מימין
+            _openSubs.Location = new Point(x, y);
+            _open.Location = new Point(x + _openSubs.Width + gap, y);
         }
 
         // ---------- עכבר ----------
@@ -188,13 +206,13 @@ namespace SubtitleStudio
             RectangleF z = Zone();
             int top = BlockTop;
 
-            Theme.Str(g, "אולפן הכתוביות", Theme.F(19f, FontStyle.Bold), Theme.Text,
-                new RectangleF(0, top, Width, Theme.S(34)), Theme.SfCenter);
-            Theme.Str(g, "כתוביות לסרטים: ליצור, לתקן ולהטמיע", Theme.F(11f), Theme.TextDim,
-                new RectangleF(0, top + Theme.S(36), Width, Theme.S(24)), Theme.SfCenter);
+            DrawTitle(g, top);
+            Theme.Str(g, "כתוביות לסרטים: ליצור, לתקן ולהטמיע", Theme.F(11.5f), Theme.TextDim,
+                new RectangleF(0, top + Theme.S(46), Width, Theme.S(26)), Theme.SfCenter);
 
             // אזור הגרירה
-            Color edge = DropHover ? Theme.Accent : Theme.Border;
+            // Theme.Border כמעט זהה לפאנל בערכה הכהה והקו נעלם; מחזקים לכיוון הטקסט
+            Color edge = DropHover ? Theme.Accent : Theme.Mix(Theme.Panel, Theme.TextDim, 0.45f);
             Theme.FillRound(g, z, Theme.S(16), DropHover ? Theme.Mix(Theme.Bg, Theme.Accent, 0.10f) : Theme.Panel);
             using (Pen p = new Pen(edge, DropHover ? 2f : 1.4f))
             {
@@ -204,14 +222,14 @@ namespace SubtitleStudio
                     g.DrawPath(p, gp);
             }
 
-            float iconSize = Theme.S(38);
+            float iconSize = Theme.S(46);
             Icons.Draw(g, Ico.Upload,
-                new RectangleF(z.X + (z.Width - iconSize) / 2f, z.Y + Theme.S(34), iconSize, iconSize),
-                DropHover ? Theme.Accent : Theme.TextDim, 1.8f);
-            Theme.Str(g, "גררו לכאן סרט או קובץ כתוביות", Theme.F(13f, FontStyle.Bold), Theme.Text,
-                new RectangleF(z.X, z.Y + Theme.S(84), z.Width, Theme.S(28)), Theme.SfCenter);
+                new RectangleF(z.X + (z.Width - iconSize) / 2f, z.Y + Theme.S(30), iconSize, iconSize),
+                DropHover ? Theme.Accent : Theme.TextDim, 1.7f);
+            Theme.Str(g, "גררו לכאן סרט או קובץ כתוביות", Theme.F(14f, FontStyle.Bold), Theme.Text,
+                new RectangleF(z.X, z.Y + Theme.S(88), z.Width, Theme.S(30)), Theme.SfCenter);
             Theme.Str(g, "MP4 · MKV · AVI · MOV · MP3 · SRT · ASS · VTT", Theme.Small, Theme.TextFaint,
-                new RectangleF(z.X, z.Y + Theme.S(110), z.Width, Theme.S(20)), Theme.SfCenter);
+                new RectangleF(z.X, z.Y + Theme.S(116), z.Width, Theme.S(20)), Theme.SfCenter);
 
             // שלושת השלבים - במקום להסתיר את ההסבר מאחורי F1
             float sy = StepsTop;
@@ -281,6 +299,31 @@ namespace SubtitleStudio
             DrawLinks(g, Theme.S(14));
         }
 
+        /// <summary>הכותרת בשתי מילים ובשני צבעים - המילה השנייה בצבע המותג.
+        /// ‏RTL: ״אולפן״ מימין, ״הכתוביות״ משמאלו, והזוג ממורכז יחד.</summary>
+        private void DrawTitle(Graphics g, int top)
+        {
+            Font f = Theme.F(23f, FontStyle.Bold);
+            // בלי רווח בתוך המחרוזת: GDI בולע רווח בקצה של קטע RTL,
+            // והמילים נדבקות. הרווח נמדד בפיקסלים במקום.
+            const string a = "אולפן";
+            const string b = "הכתוביות";
+            float wa = Theme.Measure(g, a, f).Width;
+            float wb = Theme.Measure(g, b, f).Width;
+            float sp = Theme.S(12);
+            float h = Theme.S(44);
+            float right = (Width + wa + sp + wb) / 2f;
+            // מלבן צמוד בדיוק לרוחב הנמדד גורם ל-Trimming לחתוך את הסוף.
+            // נותנים שוליים, וממרכזים כל חלק סביב המרכז המיועד שלו.
+            float pad = Theme.S(20);
+            float ca = right - wa / 2f;
+            float cb = right - wa - sp - wb / 2f;
+            Theme.Str(g, a, f, Theme.Text,
+                new RectangleF(ca - (wa + pad) / 2f, top, wa + pad, h), Theme.SfCenter);
+            Theme.Str(g, b, f, Theme.Accent,
+                new RectangleF(cb - (wb + pad) / 2f, top, wb + pad, h), Theme.SfCenter);
+        }
+
         /// <summary>שלושה כפתורי אייקון בפינה - אותה שפה של הסרגל במסך העבודה.</summary>
         private void DrawLinks(Graphics g, float y)
         {
@@ -293,7 +336,10 @@ namespace SubtitleStudio
                 RectangleF r = new RectangleF(x, y - Theme.S(6), d, d);
                 _links[i] = r;
                 bool hover = i == _hoverLink;
-                if (hover) Theme.FillRound(g, r, Theme.S(10), Theme.Mix(Theme.Bg, Theme.Hover, 0.8f));
+                // צ׳יפ ממוסגר, כמו בהשראה - קריא כלחיץ גם בלי ריחוף
+                Theme.FillRound(g, r, Theme.S(11), hover ? Theme.Mix(Theme.Bg, Theme.Hover, 0.9f) : Theme.Panel);
+                Theme.DrawRound(g, new RectangleF(r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1),
+                    Theme.S(11), hover ? Theme.Accent : Theme.Border, 1f);
                 float ic = Theme.S(19);
                 Icons.Draw(g, icons[i], new RectangleF(r.X + (d - ic) / 2, r.Y + (d - ic) / 2, ic, ic),
                     hover ? Theme.Accent : Theme.TextDim, 1.9f);

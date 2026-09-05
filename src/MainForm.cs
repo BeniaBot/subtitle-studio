@@ -181,6 +181,7 @@ namespace SubtitleStudio
         {
             _hero = new HeroPanel();
             _hero.OpenClick += delegate { OpenAnyDialog(); };
+            _hero.OpenSubsClick += delegate { OpenSubsDialog(); };
             _hero.RecentClick += delegate (object s2, string path) { OpenAny(path); };
             _hero.HelpClick += delegate { ShowHelp(); };
             _hero.ThemeClick += delegate { ToggleTheme(); _hero.Invalidate(); };
@@ -1587,6 +1588,16 @@ namespace SubtitleStudio
         }
 
         /// <summary>פתיחה אחת לכל סוגי הקבצים - התוכנה מזהה לבד מה קיבלה.</summary>
+        /// <summary>פתיחה שמסננת לקובצי כתוביות בלבד - נקודת כניסה שנייה
+        /// למי שבא לתקן תזמון של קובץ קיים, לא ליצור כתוביות מאפס.</summary>
+        private void OpenSubsDialog()
+        {
+            OpenFileDialog d = new OpenFileDialog();
+            d.Filter = "קובצי כתוביות|*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|כל הקבצים|*.*";
+            d.Title = "בחירת קובץ כתוביות";
+            if (d.ShowDialog(this) == DialogResult.OK) OpenAny(d.FileName);
+        }
+
         private void OpenAnyDialog()
         {
             OpenFileDialog d = new OpenFileDialog();

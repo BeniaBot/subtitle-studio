@@ -146,6 +146,58 @@ $formT.GetMethod('ToggleTheme', [Reflection.BindingFlags]'NonPublic,Instance').I
 $f.Close(); $f.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 
+# ---------- מסך הפתיחה ----------
+# HeroPanel מצייר את עצמו: אין פקדי בן, אז חפיפות לא רלוונטיות.
+# מה שכן אפשר לשבור זה הגאומטריה - אזור הגרירה שגולש, שלבים שנחתכים,
+# או שורת קובץ אחרון שיוצאת מהמסך. וגם: שהציור עצמו לא זורק חריגה.
+$heroT = $asm.GetType('SubtitleStudio.HeroPanel')
+$HP = [Reflection.BindingFlags]'NonPublic,Instance'
+function HeroGet($h, $name) {
+    $pi = $heroT.GetProperty($name, $HP)
+    if ($pi) { return $pi.GetValue($h, $null) }
+    $mi = $heroT.GetMethod($name, $HP)
+    if ($mi) { return $mi.Invoke($h, @()) }
+    return $null
+}
+
+foreach ($size in @(@(940, 680), @(1175, 850), @(1493, 997))) {
+    $w = $size[0]; $h = $size[1]
+    $hero = [Activator]::CreateInstance($heroT)
+    $hero.SetBounds(0, 0, $w, $h)
+    $hero.GetType().GetMethod('Reposition').Invoke($hero, @()) | Out-Null
+
+    # ציור אמיתי לביטמפ - GDI+ קרס כאן בעבר על מלבן ברוחב אפס
+    $painted = $true
+    try {
+        $bmp = New-Object System.Drawing.Bitmap $w, $h
+        $hero.DrawToBitmap($bmp, (New-Object System.Drawing.Rectangle 0, 0, $w, $h))
+        $bmp.Dispose()
+    } catch { $painted = $false; $paintErr = $_.Exception.Message }
+    Check ("מסך הפתיחה מצויר ב-${w}x${h}") $painted $paintErr
+
+    $zone = HeroGet $hero 'Zone'
+    $stepsTop = HeroGet $hero 'StepsTop'
+    $stepsH   = HeroGet $hero 'StepsH'
+    $blockTop = HeroGet $hero 'BlockTop'
+    $rc       = HeroGet $hero 'RecentCount'
+    $showRec  = HeroGet $hero 'ShowRecent'
+
+    Check ("אזור הגרירה בתוך המסך ב-${w}x${h}") `
+        ($zone.X -ge 0 -and $zone.Y -ge 0 -and ($zone.X + $zone.Width) -le $w -and ($zone.Y + $zone.Height) -le $h) `
+        ("zone=" + $zone.ToString() + " in ${w}x${h}")
+    Check ("שלושת השלבים נכנסים ב-${w}x${h}") (($stepsTop + $stepsH) -le $h) `
+        ("stepsBottom=" + ($stepsTop + $stepsH) + " h=$h")
+    Check ("הבלוק לא נחתך מלמעלה ב-${w}x${h}") ($blockTop -ge 0) ("blockTop=$blockTop")
+
+    if ($showRec -and $rc -gt 0) {
+        $last = $heroT.GetMethod('RecentRow', $HP).Invoke($hero, @([int]($rc - 1)))
+        Check ("הקבצים האחרונים נכנסים ב-${w}x${h}") (($last.Y + $last.Height) -le $h) `
+            ("bottom=" + ($last.Y + $last.Height) + " h=$h")
+    }
+
+    $hero.Dispose()
+}
+
 # ---------- דיאלוגים ----------
 # הם רוב הפקדים בתוכנה, ובהם קל להחמיץ כפתור שגלש מהחלון אחרי הוספת שורה.
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
