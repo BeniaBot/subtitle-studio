@@ -13,7 +13,7 @@ namespace SubtitleStudio
     internal static class App
     {
         /// <summary>גרסת התוכנה. חייבת להיות זהה לתגית ה-Release בגיטהאב (בלי v).</summary>
-        public const string Version = "0.2.1";
+        public const string Version = "0.3.0";
         public const string Repo = "BeniaBot/subtitle-studio";
         public const string HomePage = "https://github.com/" + Repo;
 
@@ -296,9 +296,76 @@ namespace SubtitleStudio
             Row(_auto, 30, 6);
 
             _status = Hint("הבדיקה מהירה ולא שולחת שום מידע - רק שואלת אם יש גרסה חדשה.");
-            Row(_status, 34, 6);
+            Row(_status, 34, 16);
+
+            Section("רישיון וקוד מקור");
+            Lbl lic = Hint("הקוד של התוכנה חופשי (רישיון " + Theme.Ltr("MIT") + ") - מותר לקחת אותו," + Environment.NewLine +
+                           "לשנות ולבנות ממנו מה שרוצים. מנוע הווידאו " + Theme.Ltr("FFmpeg") +
+                           " מגיע ברישיון " + Theme.Ltr("GPLv3") + "," + Environment.NewLine +
+                           "וגופן " + Theme.Ltr("Assistant") + " ברישיון " + Theme.Ltr("OFL") +
+                           ". הנוסח המלא של כולם נמצא בתוך הקובץ.");
+            Row(lic, 64, 6);
+
+            Btn save = new Btn();
+            save.Text = "שמירת נוסח הרישיונות לתיקייה";
+            save.Kind = BtnKind.Tool;
+            save.Font = Theme.Small;
+            save.Icon = Ico.Save;
+            save.IconSize = Theme.S(14);
+            save.Click += delegate { SaveLicenses(); };
+            Row(save, 30, 6);
+
+            Btn src = new Btn();
+            src.Text = "קוד המקור באינטרנט";
+            src.Kind = BtnKind.Tool;
+            src.Font = Theme.Small;
+            src.Icon = Ico.Export;
+            src.IconSize = Theme.S(14);
+            src.Click += delegate
+            {
+                try { System.Diagnostics.Process.Start("https://github.com/" + App.Repo); }
+                catch { }
+            };
+            Row(src, 30, 6);
 
             Buttons("בדיקת עדכון עכשיו", Ico.Refresh, "סגירה");
+        }
+
+        /// <summary>כותב את שלושת נוסחי הרישיון מהמשאבים לתיקייה שהמשתמש בוחר.
+        /// ‏GPLv3 דורש שהנוסח ילווה את התוכנה - ההטמעה בקובץ מספיקה, וזה מנגיש אותו.</summary>
+        private void SaveLicenses()
+        {
+            FolderBrowserDialog fb = new FolderBrowserDialog();
+            fb.Description = "לאן לשמור את נוסחי הרישיון?";
+            if (fb.ShowDialog(this) != DialogResult.OK) { fb.Dispose(); return; }
+            string dir = fb.SelectedPath;
+            fb.Dispose();
+
+            string[][] files = new string[][]
+            {
+                new string[] { "MIT.txt",      "SubtitleStudio-MIT.txt" },
+                new string[] { "GPL-3.0.txt",  "FFmpeg-GPLv3.txt" },
+                new string[] { "OFL-1.1.txt",  "Assistant-font-OFL.txt" }
+            };
+            int n = 0;
+            string err = null;
+            foreach (string[] f in files)
+            {
+                try
+                {
+                    using (System.IO.Stream st = System.Reflection.Assembly.GetExecutingAssembly()
+                        .GetManifestResourceStream(f[0]))
+                    {
+                        if (st == null) continue;
+                        using (System.IO.FileStream fs = System.IO.File.Create(System.IO.Path.Combine(dir, f[1])))
+                            st.CopyTo(fs);
+                        n++;
+                    }
+                }
+                catch (Exception ex) { err = ex.Message; }
+            }
+            if (n > 0) Ui.Info(this, "נשמר", "נכתבו " + n + " קבצים אל" + Environment.NewLine + Theme.Ltr(dir));
+            else Ui.Error(this, "לא נשמר", err != null ? err : "לא נמצאו נוסחי רישיון בקובץ.");
         }
 
         private void RemoveEngine()

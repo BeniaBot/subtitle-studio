@@ -77,6 +77,9 @@ namespace SubtitleStudio
 
         public static bool AutoUpdate = true;
         public static string LastCheck = "";
+        /// <summary>עוצמת ההשמעה ומהירותה - העדפות של המשתמש, לא של הקובץ.</summary>
+        public static int Volume = 80;
+        public static double Speed = 1.0;
         private static SubStyle _last = new SubStyle();
 
         /// <summary>שמירה בלי להעביר סגנון (משמש למתגים בהגדרות).</summary>
@@ -107,6 +110,8 @@ namespace SubtitleStudio
                 sb.AppendLine("dark=" + (Theme.Dark ? "1" : "0"));
                 sb.AppendLine("autoupdate=" + (AutoUpdate ? "1" : "0"));
                 sb.AppendLine("lastcheck=" + LastCheck);
+                sb.AppendLine("volume=" + Volume.ToString(CultureInfo.InvariantCulture));
+                sb.AppendLine("speed=" + Speed.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("aikey=" + Ai.Protect(Ai.Key));
                 sb.AppendLine("aimodel=" + Ai.Model);
                 sb.AppendLine("font=" + s.FontName);
@@ -152,6 +157,8 @@ namespace SubtitleStudio
                         case "recent": if (v.Length > 0 && Recent.Count < 6) Recent.Add(v); break;
                         case "autoupdate": AutoUpdate = v != "0"; break;
                         case "lastcheck": LastCheck = v; break;
+                        case "volume": Volume = Math.Max(0, Math.Min(100, (int)D(v, 80))); break;
+                        case "speed": Speed = Math.Max(0.25, Math.Min(4.0, D(v, 1.0))); break;
                         case "aikey": Ai.Key = Ai.Unprotect(v); break;
                         case "aimodel": if (v.Length > 0) Ai.Model = v; break;
                     }

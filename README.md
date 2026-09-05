@@ -81,6 +81,26 @@
 
 ---
 
+## רישיון · License
+
+**הקוד חופשי לגמרי (MIT).** אפשר לקחת אותו, לשנות, לבנות ממנו מוצר אחר,
+למכור — בלי לבקש רשות ובלי לפרסם את השינויים. גרסה למק או ללינוקס היא בדיוק
+סוג הדבר שמותר ורצוי לעשות: כל הלוגיקה שאינה WinForms היא C# רגיל,
+והמנוע פשוט מריץ `ffmpeg` בשורת פקודה.
+
+לצד הקוד שלנו יש שני רכיבים של אחרים: **FFmpeg** תחת GPLv3, ו**גופן Assistant**
+תחת OFL 1.1. הנוסח המלא של שלושת הרישיונות נמצא ב־[`licenses/`](licenses)
+וגם **בתוך התוכנה עצמה** — ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
+הפירוט המלא, כולל הצעת קוד המקור של FFmpeg: [THIRD-PARTY.md](THIRD-PARTY.md).
+
+*Our code is **MIT** — take it, change it, ship it, sell it. A macOS or Linux port is
+explicitly welcome. The released EXE also bundles **FFmpeg** (GPLv3) and the
+**Assistant** font (OFL 1.1); full texts are in [`licenses/`](licenses) and inside the
+app itself. See [THIRD-PARTY.md](THIRD-PARTY.md) for the details and the FFmpeg source
+offer.*
+
+---
+
 ## English
 
 **Free Windows app for adding subtitles to videos.** No install, no internet, no sign‑up.
@@ -94,7 +114,7 @@ Write subtitles against the waveform · fix out‑of‑sync subtitles by pointin
 <div align="center">
 <sub>
 
-קוד התוכנה תחת רישיון [MIT](LICENSE) · מנוע הווידאו [FFmpeg](THIRD-PARTY.md) תחת GPLv3
+קוד התוכנה תחת [MIT](LICENSE) · ‏[FFmpeg](THIRD-PARTY.md) תחת GPLv3 · גופן [Assistant](THIRD-PARTY.md) תחת OFL 1.1
 
 </sub>
 </div>

@@ -98,6 +98,7 @@ namespace SubtitleStudio
                 DoLayout();
                 UpdateSteps();
                 UpdateHint();
+                if (Math.Abs(Settings.Speed - 1.0) > 0.001) SetSpeed(Settings.Speed);
                 // בבדיקות אוטומטיות אין משתמש שילחץ על דיאלוג, ואין טעם לפנות לרשת
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 if (!Ff.Available)
@@ -111,6 +112,7 @@ namespace SubtitleStudio
             ClientSizeChanged += delegate { DoLayout(); };
             FormClosing += delegate (object s, FormClosingEventArgs e)
             {
+                Settings.SaveAll();   // עוצמה ומהירות, גם אם לא נגעו בעיצוב
                 if (_doc.Dirty && _doc.Cues.Count > 0)
                 {
                     int r = Ui.Msg(this, "יש שינויים שלא נשמרו", "לשמור את קובץ הכתוביות לפני היציאה?", Ico.Question,
@@ -440,18 +442,19 @@ namespace SubtitleStudio
             // הסליידר חי בחלונית קופצת, לא בשורת הניגון - הוא נדרש פעם אחת,
             // ותפס מקום קבוע שהיה חסר לשעון.
             _volume = new Slider();
-            _volume.Min = 0; _volume.Max = 100; _volume.Value = 80; _volume.Step = 1; _volume.Suffix = "%";
+            _volume.Min = 0; _volume.Max = 100; _volume.Value = Settings.Volume; _volume.Step = 1; _volume.Suffix = "%";
             _volume.ValueChanged += delegate
             {
                 _engine.Volume = (int)_volume.Value;
+                Settings.Volume = (int)_volume.Value;
                 if (_volBtn != null) { _volBtn.Icon = _volume.Value < 1 ? Ico.SpeakerOff : Ico.Speaker; _volBtn.Invalidate(); }
             };
-            _engine.Volume = 80;
+            _engine.Volume = Settings.Volume;
             _volume.Visible = false;
             _videoCard.Controls.Add(_volume);   // בית קבוע, כדי שהחלפת ערכה תגיע גם אליו
 
             _volBtn = new Btn();
-            _volBtn.Icon = Ico.Speaker;
+            _volBtn.Icon = Settings.Volume < 1 ? Ico.SpeakerOff : Ico.Speaker;
             _volBtn.IconOnly = true;
             _volBtn.Kind = BtnKind.Tool;
             _volBtn.Size = new Size(Theme.S(42), Theme.S(34));
@@ -533,6 +536,7 @@ namespace SubtitleStudio
         private void SetSpeed(double v)
         {
             _engine.Speed = v;
+            Settings.Speed = _engine.Speed;
             _speedBtn.Text = SpeedText(_engine.Speed);
             _speedBtn.Tint = Math.Abs(_engine.Speed - 1.0) < 0.001 ? System.Drawing.Color.Empty : Theme.Accent;
             _speedBtn.Invalidate();

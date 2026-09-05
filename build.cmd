@@ -30,6 +30,8 @@ if exist "build\payload\ffmpeg.pack" set RES=/resource:"build\payload\ffmpeg.pac
 
 rem  UI font (Assistant, SIL OFL) - embedded so the app looks the same on every machine.
 rem  Listed one by one on purpose: delayed expansion inside the csc line is fragile.
+rem  License texts are embedded too, so the single EXE carries its own
+rem  paperwork: MIT for our code, GPLv3 for FFmpeg, OFL for the font.
 
 echo Compiling...
 "%CSC%" /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 ^
@@ -40,6 +42,9 @@ echo Compiling...
   /resource:"assets\fonts\Assistant-Regular.ttf",Assistant-Regular.ttf ^
   /resource:"assets\fonts\Assistant-SemiBold.ttf",Assistant-SemiBold.ttf ^
   /resource:"assets\fonts\Assistant-Bold.ttf",Assistant-Bold.ttf ^
+  /resource:"licenses\GPL-3.0.txt",GPL-3.0.txt ^
+  /resource:"licenses\OFL-1.1-Assistant.txt",OFL-1.1.txt ^
+  /resource:"LICENSE",MIT.txt ^
   /reference:System.dll ^
   /reference:System.Core.dll ^
   /reference:System.Drawing.dll ^

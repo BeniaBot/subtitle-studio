@@ -398,5 +398,27 @@ Eq 'undo on 3000 cues' (Cues $bigDoc)[0].Start $before
 
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 Write-Host ''
+
+# ---------- רישיונות מוטמעים ----------
+# GPLv3 דורש שנוסח הרישיון ילווה את הבינארי. אם מישהו ימחק שורת /resource
+# מ-build.cmd, ההפצה תיהפך ללא-תואמת בלי שאף אחד ישים לב.
+Write-Host 'רישיונות'
+$want = @(
+    @('MIT.txt',      'MIT License'),
+    @('GPL-3.0.txt',  'GNU GENERAL PUBLIC LICENSE'),
+    @('OFL-1.1.txt',  'SIL OPEN FONT LICENSE')
+)
+foreach ($w in $want) {
+    $st = $asm.GetManifestResourceStream($w[0])
+    if ($null -eq $st) { Check ("מוטמע: " + $w[0]) $false 'resource missing' ; continue }
+    $sr = New-Object System.IO.StreamReader $st
+    $txt = $sr.ReadToEnd(); $sr.Close()
+    Check ("מוטמע: " + $w[0]) ($txt -like ('*' + $w[1] + '*')) ("len=" + $txt.Length)
+}
+# הגופן עצמו - אם הוא בפנים, הרישיון שלו חייב להיות בפנים
+Check 'גופן מוטמע יחד עם הרישיון שלו' `
+    (($null -eq $asm.GetManifestResourceStream('Assistant-Regular.ttf')) -or `
+     ($null -ne $asm.GetManifestResourceStream('OFL-1.1.txt'))) ''
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

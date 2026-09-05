@@ -64,6 +64,8 @@ foreach ($size in @(@(940, 680), @(1175, 850), @(1493, 997), @(1920, 1080))) {
     # פקדים שגולשים מחוץ להורה
     $spill = @()
     function Spill($c, $path, [ref]$out) {
+        # ScrollHost מחזיק ילדים מתחת לאזור הנראה בכוונה - זו בדיוק המשמעות של גלילה
+        if ($c.GetType().Name -eq 'ScrollHost') { return }
         foreach ($k in $c.Controls) {
             if (-not $k.Visible) { continue }
             if ($k.Width -le 0 -or $k.Height -le 0) { continue }
@@ -143,6 +145,69 @@ $formT.GetMethod('ToggleTheme', [Reflection.BindingFlags]'NonPublic,Instance').I
 [System.Windows.Forms.Application]::DoEvents()
 $f.Close(); $f.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
+
+# ---------- דיאלוגים ----------
+# הם רוב הפקדים בתוכנה, ובהם קל להחמיץ כפתור שגלש מהחלון אחרי הוספת שורה.
+$ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
+$IN = [Reflection.BindingFlags]'NonPublic,Public,Instance'
+function TY($n) { return $asm.GetType("SubtitleStudio.$n") }
+function NewOf($n, $argv) { return [Activator]::CreateInstance((TY $n), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $argv, $null) }
+
+# מסמך ומדיה לדוגמה
+$doc = NewOf 'Doc' @()
+$dcues = (TY 'Doc').GetField('Cues', $IN).GetValue($doc)
+foreach ($c in @(@(1000,4000,'שלום לכולם'), @(5500,9000,'This is a test line'), @(11000,15000,'הכתובית השלישית'))) {
+    $dcues.Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2])))
+}
+$style = NewOf 'SubStyle' @()
+$media = Join-Path $env:TEMP 'ss-gallery\test.mp4'
+$mi = $null
+if (Test-Path $media) {
+    try { $mi = (TY 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$media)) } catch { }
+}
+function ToolNamed($like) {
+    $all = (TY 'MediaTools').GetMethod('All', $ST).Invoke($null, @())
+    foreach ($x in $all) { if ((TY 'MediaTool').GetField('Name', $IN).GetValue($x) -like $like) { return $x } }
+    return $all[0]
+}
+
+$dialogs = @(
+    @{ n = 'ImportText'; needsMedia = $false; make = { NewOf 'ImportTextDlg' @([int64]0) } },
+    @{ n = 'Fix';        needsMedia = $false; make = { NewOf 'FixDlg' @($doc) } },
+    @{ n = 'Sync';       needsMedia = $false; make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
+    @{ n = 'Help';       needsMedia = $false; make = { NewOf 'HelpDlg' @() } },
+    @{ n = 'About';      needsMedia = $false; make = { NewOf 'AboutDlg' @() } },
+    @{ n = 'AiSetup';    needsMedia = $false; make = { NewOf 'AiSetupDlg' @() } },
+    @{ n = 'AiTranslate';needsMedia = $false; make = { NewOf 'AiTranslateDlg' @($doc) } },
+    @{ n = 'Trim';       needsMedia = $true;  make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },
+    @{ n = 'Extract';    needsMedia = $true;  make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
+    @{ n = 'Tools';      needsMedia = $true;  make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
+    @{ n = 'Export';     needsMedia = $true;  make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
+    @{ n = 'FitSize';    needsMedia = $true;  make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*גודל קובץ*'), $mi, [int64]-1, [int64]-1, [int64]0) } },
+    @{ n = 'Reverse';    needsMedia = $true;  make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*ריוורס*'), $mi, [int64]-1, [int64]-1, [int64]0) } }
+)
+
+$screenH = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height
+foreach ($d in $dialogs) {
+    if ($d.needsMedia -and $null -eq $mi) { continue }
+    $dlg = $null
+    try { $dlg = & $d.make } catch { Check ("דיאלוג " + $d.n) $false $_.Exception.InnerException.Message; continue }
+    $dlg.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+    $dlg.Location = New-Object System.Drawing.Point -3000, -3000
+    $dlg.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $probs = @(); $sp = @()
+    Walk $dlg ('dlg:' + $d.n) ([ref]$probs)
+    Spill $dlg ('dlg:' + $d.n) ([ref]$sp)
+    $tall = $dlg.Height -gt $screenH
+    $dlg.Close(); $dlg.Dispose()
+    [System.Windows.Forms.Application]::DoEvents()
+
+    Check ($d.n + ": בלי חפיפות") ($probs.Count -eq 0) ("`n     " + ($probs -join "`n     "))
+    Check ($d.n + ": בלי גלישה")  ($sp.Count -eq 0)    ("`n     " + ($sp -join "`n     "))
+    Check ($d.n + ": נכנס למסך")  (-not $tall)         ("height=" + $dlg.Height + " screen=" + $screenH)
+}
 
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
