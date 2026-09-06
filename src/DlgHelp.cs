@@ -45,7 +45,8 @@ namespace SubtitleStudio
             StepsPanel steps = new StepsPanel();
             Row(steps, Steps.Length * 42 + 6, 14);
 
-            Section("קיצורי מקלדת");
+            // לא רק מקלדת: שלוש מהשורות הן פעולות עכבר (גלגלת, גרירה, קליק ימני)
+            Section("קיצורים ופעולות מהירות");
             KeysPanel keys = new KeysPanel();
             Row(keys, ((Keys.Length + 1) / 2) * 30 + 6, 8);
 

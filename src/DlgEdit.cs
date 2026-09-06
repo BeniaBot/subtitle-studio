@@ -622,12 +622,13 @@ namespace SubtitleStudio
             _trimSpace = Add("לנקות רווחים ושורות ריקות מיותרים", true);
             _emptyRemove = Add("למחוק כתוביות ריקות", true);
 
-            Section("גודל הרווח (מילישניות)");
+            // "מילישניות" הוא ז'רגון; הקהל הזה קורא "אלפיות שנייה"
+            Section("רווח בין כתוביות (אלפיות שנייה)");
             _gapMs = new Slider();
             _gapMs.Min = 0; _gapMs.Max = 300; _gapMs.Value = 80; _gapMs.Step = 10;
             Row(_gapMs, 28, 10);
 
-            Section("משך מינימלי (שניות)");
+            Section("משך מינימלי לכתובית (שניות)");
             _minMs = new Slider();
             _minMs.Min = 0.4; _minMs.Max = 3; _minMs.Value = 1.0; _minMs.Step = 0.1;
             Row(_minMs, 28, 10);

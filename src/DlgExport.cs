@@ -308,12 +308,14 @@ namespace SubtitleStudio
             : base("חיתוך הסרט", Ico.Scissors, 560)
         {
             _main = main; _mi = mi; _doc = doc; _a = a; _b = b;
-            Subtitle = "מ-" + Tc.Clock(a) + " עד " + Tc.Clock(b) + "  ·  אורך הקטע " + Tc.Short(b - a);
+            // מקף עברי ולא מינוס: ‏"מ-00:00:05" נקרא ב-RTL כמו זמן שלילי
+            Subtitle = "מ־" + Theme.Ltr(Tc.Clock(a)) + " עד " + Theme.Ltr(Tc.Clock(b)) +
+                       "  ·  אורך הקטע " + Theme.Ltr(Tc.Short(b - a));
 
             Section("מה לעשות עם הקטע המסומן?");
             _modeKeep = new Btn();
             _modeKeep.Text = "לשמור רק את הקטע הזה";
-            _modeKeep.Sub = "כל השאר נמחק · הסרט החדש יתחיל מ-" + Tc.Short(a);
+            _modeKeep.Sub = "כל השאר נמחק · הסרט החדש יתחיל מ־" + Theme.Ltr(Tc.Short(a));
             _modeKeep.Icon = Ico.Check;
             _modeKeep.Checked = true;
             _modeKeep.Click += delegate { SetMode(true); };
@@ -383,7 +385,7 @@ namespace SubtitleStudio
                 if (_keyframe == -2) _keyframe = Ff.NearestKeyframeBefore(_mi.Path, _a);
                 long off = _keyframe >= 0 ? _a - _keyframe : 0;
                 if (_keyframe >= 0 && off > 400)
-                    _note.Text = "שימו לב: בחיתוך מהיר הקטע יתחיל ב-" + Tc.Short(_keyframe) + " במקום " + Tc.Short(_a) +
+                    _note.Text = "שימו לב: בחיתוך מהיר הקטע יתחיל ב־" + Theme.Ltr(Tc.Short(_keyframe)) + " במקום " + Theme.Ltr(Tc.Short(_a)) +
                                  " (הפרש של " + (off / 1000.0).ToString("0.0") +
                                  " שניות), כי אי אפשר לחתוך באמצע בלי לקודד מחדש.\r\nלדיוק מלא - כבו את החיתוך המהיר.";
                 else

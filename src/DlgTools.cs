@@ -60,8 +60,10 @@ namespace SubtitleStudio
         {
             if (DurationSec <= 0) return "";
             if (AlreadySmall)
-                return "הקובץ כבר קטן מהגודל המבוקש (" + Theme.Ltr(SourceMb.ToString("0.0") + " MB") +
-                       ") - אין צורך לדחוס אותו.";
+                // ההודעה הקודמת אמרה "אין צורך" אבל השאירה את הכפתור פעיל,
+                // וזה סותר. עדיף להגיד מה כן לעשות.
+                return "הקובץ כבר קטן מהגודל הזה (" + Theme.Ltr(SourceMb.ToString("0.0") + " MB") +
+                       "). כדי להקטין אותו באמת - לבחור גודל קטן יותר.";
             if (TooSmall)
                 return "הגודל הזה קטן מדי לסרט באורך " + Tc.Short((long)(DurationSec * 1000)) +
                        " - התוצאה תהיה מטושטשת מאוד. כדאי לבחור גודל גדול יותר או לחתוך קטע.";
