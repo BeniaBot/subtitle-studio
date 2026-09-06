@@ -117,6 +117,8 @@ namespace SubtitleStudio
             FormClosing += delegate (object s, FormClosingEventArgs e)
             {
                 Settings.SaveAll();   // עוצמה ומהירות, גם אם לא נגעו בעיצוב
+                // בבדיקות אין מי שיענה על ״לשמור?״, והחלון היה נתקע לנצח
+                if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 if (_doc.Dirty && _doc.Cues.Count > 0)
                 {
                     int r = Ui.Msg(this, "יש שינויים שלא נשמרו", "לשמור את קובץ הכתוביות לפני היציאה?", Ico.Question,
