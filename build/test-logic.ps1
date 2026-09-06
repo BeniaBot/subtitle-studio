@@ -553,5 +553,41 @@ Check 'המתקין זוהה נכון' ($setup -match 'Setup\.exe$') $setup
 Eq   'גודל הנייד'   $plainSize 38309376
 Eq   'גודל המתקין'  $setupSize 38409728
 
+# ---------- סכמת הפעולות של ה-AI ----------
+# פעולה בלי פרמטרים חייבת לצאת בלי parameters בכלל. סכמה עם properties
+# ריק נדחית בשרת, וכל הבקשה נופלת - כולל הפעולות שכן תקינות.
+Write-Host 'סכמת ה-AI'
+$aiT = & $T 'Ai'
+$toolT = & $T 'AiTool'
+$msgT = & $T 'AiMsg'
+
+$listToolT = [System.Collections.Generic.List``1].MakeGenericType($toolT)
+$tools = [Activator]::CreateInstance($listToolT)
+$noArgs = $toolT.GetConstructor([Type[]]@([string],[string])).Invoke(@([string]'do_nothing', [string]'בלי פרמטרים'))
+$withArgs = $toolT.GetConstructor([Type[]]@([string],[string])).Invoke(@([string]'do_thing', [string]'עם פרמטר'))
+[void]$toolT.GetMethod('Req').Invoke($withArgs, (Pack ([string]'n') ([string]'integer') ([string]'מספר')))
+$listToolT.GetMethod('Add').Invoke($tools, (Pack $noArgs))
+$listToolT.GetMethod('Add').Invoke($tools, (Pack $withArgs))
+
+$listMsgT = [System.Collections.Generic.List``1].MakeGenericType($msgT)
+$hist = [Activator]::CreateInstance($listMsgT)
+$m = [Activator]::CreateInstance($msgT)
+$msgT.GetField('Text').SetValue($m, 'בדיקה')
+$listMsgT.GetMethod('Add').Invoke($hist, (Pack $m))
+
+# בלי מפתח Send יוצא מוקדם, אז בונים את הגוף דרך אותו קוד בעזרת ההשתקפות
+# על BuildBody אם קיים; אחרת בודקים את הסכמה דרך המחלקה עצמה.
+$bb = $aiT.GetMethod('BuildBody', [Reflection.BindingFlags]'NonPublic,Public,Static')
+if ($bb) {
+    $json = $bb.Invoke($null, (Pack ([string]'sys') $hist $tools $false ([string]'gemini-2.5-flash')))
+    Check 'פעולה בלי פרמטרים - בלי parameters' ($json -notmatch '"properties"\s*:\s*\{\s*\}') ''
+    Check 'פעולה עם פרמטר - יש properties'     ($json -match '"properties"') ''
+    Check 'thinkingBudget מכובה ב-2.5'          ($json -match '"thinkingBudget"') ''
+    $json2 = $bb.Invoke($null, (Pack ([string]'sys') $hist $tools $false ([string]'gemini-2.0-flash')))
+    Check 'ובלי thinkingBudget בדגם ישן'        ($json2 -notmatch '"thinkingBudget"') ''
+} else {
+    Check 'BuildBody נגיש לבדיקה' $false 'הפרידו את בניית הגוף למתודה כדי שאפשר יהיה לבדוק אותה'
+}
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

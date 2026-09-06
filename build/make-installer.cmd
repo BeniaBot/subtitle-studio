@@ -16,6 +16,10 @@ if not exist "%CSC%" (
   exit /b 1
 )
 
+rem  A running setup locks the output file and csc fails with CS0016.
+taskkill /f /im SubtitleStudio-Setup.exe >nul 2>&1
+taskkill /f /im SubtitleStudio.exe >nul 2>&1
+
 if not exist "dist\SubtitleStudio.exe" (
   echo [ERROR] dist\SubtitleStudio.exe is missing.
   echo         Run build.cmd first - the setup carries that file inside it.

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 
 namespace SubtitleStudio
@@ -179,74 +180,8 @@ namespace SubtitleStudio
             AiReply r = new AiReply();
             if (!HasKey) { r.Error = "לא הוגדר מפתח. פתחו את הגדרות ה-AI כדי להזין אותו."; return r; }
 
-            Dictionary<string, object> body = new Dictionary<string, object>();
-            if (!string.IsNullOrEmpty(system))
-                body["systemInstruction"] = new Dictionary<string, object> { { "parts", new object[] { new Dictionary<string, object> { { "text", system } } } } };
+            string json = BuildBody(system, history, tools, jsonOut, Model);
 
-            List<object> contents = new List<object>();
-            foreach (AiMsg m in history)
-            {
-                Dictionary<string, object> item = new Dictionary<string, object>();
-                if (m.Role == "tool")
-                {
-                    item["role"] = "user";
-                    item["parts"] = new object[] { new Dictionary<string, object> {
-                        { "functionResponse", new Dictionary<string, object> {
-                            { "name", m.ToolName },
-                            { "response", m.ToolResult != null ? (object)m.ToolResult : new Dictionary<string, object>() } } } } };
-                }
-                else if (m.Role == "model" && m.Call != null)
-                {
-                    // חייבים להחזיר את תור המודל עם קריאת הפונקציה, אחרת השרת דוחה את התשובה
-                    item["role"] = "model";
-                    item["parts"] = new object[] { new Dictionary<string, object> {
-                        { "functionCall", new Dictionary<string, object> {
-                            { "name", m.Call.Name },
-                            { "args", m.Call.Args != null ? (object)m.Call.Args : new Dictionary<string, object>() } } } } };
-                }
-                else
-                {
-                    item["role"] = m.Role == "model" ? "model" : "user";
-                    item["parts"] = new object[] { new Dictionary<string, object> { { "text", m.Text } } };
-                }
-                contents.Add(item);
-            }
-            body["contents"] = contents;
-
-            Dictionary<string, object> cfg = new Dictionary<string, object>();
-            cfg["temperature"] = 0.4;
-            cfg["maxOutputTokens"] = 8192;
-            if (jsonOut) cfg["responseMimeType"] = "application/json";
-            body["generationConfig"] = cfg;
-
-            if (tools != null && tools.Count > 0)
-            {
-                List<object> decls = new List<object>();
-                foreach (AiTool t in tools)
-                {
-                    Dictionary<string, object> props = new Dictionary<string, object>();
-                    List<string> req = new List<string>();
-                    foreach (string[] p in t.Params)
-                    {
-                        props[p[0]] = new Dictionary<string, object> { { "type", p[1].ToUpperInvariant() }, { "description", p[2] } };
-                        if (p[3] == "req") req.Add(p[0]);
-                    }
-                    Dictionary<string, object> d = new Dictionary<string, object>();
-                    d["name"] = t.Name;
-                    d["description"] = t.Desc;
-                    Dictionary<string, object> schema = new Dictionary<string, object>();
-                    schema["type"] = "OBJECT";
-                    schema["properties"] = props;
-                    if (req.Count > 0) schema["required"] = req.ToArray();
-                    d["parameters"] = schema;
-                    decls.Add(d);
-                }
-                body["tools"] = new object[] { new Dictionary<string, object> { { "functionDeclarations", decls } } };
-            }
-
-            string json = Ser().Serialize(body);
-            Log("בקשה: " + contents.Count + " הודעות, " +
-                (tools != null ? tools.Count : 0) + " פעולות, " + json.Length + " תווים");
             string reply = null, err = null;
 
             // אם שם הדגם לא קיים בחשבון - מנסים את הבא ברשימה
@@ -254,8 +189,17 @@ namespace SubtitleStudio
             tryModels.Add(Model);
             foreach (string m in Models) if (m != Model) tryModels.Add(m);
 
+            bool logged = false;
             foreach (string model in tryModels)
             {
+                // הגוף נבנה מחדש לכל דגם, כי thinkingConfig קיים רק בחלקם
+                if (model != Model) json = BuildBody(system, history, tools, jsonOut, model);
+                if (!logged)
+                {
+                    Log("בקשה: " + history.Count + " הודעות, " +
+                        (tools != null ? tools.Count : 0) + " פעולות, " + json.Length + " תווים");
+                    logged = true;
+                }
                 if (Post(Endpoint(model), json, out reply, out err))
                 {
                     if (model != Model) Model = model;
@@ -287,7 +231,8 @@ namespace SubtitleStudio
                 if (c0 == null || !c0.TryGetValue("content", out content)) { r.Error = "התשובה מהשרת ריקה."; return r; }
                 Dictionary<string, object> cd = content as Dictionary<string, object>;
                 object parts;
-                if (cd == null || !cd.TryGetValue("parts", out parts)) { r.Error = "התשובה מהשרת ריקה."; return r; }
+                if (cd == null || !cd.TryGetValue("parts", out parts))
+                { r.Error = "המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."; return r; }
                 System.Collections.IList pa = Arr(parts);
                 StringBuilder text = new StringBuilder();
                 if (pa != null)
@@ -395,9 +340,128 @@ namespace SubtitleStudio
             return "השרת החזיר תשובה לא צפויה: " + Snip(raw);
         }
 
+        /// <summary>שולח, ואם השרת אמר ״רגע, יותר מדי בקשות״ - ממתין כמה
+        /// שהוא ביקש ומנסה שוב. המכסה החינמית היא כמה בקשות לדקה, וזה תפס
+        /// את המשתמש כמעט בכל הודעה שנייה. הקריאה רצה בחוט רקע, אז ההמתנה
+        /// לא מקפיאה את הממשק.</summary>
+        /// <summary>בונה את גוף הבקשה. מופרד כדי שאפשר יהיה לבדוק את
+        /// הסכמה בלי רשת - סכמה פגומה מפילה את כל הצ׳אט בבת אחת.</summary>
+        public static string BuildBody(string system, List<AiMsg> history, List<AiTool> tools, bool jsonOut, string model)
+        {
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            if (!string.IsNullOrEmpty(system))
+                body["systemInstruction"] = new Dictionary<string, object> { { "parts", new object[] { new Dictionary<string, object> { { "text", system } } } } };
+
+            List<object> contents = new List<object>();
+            foreach (AiMsg m in history)
+            {
+                Dictionary<string, object> item = new Dictionary<string, object>();
+                if (m.Role == "tool")
+                {
+                    item["role"] = "user";
+                    item["parts"] = new object[] { new Dictionary<string, object> {
+                        { "functionResponse", new Dictionary<string, object> {
+                            { "name", m.ToolName },
+                            { "response", m.ToolResult != null ? (object)m.ToolResult : new Dictionary<string, object>() } } } } };
+                }
+                else if (m.Role == "model" && m.Call != null)
+                {
+                    // חייבים להחזיר את תור המודל עם קריאת הפונקציה, אחרת השרת דוחה את התשובה
+                    item["role"] = "model";
+                    item["parts"] = new object[] { new Dictionary<string, object> {
+                        { "functionCall", new Dictionary<string, object> {
+                            { "name", m.Call.Name },
+                            { "args", m.Call.Args != null ? (object)m.Call.Args : new Dictionary<string, object>() } } } } };
+                }
+                else
+                {
+                    item["role"] = m.Role == "model" ? "model" : "user";
+                    item["parts"] = new object[] { new Dictionary<string, object> { { "text", m.Text } } };
+                }
+                contents.Add(item);
+            }
+            body["contents"] = contents;
+
+            Dictionary<string, object> cfg = new Dictionary<string, object>();
+            cfg["temperature"] = 0.4;
+            cfg["maxOutputTokens"] = 8192;
+            if (jsonOut) cfg["responseMimeType"] = "application/json";
+            // דגמי 2.5 ״חושבים״ לפני שהם עונים, והחשיבה נגרעת מתקציב הפלט.
+            // כשהיא בולעת את כולו חוזר content בלי parts, כלומר תשובה ריקה
+            // עם finishReason=STOP. הצ'אט הזה בוחר פונקציה - אין לו מה לחשוב.
+            body["generationConfig"] = cfg;
+
+            if (tools != null && tools.Count > 0)
+            {
+                List<object> decls = new List<object>();
+                foreach (AiTool t in tools)
+                {
+                    Dictionary<string, object> props = new Dictionary<string, object>();
+                    List<string> req = new List<string>();
+                    foreach (string[] p in t.Params)
+                    {
+                        props[p[0]] = new Dictionary<string, object> { { "type", p[1].ToUpperInvariant() }, { "description", p[2] } };
+                        if (p[3] == "req") req.Add(p[0]);
+                    }
+                    Dictionary<string, object> d = new Dictionary<string, object>();
+                    d["name"] = t.Name;
+                    d["description"] = t.Desc;
+                    // פעולה בלי פרמטרים: משמיטים את parameters לגמרי.
+                    // סכמה עם properties ריק נדחית בשרת, וכל הבקשה נופלת -
+                    // כולל הפעולות שכן תקינות.
+                    if (props.Count > 0)
+                    {
+                        Dictionary<string, object> schema = new Dictionary<string, object>();
+                        schema["type"] = "OBJECT";
+                        schema["properties"] = props;
+                        if (req.Count > 0) schema["required"] = req.ToArray();
+                        d["parameters"] = schema;
+                    }
+                    decls.Add(d);
+                }
+                body["tools"] = new object[] { new Dictionary<string, object> { { "functionDeclarations", decls } } };
+            }
+
+            // דגמי 2.5 ״חושבים״ לפני שהם עונים, והחשיבה נגרעת מתקציב הפלט.
+            // כשהיא בולעת את כולו חוזר content בלי parts - תשובה ריקה עם
+            // finishReason=STOP. הצ׳אט הזה בוחר פעולה; אין לו מה לחשוב.
+            if (model != null && model.IndexOf("2.5", StringComparison.Ordinal) >= 0)
+                cfg["thinkingConfig"] = new Dictionary<string, object> { { "thinkingBudget", 0 } };
+
+            return Ser().Serialize(body);
+        }
+
         private static bool Post(string url, string json, out string reply, out string error)
         {
-            reply = null; error = null;
+            int waitSec;
+            if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
+            if (waitSec <= 0) return false;
+            if (waitSec > 30) waitSec = 30;
+            Log("מכסה - ממתין " + waitSec + " שניות ומנסה שוב");
+            System.Threading.Thread.Sleep(waitSec * 1000);
+            int ignore;
+            return PostOnce(url, json, out reply, out error, out ignore);
+        }
+
+        /// <summary>‏retryDelay מגוף השגיאה של 429. אם אין - ברירת מחדל סבירה.</summary>
+        private static int RetryAfter(string detail)
+        {
+            try
+            {
+                Match m = Regex.Match(detail, "\"retryDelay\"\\s*:\\s*\"(\\d+)");
+                if (m.Success)
+                {
+                    int v;
+                    if (int.TryParse(m.Groups[1].Value, out v) && v > 0) return v + 1;
+                }
+            }
+            catch { }
+            return 8;
+        }
+
+        private static bool PostOnce(string url, string json, out string reply, out string error, out int retrySec)
+        {
+            reply = null; error = null; retrySec = 0;
             try
             {
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
@@ -431,6 +495,7 @@ namespace SubtitleStudio
                     }
                 }
                 catch { }
+                if (code == 429) retrySec = RetryAfter(detail);
                 error = Explain(code, detail, wex.Message);
                 return false;
             }
@@ -463,7 +528,8 @@ namespace SubtitleStudio
                 case 401:
                 case 403: return "המפתח לא תקף או שאין לו הרשאה. הפיקו מפתח חדש בדף של גוגל.";
                 case 404: return "404 - הדגם לא נמצא בחשבון הזה.";
-                case 429: return "עברתם את מכסת השימוש החינמית לרגע זה. המתינו דקה ונסו שוב.";
+                case 429: return "המפתח החינמי של גוגל מוגבל לכמה בקשות בדקה, והמכסה נגמרה כרגע. " +
+                                  "המתינו דקה ונסו שוב - או הפיקו מפתח חדש בדף של גוגל.";
                 case 500:
                 case 503: return "השרת של גוגל עמוס כרגע. נסו שוב בעוד רגע.";
             }

@@ -158,6 +158,23 @@ namespace SubtitleStudio
             t.Add(new AiTool("set_theme", "מעביר בין מצב בהיר לכהה")
                 .Req("dark", "boolean", "true = כהה"));
 
+            // ---------- שלוש הדרכים להתחיל כתוביות מאפס ----------
+            t.Add(new AiTool("new_subtitle_here",
+                    "יוצר כתובית ריקה במקום שבו הנגן עומד ומעביר את הסמן לכתיבה. " +
+                    "זו הפעולה הבסיסית של התוכנה - השתמש בה כשהמשתמש רוצה להוסיף שורה אחת")
+                .P("text", "string", "טקסט התחלתי. אם חסר - הכתובית נוצרת ריקה והמשתמש כותב")
+                .P("at_sec", "number", "זמן בשניות. ברירת מחדל: המקום שבו הנגן עומד"));
+
+            t.Add(new AiTool("open_text_import",
+                "פותח את החלון שבו המשתמש **מדביק בעצמו** טקסט חופשי, והתוכנה " +
+                "מחלקת אותו לכתוביות. זו התשובה כשהמשתמש רוצה כתוביות אבל הטקסט " +
+                "נמצא אצלו ולא אצלך - אל תבקש ממנו להדביק לך אותו בצ'אט"));
+
+            t.Add(new AiTool("start_tap_timing",
+                "מתחיל את מצב התזמון בלחיצה: הסרט מתנגן, והמשתמש לוחץ על כפתור " +
+                "בכל פעם שמשפט מתחיל. עובד רק כשיש שורות שהתזמון שלהן עוד הערכה " +
+                "(אחרי יבוא טקסט). זו הדרך לתזמן טקסט שאין לו זמנים"));
+
             return t;
         }
 
@@ -216,6 +233,9 @@ namespace SubtitleStudio
                     case "set_playback_speed": return AiSetSpeed(call);
                     case "undo": return AiUndo();
                     case "set_theme": return AiSetTheme(call);
+                    case "new_subtitle_here": return AiNewHere(call);
+                    case "open_text_import": return AiOpenTextImport();
+                    case "start_tap_timing": return AiStartTap();
                 }
                 r["error"] = "פעולה לא מוכרת: " + call.Name;
             }
@@ -792,6 +812,53 @@ namespace SubtitleStudio
             bool dark = c.Bool("dark", false);
             if (Theme.Dark != dark) ToggleTheme();
             r["done"] = Theme.Dark ? "עבר למצב כהה" : "עבר למצב בהיר";
+            return r;
+        }
+
+        private Dictionary<string, object> AiNewHere(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (c.Args.ContainsKey("at_sec")) Seek((long)(c.Num("at_sec", 0) * 1000));
+            NewCueAtPlayhead();
+            string txt = c.Str("text", "");
+            if (txt.Length > 0 && _editing != null)
+            {
+                _editing.Text = txt;
+                _doc.Dirty = true;
+                AiRefresh();
+            }
+            r["done"] = "נוצרה כתובית ב-" + Theme.Ltr(Tc.Short(_engine.Position));
+            r["index"] = _editing != null ? _doc.Cues.IndexOf(_editing) + 1 : 0;
+            return r;
+        }
+
+        private Dictionary<string, object> AiOpenTextImport()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            int before = _doc.Cues.Count;
+            ImportText();
+            int now = _doc.Cues.Count;
+            r["done"] = now > before
+                ? "המשתמש הדביק טקסט ונוצרו " + (now - before) + " כתוביות"
+                : "החלון נפתח והמשתמש סגר אותו בלי ליצור כתוביות";
+            r["cue_count"] = now;
+            r["untimed"] = UntimedCount();
+            return r;
+        }
+
+        private Dictionary<string, object> AiStartTap()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null) { r["error"] = "אין סרט פתוח"; return r; }
+            int left = UntimedCount();
+            if (left == 0)
+            {
+                r["error"] = "אין שורות שמחכות לתזמון. קודם צריך טקסט - " +
+                             "open_text_import או create_subtitles_from_text עם tap_later=true.";
+                return r;
+            }
+            StartTapping();
+            r["done"] = "מצב התזמון התחיל. " + left + " שורות מחכות; המשתמש לוחץ על הכפתור הכחול בכל משפט";
             return r;
         }
 
