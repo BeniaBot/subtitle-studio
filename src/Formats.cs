@@ -37,19 +37,29 @@ namespace SubtitleStudio
             if (data.Length >= 2 && data[0] == 0xFE && data[1] == 0xFF)
             { encodingName = "UTF-16BE"; return Encoding.BigEndianUnicode.GetString(data, 2, data.Length - 2); }
 
-            // UTF-16 בלי BOM: טקסט לטיני/עברי מייצר שם בייט אפס לכל תו.
-            // בקידוד של בייט אחד לתו זה כמעט לא קורה, אז הסימן חד-משמעי.
+            // UTF-16 בלי BOM. ספירת בייטי אפס לבדה לא מספיקה: אות עברית
+            // ב-UTF-16LE היא D0 05 - הבייט הגבוה הוא 05 ולא אפס, ולכן קובץ
+            // עברי צפוף נפל מתחת לסף ונקרא כ-CP1255, כלומר ג'יבריש.
+            //
+            // מה שבאמת מאפיין UTF-16 של טקסט אנושי הוא שכל הבייטים הגבוהים
+            // קטנים מ-09: 00 ללטינית, 05 לעברית, 04 לקירילית, 06 לערבית.
+            // בקידוד של בייט אחד לתו בייט כזה כמעט לא מופיע - גם שורה חדשה
+            // היא 0A - ולכן הסימן נשאר חד-משמעי לשני הכיוונים.
             if (data.Length >= 16)
             {
-                int zeroEven = 0, zeroOdd = 0, look = Math.Min(data.Length, 4096);
+                int look = Math.Min(data.Length, 4096) & ~1;
+                int half = look / 2;
+                int lowEven = 0, lowOdd = 0;
                 for (int i = 0; i < look; i++)
                 {
-                    if (data[i] != 0) continue;
-                    if ((i & 1) == 0) zeroEven++; else zeroOdd++;
+                    if (data[i] >= 0x09) continue;
+                    if ((i & 1) == 0) lowEven++; else lowOdd++;
                 }
-                if (zeroOdd > look / 4 && zeroEven < look / 40)
+                int many = half - half / 8;      // 87.5% מהמקומות בצד אחד
+                int few = half / 8;              // וכמעט כלום בצד השני
+                if (lowOdd >= many && lowEven <= few)
                 { encodingName = "UTF-16"; return Encoding.Unicode.GetString(data); }
-                if (zeroEven > look / 4 && zeroOdd < look / 40)
+                if (lowEven >= many && lowOdd <= few)
                 { encodingName = "UTF-16BE"; return Encoding.BigEndianUnicode.GetString(data); }
             }
 
@@ -215,7 +225,10 @@ namespace SubtitleStudio
             return list;
         }
 
-        private static readonly Regex RxMicroFps = new Regex(@"^\{1\}\{1\}([\d.,]+)\s*$", RegexOptions.Compiled);
+        // שתי הצורות בשימוש: {1}{1}23.976 וגם {0}{0}23.976. בלי השנייה
+        // הקצב לא נקרא, הכתובית הראשונה יוצאת "23.976" בזמן 0, וכל הקובץ
+        // נסחף עד ארבע דקות בסוף סרט.
+        private static readonly Regex RxMicroFps = new Regex(@"^\{([01])\}\{\1\}([\d.,]+)\s*$", RegexOptions.Compiled);
 
         /// <summary>קצב הפריימים של קובץ ‎.sub‎. הקובץ מכריז עליו בשורה
         /// הראשונה כ-{1}{1}23.976. בלי לקרוא אותה הנחנו 25 תמיד, וזה
@@ -228,17 +241,28 @@ namespace SubtitleStudio
                 string[] lines = text.Replace("\r\n", "\n").Split('\n');
                 for (int i = 0; i < lines.Length && i < 5; i++)
                 {
-                    Match m = RxMicroFps.Match(lines[i].Trim());
-                    if (!m.Success) continue;
                     double f;
-                    if (double.TryParse(m.Groups[1].Value.Replace(',', '.'),
-                            NumberStyles.Any, CultureInfo.InvariantCulture, out f) && f > 5 && f < 200)
-                        return f;
+                    if (MicroFpsOf(lines[i], out f)) return f;
                 }
             }
             catch { }
             if (videoFps > 5 && videoFps < 200) return videoFps;
             return 25.0;
+        }
+
+        /// <summary>שורת הכרזת קצב פריימים? רק ערך בטווח אמיתי נחשב, כדי
+        /// שכתובית לגיטימית כמו ‎{1}{1}2024‎ (כרטיס כותרת) לא תיעלם.</summary>
+        private static bool MicroFpsOf(string line, out double fps)
+        {
+            fps = 0;
+            Match m = RxMicroFps.Match(line.Trim());
+            if (!m.Success) return false;
+            double f;
+            if (!double.TryParse(m.Groups[2].Value.Replace(',', '.'),
+                    NumberStyles.Any, CultureInfo.InvariantCulture, out f)) return false;
+            if (f <= 5 || f >= 200) return false;
+            fps = f;
+            return true;
         }
 
         public static List<Cue> ParseMicroDvd(string text, double fps)
@@ -247,14 +271,22 @@ namespace SubtitleStudio
             if (fps <= 0) fps = 25.0;
             string[] lines = text.Replace("\r\n", "\n").Split('\n');
             Regex rx = new Regex(@"^\{(\d+)\}\{(\d+)\}(.*)$");
+            int seen = 0;
             foreach (string ln in lines)
             {
-                // שורת ההכרזה על קצב הפריימים היא לא כתובית
-                if (RxMicroFps.IsMatch(ln.Trim())) continue;
+                // שורת ההכרזה על קצב הפריימים היא לא כתובית - אבל רק אם היא
+                // באמת בראש הקובץ ובאמת נראית כמו קצב פריימים.
+                double dummy;
+                if (seen < 5 && MicroFpsOf(ln, out dummy)) { seen++; continue; }
+                seen++;
                 Match m = rx.Match(ln.Trim());
                 if (!m.Success) continue;
-                long a = (long)(long.Parse(m.Groups[1].Value) * 1000.0 / fps);
-                long b = (long)(long.Parse(m.Groups[2].Value) * 1000.0 / fps);
+                long a, b;
+                // ‎(\d+)‎ לא חסום באורך: קובץ פגום עם מספר ענק זרק OverflowException
+                if (!long.TryParse(m.Groups[1].Value, out a)) continue;
+                if (!long.TryParse(m.Groups[2].Value, out b)) continue;
+                a = (long)(a * 1000.0 / fps);
+                b = (long)(b * 1000.0 / fps);
                 string t = m.Groups[3].Value.Replace("|", "\n");
                 t = Regex.Replace(t, @"\{[^}]*\}", "");
                 list.Add(new Cue(a, b, t.Trim()));

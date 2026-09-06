@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Drawing;
@@ -7,6 +8,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace SubtitleStudio
@@ -82,32 +84,7 @@ namespace SubtitleStudio
                 using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8))
                     json = sr.ReadToEnd();
 
-                Release r = new Release();
-                Match tag = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
-                if (!tag.Success) { error = "לא נמצאה גרסה במאגר."; return null; }
-                r.Version = tag.Groups[1].Value;
-
-                Match body = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-                if (body.Success) r.Notes = Unescape(body.Groups[1].Value);
-
-                // מהדורה נושאת שני קבצים - הנייד והמתקין - וצריך לדעת מי מי.
-                // GitHub פולט לכל נכס name -> size -> browser_download_url בסדר הזה.
-                // התקרה {0,900} היא המגן: בלעדיה הביטוי מדלג מנכס אחד לשדה של אחר.
-                foreach (Match m in Regex.Matches(json,
-                    "\"name\"\\s*:\\s*\"([^\"]+\\.exe)\"[\\s\\S]{0,900}?\"size\"\\s*:\\s*(\\d+)" +
-                    "[\\s\\S]{0,900}?\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
-                {
-                    string name = m.Groups[1].Value;
-                    string url = m.Groups[3].Value;
-                    if (url.IndexOf("/releases/download/", StringComparison.OrdinalIgnoreCase) < 0) continue;
-                    long sz = 0;
-                    long.TryParse(m.Groups[2].Value, out sz);
-                    if (name.IndexOf("setup", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { r.SetupUrl = url; r.SetupSize = sz; }
-                    else if (r.Url.Length == 0)
-                    { r.Url = url; r.Size = sz; }
-                }
-                return r;
+                return Parse(json, out error);
             }
             catch (WebException wex)
             {
@@ -124,9 +101,70 @@ namespace SubtitleStudio
             }
         }
 
-        private static string Unescape(string s)
+        /// <summary>קורא את תשובת GitHub. ציבורי כדי שאפשר יהיה לבדוק אותו
+        /// בלי רשת - הגרסה הקודמת נשענה על ביטוי רגולרי שדילג בין שדות של
+        /// נכסים שונים, וכשגיטהאב הגדיל את אובייקט ה-uploader הוא הפסיק
+        /// להתאים בשקט וכיבה את כל מנגנון העדכון.</summary>
+        public static Release Parse(string json, out string error)
         {
-            return s.Replace("\\r\\n", "\n").Replace("\\n", "\n").Replace("\\\"", "\"").Replace("\\\\", "\\");
+            error = null;
+            Dictionary<string, object> root;
+            try
+            {
+                JavaScriptSerializer js = new JavaScriptSerializer();
+                js.MaxJsonLength = 16 * 1024 * 1024;
+                root = js.DeserializeObject(json) as Dictionary<string, object>;
+            }
+            catch (Exception ex) { error = "תשובה לא מובנת מהמאגר: " + ex.Message; return null; }
+            if (root == null) { error = "תשובה לא מובנת מהמאגר."; return null; }
+
+            Release r = new Release();
+            // התגית בגיטהאב היא "v0.5.1"; מציגים למשתמש "0.5.1" כמו שכתוב
+            // בחלון "על התוכנה". ההשוואה עצמה מתעלמת מה-v ממילא.
+            r.Version = Str(root, "tag_name").Trim().TrimStart('v', 'V');
+            if (r.Version.Length == 0) { error = "לא נמצאה גרסה במאגר."; return null; }
+            r.Notes = Str(root, "body");          // המפענח כבר פורק את התווים המוברחים
+
+            object[] assets = Get(root, "assets") as object[];
+            if (assets != null)
+                foreach (object o in assets)
+                {
+                    Dictionary<string, object> a = o as Dictionary<string, object>;
+                    if (a == null) continue;
+                    string name = Str(a, "name");
+                    string url = Str(a, "browser_download_url");
+                    if (name.Length == 0 || url.Length == 0) continue;
+                    if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (url.IndexOf("/releases/download/", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    long sz = Num(a, "size");
+                    // "setup" בשם = המתקין; כל השאר = הקובץ הנייד. הראשון מנצח
+                    // בשני הצדדים, כדי שנכס נוסף שיועלה מאוחר יותר לא ידרוס.
+                    if (name.IndexOf("setup", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { if (r.SetupUrl.Length == 0) { r.SetupUrl = url; r.SetupSize = sz; } }
+                    else if (r.Url.Length == 0)
+                    { r.Url = url; r.Size = sz; }
+                }
+            return r;
+        }
+
+        private static object Get(Dictionary<string, object> d, string key)
+        {
+            object v;
+            return d != null && d.TryGetValue(key, out v) ? v : null;
+        }
+
+        private static string Str(Dictionary<string, object> d, string key)
+        {
+            object v = Get(d, key);
+            return v == null ? "" : Convert.ToString(v, CultureInfo.InvariantCulture);
+        }
+
+        private static long Num(Dictionary<string, object> d, string key)
+        {
+            object v = Get(d, key);
+            if (v == null) return 0;
+            try { return Convert.ToInt64(v, CultureInfo.InvariantCulture); }
+            catch { return 0; }
         }
 
         /// <summary>מוריד את הגרסה החדשה ומחליף את ה-EXE הנוכחי (התוכנה תיסגר ותיפתח מחדש).</summary>
@@ -250,15 +288,49 @@ namespace SubtitleStudio
                 return;
             }
 
-            string bat = Path.Combine(Path.GetTempPath(), "substudio-update.cmd");
-            File.WriteAllText(bat, UpdateScript(tmp, exe), Encoding.ASCII);
+            // החלפה בלי שום סקריפט: אפשר לשנות שם ל-EXE שרץ כרגע, אז מזיזים
+            // את הישן הצידה, מכניסים את החדש למקומו ומפעילים אותו. זה עוקף
+            // את כל משפחת התקלות של cmd - קידוד OEM, נתיבים בעברית, ו-8.3
+            // שכבוי כברירת מחדל בכוננים שאינם כונן המערכת.
+            string old = exe + ".old";
+            try
+            {
+                try { if (File.Exists(old)) File.Delete(old); }
+                catch { }
+                File.Move(exe, old);
+                try { File.Move(tmp, exe); }
+                catch { File.Move(old, exe); throw; }     // מחזירים את הישן ונכשלים בנקי
+            }
+            catch (Exception ex)
+            {
+                ManualUpdate((Form)owner, tmp, ex.Message);
+                return;
+            }
 
-            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", "/c \"" + bat + "\"");
-            psi.CreateNoWindow = true;
-            psi.UseShellExecute = false;
-            psi.WorkingDirectory = dir;
-            Process.Start(psi);
+            try
+            {
+                ProcessStartInfo run = new ProcessStartInfo(exe);
+                run.UseShellExecute = true;
+                run.WorkingDirectory = dir;
+                Process.Start(run);
+            }
+            catch { }
             Application.Exit();
+        }
+
+        /// <summary>כשההחלפה האוטומטית לא הצליחה - לא סוגרים את התוכנה
+        /// ולא משאירים את המשתמש בלי כלום. אומרים איפה הקובץ ופותחים את
+        /// התיקייה, והעותק הישן ממשיך לעבוד.</summary>
+        private static void ManualUpdate(Form owner, string tmp, string why)
+        {
+            int r = Ui.Msg(owner, "לא הצלחתי להחליף את הקובץ",
+                "הגרסה החדשה ירדה, אבל לא הצלחתי להחליף את הקובץ הקיים." +
+                Environment.NewLine + Theme.Ltr(why) + Environment.NewLine + Environment.NewLine +
+                "אפשר לסגור את התוכנה ולהעתיק את הקובץ החדש במקום הישן.",
+                Ico.Info, "לפתוח את התיקייה", "אחר כך");
+            if (r != 0) return;
+            try { Process.Start("explorer.exe", "/select,\"" + tmp + "\""); }
+            catch { }
         }
 
         private static string ShortPath(string p) { return ShortPathHelper.Of(p); }
@@ -675,11 +747,8 @@ namespace SubtitleStudio
                 "התוכנה תיסגר ותיפתח מחדש לבד." + notes,
                 Ico.Download, "לעדכן עכשיו", "אחר כך");
             if (r != 0) return;
-            if (string.IsNullOrEmpty(rel.Url))
-            {
-                Ui.Error(owner, "אין קובץ להורדה", "בשחרור הזה לא צורף קובץ EXE.");
-                return;
-            }
+            // בלי בדיקה על rel.Url כאן: העותק המותקן מתעדכן דרך SetupUrl,
+            // ו-DownloadAndApply הוא זה שיודע להבחין בין שני הערוצים.
             Updater.DownloadAndApply(owner, rel);
         }
 

@@ -237,13 +237,31 @@ namespace SubtitleStudioSetup
         private bool Place(string tmp, string exe)
         {
             string dir = Path.GetDirectoryName(exe);
+            string old = exe + ".old";
             bool asked = false;
             for (int i = 0; i < 60; i++)               // עד ~30 שניות
             {
                 try
                 {
-                    if (File.Exists(exe)) File.Delete(exe);
-                    File.Move(tmp, exe);
+                    // מזיזים את הישן הצידה במקום למחוק אותו: אם ההעברה של
+                    // החדש נכשלת אחרי מחיקה (אנטי-וירוס אוחז בקובץ, דיסק מלא),
+                    // המשתמש נשאר בלי שום EXE - התוכנה פשוט נעלמת מהמחשב.
+                    bool moved = false;
+                    if (File.Exists(exe))
+                    {
+                        try { if (File.Exists(old)) File.Delete(old); }
+                        catch { }
+                        File.Move(exe, old);
+                        moved = true;
+                    }
+                    try { File.Move(tmp, exe); }
+                    catch
+                    {
+                        if (moved) { try { File.Move(old, exe); } catch { } }   // מחזירים את הישן
+                        throw;
+                    }
+                    try { if (File.Exists(old)) File.Delete(old); }
+                    catch { Common.DeleteOnReboot(old); }
                     return true;
                 }
                 catch (Exception ex)

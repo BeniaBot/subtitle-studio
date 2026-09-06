@@ -234,6 +234,17 @@ namespace SubtitleStudio
 
         public void ClearHistory() { _undo.Clear(); _redo.Clear(); }
 
+        /// <summary>מוחק את צילום המצב האחרון בלי לשחזר אותו.
+        ///
+        /// זה מה שצריך אחרי Push שקדם לפעולה שבסוף לא קרתה (המשתמש ביטל את
+        /// החלון). Undo היה עושה שם שלושה נזקים: מחליף את הכתוביות בשכפולים
+        /// ומשאיר את תיבת העריכה מצביעה על אובייקט יתום, מסמן את המסמך כלא
+        /// שמור, ודוחף צעד מדומה ל״בצע מחדש״ שמוחק את מה שהיה שם.</summary>
+        public void DropLastUndo()
+        {
+            if (_undo.Count > 0) _undo.RemoveAt(_undo.Count - 1);
+        }
+
         // ---------- פעולות ----------
         public void Sort()
         {

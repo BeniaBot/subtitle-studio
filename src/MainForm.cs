@@ -2218,7 +2218,9 @@ namespace SubtitleStudio
             bool ok = d.ShowDialog(this) == DialogResult.OK;
             int hits = d.Replaced, rows = d.ReplacedRows;
             d.Dispose();
-            if (!ok) { _doc.Undo(); return; }        // לא שינינו כלום - לא משאירים צעד ריק בהיסטוריה
+            // ביטול בחלון = המסמך לא נגענו בו (ReplaceDlg משנה רק ב-OnOk),
+            // ולכן רק זורקים את הצילום. Undo כאן היה מייתם את הכתובית שבעריכה.
+            if (!ok) { _doc.DropLastUndo(); return; }
             _doc.Dirty = true;
             _doc.RaiseChanged();
             SyncAfterDocChange();

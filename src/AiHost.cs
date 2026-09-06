@@ -703,7 +703,9 @@ namespace SubtitleStudio
                 }
                 if (n > 0) { q.Text = sb.ToString(); hits += n; touched++; }
             }
-            if (hits == 0) { _doc.Undo(); r["done"] = "לא נמצאו התאמות"; return r; }
+            // כלום לא הוחלף, ולכן גם כלום לא השתנה - זורקים את הצילום במקום
+            // לשחזר אותו (Undo כאן היה מחליף את הכתוביות בשכפולים).
+            if (hits == 0) { _doc.DropLastUndo(); r["done"] = "לא נמצאו התאמות"; return r; }
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = "הוחלפו " + hits + " מופעים ב-" + touched + " כתוביות";

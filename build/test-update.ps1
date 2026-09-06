@@ -29,8 +29,13 @@ $notes = $rt.GetField("Notes").GetValue($rel)
 "הערות:        " + $notes.Substring(0, [Math]::Min(60, $notes.Length)).Replace("`n", " ") + "..."
 
 $isNewer = $app.GetMethod("IsNewer", $BF).Invoke($null, @([string]$ver))
-"האם להציע עדכון: $isNewer   (אמור להיות False - זו אותה גרסה)"
+"האם להציע עדכון: $isNewer"
 
-$ok = ($ver -eq "v0.1.0" -or $ver -eq "0.1.0") -and $url -like "*.exe" -and $size -gt 10MB -and -not $isNewer
+# הבדיקה נעלה פעם את הגרסה על "v0.1.0" ולכן נכשלה מאז 0.2.0. משווים
+# מול הגרסה שבנויה בפועל, כדי שהיא תישאר נכונה בכל מהדורה.
+$mine = $app.GetField("Version").GetValue($null)
+$ok = $url -like "*.exe" -and $size -gt 10MB -and ($ver -match '^\d+\.\d+\.\d+$')
+if ($ver -eq $mine) { $ok = $ok -and (-not $isNewer) }   # אותה גרסה - אין מה להציע
+else                { $ok = $ok -and $isNewer }          # השרת מקדים - חייב להציע
 if ($ok) { Write-Host "`nOK - מנגנון העדכון קורא את המהדורה נכון" -ForegroundColor Green }
 else { Write-Host "`nFAIL" -ForegroundColor Red; exit 1 }

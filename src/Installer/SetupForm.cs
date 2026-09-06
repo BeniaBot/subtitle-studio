@@ -284,7 +284,46 @@ namespace SubtitleStudioSetup
             }
             catch (Exception ex) { Warn("הנתיב לא תקין: " + ex.Message); return; }
 
+            // תיקייה קיימת שכבר יש בה דברים: להתקין לתוכה בערום זה להתערבב
+            // בחומר של המשתמש, וההסרה בהמשך תרוקן חלקים ממנה. עדיף להציע
+            // תת-תיקייה - וזה גם מה ש"עיון" עושה מעצמו.
+            if (!IsOurFolder(dir) && HasContent(dir))
+            {
+                string sub = Path.Combine(dir, "SubtitleStudio");
+                DialogResult ans = MessageBox.Show(this,
+                    "בתיקייה הזאת כבר יש קבצים:" + Environment.NewLine + dir + Environment.NewLine + Environment.NewLine +
+                    "עדיף להתקין לתיקייה משלה, כדי שהסרה בעתיד לא תיגע בשום דבר אחר:" +
+                    Environment.NewLine + sub + Environment.NewLine + Environment.NewLine +
+                    "להתקין לתיקייה משלה?",
+                    Prod.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (ans == DialogResult.Cancel) return;
+                if (ans == DialogResult.Yes) dir = sub;
+            }
+
             Start(dir);
+        }
+
+        /// <summary>האם התיקייה הזאת היא כבר התקנה שלנו - ואז התקנה מעליה
+        /// היא בדיוק מה שהמשתמש התכוון אליו (שדרוג במקום).</summary>
+        private static bool IsOurFolder(string dir)
+        {
+            try
+            {
+                return File.Exists(Path.Combine(dir, Prod.ExeName)) ||
+                       File.Exists(Path.Combine(dir, Prod.Marker)) ||
+                       File.Exists(Path.Combine(dir, Prod.UninstallExe));
+            }
+            catch { return false; }
+        }
+
+        private static bool HasContent(string dir)
+        {
+            try
+            {
+                return Directory.Exists(dir) &&
+                       (Directory.GetFiles(dir).Length > 0 || Directory.GetDirectories(dir).Length > 0);
+            }
+            catch { return false; }
         }
 
         private void Warn(string msg)

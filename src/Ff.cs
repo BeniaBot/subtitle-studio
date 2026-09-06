@@ -645,6 +645,48 @@ namespace SubtitleStudio
                 }
             }
             catch { }
+            SweepInstallers();
+        }
+
+        /// <summary>מנקה את מה שהעדכון וההסרה משאירים ישירות ב-%TEMP%.
+        ///
+        /// הדרך המקורית לנקות אותם הייתה MoveFileEx עם מחיקה־באתחול, אבל היא
+        /// דורשת הרשאות מנהל וההתקנה שלנו היא ברמת המשתמש - כלומר הקריאה
+        /// נכשלה תמיד בשקט, וכל עדכון השאיר עוד 40 מגה ב-%TEMP% לנצח.</summary>
+        private static void SweepInstallers()
+        {
+            string[] masks = new string[]
+            {
+                "SubtitleStudio-Setup-*.exe",   // המתקין שירד בעדכון
+                "SubtitleStudio-*.exe",         // הקובץ הנייד שירד בעדכון
+                "substudio-uninstall-*.exe",    // עותק ההסרה שמוחק את עצמו
+                "SubStudio-update-*.cmd"
+            };
+            string exe = "";
+            try { exe = System.Reflection.Assembly.GetEntryAssembly().Location; }
+            catch { }
+
+            // העותק הישן שהעדכון הזיז הצידה, אחרי שהגרסה החדשה כבר רצה
+            try { if (exe.Length > 0 && File.Exists(exe + ".old")) File.Delete(exe + ".old"); }
+            catch { }
+
+            try
+            {
+                string tmp = Path.GetTempPath();
+                foreach (string mask in masks)
+                    foreach (string f in Directory.GetFiles(tmp, mask))
+                    {
+                        try
+                        {
+                            // אף פעם לא נוגעים בקובץ שאנחנו עצמנו רצים ממנו
+                            if (exe.Length > 0 && string.Equals(f, exe, StringComparison.OrdinalIgnoreCase)) continue;
+                            FileInfo fi = new FileInfo(f);
+                            if ((DateTime.Now - fi.LastWriteTime).TotalHours > 6) fi.Delete();
+                        }
+                        catch { }
+                    }
+            }
+            catch { }
         }
     }
 }

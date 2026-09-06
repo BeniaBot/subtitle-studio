@@ -240,6 +240,7 @@ namespace SubtitleStudioSetup
                 Prod.ExeName, Prod.UninstallExe, Prod.Marker,
                 Prod.ExeName + ".new", "SubtitleStudio.exe.old"
             };
+            bool stuck = false;
             foreach (string f in known)
             {
                 string p = Path.Combine(dir, f);
@@ -249,10 +250,25 @@ namespace SubtitleStudioSetup
                     try { if (File.Exists(p)) File.Delete(p); break; }
                     catch { System.Threading.Thread.Sleep(250); }
                 }
+                // אחרי 5 שניות של ניסיונות - הקובץ נעול (התוכנה עדיין פתוחה,
+                // או שהיא שואלת את המשתמש אם לשמור). בלי הדגל הזה ההסרה הייתה
+                // מדווחת "הוסר בהצלחה" בזמן שה-EXE עדיין על הדיסק.
+                if (File.Exists(p) && !Same(p, keep)) stuck = true;
+            }
+            if (stuck)
+            {
+                note = "התוכנה עדיין פתוחה, ולכן חלק מהקבצים לא נמחקו." + Environment.NewLine +
+                       "לסגור אותה ולהריץ את ההסרה שוב.";
+                Log.W("remove: files still locked in " + dir);
+                return false;
             }
 
-            // התוכנה יכולה לפרוס את המנוע ליד עצמה (דיסק מערכת מלא / מצב נייד)
-            TryDeleteDir(Path.Combine(dir, "runtime"));
+            // התוכנה יכולה לפרוס את המנוע ליד עצמה (דיסק מערכת מלא / מצב נייד).
+            // מוחקים רק אם זו באמת תיקיית המנוע שלנו ולא תיקייה במקרה באותו שם -
+            // התקנה לתיקייה קיימת (נתיב שהוקלד ידנית) הופכת את זה למחיקה של
+            // חומר של המשתמש.
+            string rt = Path.Combine(dir, "runtime");
+            if (IsOurEngineDir(rt)) TryDeleteDir(rt);
 
             if (alsoEngine)
             {
@@ -285,6 +301,27 @@ namespace SubtitleStudioSetup
                 return false;
             }
             return true;
+        }
+
+        /// <summary>האם התיקייה הזאת היא באמת תיקיית המנוע שהתוכנה פרסה.
+        /// הסימן הוא ffmpeg.exe יחד עם ffmpeg.stamp שהפריסה כותבת, ושום
+        /// דבר זר לצידם.</summary>
+        private static bool IsOurEngineDir(string dir)
+        {
+            try
+            {
+                if (!Directory.Exists(dir)) return false;
+                if (!File.Exists(Path.Combine(dir, "ffmpeg.exe"))) return false;
+                if (!File.Exists(Path.Combine(dir, "ffmpeg.stamp"))) return false;
+                if (Directory.GetDirectories(dir).Length > 0) return false;
+                foreach (string f in Directory.GetFiles(dir))
+                {
+                    string n = Path.GetFileName(f).ToLowerInvariant();
+                    if (n != "ffmpeg.exe" && n != "ffmpeg.stamp" && n != "ffprobe.exe") return false;
+                }
+                return true;
+            }
+            catch { return false; }
         }
 
         /// <summary>האם התיקייה ריקה, חוץ מהקובץ שרץ כרגע.</summary>
