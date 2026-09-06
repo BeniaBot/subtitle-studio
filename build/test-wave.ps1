@@ -21,6 +21,7 @@ $IN=[Reflection.BindingFlags]'NonPublic,Public,Instance'
 $NP=[Reflection.BindingFlags]::NonPublic; $PB=[Reflection.BindingFlags]::Public
 $CI=[Reflection.BindingFlags]::CreateInstance; $INF=[Reflection.BindingFlags]::Instance
 function T($n){$asm.GetType("SubtitleStudio.$n")}
+function Pack { $a=New-Object object[] $args.Count; for($i=0;$i -lt $args.Count;$i++){$a[$i]=$args[$i]}; return ,$a }
 
 # פס קול מזויף: גל שמשתנה לאורך הזמן, כדי שקטעים שונים ייראו שונה
 $wT=T 'Waveform'; $w=[Activator]::CreateInstance($wT)
@@ -107,6 +108,36 @@ for($i=0;$i -lt 2000;$i++){ $peak[$i]=[byte]255 }
 $wT.GetField('Version',$IN).SetValue($w, 99)
 $h2 = Shot
 Check 'התקדמות הבנייה מרעננת' ($h2 -ne $h1) ''
+
+# הבדיקה שמכריעה: התמונה שבמטמון חייבת להיות זהה לציור הישיר.
+# בלעדיה כל השאר בודק רק שהמטמון עקבי עם עצמו - גם אם הוא מצייר שטות.
+$dwInto = $tlT.GetMethod('DrawWaveInto', $IN)
+$h = 76
+$direct = New-Object Drawing.Bitmap 900, $h
+$dg = [Drawing.Graphics]::FromImage($direct)
+(T 'Theme').GetMethod('Smooth', $ST).Invoke($null, (Pack $dg))
+$bg = New-Object Drawing.SolidBrush ((T 'Theme').GetProperty('WaveBack', $ST).GetValue($null, $null))
+$dg.FillRectangle($bg, 0, 0, 900, $h)
+$dwInto.Invoke($tl, (Pack $dg ([int]0) ([int]$h)))
+$dg.Dispose(); $bg.Dispose()
+
+$cacheF = $tlT.GetField('_waveCache', $IN)
+$tl.DrawToBitmap((New-Object Drawing.Bitmap 900,180), (New-Object Drawing.Rectangle 0,0,900,180)) | Out-Null
+$cached = $cacheF.GetValue($tl)
+
+$diff = 0; $checked = 0
+if ($cached -and $cached.Height -eq $h -and $cached.Width -eq 900) {
+    for ($y = 0; $y -lt $h; $y += 3) {
+        for ($x = 0; $x -lt 900; $x += 3) {
+            $checked++
+            if ($cached.GetPixel($x,$y).ToArgb() -ne $direct.GetPixel($x,$y).ToArgb()) { $diff++ }
+        }
+    }
+    Check 'המטמון זהה לציור הישיר' ($diff -eq 0) ("$diff / $checked פיקסלים שונים")
+} else {
+    Check 'המטמון זהה לציור הישיר' $false ("גודל המטמון לא תואם: " + $(if($cached){"$($cached.Width)x$($cached.Height)"}else{'null'}) + " מול 900x$h")
+}
+$direct.Dispose()
 
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass,$fail)
