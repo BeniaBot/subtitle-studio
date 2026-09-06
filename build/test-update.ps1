@@ -35,7 +35,20 @@ $isNewer = $app.GetMethod("IsNewer", $BF).Invoke($null, @([string]$ver))
 # מול הגרסה שבנויה בפועל, כדי שהיא תישאר נכונה בכל מהדורה.
 $mine = $app.GetField("Version").GetValue($null)
 $ok = $url -like "*.exe" -and $size -gt 10MB -and ($ver -match '^\d+\.\d+\.\d+$')
-if ($ver -eq $mine) { $ok = $ok -and (-not $isNewer) }   # אותה גרסה - אין מה להציע
-else                { $ok = $ok -and $isNewer }          # השרת מקדים - חייב להציע
+
+# שלושה מצבים, וכולם תקינים - רק ההכרעה צריכה להתאים למציאות.
+# לפני שחרור הגרסה הבנויה מקדימה את השרת, וזה בדיוק המצב כאן.
+function Cmp($a, $b) {
+    $x = $a.Split('.'); $y = $b.Split('.')
+    for ($i = 0; $i -lt 3; $i++) {
+        $u = [int]$x[$i]; $v = [int]$y[$i]
+        if ($u -ne $v) { if ($u -gt $v) { return 1 } else { return -1 } }
+    }
+    return 0
+}
+$rel = Cmp $ver $mine
+if ($rel -gt 0)  { $ok = $ok -and $isNewer;        "השרת מקדים - חייב להציע" }
+elseif ($rel -eq 0) { $ok = $ok -and (-not $isNewer); "אותה גרסה - אין מה להציע" }
+else { $ok = $ok -and (-not $isNewer); "הגרסה הבנויה מקדימה את השרת (עוד לא שוחררה) - אין מה להציע" }
 if ($ok) { Write-Host "`nOK - מנגנון העדכון קורא את המהדורה נכון" -ForegroundColor Green }
 else { Write-Host "`nFAIL" -ForegroundColor Red; exit 1 }
