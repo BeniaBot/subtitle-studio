@@ -37,6 +37,22 @@ namespace SubtitleStudio
             if (data.Length >= 2 && data[0] == 0xFE && data[1] == 0xFF)
             { encodingName = "UTF-16BE"; return Encoding.BigEndianUnicode.GetString(data, 2, data.Length - 2); }
 
+            // UTF-16 בלי BOM: טקסט לטיני/עברי מייצר שם בייט אפס לכל תו.
+            // בקידוד של בייט אחד לתו זה כמעט לא קורה, אז הסימן חד-משמעי.
+            if (data.Length >= 16)
+            {
+                int zeroEven = 0, zeroOdd = 0, look = Math.Min(data.Length, 4096);
+                for (int i = 0; i < look; i++)
+                {
+                    if (data[i] != 0) continue;
+                    if ((i & 1) == 0) zeroEven++; else zeroOdd++;
+                }
+                if (zeroOdd > look / 4 && zeroEven < look / 40)
+                { encodingName = "UTF-16"; return Encoding.Unicode.GetString(data); }
+                if (zeroEven > look / 4 && zeroOdd < look / 40)
+                { encodingName = "UTF-16BE"; return Encoding.BigEndianUnicode.GetString(data); }
+            }
+
             // ניסיון UTF-8 קפדני
             try
             {
@@ -99,6 +115,11 @@ namespace SubtitleStudio
             return r;
         }
 
+        /// <summary>קצב הפריימים של הסרט שפתוח כרגע, אם יש. משמש רק לקובצי
+        /// MicroDVD שלא מכריזים על הקצב שלהם - שם אין שום דרך אחרת לדעת.
+        /// ‏MainForm מעדכן את זה בפתיחת קובץ.</summary>
+        public static double VideoFps;
+
         public static ParseResult ParseText(string text, SubFormat fmt)
         {
             ParseResult r = new ParseResult();
@@ -109,7 +130,7 @@ namespace SubtitleStudio
                 case SubFormat.Vtt: r.Cues = ParseVtt(text); break;
                 case SubFormat.Ass:
                 case SubFormat.Ssa: r.Cues = ParseAss(text); break;
-                case SubFormat.Sub: r.Cues = ParseMicroDvd(text, 25.0); break;
+                case SubFormat.Sub: r.Cues = ParseMicroDvd(text, MicroDvdFps(text, VideoFps)); break;
                 default: r.Cues = ParseSrt(text); break;   // ניסיון אחרון
             }
             r.Cues.Sort(delegate (Cue a, Cue b) { return a.Start.CompareTo(b.Start); });
@@ -120,6 +141,36 @@ namespace SubtitleStudio
             @"(?<a>-?\d{1,2}:\d{1,2}:\d{1,2}[,.]\d{1,3}|\d{1,2}:\d{1,2}[,.]\d{1,3})\s*-->\s*(?<b>-?\d{1,2}:\d{1,2}:\d{1,2}[,.]\d{1,3}|\d{1,2}:\d{1,2}[,.]\d{1,3})",
             RegexOptions.Compiled);
 
+        // ---------------------------------------------------------------
+        // רשימת החריגות שמטופלות כאן נלמדה מ-Subtitle Edit
+        // (https://github.com/SubtitleEdit/subtitleedit, ‏MIT, ‏Nikolaj Olsson),
+        // ‏src/libse/SubtitleFormats/SubRip.cs · TryReadTimeCodesLine.
+        // המימוש כאן נכתב מחדש ל-C# 5.
+        // ---------------------------------------------------------------
+        private static readonly Regex RxArrow = new Regex(@"\s*-{1,3}\s*>+\s*", RegexOptions.Compiled);
+        private static readonly Regex RxDotTime = new Regex(@"(\d{1,2})\.(\d{1,2})\.(\d{1,2})([,.])(\d{1,3})", RegexOptions.Compiled);
+
+        /// <summary>מחזיר גרסה מנורמלת של שורה שנראית כמו שורת זמנים.
+        /// קובצי SRT מהעולם האמיתי כותבים את החץ בכל דרך אפשרית, ומפרידים
+        /// שעות-דקות-שניות בנקודות. בלי זה הקובץ נפתח ריק, והמשתמש מקבל
+        /// הודעה שגויה שזה ״קובץ טקסט רגיל״.
+        ///
+        /// חשוב: התוצאה משמשת **רק להתאמה**, אף פעם לא נכתבת חזרה לטקסט -
+        /// שורת דיאלוג כמו ‏"<i>look -> there</i>"‏ הופכת כאן לחץ תקין,
+        /// ואסור שהשינוי הזה ידלוף לכתובית.</summary>
+        public static string NormalizeTimeLine(string line)
+        {
+            if (line == null || line.IndexOf('>') < 0) return line;   // שמירה על המהירות
+            string t = line.Replace('\u060C', ',')                     // פסיק ערבי
+                           .Replace('\u200B', ' ')                     // רווח באפס רוחב
+                           .Replace('\uFEFF', ' ');                    // BOM באמצע הקובץ
+            t = RxDotTime.Replace(t, "$1:$2:$3$4$5");
+            return RxArrow.Replace(t, " --> ");
+        }
+
+        private static Match MatchTime(string line) { return RxSrtTime.Match(NormalizeTimeLine(line)); }
+        private static bool IsTimeLine(string line) { return RxSrtTime.IsMatch(NormalizeTimeLine(line)); }
+
         public static List<Cue> ParseSrt(string text)
         {
             List<Cue> list = new List<Cue>();
@@ -127,17 +178,17 @@ namespace SubtitleStudio
             int i = 0;
             while (i < lines.Length)
             {
-                Match m = RxSrtTime.Match(lines[i]);
+                Match m = MatchTime(lines[i]);
                 if (!m.Success) { i++; continue; }
                 long a = Tc.Parse(m.Groups["a"].Value);
                 long b = Tc.Parse(m.Groups["b"].Value);
                 i++;
                 StringBuilder sb = new StringBuilder();
-                while (i < lines.Length && lines[i].Trim().Length > 0 && !RxSrtTime.IsMatch(lines[i]))
+                while (i < lines.Length && lines[i].Trim().Length > 0 && !IsTimeLine(lines[i]))
                 {
                     string ln = lines[i];
                     // מספר רץ של הכתובית הבאה
-                    if (i + 1 < lines.Length && RxSrtTime.IsMatch(lines[i + 1]) && Regex.IsMatch(ln.Trim(), @"^\d+$")) break;
+                    if (i + 1 < lines.Length && IsTimeLine(lines[i + 1]) && Regex.IsMatch(ln.Trim(), @"^\d+$")) break;
                     if (sb.Length > 0) sb.Append('\n');
                     sb.Append(ln.TrimEnd());
                     i++;
@@ -153,17 +204,53 @@ namespace SubtitleStudio
         {
             List<Cue> list = ParseSrt(text);
             for (int i = 0; i < list.Count; i++)
-                list[i].Text = Regex.Replace(list[i].Text, @"<[^>]+>", "");
+            {
+                // קודם מסירים תגיות, ורק אז מפענחים ישויות - אחרת ‎&lt;i&gt;‎
+                // היה הופך לתגית שכבר פספסנו. יוטיוב מייצא עם ישויות.
+                string t = Regex.Replace(list[i].Text, @"<[^>]+>", "");
+                try { t = System.Net.WebUtility.HtmlDecode(t); }
+                catch { }
+                list[i].Text = t;
+            }
             return list;
+        }
+
+        private static readonly Regex RxMicroFps = new Regex(@"^\{1\}\{1\}([\d.,]+)\s*$", RegexOptions.Compiled);
+
+        /// <summary>קצב הפריימים של קובץ ‎.sub‎. הקובץ מכריז עליו בשורה
+        /// הראשונה כ-{1}{1}23.976. בלי לקרוא אותה הנחנו 25 תמיד, וזה
+        /// גורם לדריפט שמגיע לארבע דקות בסוף סרט שלם.
+        /// אם אין הכרזה - עדיף הקצב האמיתי של הסרט הפתוח, שאותו כבר יש לנו.</summary>
+        public static double MicroDvdFps(string text, double videoFps)
+        {
+            try
+            {
+                string[] lines = text.Replace("\r\n", "\n").Split('\n');
+                for (int i = 0; i < lines.Length && i < 5; i++)
+                {
+                    Match m = RxMicroFps.Match(lines[i].Trim());
+                    if (!m.Success) continue;
+                    double f;
+                    if (double.TryParse(m.Groups[1].Value.Replace(',', '.'),
+                            NumberStyles.Any, CultureInfo.InvariantCulture, out f) && f > 5 && f < 200)
+                        return f;
+                }
+            }
+            catch { }
+            if (videoFps > 5 && videoFps < 200) return videoFps;
+            return 25.0;
         }
 
         public static List<Cue> ParseMicroDvd(string text, double fps)
         {
             List<Cue> list = new List<Cue>();
+            if (fps <= 0) fps = 25.0;
             string[] lines = text.Replace("\r\n", "\n").Split('\n');
             Regex rx = new Regex(@"^\{(\d+)\}\{(\d+)\}(.*)$");
             foreach (string ln in lines)
             {
+                // שורת ההכרזה על קצב הפריימים היא לא כתובית
+                if (RxMicroFps.IsMatch(ln.Trim())) continue;
                 Match m = rx.Match(ln.Trim());
                 if (!m.Success) continue;
                 long a = (long)(long.Parse(m.Groups[1].Value) * 1000.0 / fps);

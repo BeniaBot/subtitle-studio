@@ -7,11 +7,12 @@
 | **הקוד של אולפן הכתוביות** (`src\*.cs`, `build.cmd`, `build\*.ps1`) | **MIT** | הכול. לקחת, לשנות, למכור, לבנות גרסה למק — בלי לשאול ובלי לשלם |
 | **FFmpeg** (מנוע המדיה, מצורף ל‑EXE) | **GPLv3** | להשתמש ולהפיץ, כל עוד מלווים בקוד המקור או בהצעה לקבלו |
 | **גופן Assistant** (מוטמע ב‑EXE) | **SIL OFL 1.1** | להשתמש, להטמיע ולהפיץ; אסור למכור את הגופן בפני עצמו |
+| **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
 
-הנוסח המלא של שלושתם נמצא בתיקייה [`licenses/`](licenses) — **וגם בתוך ה‑EXE עצמו**:
+הנוסח המלא של כולם נמצא בתיקייה [`licenses/`](licenses) — **וגם בתוך ה‑EXE עצמו**:
 ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
 
-*The full text of all three is in [`licenses/`](licenses), and also **inside the EXE**
+*The full text of all of them is in [`licenses/`](licenses), and also **inside the EXE**
 (About → save license texts).*
 
 ---
@@ -76,6 +77,25 @@ This offer is valid for three years from the distribution of each release.*
 - **גם אתם רשאים להפיץ את ה‑EXE הזה הלאה**, כל עוד תעבירו איתו את הדף הזה
   (או את המהדורה המקורית, שכוללת אותו).
 - מי שבונה מהמקור בלי `tools\ffmpeg.exe` מקבל תוכנה MIT נקייה, בלי שום רכיב GPL.
+
+---
+
+## Subtitle Edit — ידע, לא קוד
+
+[Subtitle Edit](https://github.com/SubtitleEdit/subtitleedit) מאת Nikolaj Olsson,
+ברישיון MIT, הוא עורך הכתוביות בקוד פתוח הוותיק בתחום. **לא הועתק ממנו קוד.**
+מה שכן נלקח הוא **רשימת החריגות** שקובצי כתוביות מהעולם האמיתי מכילים —
+הדרכים השונות שבהן נכתב החץ ב‑SRT, והפרדת זמנים בנקודות. עובדות על מבנה
+קובץ אינן מוגנות בזכויות יוצרים, והמימוש ב‑`src\Formats.cs` נכתב מחדש
+ל‑C# 5. הקרדיט כאן ניתן מרצון, כי זה הוגן וכי זה מסביר למי שיקרא את הקוד
+מאיפה הגיעה רשימת המקרים המוזרים.
+
+הנוסח המלא: [`licenses/MIT-SubtitleEdit.txt`](licenses/MIT-SubtitleEdit.txt).
+
+*No code was copied from Subtitle Edit. What was taken is the **list of real‑world
+edge cases** its parser handles — facts about file formats, which are not
+copyrightable. The implementation in `src\Formats.cs` is an independent C# 5
+rewrite. Credit is given voluntarily.*
 
 ---
 

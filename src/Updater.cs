@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Drawing;
 using System.IO;
 using System.Net;
@@ -13,7 +14,7 @@ namespace SubtitleStudio
     internal static class App
     {
         /// <summary>גרסת התוכנה. חייבת להיות זהה לתגית ה-Release בגיטהאב (בלי v).</summary>
-        public const string Version = "0.4.0";
+        public const string Version = "0.5.0";
         public const string Repo = "BeniaBot/subtitle-studio";
         public const string HomePage = "https://github.com/" + Repo;
 
@@ -53,9 +54,11 @@ namespace SubtitleStudio
         internal class Release
         {
             public string Version = "";
-            public string Url = "";
+            public string Url = "";          // SubtitleStudio.exe - הקובץ הנייד
             public string Notes = "";
             public long Size;
+            public string SetupUrl = "";     // SubtitleStudio-Setup.exe
+            public long SetupSize;
         }
 
         private const string Api = "https://api.github.com/repos/" + App.Repo + "/releases/latest";
@@ -87,14 +90,23 @@ namespace SubtitleStudio
                 Match body = Regex.Match(json, "\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
                 if (body.Success) r.Notes = Unescape(body.Groups[1].Value);
 
-                // הנכס הראשון שהוא EXE
-                foreach (Match m in Regex.Matches(json, "\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.exe)\""))
+                // מהדורה נושאת שני קבצים - הנייד והמתקין - וצריך לדעת מי מי.
+                // GitHub פולט לכל נכס name -> size -> browser_download_url בסדר הזה.
+                // התקרה {0,900} היא המגן: בלעדיה הביטוי מדלג מנכס אחד לשדה של אחר.
+                foreach (Match m in Regex.Matches(json,
+                    "\"name\"\\s*:\\s*\"([^\"]+\\.exe)\"[\\s\\S]{0,900}?\"size\"\\s*:\\s*(\\d+)" +
+                    "[\\s\\S]{0,900}?\"browser_download_url\"\\s*:\\s*\"([^\"]+)\""))
                 {
-                    r.Url = m.Groups[1].Value;
-                    break;
+                    string name = m.Groups[1].Value;
+                    string url = m.Groups[3].Value;
+                    if (url.IndexOf("/releases/download/", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    long sz = 0;
+                    long.TryParse(m.Groups[2].Value, out sz);
+                    if (name.IndexOf("setup", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { r.SetupUrl = url; r.SetupSize = sz; }
+                    else if (r.Url.Length == 0)
+                    { r.Url = url; r.Size = sz; }
                 }
-                Match size = Regex.Match(json, "\"size\"\\s*:\\s*(\\d+)");
-                if (size.Success) r.Size = long.Parse(size.Groups[1].Value);
                 return r;
             }
             catch (WebException wex)
@@ -122,9 +134,33 @@ namespace SubtitleStudio
         {
             string exe = Application.ExecutablePath;
             string dir = Path.GetDirectoryName(exe);
-            string tmp = Path.Combine(Path.GetTempPath(), "SubtitleStudio-" + rel.Version + ".exe");
 
-            long total = rel.Size;
+            // מותקן מתעדכן דרך המתקין, נייד דרך הקובץ הבודד. כל אחד בערוץ שלו.
+            bool installed = Install.IsInstalled();
+            bool useSetup = installed && rel.SetupUrl.Length > 0;
+            if (installed && rel.SetupUrl.Length == 0 && rel.Url.Length == 0)
+            {
+                Ui.Error((Form)owner, "אין קובץ להורדה", "בשחרור הזה לא צורף קובץ.");
+                return;
+            }
+            if (!installed && rel.Url.Length == 0)
+            {
+                // יש רק מתקין, והעותק הזה נייד - לא מתקינים בשקט מאחורי הגב
+                if (Ui.Confirm((Form)owner, "העדכון מגיע כמתקין",
+                    "בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט.",
+                    "לפתוח את הדף", "אחר כך"))
+                {
+                    try { Process.Start("https://github.com/" + App.Repo + "/releases/latest"); }
+                    catch { }
+                }
+                return;
+            }
+
+            string url = useSetup ? rel.SetupUrl : rel.Url;
+            string tmp = Path.Combine(Path.GetTempPath(),
+                (useSetup ? "SubtitleStudio-Setup-" : "SubtitleStudio-") + rel.Version + ".exe");
+
+            long total = useSetup ? rel.SetupSize : rel.Size;
             long got = 0;
             bool done = false;
             string error = null;
@@ -134,7 +170,7 @@ namespace SubtitleStudio
                 try
                 {
                     ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(rel.Url);
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
                     req.UserAgent = "SubtitleStudio/" + App.Version;
                     req.Timeout = 20000;
                     using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
@@ -190,6 +226,30 @@ namespace SubtitleStudio
             // סקריפט קטן שמחליף את הקובץ אחרי שהתוכנה נסגרת.
             // הכול בנתיבים קצרים (8.3) כי cmd קורא את הקובץ בקידוד OEM,
             // ושם התיקייה של המשתמש הוא לרוב בעברית.
+            if (useSetup)
+            {
+                // המתקין עושה הכול בעצמו: ממתין שהתהליך ייסגר, מחליף, מרענן
+                // קיצורים, מעדכן את הרישום, מפעיל מחדש, ומוחק את עצמו.
+                // TrimEnd חובה: בקסלש לפני מרכאה בשורת פקודה מבריח אותה.
+                string target = dir.TrimEnd('\\');
+                string args = "/S" +
+                              " /D=\"" + target + "\"" +
+                              " /waitpid=" + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
+                              " /run" +
+                              " /cleanself";
+                ProcessStartInfo si = new ProcessStartInfo(tmp, args);
+                si.UseShellExecute = true;            // כדי שה-manifest של המתקין ייקרא
+                si.WorkingDirectory = Path.GetTempPath();
+                try { Process.Start(si); }
+                catch (Exception ex)
+                {
+                    Ui.Error((Form)owner, "העדכון נכשל", ex.Message);
+                    return;
+                }
+                Application.Exit();
+                return;
+            }
+
             string bat = Path.Combine(Path.GetTempPath(), "substudio-update.cmd");
             File.WriteAllText(bat, UpdateScript(tmp, exe), Encoding.ASCII);
 
@@ -226,6 +286,63 @@ namespace SubtitleStudio
             sb.AppendLine("start \"\" \"" + sExe + "\"");
             sb.AppendLine("del \"%~f0\"");
             return sb.ToString();
+        }
+    }
+
+    /// <summary>האם העותק שרץ הותקן, או שהוא קובץ בודד שמישהו הוריד.
+    /// המתקין משאיר installed.txt ליד ה-EXE ורישום ב-HKCU; שניהם נבדקים
+    /// מול התיקייה שבה ה-EXE **באמת** יושב, כי אפשר להעתיק תיקייה שלמה
+    /// לדיסק-און-קי ואז הסימן משקר.</summary>
+    internal static class Install
+    {
+        public const string Marker = "installed.txt";
+        public const string RegApp = "Software\\SubtitleStudio";
+
+        public static bool IsInstalled()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(Application.ExecutablePath);
+
+                // בחירה מפורשת של המשתמש גוברת על כל סימן אחר
+                if (File.Exists(Path.Combine(dir, "portable.txt"))) return false;
+
+                string marker = Path.Combine(dir, Marker);
+                if (File.Exists(marker))
+                {
+                    foreach (string line in File.ReadAllLines(marker, Encoding.UTF8))
+                    {
+                        string t = line.Trim();
+                        if (!t.StartsWith("dir=", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (SameDir(t.Substring(4).Trim(), dir)) return true;
+                        break;                       // הסימן קיים אבל מצביע למקום אחר
+                    }
+                }
+
+                using (Microsoft.Win32.RegistryKey k =
+                       Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegApp))
+                {
+                    if (k != null)
+                    {
+                        string v = k.GetValue("InstallLocation") as string;
+                        if (!string.IsNullOrEmpty(v) && SameDir(v, dir)) return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool SameDir(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            try
+            {
+                a = Path.GetFullPath(a).TrimEnd('\\');
+                b = Path.GetFullPath(b).TrimEnd('\\');
+                return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
         }
     }
 

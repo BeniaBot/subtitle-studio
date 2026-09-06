@@ -344,6 +344,11 @@ namespace SubtitleStudio
             tr2.Enabled = cues;
             items.Add(tr2);
 
+            MenuItem rep = MenuItem.Make("חיפוש והחלפה", "להחליף מילה בכל הכתוביות בבת אחת", Ico.Search,
+                delegate { ReplaceInAll(); });
+            rep.Enabled = cues;
+            items.Add(rep);
+
             items.Add(MenuItem.Group("מראה"));
             items.Add(MenuItem.Make("עיצוב הכתוביות", "גופן, גודל, צבע ומיקום על המסך", Ico.Eye,
                 delegate { EditStyle(); }));
@@ -1932,6 +1937,8 @@ namespace SubtitleStudio
 
                 _wave = new Waveform();
                 _tl.Wave = _wave;
+                // קובץ .sub בלי הכרזת קצב יתוזמן לפי הסרט הזה
+                Formats.VideoFps = _mi.Fps;
                 if (_mi.HasAudio) _wave.Build(path, _mi.DurationMs);
                 // בלי אודיו אין מה לבנות. בלי הסימון הזה Ready נשאר false לנצח,
                 // הציר מצייר ״מכין את פס הקול״ ומתרענן 30 פעמים בשנייה בלי סוף.
@@ -2199,6 +2206,22 @@ namespace SubtitleStudio
             d.ShowDialog(this);
             d.Dispose();
             SyncAfterDocChange();
+        }
+
+        private void ReplaceInAll()
+        {
+            if (_doc.Cues.Count == 0) { Ui.Info(this, "אין כתוביות", "צריך קודם לטעון או לכתוב כתוביות."); return; }
+            _doc.Push("חיפוש והחלפה");
+            ReplaceDlg d = new ReplaceDlg(_doc);
+            bool ok = d.ShowDialog(this) == DialogResult.OK;
+            int hits = d.Replaced, rows = d.ReplacedRows;
+            d.Dispose();
+            if (!ok) { _doc.Undo(); return; }        // לא שינינו כלום - לא משאירים צעד ריק בהיסטוריה
+            _doc.Dirty = true;
+            _doc.RaiseChanged();
+            SyncAfterDocChange();
+            _hintLbl.Text = "הוחלפו " + hits + " מופעים ב־" + rows + " כתוביות.  לביטול - Ctrl+Z.";
+            _hintLbl.Invalidate();
         }
 
         private void AutoFix()

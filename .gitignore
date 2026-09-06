@@ -15,3 +15,7 @@ _freshtest/
 *.suo
 Thumbs.db
 desktop.ini
+
+# תוצרי בניית המתקין (uninstall.exe נבנה מ-src\Installer)
+build/installer/uninstall.exe
+build/installer/version.txt

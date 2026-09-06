@@ -438,5 +438,120 @@ Check 'מוחק את עצמו'           ($script -match 'del "%~f0"') ''
 $heb = Join-Path $env:APPDATA 'SubtitleStudio'
 Check 'גם נתיב עם עברית יוצא ASCII' (IsAscii (MkScript "$heb\a.exe" "$heb\b.exe")) ''
 
+# ---------- קלט פגום שהוא בעצם תקין ----------
+# קובצי SRT מהעולם האמיתי כותבים את החץ בכל דרך אפשרית. עד עכשיו כל אחד
+# מאלה נפתח **ריק**, והמשתמש קיבל הודעה שגויה: "נראה שזה קובץ טקסט רגיל".
+Write-Host 'חותמות זמן חריגות'
+function Cues1($body) { return ,$fmt.GetMethod('ParseSrt').Invoke($null, (Pack ([string]$body))) }
+
+# בונים מראה, לא בתוך @(...) - שם PowerShell מפרש את השרשור אחרת
+$ac = [char]0x060C
+$arabicComma = "1`n00:00:01${ac}000 --> 00:00:02${ac}000`nשלום`n"
+
+$variants = @(
+    @('חץ קצר',        "1`n00:00:01,000 -> 00:00:02,000`nשלום`n"),
+    @('חץ ארוך',       "1`n00:00:01,000 ---> 00:00:02,000`nשלום`n"),
+    @('חץ כפול',       "1`n00:00:01,000 -->> 00:00:02,000`nשלום`n"),
+    @('רווח בתוך החץ', "1`n00:00:01,000 - > 00:00:02,000`nשלום`n"),
+    @('נקודות בזמן',   "1`n00.00.02,000 --> 00.00.04,000`nשלום`n"),
+    @('פסיק ערבי',     $arabicComma),
+    @('בלי רווחים',    "1`n00:00:01,000-->00:00:02,000`nשלום`n")
+)
+foreach ($v in $variants) {
+    $c = Cues1 $v[1]
+    Check ('נקרא: ' + $v[0]) ($c.Count -eq 1 -and $c[0].Text -eq 'שלום') ("count=" + $c.Count)
+}
+
+# ומה שכבר עבד חייב להמשיך לעבוד
+$ok = @(
+    @('רגיל',        "1`n00:00:01,000 --> 00:00:02,000`nשלום`n"),
+    @('בלי שעות',    "1`n00:04,480 --> 00:06,000`nשלום`n"),
+    @('זבל בסוף',    "1`n00:00:01,000 --> 00:00:02,000  X1:100 X2:200`nשלום`n"),
+    @('נקודה באלפיות',"1`n00:00:01.000 --> 00:00:02.000`nשלום`n")
+)
+foreach ($v in $ok) {
+    $c = Cues1 $v[1]
+    Check ('עדיין נקרא: ' + $v[0]) ($c.Count -eq 1 -and $c[0].Text -eq 'שלום') ("count=" + $c.Count)
+}
+
+# שורת דיאלוג עם חץ היא טקסט, לא זמן - אסור שהנרמול יבלע אותה
+$dlg = "1`n00:00:01,000 --> 00:00:05,000`nHe said -> go away`n"
+$c = Cues1 $dlg
+Check 'חץ בתוך דיאלוג נשאר טקסט' ($c.Count -eq 1 -and $c[0].Text -eq 'He said -> go away') `
+    ("count=" + $c.Count + " text=" + $(if ($c.Count) { $c[0].Text } else { '' }))
+
+# ---------- MicroDVD: קצב פריימים ----------
+# הקובץ מכריז על הקצב בשורה הראשונה. בלי לקרוא אותה קיבלנו כתובית מזויפת
+# שכתוב בה "23.976", ודריפט שמגיע לארבע דקות בסוף סרט.
+Write-Host 'MicroDVD'
+$subText = "{1}{1}23.976`n{960}{2880}שלום עולם`n{143928}{144000}סוף הסרט`n"
+$fpsFound = $fmt.GetMethod('MicroDvdFps').Invoke($null, (Pack ([string]$subText) ([double]0)))
+Check 'הקצב נקרא מהקובץ' ([Math]::Abs($fpsFound - 23.976) -lt 0.001) $fpsFound
+$sf = [Enum]::Parse($fmtT, 'Sub')
+$subCues = $prT.GetField('Cues').GetValue($fmt.GetMethod('ParseText').Invoke($null, (Pack ([string]$subText) $sf)))
+Eq 'שורת הקצב אינה כתובית' $subCues.Count 2
+Check 'אין כתובית שכתוב בה 23.976' (-not ($subCues[0].Text -match '23')) $subCues[0].Text
+# 143928 פריימים ב-23.976 = 6003 שניות, לעומת 5757 לפי 25
+$last = $subCues[$subCues.Count - 1].Start
+Check 'התזמון לפי הקצב האמיתי' ([Math]::Abs($last - 6003000) -lt 3000) ("start=$last")
+
+# בלי הכרזה - נופלים לקצב של הסרט הפתוח
+$noHdr = "{240}{480}שלום`n"
+$fps2 = $fmt.GetMethod('MicroDvdFps').Invoke($null, (Pack ([string]$noHdr) ([double]30.0)))
+Eq 'נופלים לקצב של הסרט' $fps2 30.0
+
+# ---------- ישויות HTML ב-VTT ----------
+Write-Host 'VTT'
+$vtt = "WEBVTT`n`n00:00:01.000 --> 00:00:02.000`nTom &amp; Jerry &lt;fast&gt;`n"
+$vc = $fmt.GetMethod('ParseVtt').Invoke($null, (Pack ([string]$vtt)))
+Check 'ישויות HTML מפוענחות' ($vc.Count -eq 1 -and $vc[0].Text -eq 'Tom & Jerry <fast>') `
+    ($(if ($vc.Count) { $vc[0].Text } else { 'none' }))
+
+# ---------- UTF-16 בלי BOM ----------
+Write-Host 'קידוד'
+$u16 = [System.Text.Encoding]::Unicode.GetBytes("1`r`n00:00:01,000 --> 00:00:02,000`r`nשלום עולם`r`n")
+$encOut = ''
+$dsArgs = New-Object object[] 2
+$dsArgs[0] = $u16
+$dsArgs[1] = $null
+$decoded = $fmt.GetMethod('DecodeSmart').Invoke($null, $dsArgs)
+Check 'UTF-16 בלי BOM מזוהה' ($decoded -match 'שלום עולם') ("enc=" + $dsArgs[1])
+
+# ---------- ערוץ העדכון ----------
+# ההכרעה בין "מותקן" ל"נייד" קובעת איזה קובץ יורד ואיך מוחלף. עד עכשיו
+# Check לקח את הנכס הראשון שנגמר ב-exe ואת ה-size הראשון בכל ה-JSON,
+# וזו הגרלה ברגע שמהדורה נושאת שני קבצים.
+Write-Host 'ערוץ העדכון'
+$relT = $asm.GetType('SubtitleStudio.Updater+Release')
+Check 'Release יודע על שני נכסים' `
+    (($null -ne $relT.GetField('SetupUrl')) -and ($null -ne $relT.GetField('SetupSize'))) ''
+
+$instT = $asm.GetType('SubtitleStudio.Install')
+Check 'יש זיהוי מותקן/נייד' ($null -ne $instT) ''
+if ($instT) {
+    # הבדיקה רצה מ-dist, בלי installed.txt ובלי רישום שמצביע לשם
+    $isInst = $instT.GetMethod('IsInstalled').Invoke($null, @())
+    Check 'עותק מ-dist מזוהה כנייד' (-not $isInst) ("IsInstalled=$isInst")
+}
+
+# הביטוי שמזהה את הנכסים - נבדק על JSON אמיתי בצורתו
+$sample = @'
+{"tag_name":"v9.9.9","assets":[
+{"name":"SubtitleStudio.exe","size":38309376,"browser_download_url":"https://github.com/x/y/releases/download/v9.9.9/SubtitleStudio.exe"},
+{"name":"SubtitleStudio-Setup.exe","size":38409728,"browser_download_url":"https://github.com/x/y/releases/download/v9.9.9/SubtitleStudio-Setup.exe"}]}
+'@
+$rx = '"name"\s*:\s*"([^"]+\.exe)"[\s\S]{0,900}?"size"\s*:\s*(\d+)[\s\S]{0,900}?"browser_download_url"\s*:\s*"([^"]+)"'
+$plain = ''; $setup = ''; $plainSize = 0; $setupSize = 0
+foreach ($m in [regex]::Matches($sample, $rx)) {
+    $nm = $m.Groups[1].Value; $u = $m.Groups[3].Value
+    if ($u -notmatch '/releases/download/') { continue }
+    if ($nm -match 'setup') { $setup = $u; $setupSize = [long]$m.Groups[2].Value }
+    elseif ($plain -eq '') { $plain = $u; $plainSize = [long]$m.Groups[2].Value }
+}
+Check 'הנייד זוהה נכון'  ($plain -match 'SubtitleStudio\.exe$') $plain
+Check 'המתקין זוהה נכון' ($setup -match 'Setup\.exe$') $setup
+Eq   'גודל הנייד'   $plainSize 38309376
+Eq   'גודל המתקין'  $setupSize 38409728
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

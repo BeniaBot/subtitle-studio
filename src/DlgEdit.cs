@@ -684,4 +684,126 @@ namespace SubtitleStudio
             return true;
         }
     }
+
+    /// <summary>חיפוש והחלפה בכל הכתוביות. פעולה אחת, בלי אשפים.</summary>
+    internal class ReplaceDlg : Dlg
+    {
+        private readonly Doc _doc;
+        private Field _find, _with;
+        private Toggle _whole, _matchCase;
+        private Lbl _count;
+
+        public ReplaceDlg(Doc doc) : base("חיפוש והחלפה", Ico.Search, 560)
+        {
+            _doc = doc;
+            Subtitle = "מחליף בכל " + doc.Cues.Count + " הכתוביות בבת אחת";
+
+            Section("לחפש");
+            _find = new Field();
+            _find.Placeholder = "המילה או הביטוי שרוצים להחליף";
+            _find.Box.TextChanged += delegate { UpdateCount(); };
+            Row(_find, 34, 12);
+
+            Section("להחליף ב־");
+            _with = new Field();
+            _with.Placeholder = "אפשר להשאיר ריק כדי למחוק";
+            Row(_with, 34, 12);
+
+            _whole = new Toggle();
+            _whole.Text = "מילים שלמות בלבד";
+            _whole.CheckedChanged += delegate { UpdateCount(); };
+            Row(_whole, 28, 4);
+
+            _matchCase = new Toggle();
+            _matchCase.Text = "להבחין בין אותיות גדולות לקטנות (באנגלית)";
+            _matchCase.CheckedChanged += delegate { UpdateCount(); };
+            Row(_matchCase, 28, 10);
+
+            _count = Hint("");
+            Row(_count, 26, 4);
+
+            Buttons("להחליף", Ico.Check, "ביטול");
+            UpdateCount();
+        }
+
+        private StringComparison Cmp
+        {
+            get { return _matchCase.Checked ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase; }
+        }
+
+        /// <summary>גבול מילה: מה שאינו אות, ספרה או קו תחתון. עובד גם בעברית,
+        /// כי char.IsLetter מכיר את כל האלפבית.</summary>
+        private static bool IsWordChar(char c) { return char.IsLetterOrDigit(c) || c == '_'; }
+
+        private bool BoundaryOk(string src, int at, int len)
+        {
+            if (!_whole.Checked) return true;
+            if (at > 0 && IsWordChar(src[at - 1])) return false;
+            int end = at + len;
+            if (end < src.Length && IsWordChar(src[end])) return false;
+            return true;
+        }
+
+        /// <summary>מחליף במחרוזת אחת ומחזיר כמה החלפות היו.</summary>
+        private int ReplaceIn(string src, string find, string with, out string result)
+        {
+            StringBuilder sb = new StringBuilder();
+            int i = 0, n = 0;
+            while (i < src.Length)
+            {
+                int j = src.IndexOf(find, i, Cmp);
+                if (j < 0) { sb.Append(src, i, src.Length - i); break; }
+                if (!BoundaryOk(src, j, find.Length))
+                {
+                    sb.Append(src, i, j - i + 1);
+                    i = j + 1;
+                    continue;
+                }
+                sb.Append(src, i, j - i).Append(with);
+                i = j + find.Length;
+                n++;
+            }
+            result = sb.ToString();
+            return n;
+        }
+
+        private void UpdateCount()
+        {
+            if (_count == null) return;
+            string find = _find.Text;
+            if (find.Length == 0) { _count.Text = "כתבו למעלה מה לחפש."; _count.Invalidate(); return; }
+            int hits = 0, rows = 0;
+            foreach (Cue c in _doc.Cues)
+            {
+                string dummy;
+                int n = ReplaceIn(c.Text, find, "", out dummy);
+                if (n > 0) { hits += n; rows++; }
+            }
+            _count.Text = hits == 0
+                ? "לא נמצאו התאמות."
+                : "נמצאו " + hits + " מופעים ב־" + rows + " כתוביות.";
+            _count.Invalidate();
+        }
+
+        protected override bool OnOk()
+        {
+            string find = _find.Text;
+            if (find.Length == 0) { Ui.Info(this, "מה לחפש?", "כתבו מה רוצים להחליף."); return false; }
+            string with = _with.Text;
+            int hits = 0, rows = 0;
+            foreach (Cue c in _doc.Cues)
+            {
+                string res;
+                int n = ReplaceIn(c.Text, find, with, out res);
+                if (n > 0) { c.Text = res; hits += n; rows++; }
+            }
+            if (hits == 0) { Ui.Info(this, "לא נמצא", "הביטוי הזה לא מופיע באף כתובית."); return false; }
+            Replaced = hits;
+            ReplacedRows = rows;
+            return true;
+        }
+
+        public int Replaced, ReplacedRows;
+    }
+
 }
