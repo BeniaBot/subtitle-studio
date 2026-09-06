@@ -47,10 +47,15 @@ namespace SubtitleStudioSetup
             {
                 Remover.AskAppToClose(dir);
                 System.Threading.Thread.Sleep(800);
-                Remover.DeleteShortcuts();
-                Remover.DeleteRegistry();
+                // הקבצים קודם - ראו ההערה ב-UninstallForm: הסרה שנכשלה
+                // אחרי שהרישום כבר נמחק משאירה תוכנה בלי דרך להסיר אותה.
                 string note;
                 bool ok = Remover.RemoveFiles(dir, false, self, out note);
+                if (ok)
+                {
+                    Remover.DeleteShortcuts();
+                    Remover.DeleteRegistry();
+                }
                 Log.W("uninstall silent: " + (ok ? "ok " : "partial ") + note);
                 code = ok ? Codes.Ok : Codes.Error;
             }

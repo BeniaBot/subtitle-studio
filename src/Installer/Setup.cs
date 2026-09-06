@@ -131,10 +131,14 @@ namespace SubtitleStudioSetup
             }
             Remover.AskAppToClose(dir);
             System.Threading.Thread.Sleep(800);
-            Remover.DeleteShortcuts();
-            Remover.DeleteRegistry();
+            // הקבצים קודם, הרישום והקיצורים רק אחרי שהם באמת נמחקו
             string note;
             bool ok = Remover.RemoveFiles(dir, false, Application.ExecutablePath, out note);
+            if (ok)
+            {
+                Remover.DeleteShortcuts();
+                Remover.DeleteRegistry();
+            }
             Log.W("silent uninstall: " + (ok ? "ok " : "partial ") + note);
             return ok ? Codes.Ok : Codes.Error;
         }
@@ -261,7 +265,7 @@ namespace SubtitleStudioSetup
                         throw;
                     }
                     try { if (File.Exists(old)) File.Delete(old); }
-                    catch { Common.DeleteOnReboot(old); }
+                    catch { NativeBits.DeleteOnReboot(old); }
                     return true;
                 }
                 catch (Exception ex)

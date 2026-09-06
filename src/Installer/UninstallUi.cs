@@ -173,10 +173,17 @@ namespace SubtitleStudioSetup
             {
                 Remover.AskAppToClose(_dir);
                 Thread.Sleep(700);
-                Remover.DeleteShortcuts();
-                Remover.DeleteRegistry();
+                // הקבצים קודם. אם התוכנה עדיין פתוחה (למשל היא שואלת "לשמור?"
+                // ומחכה למשתמש) ההסרה נכשלת - ואז חייבים להשאיר את הקיצורים
+                // ואת הרישום במקומם, אחרת נשארת תוכנה על הדיסק בלי שום דרך
+                // להסיר אותה שוב.
                 string note;
                 bool ok = Remover.RemoveFiles(_dir, alsoEngine, Application.ExecutablePath, out note);
+                if (ok)
+                {
+                    Remover.DeleteShortcuts();
+                    Remover.DeleteRegistry();
+                }
                 try
                 {
                     BeginInvoke((MethodInvoker)delegate { Done(ok, note); });
