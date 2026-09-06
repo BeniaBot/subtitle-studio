@@ -111,6 +111,10 @@ namespace SubtitleStudio
         }
 
         /// <summary>מחשב מתיחה לפי השיא שנמצא עד כה. מוגבל כדי ששקט לא ייהפוך לרעש.</summary>
+        /// <summary>עולה בכל פעם שהתוכן או המתיחה משתנים. ‏TimelineControl
+        /// מטמן את פס הקול כתמונה, וזה מה שאומר לו מתי לצייר אותו מחדש.</summary>
+        public volatile int Version;
+
         private void Recalc(int upto)
         {
             if (Peak == null) return;
@@ -118,6 +122,7 @@ namespace SubtitleStudio
             int n = Math.Min(upto, Peak.Length);
             for (int i = 0; i < n; i++) if (Peak[i] > mx) mx = Peak[i];
             _gain = mx > 8 ? (float)Math.Min(5.0, 236.0 / mx) : 1f;
+            Version++;
         }
 
         private int Scale(int v)

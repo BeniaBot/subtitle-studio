@@ -63,6 +63,12 @@ namespace SubtitleStudio
             TabStop = true;
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _waveCache != null) { _waveCache.Dispose(); _waveCache = null; }
+            base.Dispose(disposing);
+        }
+
         // ---------- המרות ----------
         public long XToMs(int x) { return ViewStart + (long)(x / PxPerSec * 1000.0); }
         public float MsToX(long ms) { return (float)((ms - ViewStart) / 1000.0 * PxPerSec); }
@@ -633,7 +639,54 @@ namespace SubtitleStudio
                 g.FillRectangle(br, xa, top, Math.Max(0, xb - xa), bottom - top);
         }
 
+        // ---------- מטמון פס הקול ----------
+        // ציור פס הקול סורק את כל הדליים שנופלים על כל פיקסל. בסרט של שלוש
+        // שעות בזום-אאוט מלא - שזה בדיוק התצוגה שנפתחת כשפותחים סרט ארוך -
+        // כל פיקסל מכסה כ-770 דליים, וזה 22ms לכל ציור. בניגון הציר מצויר
+        // מחדש בכל עדכון מיקום, ולכן הכול נהיה מרפרף.
+        //
+        // הפתרון: הפיקסלים של פס הקול תלויים רק בגלילה, בזום, בגודל ובערכה -
+        // ולא בסמן, בכתוביות או בסימון. שומרים אותם בתמונה ומציירים אותה.
+        private Bitmap _waveCache;
+        private string _waveKey;
+
+        /// <summary>מה שמשנה את הפיקסלים של פס הקול, ורק הוא.</summary>
+        private string WaveKey(int h)
+        {
+            long a = XToMs(0), b = XToMs(Width);
+            return Width + "x" + h + "|" + a + "|" + b + "|" +
+                   (Wave == null ? "0" : (Wave.Ready ? "1" : "0") + ":" + Wave.Version) + "|" +
+                   Theme.WaveBack.ToArgb() + ":" + Theme.Wave.ToArgb() + ":" + Theme.WaveTop.ToArgb();
+        }
+
         private void DrawWave(Graphics g, int top, int bottom)
+        {
+            int h = bottom - top;
+            if (h < 8) return;
+
+            if (Wave != null && Wave.Peak != null && Width > 0)
+            {
+                string key = WaveKey(h);
+                if (_waveCache == null || _waveKey != key)
+                {
+                    if (_waveCache != null) _waveCache.Dispose();
+                    _waveCache = new Bitmap(Width, h);
+                    using (Graphics wg = Graphics.FromImage(_waveCache))
+                    {
+                        Theme.Smooth(wg);
+                        using (SolidBrush b = new SolidBrush(Theme.WaveBack))
+                            wg.FillRectangle(b, 0, 0, Width, h);
+                        DrawWaveInto(wg, 0, h);
+                    }
+                    _waveKey = key;
+                }
+                g.DrawImageUnscaled(_waveCache, 0, top);
+                return;
+            }
+            DrawWaveInto(g, top, bottom);
+        }
+
+        private void DrawWaveInto(Graphics g, int top, int bottom)
         {
             int h = bottom - top;
             if (h < 8) return;
