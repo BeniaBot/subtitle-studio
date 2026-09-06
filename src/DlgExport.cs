@@ -222,6 +222,21 @@ namespace SubtitleStudio
 
             if (_burn)
             {
+                // מנוע זר (הפריסה שלנו נכשלה) בלי libass/fribidi יוציא עברית
+                // הפוכה או קובץ ריק - ועדיף להגיד את זה מראש מאשר לתת למשתמש
+                // לחכות חצי שעה לקידוד ולגלות ג'יבריש.
+                if (!Ff.CanBurnHebrew)
+                {
+                    Ui.Error(this, "המנוע במחשב לא תומך בצריבה",
+                        "התוכנה משתמשת כרגע במנוע ffmpeg שמותקן במחשב, והוא נבנה בלי התמיכה" +
+                        Environment.NewLine +
+                        "בכתוביות ובעברית - הצריבה תצא הפוכה או ריקה." + Environment.NewLine +
+                        Environment.NewLine +
+                        "אפשר לבחור \"ערוץ כתוביות נפרד\" במקום, או לפתוח את התוכנה מחדש" +
+                        Environment.NewLine +
+                        "כדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל).");
+                    return false;
+                }
                 string dir;
                 string ass = Burn.WriteTempAss(cues, _style, _mi.Width, _mi.Height, a, out dir);
                 string video;

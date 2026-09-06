@@ -32,9 +32,19 @@ if (-not (Test-Path $media)) {
 }
 
 # ---------- מנוע ----------
+# חובה לפרוס קודם את המנוע המוטמע. בלי זה Ff.Locate נופל אחורה ל-PATH
+# ותופס ffmpeg אקראי שמותקן במחשב - וכל הבדיקה הזאת הייתה מאשרת בנייה
+# של מישהו אחר במקום את שלנו.
+$rtT = T 'Runtime'
+$rtT.GetMethod('Prepare', $ST).Invoke($null, @())
+$deployed = $rtT.GetProperty('FfmpegPath', $ST).GetValue($null, $null)
+Check 'המנוע המוטמע נפרס' ($deployed -and (Test-Path $deployed)) ("FfmpegPath=" + $deployed)
+
 $ff = (T 'Ff').GetProperty('Exe', $ST).GetValue($null, $null)
 Check 'נמצא מנוע ffmpeg' ($ff -and (Test-Path $ff)) $ff
 if (-not $ff) { exit 1 }
+# השורה שמונעת מהבדיקה לרמות אותנו שוב
+Check 'הבדיקה רצה על המנוע שלנו' ($ff -eq $deployed) ("בפועל: " + $ff)
 
 $cfg = (& $ff -hide_banner -version 2>&1) -join ' '
 Check 'הבילד כולל libass'     ($cfg -match 'enable-libass') ''

@@ -462,8 +462,17 @@ namespace SubtitleStudio
 
             Section("מנוע הווידאו");
             string ff = Ff.Exe;
+            bool ours = Ff.IsOwnEngine;
             string engine;
             if (string.IsNullOrEmpty(ff)) engine = "לא נמצא. התוכנה תפרוס אותו בהפעלה הבאה.";
+            else if (!ours)
+            {
+                // הפריסה נכשלה ואנחנו רצים על מנוע שמותקן במחשב. חשוב לומר
+                // את זה: כפתור המחיקה למטה לא נוגע בקובץ הזה, וגם היכולות
+                // שלו לא בשליטתנו.
+                engine = "התוכנה לא הצליחה לפרוס את המנוע שלה, ולכן היא משתמשת" +
+                         Environment.NewLine + "במנוע שמותקן במחשב:" + Environment.NewLine + Theme.Ltr(ff);
+            }
             else
             {
                 long size = 0;
@@ -473,16 +482,22 @@ namespace SubtitleStudio
                 if (size > 0) engine += Environment.NewLine + "תופס " + Theme.Ltr(MediaInfo.FormatSize(size)) + " בדיסק";
             }
             Lbl eng = Hint(engine);
-            Row(eng, 46, 6);
+            Row(eng, ours ? 46 : 62, 6);
 
-            Btn del = new Btn();
-            del.Text = "מחיקת המנוע (ייפרס מחדש בהפעלה הבאה)";
-            del.Kind = BtnKind.Tool;
-            del.Font = Theme.Small;
-            del.Icon = Ico.Trash;
-            del.IconSize = Theme.S(14);
-            del.Click += delegate { RemoveEngine(); };
-            Row(del, 30, 18);
+            // הכפתור מוחק את התיקייה שלנו בלבד, ולכן אין לו משמעות כשאנחנו
+            // רצים על מנוע זר - הוא היה מבטיח מחיקה של קובץ שהוא לא נוגע בו.
+            if (ours)
+            {
+                Btn del = new Btn();
+                del.Text = "מחיקת המנוע (ייפרס מחדש בהפעלה הבאה)";
+                del.Kind = BtnKind.Tool;
+                del.Font = Theme.Small;
+                del.Icon = Ico.Trash;
+                del.IconSize = Theme.S(14);
+                del.Click += delegate { RemoveEngine(); };
+                Row(del, 30, 18);
+            }
+            else Y += Theme.S(12);
 
             Section("עדכונים");
             _auto = new Toggle();

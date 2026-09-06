@@ -34,6 +34,10 @@ $IN = [Reflection.BindingFlags]::Instance
 $CI = [Reflection.BindingFlags]::CreateInstance
 
 function T($n) { $asm.GetType("SubtitleStudio.$n") }
+
+# פורסים את המנוע המוטמע כמו בהפעלה אמיתית. בלי זה Ff.Exe נופל ל-PATH,
+# וחלון "על התוכנה" מצלם נתיב של ffmpeg זר שמותקן במחשב הפיתוח.
+(T "Runtime").GetMethod("Prepare", $NP -bor $PB -bor $ST).Invoke($null, @())
 function NewOf($n, $argv) {
     [Activator]::CreateInstance((T $n), ($NP -bor $PB -bor $IN -bor $CI), $null, $argv, $null)
 }

@@ -167,6 +167,47 @@ namespace SubtitleStudio
         }
         public static bool Available { get { return Exe != null && File.Exists(Exe); } }
 
+        /// <summary>האם המנוע שאנחנו מריצים הוא זה שפרסנו מתוך ה-EXE.
+        /// כשהפריסה נכשלת (דיסק מלא, אנטי-וירוס) Locate נופל אחורה למנוע
+        /// שמותקן במחשב, ואז אי אפשר להניח שום דבר על היכולות שלו.</summary>
+        public static bool IsOwnEngine
+        {
+            get
+            {
+                string mine = Runtime.FfmpegPath;
+                return !string.IsNullOrEmpty(mine) &&
+                       string.Equals(mine, Exe, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        private static int _canBurnRtl = -1;
+
+        /// <summary>האם המנוע יודע לצרוב עברית. בלי libass אין צריבה בכלל,
+        /// ובלי fribidi העברית יוצאת הפוכה - וזה נראה כמו באג בתוכנה שלנו.
+        /// המנוע שלנו נבנה עם שניהם; רק מנוע זר צריך בדיקה.</summary>
+        public static bool CanBurnHebrew
+        {
+            get
+            {
+                if (IsOwnEngine) return true;
+                if (_canBurnRtl >= 0) return _canBurnRtl == 1;
+                _canBurnRtl = 0;
+                try
+                {
+                    string exe = Exe;
+                    if (string.IsNullOrEmpty(exe)) return false;
+                    string so, se;
+                    RunSync(exe, "-hide_banner -version", out so, out se, null);
+                    string cfg = so + se;
+                    if (cfg.IndexOf("enable-libass", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                        cfg.IndexOf("enable-libfribidi", StringComparison.OrdinalIgnoreCase) >= 0)
+                        _canBurnRtl = 1;
+                }
+                catch { }
+                return _canBurnRtl == 1;
+            }
+        }
+
         private static void Locate()
         {
             // מנוע שנפרס מתוך ה-EXE

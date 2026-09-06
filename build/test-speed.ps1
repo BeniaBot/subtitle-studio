@@ -14,6 +14,9 @@ function Pack {
     return ,$a
 }
 
+# פורסים את המנוע המוטמע לפני שנוגעים ב-Ff.Exe: אחרת Locate נופל ל-PATH
+# והמדידה נעשית על ffmpeg זר שמותקן במחשב.
+(& $T 'Runtime').GetMethod('Prepare').Invoke($null, @())
 $ff = & $T 'Ff'
 $ffExe = $ff.GetProperty('Exe').GetValue($null)
 if (-not $ffExe -or -not (Test-Path $ffExe)) { Write-Host "ffmpeg not deployed yet - run the app once"; exit 1 }
