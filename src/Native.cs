@@ -107,6 +107,11 @@ namespace SubtitleStudio
         public static extern int waveOutSetVolume(IntPtr hWaveOut, int dwVolume);
 
         // ---------- שונות ----------
+        /// <summary>משחרר HICON שנוצר מ-Bitmap.GetHicon. בלי זה נשאר
+        /// הנדל GDI פתוח לכל חיי התהליך.</summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool DestroyIcon(IntPtr handle);
+
         [DllImport("user32.dll")]
         public static extern bool HideCaret(IntPtr hWnd);
 

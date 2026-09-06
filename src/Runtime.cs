@@ -35,9 +35,22 @@ namespace SubtitleStudio
             }
         }
 
+        private static string _targetDir;
+
+        /// <summary>לאן נפרס מנוע הווידאו. מחושב פעם אחת: החישוב שואל את
+        /// הכונן, ובמצב דיסק מלא גם כותב ומוחק קובץ בדיקה ליד ה-EXE -
+        /// דבר שאין שום סיבה לעשות חמש פעמים בכל הפעלה.</summary>
         public static string TargetDir
         {
             get
+            {
+                if (_targetDir == null) _targetDir = ComputeTargetDir();
+                return _targetDir;
+            }
+        }
+
+        private static string ComputeTargetDir()
+        {
             {
                 if (PortableMode) return Path.Combine(ExeDir, "runtime");
                 string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);

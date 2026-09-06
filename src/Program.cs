@@ -201,7 +201,8 @@ namespace SubtitleStudio
                     }
                 }
                 IntPtr h = b.GetHicon();
-                return Icon.FromHandle(h);
+                try { return (Icon)Icon.FromHandle(h).Clone(); }   // עותק מנוהל
+                finally { Native.DestroyIcon(h); }                 // וההנדל משוחרר
             }
         }
     }

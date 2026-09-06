@@ -491,7 +491,10 @@ namespace SubtitleStudio
             _auto.CheckedChanged += delegate { Settings.AutoUpdate = _auto.Checked; Settings.SaveAll(); };
             Row(_auto, 30, 6);
 
-            _status = Hint("הבדיקה מהירה ולא שולחת שום מידע - רק שואלת אם יש גרסה חדשה.");
+            _status = Hint(string.IsNullOrEmpty(Settings.LastCheck)
+                ? "הבדיקה מהירה ולא שולחת שום מידע - רק שואלת אם יש גרסה חדשה."
+                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck) +
+                  "   ·   הבדיקה לא שולחת שום מידע.");
             Row(_status, 34, 16);
 
             Section("רישיון וקוד מקור");
@@ -632,6 +635,12 @@ namespace SubtitleStudio
             {
                 string err;
                 Updater.Release rel = Updater.Check(out err);
+                if (rel != null)
+                {
+                    // מתי נבדק בפעם האחרונה - מוצג ב״על התוכנה״
+                    Settings.LastCheck = DateTime.Now.ToString("yyyy-MM-dd HH:mm",
+                        System.Globalization.CultureInfo.InvariantCulture);
+                }
                 if (rel == null || !App.IsNewer(rel.Version)) return;
                 try
                 {

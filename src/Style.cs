@@ -83,9 +83,9 @@ namespace SubtitleStudio
             FontStyle fs = FontStyle.Regular;
             if (Bold) fs |= FontStyle.Bold;
             if (Italic) fs |= FontStyle.Italic;
-            Font font = null;
-            try { font = new Font(FontName, fontPx, fs, GraphicsUnit.Pixel); }
-            catch { font = new Font("Arial", fontPx, fs, GraphicsUnit.Pixel); }
+            // מטמן: הציור קורה 30 פעמים בשנייה כל עוד כתובית על המסך,
+            // ואין שום סיבה לבנות גופן חדש בכל פריים.
+            Font font = CachedFont(FontName, fontPx, fs);
 
             string[] lines = text.Replace("\r\n", "\n").Split('\n');
             float lineH = font.GetHeight(g) * (float)LineSpacing;
@@ -157,9 +157,33 @@ namespace SubtitleStudio
             }
 
             sf.Dispose();
-            font.Dispose();
             g.SmoothingMode = oldS;
             g.TextRenderingHint = oldT;
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<string, Font> _fontCache =
+            new System.Collections.Generic.Dictionary<string, Font>();
+
+        /// <summary>גופן מהמטמון. הוא חי כל חיי התהליך בכוונה - יש בו
+        /// לכל היותר כמה עשרות ערכים, וזה זול מלבנות אחד לכל פריים.</summary>
+        private static Font CachedFont(string name, float px, FontStyle style)
+        {
+            // עיגול לרבע פיקסל: גודל הווידאו משתנה בגרירה, ובלי זה
+            // המטמון היה מתמלא בגרסה לכל פיקסל של שינוי גודל
+            float q = (float)(Math.Round(px * 4.0) / 4.0);
+            if (q < 6) q = 6;
+            string key = name + "|" + q.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) +
+                         "|" + (int)style;
+            Font f;
+            lock (_fontCache)
+            {
+                if (_fontCache.TryGetValue(key, out f)) return f;
+                try { f = new Font(name, q, style, GraphicsUnit.Pixel); }
+                catch { f = new Font("Arial", q, style, GraphicsUnit.Pixel); }
+                if (_fontCache.Count > 64) _fontCache.Clear();   // גבול עליון, ליתר ביטחון
+                _fontCache[key] = f;
+            }
+            return f;
         }
 
         public string Describe()
