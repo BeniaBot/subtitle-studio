@@ -180,7 +180,13 @@ namespace SubtitleStudio
                 if (_fontCache.TryGetValue(key, out f)) return f;
                 try { f = new Font(name, q, style, GraphicsUnit.Pixel); }
                 catch { f = new Font("Arial", q, style, GraphicsUnit.Pixel); }
-                if (_fontCache.Count > 64) _fontCache.Clear();   // גבול עליון, ליתר ביטחון
+                if (_fontCache.Count > 64)
+                {
+                    // חובה לשחרר לפני הניקוי: כל Font מחזיק ידית GDI, וגרירת
+                    // החלון מחליפה את המטמון שוב ושוב.
+                    foreach (Font old in _fontCache.Values) { try { old.Dispose(); } catch { } }
+                    _fontCache.Clear();
+                }
                 _fontCache[key] = f;
             }
             return f;

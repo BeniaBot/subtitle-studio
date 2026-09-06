@@ -1919,6 +1919,9 @@ namespace SubtitleStudio
                     Ui.Error(this, "לא הצלחתי לפתוח את הקובץ",
                         "ייתכן שהקובץ פגום או בפורמט לא נתמך:\n" + Path.GetFileName(path));
                     _mi = null;
+                    // אחרת הקצב של הסרט הקודם נשאר תקוע וקובץ .sub חסר-הכרזה
+                    // שנטען אחריו יתוזמן לפיו - עד 4% דריפט על אורך סרט
+                    Formats.VideoFps = 0;
                     Cursor = Cursors.Default;
                     return;
                 }

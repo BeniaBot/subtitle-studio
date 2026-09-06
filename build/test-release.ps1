@@ -48,16 +48,16 @@ function Uploader($login) {
     return $u + '"type":"User","site_admin":false}'
 }
 function Asset($name, $size, $login) {
-    return '{"url":"https://api.github.com/repos/o/r/releases/assets/1","id":1,' +
+    return '{"url":"https://api.github.com/repos/BeniaBot/subtitle-studio/releases/assets/1","id":1,' +
            '"node_id":"RA_kwDO","name":"' + $name + '","label":null,' +
            '"uploader":' + (Uploader $login) + ',' +
            '"content_type":"application/x-msdownload","state":"uploaded",' +
            '"size":' + $size + ',"download_count":7,' +
            '"created_at":"2026-09-01T10:00:00Z","updated_at":"2026-09-01T10:01:00Z",' +
-           '"browser_download_url":"https://github.com/o/r/releases/download/v9.9.9/' + $name + '"}'
+           '"browser_download_url":"https://github.com/BeniaBot/subtitle-studio/releases/download/v9.9.9/' + $name + '"}'
 }
 function Release($assets, $tag, $body) {
-    return '{"url":"https://api.github.com/repos/o/r/releases/1","tag_name":"' + $tag + '",' +
+    return '{"url":"https://api.github.com/repos/BeniaBot/subtitle-studio/releases/1","tag_name":"' + $tag + '",' +
            '"name":"' + $tag + '","draft":false,"prerelease":false,' +
            '"body":"' + $body + '","assets":[' + ($assets -join ',') + ']}'
 }
@@ -100,9 +100,22 @@ $two = Release @((Asset 'SubtitleStudio-Setup.exe' 41000000 'BeniaBot'),
 $p = DoParse $two
 Check 'T_FIRSTSETUPWINS' ((F $p.Rel 'SetupUrl') -like '*/SubtitleStudio-Setup.exe') (F $p.Rel 'SetupUrl')
 
-$evil = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.5' 'x').Replace('https://github.com/o/r/releases/download/v9.9.9/', 'https://evil.example.com/')
+$evil = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.5' 'x').Replace('https://github.com/BeniaBot/subtitle-studio/releases/download/v9.9.9/', 'https://evil.example.com/')
 $p = DoParse $evil
 Check 'T_FOREIGNURL' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
+
+# מאגר אחר בגיטהאב עצמו - גם הוא נדחה
+$other = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.7' 'x').Replace(
+        'https://github.com/BeniaBot/subtitle-studio/releases/download/v9.9.9/',
+        'https://github.com/someone/else/releases/download/v9.9.9/')
+$p = DoParse $other
+Check 'T_OTHERREPO' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
+
+# http במקום https נדחה
+$plain = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.8' 'x').Replace(
+        'https://github.com/BeniaBot/', 'http://github.com/BeniaBot/')
+$p = DoParse $plain
+Check 'T_PLAINHTTP' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
 
 $esc = Release @((Asset 'SubtitleStudio.exe' 1 'BeniaBot')) '1.0.6' 'line one\nline two \"quoted\" and a backslash \\\\ end'
 $p = DoParse $esc

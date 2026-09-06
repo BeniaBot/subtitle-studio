@@ -448,11 +448,15 @@ namespace SubtitleStudio
         {
             try
             {
-                Match m = Regex.Match(detail, "\"retryDelay\"\\s*:\\s*\"(\\d+)");
+                // השרת מחזיר גם "1.5s", ו-\d+ בלבד היה קורא 1 ואז מנסה שוב
+                // מוקדם מדי - כלומר עוד 429.
+                Match m = Regex.Match(detail, "\"retryDelay\"\\s*:\\s*\"(\\d+(?:\\.\\d+)?)");
                 if (m.Success)
                 {
-                    int v;
-                    if (int.TryParse(m.Groups[1].Value, out v) && v > 0) return v + 1;
+                    double v;
+                    if (double.TryParse(m.Groups[1].Value, NumberStyles.Any,
+                            CultureInfo.InvariantCulture, out v) && v > 0)
+                        return (int)Math.Ceiling(v) + 1;
                 }
             }
             catch { }
@@ -487,12 +491,15 @@ namespace SubtitleStudio
                 int code = 0;
                 try
                 {
-                    HttpWebResponse res = wex.Response as HttpWebResponse;
-                    if (res != null)
-                    {
-                        code = (int)res.StatusCode;
-                        using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8)) detail = sr.ReadToEnd();
-                    }
+                    // ‏using על התשובה עצמה: אם GetResponseStream זורק, החיבור
+                    // נשאר תפוס עד שהאשפה תגיע אליו - ואז הבקשה הבאה נתקעת
+                    using (HttpWebResponse res = wex.Response as HttpWebResponse)
+                        if (res != null)
+                        {
+                            code = (int)res.StatusCode;
+                            using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8))
+                                detail = sr.ReadToEnd();
+                        }
                 }
                 catch { }
                 if (code == 429) retrySec = RetryAfter(detail);

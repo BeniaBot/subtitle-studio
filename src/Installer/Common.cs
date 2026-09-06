@@ -123,6 +123,15 @@ namespace SubtitleStudioSetup
         {
             try
             {
+                // היומן נכתב בכל התקנה ובכל עדכון ואף אחד לא מנקה אותו.
+                // 200KB זה הרבה יותר ממה שצריך כדי להבין תקלה אחרונה.
+                try
+                {
+                    FileInfo fi = new FileInfo(Path_);
+                    if (fi.Exists && fi.Length > 200 * 1024) fi.Delete();
+                }
+                catch { }
+
                 // ‏InvariantCulture בכוונה: בעברית לוח השנה הוא עברי,
                 // ו-yyyy-MM-dd היה יוצא תשפ"ו-י"ב-כ"ד
                 File.AppendAllText(Path_,
@@ -356,19 +365,35 @@ namespace SubtitleStudioSetup
             int n = 0;
             try
             {
+                // הסינון חייב להיכשל סגור, לא פתוח: קודם StartsWith התאים גם
+                // ל-…\SubtitleStudioPortable, וכש-MainModule זרק (הרשאות,
+                // תהליך 32/64) הנתיב נשאר ריק והתהליך נסגר בכל זאת - כלומר
+                // הסרה בתיקייה אחת סגרה עותק נייד שרץ מתיקייה אחרת.
+                string want = null;
+                if (!string.IsNullOrEmpty(dir))
+                    try { want = Path.Combine(Path.GetFullPath(dir), "SubtitleStudio.exe"); }
+                    catch { want = null; }
+
                 Process[] all = Process.GetProcessesByName("SubtitleStudio");
                 foreach (Process p in all)
                 {
-                    try
+                    using (p)
                     {
-                        string path = "";
-                        try { path = p.MainModule.FileName; }
+                        try
+                        {
+                            if (want != null)
+                            {
+                                string path = null;
+                                try { path = p.MainModule.FileName; }
+                                catch { }
+                                if (string.IsNullOrEmpty(path)) continue;      // לא יודעים - לא נוגעים
+                                if (!string.Equals(Path.GetFullPath(path), want,
+                                        StringComparison.OrdinalIgnoreCase)) continue;
+                            }
+                            if (p.CloseMainWindow()) n++;
+                        }
                         catch { }
-                        if (dir != null && path.Length > 0 &&
-                            !path.StartsWith(dir, StringComparison.OrdinalIgnoreCase)) continue;
-                        if (p.CloseMainWindow()) n++;
                     }
-                    catch { }
                 }
             }
             catch { }
@@ -381,8 +406,7 @@ namespace SubtitleStudioSetup
             if (pid <= 0) return;
             try
             {
-                Process p = Process.GetProcessById(pid);
-                p.WaitForExit(msMax);
+                using (Process p = Process.GetProcessById(pid)) p.WaitForExit(msMax);
             }
             catch { }
         }

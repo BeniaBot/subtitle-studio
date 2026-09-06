@@ -111,6 +111,10 @@ namespace SubtitleStudio
             _busy = true;
             b.Enabled = false;
             Say("בודק...", Theme.TextDim);
+            // הבדיקה מריצה את המפתח שבתיבה, אבל אסור שהוא יישאר פעיל אחריה:
+            // מי שמריץ בדיקה עם מפתח שגוי ואז מבטל נשאר עם המפתח השגוי לכל
+            // אורך הסשן.
+            string oldKey = Ai.Key;
             Ai.Key = _key.Text.Trim();
             string report = null;
             Thread t = new Thread(delegate ()
@@ -123,6 +127,7 @@ namespace SubtitleStudio
                     {
                         _busy = false;
                         b.Enabled = true;
+                        Ai.Key = oldKey;          // הבדיקה נגמרה - חוזרים למפתח השמור
                         Say("", Theme.TextDim);
                         Ui.Msg(this, "מה נמצא",
                             report + Environment.NewLine +

@@ -135,7 +135,7 @@ namespace SubtitleStudio
                     string url = Str(a, "browser_download_url");
                     if (name.Length == 0 || url.Length == 0) continue;
                     if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (url.IndexOf("/releases/download/", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (!IsOurDownload(url)) continue;
                     long sz = Num(a, "size");
                     // "setup" בשם = המתקין; כל השאר = הקובץ הנייד. הראשון מנצח
                     // בשני הצדדים, כדי שנכס נוסף שיועלה מאוחר יותר לא ידרוס.
@@ -145,6 +145,23 @@ namespace SubtitleStudio
                     { r.Url = url; r.Size = sz; }
                 }
             return r;
+        }
+
+        /// <summary>הקובץ הזה יורד ומורץ, ולכן הכתובת חייבת להיות של המאגר
+        /// שלנו ותו לא. קודם נבדק רק שיש בה ‎"/releases/download/"‎ - כלומר
+        /// המארח עצמו לא נבדק בכלל.</summary>
+        private static bool IsOurDownload(string url)
+        {
+            try
+            {
+                Uri u = new Uri(url);
+                if (u.Scheme != Uri.UriSchemeHttps) return false;
+                if (!string.Equals(u.Host, "github.com", StringComparison.OrdinalIgnoreCase) &&
+                    !u.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)) return false;
+                return u.AbsolutePath.StartsWith("/" + App.Repo + "/releases/download/",
+                                                 StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
         }
 
         private static object Get(Dictionary<string, object> d, string key)
