@@ -420,5 +420,23 @@ Check 'גופן מוטמע יחד עם הרישיון שלו' `
     (($null -eq $asm.GetManifestResourceStream('Assistant-Regular.ttf')) -or `
      ($null -ne $asm.GetManifestResourceStream('OFL-1.1.txt'))) ''
 
+# ---------- סקריפט העדכון ----------
+# הבאג שהיה: הסקריפט נכתב ב-CP1255 ו-cmd קורא OEM, אז כל נתיב עם עברית
+# יצא ג'יבריש והתוכנה פשוט לא חזרה אחרי עדכון.
+Write-Host 'סקריפט העדכון'
+$upT = & $T 'Updater'
+function MkScript($a, $b) { return $upT.GetMethod('UpdateScript').Invoke($null, (Pack ([string]$a) ([string]$b))) }
+function IsAscii($t) { foreach ($ch in $t.ToCharArray()) { if ([int]$ch -gt 126) { return $false } } return $true }
+
+$script = MkScript (Join-Path $env:TEMP 'SubtitleStudio-9.9.9.exe') (Join-Path $env:LOCALAPPDATA 'Programs\SubtitleStudio\SubtitleStudio.exe')
+Check 'הסקריפט יוצא ASCII נקי' (IsAscii $script) ($script.Substring(0, [Math]::Min(100, $script.Length)))
+Check 'יש תקרה לניסיונות'      ($script -match 'geq 15') ''
+Check 'מפעיל מחדש בכל מקרה'    ($script -match 'start ') ''
+Check 'מוחק את עצמו'           ($script -match 'del "%~f0"') ''
+
+# נתיב עם עברית - בדיוק המקרה שנפל
+$heb = Join-Path $env:APPDATA 'SubtitleStudio'
+Check 'גם נתיב עם עברית יוצא ASCII' (IsAscii (MkScript "$heb\a.exe" "$heb\b.exe")) ''
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

@@ -34,7 +34,8 @@ namespace SubtitleStudio
         private Slider _volume;
         private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn, _aiBtn;
         private Btn _speedBtn, _volBtn;
-        private Btn _tapBar;
+        private Btn _tapBar, _tapEndBtn;
+        private bool _rangeMarked;
         private bool _tapping;
         private int _tapIndex = -1;
         private Btn _addCueBtn;
@@ -571,6 +572,17 @@ namespace SubtitleStudio
             _tapBar.Click += delegate { if (_tapping) StopTapping(false); else StartTapping(); };
             _videoCard.Controls.Add(_tapBar);
 
+            // סוגר את השורה הנוכחית בלי לפתוח את הבאה - לשקט שבין משפטים
+            _tapEndBtn = new Btn();
+            _tapEndBtn.Text = "כאן נגמר";
+            _tapEndBtn.Icon = Ico.Stop;
+            _tapEndBtn.Kind = BtnKind.Subtle;
+            _tapEndBtn.Visible = false;
+            _tapEndBtn.Click += delegate { TapEnd(); };
+            Ui.Tip.SetToolTip(_tapEndBtn, "סוגר את הכתובית הנוכחית כאן, בלי להתחיל את הבאה." +
+                Environment.NewLine + "שימושי כשיש שקט בין משפטים. (מקש Backspace)");
+            _videoCard.Controls.Add(_tapEndBtn);
+
             _addCueBtn = new Btn();
             _addCueBtn.Text = "כתובית חדשה כאן";
             _addCueBtn.Icon = Ico.Plus;
@@ -652,6 +664,8 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_startF.Box, "הזמן שבו הכתובית מופיעה. אפשר גם לגרור את הבלוק על הציר.");
             _editCard.Controls.Add(_startF);
 
+            _startMinus = AddNudge("−", "מקדים את ההתחלה בעשירית שנייה", true, -100);
+            _startPlus = AddNudge("+", "מאחר את ההתחלה בעשירית שנייה", true, 100);
             _startHere = AddHere(true);
 
             _endLbl = new Lbl();
@@ -667,6 +681,8 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_endF.Box, "הזמן שבו הכתובית נעלמת.");
             _editCard.Controls.Add(_endF);
 
+            _endMinus = AddNudge("−", "מקדים את הסיום בעשירית שנייה", false, -100);
+            _endPlus = AddNudge("+", "מאחר את הסיום בעשירית שנייה", false, 100);
             _endHere = AddHere(false);
 
             _durLbl = new Lbl();
@@ -681,10 +697,15 @@ namespace SubtitleStudio
             _cpsLbl.Align = StringAlignment.Far;
             _editCard.Controls.Add(_cpsLbl);
 
-            // מעבר בין כתוביות = לחיצה ברשימה או Tab. הוספה = הכפתור הגדול.
-            // כפתור אחד בלבד. חלוקה וחיבור בקליק ימני על הרשימה.
+            // הוספה = הכפתור הגדול הכחול. כאן מה שעושים על כתובית קיימת.
             AddEdit("מחיקה", Ico.Trash, "מוחק את הכתוביות המסומנות (Delete)",
                 delegate { DeleteCues(); }, BtnKind.Ghost, 100);
+            AddEdit("הקודמת", Ico.ChevronRight, "מעבר לכתובית שלפני זו (Shift+Tab)",
+                delegate { StepCue(-1); }, BtnKind.Subtle, 96);
+            AddEdit("הבאה", Ico.ChevronLeft, "מעבר לכתובית שאחרי זו (Tab)",
+                delegate { StepCue(1); }, BtnKind.Subtle, 88);
+            Btn more = AddEdit("עוד", Ico.ChevronDown, "חלוקה לשתיים, חיבור כתוביות", null, BtnKind.Tool, 74);
+            more.Click += delegate { ShowCueMenu(more); };
         }
 
         /// <summary>כפתור קטן להזזת זמן בעשירית שנייה - עדיף על הקלדת זמן.</summary>
@@ -916,11 +937,21 @@ namespace SubtitleStudio
             _videoCard.Controls.Add(_tl);
 
             // סימון קטע וזום עברו למקלדת ולתפריט (I / O / Ctrl+גלגלת)
+            AddTl("תחילת קטע", Ico.ChevronRight,
+                "מסמן כאן את תחילת הקטע לחיתוך (I)" + Environment.NewLine +
+                "אחר כך: ״הסרט ← חיתוך קטע״",
+                delegate { MarkIn(); }, Theme.Good, 112);
+            AddTl("סוף קטע", Ico.ChevronLeft, "מסמן כאן את סוף הקטע לחיתוך (O)",
+                delegate { MarkOut(); }, Theme.Warn, 100);
             _clearMark = AddTl("", Ico.Close, "ניקוי הסימון שעל הציר", delegate
             {
                 _tl.InPoint = -1; _tl.OutPoint = -1; _tl.Invalidate(); UpdateHint(); UpdateRangeChip();
             }, Color.Empty, 34);
             _clearMark.Visible = false;
+            AddTl("", Ico.ZoomIn, "התקרבות לציר (או Ctrl+גלגלת)",
+                delegate { _tl.ZoomBy(1.4, _tl.Width / 2); }, Color.Empty, 34);
+            AddTl("", Ico.ZoomOut, "התרחקות - להראות יותר מהסרט",
+                delegate { _tl.ZoomBy(0.7, _tl.Width / 2); }, Color.Empty, 34);
         }
 
         private Btn _clearMark;
@@ -931,6 +962,7 @@ namespace SubtitleStudio
             // נקודה אחת בלבד, או סוף שלפני ההתחלה, היא לא קטע
             if (_tl.InPoint >= 0 && _tl.OutPoint >= 0 && _tl.OutPoint <= _tl.InPoint) _tl.OutPoint = -1;
             bool has = _tl.InPoint >= 0 || _tl.OutPoint >= 0;
+            _rangeMarked = has;
             if (_clearMark != null && _clearMark.Visible != has)
             {
                 _clearMark.Visible = has;
@@ -1073,72 +1105,101 @@ namespace SubtitleStudio
             // ---------- ימין: רשימה + עורך באותו כרטיס ----------
             _listCard.SetBounds(pad, top, listW, avail);
             int headH = _listCard.HeaderH;
-            int editH = Math.Max(S(132), Math.Min(S(152), avail / 4));
+            int editH = Math.Max(S(176), Math.Min(S(206), avail / 3));
             int listH = Math.Max(S(90), avail - headH - editH);
             _list.SetBounds(1, headH, listW - 2, listH);
             _listCard.SepY = headH + listH;
 
             int ex = S(16);
             int ew = listW - ex * 2;
-            int ey = headH + listH + S(10);
+            int ey = headH + listH + S(8);
 
             _textLbl.Visible = false;
             _timesLbl.Visible = false;
-            _startLbl.Visible = true;
-            _endLbl.Visible = true;
 
-            _text.SetBounds(ex, ey, ew, S(56));
+            _text.SetBounds(ex, ey, ew, S(54));
             _textEmptyHint.SetBounds(ex + S(8), ey + S(4), ew - S(16), S(22));
 
-            // שורה אחת: מימין הזמנים (״מ־״ ו״עד״), משמאל הפעולות.
-            // קודם מחשבים כמה מקום הקבוצה הימנית באמת צריכה, ורק אז מציבים -
-            // אחרת בכרטיס צר השדות דורסים את כפתור המחיקה.
-            int ry = ey + S(56) + S(8);
-            int rh = S(32);
-            int hw = S(32), lw = S(26);
-            int fw = S(74);
-            int minBtns = S(38) + S(10);          // מקום מזערי לכפתור פעולה אחד
-            bool showLbls = true;
+            // ---------- שורת הזמנים ----------
+            // סדר הנשירה כשאין מקום: קודם כפתורי הכוונון, אחר כך התוויות,
+            // ורק בסוף מצמצמים את השדות. כל צד: תווית · − · שדה · + · ״מהסרט״
+            int ry = ey + S(54) + S(7);
+            int rh = S(30);
+            int lw = S(22), hw = S(28), nw = S(24), gapMid = S(8);
+            int fw = S(62);
+            bool showNudge = true, showLbls = true;
 
-            int groupW = 2 * (lw + S(2) + fw + S(3) + hw) + S(12);
-            if (groupW + minBtns > ew) { showLbls = false; groupW -= 2 * (lw + S(2)); }
-            if (groupW + minBtns > ew)
+            int side = (lw + S(2)) + (nw + S(2)) + fw + S(2) + (nw + S(2)) + hw;
+            if (side * 2 + gapMid > ew)
             {
-                int over = groupW + minBtns - ew;
-                fw = Math.Max(S(56), fw - (over + 1) / 2);
-                groupW = 2 * ((showLbls ? lw + S(2) : 0) + fw + S(3) + hw) + S(12);
+                showNudge = false;
+                side = (lw + S(2)) + fw + S(2) + hw;
             }
+            if (side * 2 + gapMid > ew)
+            {
+                showLbls = false;
+                side = fw + S(2) + hw;
+            }
+            if (side * 2 + gapMid > ew)
+            {
+                int over = side * 2 + gapMid - ew;
+                fw = Math.Max(S(52), fw - (over + 1) / 2);
+                side = fw + S(2) + hw;
+            }
+
             _startLbl.Visible = showLbls;
             _endLbl.Visible = showLbls;
+            _startMinus.Visible = showNudge;
+            _startPlus.Visible = showNudge;
+            _endMinus.Visible = showNudge;
+            _endPlus.Visible = showNudge;
 
             int rx = ex + ew;
-            if (showLbls) { _startLbl.SetBounds(rx - lw, ry + S(7), lw, S(18)); rx -= lw + S(2); }
+            if (showLbls) { _startLbl.SetBounds(rx - lw, ry + S(6), lw, S(18)); rx -= lw + S(2); }
+            if (showNudge) { _startMinus.SetBounds(rx - nw, ry, nw, rh); rx -= nw + S(2); }
             _startF.SetBounds(rx - fw, ry, fw, rh);
-            rx -= fw + S(3);
+            rx -= fw + S(2);
+            if (showNudge) { _startPlus.SetBounds(rx - nw, ry, nw, rh); rx -= nw + S(2); }
             _startHere.SetBounds(rx - hw, ry, hw, rh);
-            rx -= hw + S(12);
+            rx -= hw + gapMid;
 
-            if (showLbls) { _endLbl.SetBounds(rx - lw, ry + S(7), lw, S(18)); rx -= lw + S(2); }
+            if (showLbls) { _endLbl.SetBounds(rx - lw, ry + S(6), lw, S(18)); rx -= lw + S(2); }
+            if (showNudge) { _endMinus.SetBounds(rx - nw, ry, nw, rh); rx -= nw + S(2); }
             _endF.SetBounds(rx - fw, ry, fw, rh);
-            rx -= fw + S(3);
+            rx -= fw + S(2);
+            if (showNudge) { _endPlus.SetBounds(rx - nw, ry, nw, rh); rx -= nw + S(2); }
             _endHere.SetBounds(rx - hw, ry, hw, rh);
 
-            // מה שנשאר משמאל לזמנים שייך לכפתורי הפעולה
-            int roomForBtns = (rx - hw) - ex - S(10);
-            int fullBtns = 0;
-            foreach (Btn b in _editBtns) fullBtns += b.PrefWidth + S(5);
-            bool tinyBtns2 = fullBtns > roomForBtns;
-            int bx2 = ex;
+            // ---------- שורת הפעולות ----------
+            // RTL: הפעולות מתחילות מימין, ומדד קצב הקריאה יושב במה שנשאר משמאל
+            int ry2 = ry + rh + S(6);
+            int iconOnlyW = S(36);
+            int cpsRoom = S(84);
+
+            // התוויות נושרות מהסוף להתחלה: ״עוד״ ראשון, ״מחיקה״ אחרון.
+            // כפתור עם אייקון מובן (חץ, פח) עדיין קריא; תווית שנעלמת מכולם
+            // בבת אחת הופכת את השורה לחידה.
+            int needed = 0;
+            foreach (Btn b in _editBtns) { b.IconOnly = false; needed += b.PrefWidth + S(5); }
+            for (int i = _editBtns.Count - 1; i >= 0 && needed > ew - cpsRoom; i--)
+            {
+                Btn b = _editBtns[i];
+                if (b.PrefWidth <= iconOnlyW) continue;
+                b.IconOnly = true;
+                needed -= b.PrefWidth - iconOnlyW;
+            }
+
+            int bx2 = ex + ew;
             foreach (Btn b in _editBtns)
             {
-                b.IconOnly = tinyBtns2;
-                int bw = tinyBtns2 ? S(38) : b.PrefWidth;
-                if (bx2 + bw > ex + roomForBtns) bw = Math.Max(S(28), ex + roomForBtns - bx2);
-                b.SetBounds(bx2, ry, bw, rh);
-                bx2 += bw + S(5);
+                int bw = b.IconOnly ? iconOnlyW : b.PrefWidth;
+                if (bx2 - bw < ex) bw = Math.Max(S(28), bx2 - ex);
+                bx2 -= bw;
+                b.SetBounds(bx2, ry2, bw, rh);
+                bx2 -= S(5);
             }
             _durLbl.Visible = false;
-            _cpsLbl.SetBounds(ex, ry + rh + S(3), ew, S(16));
+            _cpsLbl.SetBounds(ex, ry2 + S(6), Math.Max(S(50), bx2 - ex - S(4)), S(18));
 
             // ---------- שמאל: סרט + ניגון + פס קול + כפתור אחד ----------
             _videoCard.SetBounds(leftX, top, leftW, avail);
@@ -1146,8 +1207,10 @@ namespace SubtitleStudio
             int addH = S(50);
             int transH = S(54);
             int tapH = _tapBar.Visible ? S(38) : 0;
+            // שורת הכפתורים של הציר קיימת רק כשיש לה באמת מקום
+            int tlBtnH = (leftW >= S(520) && avail >= S(600)) ? S(34) : 0;
             int waveH = Math.Max(S(88), Math.Min(S(150), (int)(avail * 0.2)));
-            int videoH = Math.Max(S(90), avail - vHead - transH - waveH - addH - tapH - S(24));
+            int videoH = Math.Max(S(90), avail - vHead - transH - waveH - addH - tapH - tlBtnH - S(24));
 
             _mediaLbl.SetBounds(S(14), (vHead - S(18)) / 2, Math.Max(S(60), leftW - S(200)), S(18));
             _video.SetBounds(S(10), vHead, leftW - S(20), videoH);
@@ -1180,13 +1243,39 @@ namespace SubtitleStudio
             _timeLbl.SetBounds(timeLeft, ty + S(5), timeW, playH);
 
             int wy = ty + transH;
-            _tl.SetBounds(S(8), wy, leftW - S(16), waveH);
-            _tl.FitIfNeeded();
-            foreach (Btn b in _tlBtns) b.SetBounds(S(12), wy + S(4), b.Width, b.Height);
+            if (tlBtnH > 0)
+            {
+                // RTL: מימין לשמאל, ובלי כפתור ניקוי כשאין סימון
+                int tbx = leftW - S(14);
+                foreach (Btn b in _tlBtns)
+                {
+                    bool want = b != _clearMark || _rangeMarked;
+                    b.Visible = want;
+                    if (!want) continue;
+                    tbx -= b.Width;
+                    b.SetBounds(tbx, wy + S(2), b.Width, S(30));
+                    tbx -= S(4);
+                    if (tbx < S(14)) break;      // נגמר המקום
+                }
+                wy += tlBtnH;
+            }
+            else foreach (Btn b in _tlBtns) b.Visible = false;
 
-            _addCueBtn.SetBounds(S(14), avail - addH - S(10), leftW - S(28), addH);
+            _tl.SetBounds(S(8), wy, leftW - S(16), Math.Max(S(60), waveH));
+            _tl.FitIfNeeded();
+
+            int addY = avail - addH - S(10);
+            int addW = leftW - S(28);
+            if (_tapping)
+            {
+                // RTL: הפעולה הראשית מימין, ״כאן נגמר״ משמאלה
+                int endW = Math.Max(S(120), Math.Min(S(180), addW / 4));
+                _tapEndBtn.SetBounds(S(14), addY, endW, addH);
+                _addCueBtn.SetBounds(S(14) + endW + S(8), addY, addW - endW - S(8), addH);
+            }
+            else _addCueBtn.SetBounds(S(14), addY, addW, addH);
             if (_tapBar.Visible)
-                _tapBar.SetBounds(S(14), avail - addH - S(10) - S(36), leftW - S(28), S(30));
+                _tapBar.SetBounds(S(14), addY - S(36), addW, S(30));
 
             int hintW = Math.Min(W - S(360), S(720));
             _hintLbl.SetBounds(W - hintW - pad - S(10), H - statusH + S(2), hintW, S(22));
@@ -1434,7 +1523,7 @@ namespace SubtitleStudio
             _list.ScrollToCue(nc);
             _tl.EnsureVisible(pos, false);
             _text.Focus();
-            _hintLbl.Text = "כתבו את מה שנאמר. מקש הרווח ימשיך את הסרט.";
+            _hintLbl.Text = "כתבו את מה שנאמר.  Ctrl+רווח ממשיך את הסרט, Ctrl+חצים קופץ שתי שניות.";
             _hintLbl.Invalidate();
         }
 
@@ -1465,6 +1554,9 @@ namespace SubtitleStudio
             int left = UntimedCount();
             bool show = _tapping || (left > 0 && _mi != null);
             if (_tapBar.Visible != show) { _tapBar.Visible = show; DoLayout(); }
+
+            if (_tapEndBtn.Visible != _tapping) { _tapEndBtn.Visible = _tapping; DoLayout(); }
+            _tapEndBtn.Enabled = _tapping && _tapIndex > 0;
 
             if (_tapping)
             {
@@ -1507,7 +1599,7 @@ namespace SubtitleStudio
             _list.ScrollToCue(_doc.Cues[first]);
             LoadEditor();
             UpdateTapUi();
-            _hintLbl.Text = "מקשיבים, ולוחצים על הכפתור הכחול (או Enter) ברגע שכל שורה מתחילה. Esc לסיום.";
+            _hintLbl.Text = "לוחצים על הכפתור הכחול (Enter) כשמשפט מתחיל, ועל ״כאן נגמר״ (Backspace) כשהוא נגמר. Esc לסיום.";
             _hintLbl.Invalidate();
         }
 
@@ -1561,6 +1653,36 @@ namespace SubtitleStudio
             _video.Invalidate();
             if (!more) StopTapping(true);
             else UpdateTapUi();
+        }
+
+        /// <summary>סוגר את השורה שהתחלנו, בלי לפתוח את הבאה.
+        /// זה מה שעושים כשיש שקט בין משפט למשפט.</summary>
+        private void TapEnd()
+        {
+            if (!_tapping) return;
+            if (_tapIndex <= 0 || _tapIndex > _doc.Cues.Count) return;
+            Cue cur = _doc.Cues[_tapIndex - 1];
+            long pos = _engine.Position;
+            if (pos <= cur.Start + 300) return;      // קצר מדי מכדי להיות אמיתי
+            _doc.Push("סיום בלחיצה");
+            cur.End = pos;
+
+            // מזיזים את מה שעוד לא תוזמן אחרי הסיום החדש, כדי לשמור על הסדר
+            long cursor = cur.End + 80;
+            for (int i = _tapIndex; i < _doc.Cues.Count; i++)
+            {
+                Cue n = _doc.Cues[i];
+                if (!n.Untimed) break;
+                n.Start = cursor;
+                n.End = cursor + GuessDur(n);
+                cursor = n.End + 80;
+            }
+            _doc.Dirty = true;
+            _doc.RaiseChanged();
+            LoadEditor();
+            _tl.Invalidate();
+            _video.Invalidate();
+            UpdateTapUi();
         }
 
         private void StopTapping(bool finished)
@@ -1811,6 +1933,9 @@ namespace SubtitleStudio
                 _wave = new Waveform();
                 _tl.Wave = _wave;
                 if (_mi.HasAudio) _wave.Build(path, _mi.DurationMs);
+                // בלי אודיו אין מה לבנות. בלי הסימון הזה Ready נשאר false לנצח,
+                // הציר מצייר ״מכין את פס הקול״ ומתרענן 30 פעמים בשנייה בלי סוף.
+                else _wave.Ready = true;
 
                 foreach (Btn b in _needMedia) { b.Enabled = true; b.Invalidate(); }
 
@@ -1939,7 +2064,13 @@ namespace SubtitleStudio
             // וגם מוציאים אותה מהרשימה כדי שהמספרים יתאימו לקובץ.
             int blanks = 0;
             for (int i = _doc.Cues.Count - 1; i >= 0; i--)
-                if (_doc.Cues[i].PlainText.Trim().Length == 0) { _doc.Cues.RemoveAt(i); blanks++; }
+                if (_doc.Cues[i].PlainText.Trim().Length == 0) blanks++;
+            if (blanks > 0)
+            {
+                _doc.Push("השמטת כתוביות ריקות");   // אחרת Ctrl+Z אחרי שמירה קופץ לתמונה ישנה
+                for (int i = _doc.Cues.Count - 1; i >= 0; i--)
+                    if (_doc.Cues[i].PlainText.Trim().Length == 0) _doc.Cues.RemoveAt(i);
+            }
             if (blanks > 0)
             {
                 if (_doc.Cues.Count == 0)
@@ -2319,10 +2450,16 @@ namespace SubtitleStudio
             if (_tapping)
             {
                 if (key == Keys.Enter) { TapHere(); return true; }
+                if (key == Keys.Back) { TapEnd(); return true; }
                 if (key == Keys.Escape) { StopTapping(false); return true; }
             }
             if (key == Keys.F1) { ShowHelp(); return true; }
             if (key == Keys.F5) { ExportVideo(); return true; }
+
+            // רווח בתיבה ריקה: עוד לא התחילו להקליד, אז הכוונה היא לנגן/לעצור
+            if (key == Keys.Space && _text.Focused && _text.TextLength == 0) { TogglePlay(); return true; }
+            // Esc משחרר את המיקוד מתיבת הטקסט, כדי שהרווח יחזור לעבוד
+            if (key == Keys.Escape && InTextBox) { ActiveControl = null; _list.Focus(); return true; }
             if (InTextBox) return false;
 
             switch (key)

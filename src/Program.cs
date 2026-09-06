@@ -106,6 +106,9 @@ namespace SubtitleStudio
             try
             {
                 if (s != null) _last = s;
+                // בדיקות אוטומטיות בונות חלונות ומחליפות ערכה - אסור שזה
+                // ידרוס את ההעדפות האמיתיות של המשתמש
+                if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("dark=" + (Theme.Dark ? "1" : "0"));
                 sb.AppendLine("autoupdate=" + (AutoUpdate ? "1" : "0"));

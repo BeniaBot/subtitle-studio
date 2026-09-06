@@ -172,6 +172,13 @@ namespace SubtitleStudio
             t.Dispose();
             dlg.Dispose();
 
+            // סגירת החלון באמצע ההורדה - הקובץ חלקי, ואסור להתקין אותו
+            if (!done)
+            {
+                try { if (File.Exists(tmp)) File.Delete(tmp); }
+                catch { }
+                return;
+            }
             if (error != null)
             {
                 Ui.Error((Form)owner, "העדכון נכשל", error);
@@ -180,20 +187,11 @@ namespace SubtitleStudio
                 return;
             }
 
-            // סקריפט קטן שמחליף את הקובץ אחרי שהתוכנה נסגרת
+            // סקריפט קטן שמחליף את הקובץ אחרי שהתוכנה נסגרת.
+            // הכול בנתיבים קצרים (8.3) כי cmd קורא את הקובץ בקידוד OEM,
+            // ושם התיקייה של המשתמש הוא לרוב בעברית.
             string bat = Path.Combine(Path.GetTempPath(), "substudio-update.cmd");
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("@echo off");
-            sb.AppendLine("ping -n 3 127.0.0.1 >nul");
-            sb.AppendLine(":retry");
-            sb.AppendLine("move /y \"" + tmp + "\" \"" + exe + "\" >nul 2>&1");
-            sb.AppendLine("if errorlevel 1 (");
-            sb.AppendLine("  ping -n 2 127.0.0.1 >nul");
-            sb.AppendLine("  goto retry");
-            sb.AppendLine(")");
-            sb.AppendLine("start \"\" \"" + exe + "\"");
-            sb.AppendLine("del \"%~f0\"");
-            File.WriteAllText(bat, sb.ToString(), Encoding.Default);
+            File.WriteAllText(bat, UpdateScript(tmp, exe), Encoding.ASCII);
 
             ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", "/c \"" + bat + "\"");
             psi.CreateNoWindow = true;
@@ -201,6 +199,87 @@ namespace SubtitleStudio
             psi.WorkingDirectory = dir;
             Process.Start(psi);
             Application.Exit();
+        }
+
+        private static string ShortPath(string p) { return ShortPathHelper.Of(p); }
+
+        /// <summary>גוף הסקריפט שמחליף את הקובץ. מופרד כדי שאפשר יהיה לבדוק
+        /// אותו: הוא חייב לצאת ASCII נקי גם כשהנתיב של המשתמש בעברית.</summary>
+        public static string UpdateScript(string tmp, string exe)
+        {
+            string sTmp = ShortPath(tmp);
+            string sExe = ShortPath(exe);
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("@echo off");
+            sb.AppendLine("ping -n 3 127.0.0.1 >nul");
+            sb.AppendLine("set n=0");
+            sb.AppendLine(":retry");
+            sb.AppendLine("move /y \"" + sTmp + "\" \"" + sExe + "\" >nul 2>&1");
+            sb.AppendLine("if not errorlevel 1 goto done");
+            sb.AppendLine("set /a n+=1");
+            sb.AppendLine("if %n% geq 15 goto giveup");
+            sb.AppendLine("ping -n 2 127.0.0.1 >nul");
+            sb.AppendLine("goto retry");
+            sb.AppendLine(":giveup");
+            sb.AppendLine("del \"" + sTmp + "\" >nul 2>&1");
+            sb.AppendLine(":done");
+            sb.AppendLine("start \"\" \"" + sExe + "\"");
+            sb.AppendLine("del \"%~f0\"");
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>נתיב 8.3 - היחיד שבטוח לכתוב לתוך קובץ cmd כשיש עברית בנתיב.
+    /// אם ההמרה נכשלת (‏8.3 מכובה בכונן) מחזירים את המקור, וזו עדיין הדרך
+    /// הטובה ביותר שיש.</summary>
+    internal static class ShortPathHelper
+    {
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
+
+        public static string Of(string path)
+        {
+            string sp = Raw(path);
+            if (sp != null && IsAscii(sp)) return sp;
+            // GetShortPathName עובד רק על מה שכבר קיים בדיסק, וקובץ היעד של
+            // ההורדה - או תיקיית ההתקנה - עוד לא נוצרו. אז עולים למעלה עד
+            // האב הקיים הראשון, מקצרים אותו, ומצרפים בחזרה את הזנב הלטיני.
+            try
+            {
+                string tail = "";
+                string cur = path;
+                for (int i = 0; i < 12; i++)
+                {
+                    string name = System.IO.Path.GetFileName(cur);
+                    string dir = System.IO.Path.GetDirectoryName(cur);
+                    if (string.IsNullOrEmpty(dir) || !IsAscii(name)) break;
+                    tail = tail.Length == 0 ? name : System.IO.Path.Combine(name, tail);
+                    string sd = Raw(dir);
+                    if (sd != null && IsAscii(sd)) return System.IO.Path.Combine(sd, tail);
+                    cur = dir;
+                }
+            }
+            catch { }
+            return path;
+        }
+
+        private static string Raw(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path)) return null;
+                StringBuilder sb = new StringBuilder(600);
+                int n = GetShortPathName(path, sb, sb.Capacity);
+                if (n > 0 && n < sb.Capacity) return sb.ToString();
+            }
+            catch { }
+            return null;
+        }
+
+        public static bool IsAscii(string s)
+        {
+            for (int i = 0; i < s.Length; i++) if (s[i] > 126) return false;
+            return true;
         }
     }
 
@@ -385,24 +464,42 @@ namespace SubtitleStudio
             _status.Invalidate();
         }
 
+        private bool _checking;
+
         protected override bool OnOk()
         {
+            // הבדיקה יוצאת לרשת ויכולה לקחת עד 12 שניות. על חוט הממשק
+            // זה נראה למשתמש כמו תוכנה תקועה, אז היא רצה ברקע.
+            if (_checking) return false;
+            _checking = true;
             SetStatus("בודק...", Theme.TextDim);
             Refresh();
-            string err;
-            Cursor = Cursors.WaitCursor;
-            Updater.Release rel = Updater.Check(out err);
-            Cursor = Cursors.Default;
 
-            if (rel == null)
-                SetStatus(err == null ? "לא הצלחתי לבדוק כרגע." : err, Theme.Warn);
-            else if (!App.IsNewer(rel.Version))
-                SetStatus("הגרסה שלכם היא העדכנית ביותר.", Theme.Good);
-            else
+            Thread th = new Thread(delegate ()
             {
-                SetStatus("יש גרסה חדשה: " + rel.Version, Theme.Accent);
-                Updates.Offer(this, rel);
-            }
+                string err;
+                Updater.Release rel = Updater.Check(out err);
+                try
+                {
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        _checking = false;
+                        if (IsDisposed) return;
+                        if (rel == null)
+                            SetStatus(err == null ? "לא הצלחתי לבדוק כרגע." : err, Theme.Warn);
+                        else if (!App.IsNewer(rel.Version))
+                            SetStatus("הגרסה שלכם היא העדכנית ביותר.", Theme.Good);
+                        else
+                        {
+                            SetStatus("יש גרסה חדשה: " + rel.Version, Theme.Accent);
+                            Updates.Offer(this, rel);
+                        }
+                    });
+                }
+                catch { _checking = false; }
+            });
+            th.IsBackground = true;
+            th.Start();
             return false;                       // החלון נשאר פתוח
         }
     }

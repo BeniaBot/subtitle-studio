@@ -219,6 +219,26 @@ Eq 'לא נשארו שורות בלי תזמון' $left 0
 $g.Close(); $g.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 
+# ================= סרט בלי פס קול =================
+# הבאג: Waveform.Ready נשאר false, הציר צייר "מכין את פס הקול" לנצח
+# ורענן 30 פעמים בשנייה. הקובץ נוצר על ידי build\make-testmedia.ps1.
+$silent = Join-Path $env:TEMP 'ss-gallery\silent.mp4'
+if (Test-Path $silent) {
+    Write-Host 'סרט בלי קול'
+    $q = NewForm 1400 900
+    Call $q 'OpenMedia' (Pack ([string]$silent)) | Out-Null
+    [System.Windows.Forms.Application]::DoEvents()
+    $mi2 = Fld $q '_mi'
+    Check 'הקובץ נפתח' ($null -ne $mi2) ''
+    if ($null -ne $mi2) {
+        Check 'זוהה כחסר אודיו' (-not $mi2.HasAudio) ("HasAudio=" + $mi2.HasAudio)
+        $wave = Fld $q '_wave'
+        Check 'פס הקול מסומן כמוכן' ($wave.Ready) 'אחרת הציר מצייר בלי הפסקה'
+    }
+    $q.Close(); $q.Dispose()
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
 # ================= תוויות הסרגל =================
 # הבאג שהיה: במסך צר כל התוויות ירדו בבת אחת ונשארו אייקונים בלי הסבר.
 Write-Host 'תוויות הסרגל'
