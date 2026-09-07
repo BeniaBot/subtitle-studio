@@ -447,27 +447,33 @@ namespace SubtitleStudio
             return Ser().Serialize(body);
         }
 
-        /// <summary>נקבע כשהבקשה האחרונה נחסמה על מכסה. תמלול שולח עשרות
-        /// בקשות ברצף וצריך לדעת להבדיל בין ״המכסה נגמרה, נסה שוב״ לבין
-        /// שגיאה אמיתית שאין טעם לחזור עליה.</summary>
-        public static bool LastWasRateLimit;
+        /// <summary>קוד ה-HTTP של הכישלון האחרון. תמלול שולח עשרות בקשות
+        /// ברצף וצריך להבדיל בין שלושה מצבים: מכסה שנגמרה (‏429 - כדאי
+        /// לעצור ולהגיד למשתמש), שרת עמוס (‏5xx - כדאי לנסות שוב), ושגיאה
+        /// אמיתית שאין טעם לחזור עליה.</summary>
+        public static int LastHttpCode;
         public static int LastRetrySec;
+
+        /// <summary>אפשר לנסות שוב - מכסה או עומס בשרת.</summary>
+        public static bool LastWasRateLimit { get { return LastRetrySec > 0; } }
+
+        /// <summary>המכסה עצמה נגמרה, להבדיל מעומס רגעי.</summary>
+        public static bool LastWasQuota { get { return LastHttpCode == 429; } }
 
         private static bool Post(string url, string json, out string reply, out string error)
         {
-            LastWasRateLimit = false;
+            LastHttpCode = 0;
             LastRetrySec = 0;
             int waitSec;
             if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
             if (waitSec <= 0) return false;
-            LastWasRateLimit = true;
             LastRetrySec = waitSec;
             if (waitSec > 30) waitSec = 30;
             Log("מכסה - ממתין " + waitSec + " שניות ומנסה שוב");
             System.Threading.Thread.Sleep(waitSec * 1000);
             int again;
             bool ok = PostOnce(url, json, out reply, out error, out again);
-            if (ok) { LastWasRateLimit = false; LastRetrySec = 0; }
+            if (ok) { LastHttpCode = 0; LastRetrySec = 0; }
             else if (again > 0) LastRetrySec = again;
             return ok;
         }
@@ -531,7 +537,12 @@ namespace SubtitleStudio
                         }
                 }
                 catch { }
+                // 429 = מכסה. 500/502/503/504 = השרת עמוס או נפל, וגם זה
+                // שווה ניסיון חוזר: בתמלול של שיעור שלם קטע בודד שנופל על
+                // עומס רגעי הופך לחור באמצע הכתוביות.
+                LastHttpCode = code;
                 if (code == 429) retrySec = RetryAfter(detail);
+                else if (code == 500 || code == 502 || code == 503 || code == 504) retrySec = 5;
                 error = Explain(code, detail, wex.Message);
                 return false;
             }

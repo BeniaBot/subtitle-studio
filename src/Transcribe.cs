@@ -53,6 +53,7 @@ namespace SubtitleStudio
 
             List<Cue> all = new List<Cue>();
             int quotaStreak = 0;
+            string lastErr = null;
             for (int i = 0; i < starts.Count; i++)
             {
                 if (canceled != null && canceled()) { res.Canceled = true; break; }
@@ -107,12 +108,14 @@ namespace SubtitleStudio
                 if (lines == null)
                 {
                     res.Failed++;
-                    if (Ai.LastWasRateLimit)
+                    if (err != null) lastErr = err;
+                    if (Ai.LastWasQuota)
                     {
                         // המכסה היומית נגמרה. בלי העצירה הזאת כל קטע נותר
-                        // מבזבז ארבעה ניסיונות עם המתנה - נמדד: 14 דקות על
-                        // קובץ של חמש דקות, ובשיעור של שעה זה שעתיים של
-                        // המתנה שלא תניב כלום.
+                        // מבזבז ניסיונות עם המתנה - נמדד: 14 דקות על קובץ
+                        // של חמש דקות, ובשיעור של שעה זה שעתיים של המתנה
+                        // שלא תניב כלום. עומס רגעי בשרת (‏5xx) לא נספר כאן:
+                        // הוא חולף, וקטע בודד שנפל עליו הוא חור אחד ולא סוף.
                         quotaStreak++;
                         if (quotaStreak >= 2) { res.QuotaOut = true; break; }
                     }
@@ -143,8 +146,12 @@ namespace SubtitleStudio
             if (progress != null) progress(1, "מסיים…");
             if (res.QuotaOut && res.Error == null)
                 res.Error = "המכסה החינמית של גוגל נגמרה להיום.";
+            // ״לא זוהה דיבור״ רק כשבאמת לא היה כישלון. אחרת ההודעה משקרת:
+            // השרת נפל, והמשתמש חושב שהסרט שלו שקט.
             if (res.Error == null && res.Cues.Count == 0 && !res.Canceled)
-                res.Error = "לא זוהה דיבור בקובץ.";
+                res.Error = res.Failed > 0 && lastErr != null
+                    ? lastErr
+                    : "לא זוהה דיבור בקובץ.";
             return res;
         }
 
