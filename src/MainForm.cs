@@ -305,6 +305,11 @@ namespace SubtitleStudio
             List<MenuItem> items = new List<MenuItem>();
 
             items.Add(MenuItem.Group("הבאת כתוביות"));
+            MenuItem tr = MenuItem.Make("תמלול אוטומטי של הסרט",
+                "התוכנה מקשיבה וכותבת לבד · הקול נשלח לגוגל", Ico.Sparkles,
+                delegate { TranscribeMedia(); });
+            tr.Enabled = media;
+            items.Add(tr);
             items.Add(MenuItem.Make("יצירת כתוביות מטקסט", "מדביקים טקסט - התוכנה מחלקת ומתזמנת לבד", Ico.TextIcon,
                 delegate { ImportText(); }));
             MenuItem ext = MenuItem.Make("שליפת כתוביות מהסרט", "מוציא ערוץ כתוביות שכבר קיים בקובץ", Ico.Layers,
@@ -2045,6 +2050,98 @@ namespace SubtitleStudio
             d.ShowDialog(this);
             if (d.Ok && d.Result != null) ApplyImport(d.Result);
             d.Dispose();
+        }
+
+        /// <summary>תמלול אוטומטי של הסרט הפתוח.</summary>
+        private void TranscribeMedia()
+        {
+            if (_mi == null || string.IsNullOrEmpty(_mediaPath))
+            {
+                Ui.Info(this, "אין סרט", "צריך לפתוח קודם סרט או קובץ קול.");
+                return;
+            }
+            if (!_mi.HasAudio)
+            {
+                Ui.Error(this, "אין קול בקובץ", "אין מה לתמלל - בקובץ הזה אין פס קול.");
+                return;
+            }
+            if (!Ai.HasKey && !AiSetupIfNeeded()) return;
+
+            TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count);
+            d.ShowDialog(this);
+            bool ok = d.Ok;
+            string ctx = d.Context;
+            bool replace = d.ReplaceExisting;
+            d.Dispose();
+            if (!ok) return;
+
+            _engine.Pause();
+            TranscribeRunDlg run = new TranscribeRunDlg(_mediaPath, _mi.DurationMs, ctx);
+            run.ShowDialog(this);
+            Transcribe.Result res = run.Result;
+            run.Dispose();
+
+            if (res == null) return;
+            if (res.Cues.Count == 0)
+            {
+                if (res.Canceled) return;                       // המשתמש עצר - לא מטרידים אותו
+                if (res.QuotaOut)
+                {
+                    Ui.Error(this, "המכסה של גוגל נגמרה להיום",
+                        "המפתח החינמי מוגבל, והמכסה שלו נגמרה." + Environment.NewLine +
+                        "אפשר לנסות שוב מחר, או להוציא מפתח חדש בהגדרות ה-AI.");
+                    return;
+                }
+                Ui.Error(this, "לא נוצרו כתוביות",
+                    res.Error != null ? res.Error : "לא זוהה דיבור בקובץ.");
+                return;
+            }
+
+            _doc.Push("תמלול אוטומטי");
+            if (replace) _doc.Cues.Clear();
+            _doc.Cues.AddRange(res.Cues);
+            _doc.Sort();
+
+            // המודל נוטה לסגור כתובית מוקדם מדי. פס הקול כבר בנוי אצלנו,
+            // אז מהדקים לגבולות דיבור אמיתיים בלי עוד בקשת רשת.
+            int snapped = 0;
+            if (_wave != null && _wave.Ready && !_wave.Failed)
+                snapped = Transcribe.SnapToSpeech(_doc.Cues, _wave);
+
+            _doc.FixOverlaps(80);
+            _doc.Dirty = true;
+            _doc.RaiseChanged();
+            SyncAfterDocChange();
+
+            string msg = "נוצרו " + Theme.Ltr(res.Cues.Count.ToString()) + " כתוביות.";
+            if (res.Canceled) msg = "נעצר. " + msg;
+            msg += "  כדאי לעבור ולתקן.  לביטול - Ctrl+Z.";
+            _hintLbl.Text = msg;
+            _hintLbl.Invalidate();
+
+            // חלק מהסרט לא תומלל - זה חייב להיאמר, אחרת המשתמש חושב
+            // שהתמלול שלם ומגלה חור באמצע רק בהמשך
+            if (res.QuotaOut)
+                Ui.Info(this, "המכסה של גוגל נגמרה באמצע",
+                    "תומלל רק חלק מהסרט - " + Theme.Ltr(res.Cues.Count.ToString()) +
+                    " כתוביות." + Environment.NewLine +
+                    "אפשר להמשיך מחר, כשהמכסה מתאפסת.");
+            else if (res.Failed > 0)
+                Ui.Info(this, "חלק מהקטעים לא הצליחו",
+                    Theme.Ltr(res.Failed.ToString()) + " מתוך " + Theme.Ltr(res.Chunks.ToString()) +
+                    " קטעים לא תומללו, אז ייתכנו חורים." + Environment.NewLine +
+                    "אפשר להשלים אותם ידנית.");
+        }
+
+        /// <summary>פותח את הגדרות ה-AI כשאין עדיין מפתח. מחזיר אם יש מפתח אחרי.</summary>
+        private bool AiSetupIfNeeded()
+        {
+            if (Ai.HasKey) return true;
+            if (!Ui.Confirm(this, "צריך מפתח חינמי מגוגל",
+                "התמלול עובד דרך גוגל. המפתח חינמי ולוקח שלוש דקות להוציא, פעם אחת.",
+                "להזין מפתח", "לא עכשיו")) return false;
+            AiSettings();
+            return Ai.HasKey;
         }
 
         private bool SaveSubtitles(bool asNew)
