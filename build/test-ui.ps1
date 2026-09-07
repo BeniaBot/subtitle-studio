@@ -254,6 +254,33 @@ foreach ($w in @(1920, 1493, 1175)) {
     [System.Windows.Forms.Application]::DoEvents()
 }
 
+Write-Host 'תפריט הכתוביות'
+# הפריטים שדורשים סרט חייבים להיות כבויים בלי סרט, אחרת המשתמש לוחץ
+# ומקבל הודעת שגיאה במקום כפתור מעומעם.
+$g = NewForm 1493 900
+$items = $formT.GetMethod('SubtitleMenuItems', $NP).Invoke($g, @())
+function ItemNamed($list, $needle) {
+    foreach ($it in $list) { if ($it.Text -and $it.Text.Contains($needle)) { return $it } }
+    return $null
+}
+$tr = ItemNamed $items 'תמלול'
+Check 'יש פריט תמלול בתפריט' ($null -ne $tr) ''
+if ($tr) {
+    Check 'התמלול כבוי בלי סרט' (-not $tr.Enabled) ("enabled=" + $tr.Enabled)
+    Check 'התיאור מזכיר שהקול נשלח' ($tr.Desc -and $tr.Desc.Contains('גוגל')) ("desc=" + $tr.Desc)
+}
+$g.Close(); $g.Dispose()
+[System.Windows.Forms.Application]::DoEvents()
+
+# ועם סרט - הפריט נדלק
+$g2 = NewForm 1493 900
+$formT.GetField('_mi', $NP).SetValue($g2, $mi)
+$items2 = $formT.GetMethod('SubtitleMenuItems', $NP).Invoke($g2, @())
+$tr2 = ItemNamed $items2 'תמלול'
+Check 'התמלול נדלק כשיש סרט' ($tr2 -and $tr2.Enabled) ''
+$g2.Close(); $g2.Dispose()
+[System.Windows.Forms.Application]::DoEvents()
+
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

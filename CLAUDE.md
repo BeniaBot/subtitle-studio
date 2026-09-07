@@ -13,7 +13,7 @@
 - קוד: `src\*.cs` (C#, WinForms)
 - פלט: `dist\SubtitleStudio.exe` (~38MB — הכל בפנים)
 - בנייה: `build.cmd`
-- גרסה נוכחית: `App.Version` ב-`src\Updater.cs` (כרגע `0.5.2`)
+- גרסה נוכחית: `App.Version` ב-`src\Updater.cs` (כרגע `0.6.0`)
 
 ---
 

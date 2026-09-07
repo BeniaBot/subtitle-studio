@@ -300,6 +300,14 @@ namespace SubtitleStudio
 
         private void ShowSubtitleMenu(Control anchor)
         {
+            PopupMenu m = new PopupMenu(SubtitleMenuItems(), 350);
+            m.ShowUnder(anchor);
+        }
+
+        /// <summary>בניית התפריט הופרדה מהצגתו כדי שאפשר יהיה לבדוק אותה
+        /// בלי לפתוח חלון - כמו ‏BuildBody ו-UpdateScript.</summary>
+        internal List<MenuItem> SubtitleMenuItems()
+        {
             bool media = _mi != null;
             bool cues = _doc.Cues.Count > 0;
             List<MenuItem> items = new List<MenuItem>();
@@ -360,8 +368,7 @@ namespace SubtitleStudio
             items.Add(MenuItem.Make("עיצוב הכתוביות", "גופן, גודל, צבע ומיקום על המסך", Ico.Eye,
                 delegate { EditStyle(); }));
 
-            PopupMenu m = new PopupMenu(items, 350);
-            m.ShowUnder(anchor);
+            return items;
         }
 
         private void ShowVideoMenu(Control anchor)
