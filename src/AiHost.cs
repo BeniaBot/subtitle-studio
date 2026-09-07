@@ -170,6 +170,12 @@ namespace SubtitleStudio
                 "מחלקת אותו לכתוביות. זו התשובה כשהמשתמש רוצה כתוביות אבל הטקסט " +
                 "נמצא אצלו ולא אצלך - אל תבקש ממנו להדביק לך אותו בצ'אט"));
 
+            t.Add(new AiTool("transcribe_media",
+                "**מתמלל את הסרט הפתוח אוטומטית** - התוכנה מקשיבה לקול וכותבת " +
+                "את הכתוביות עם הזמנים. זו התשובה הראשונה כשיש סרט ואין כתוביות. " +
+                "פותח חלון אישור, כי הקול נשלח לשירות חיצוני - המשתמש מאשר בעצמו")
+                .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים"));
+
             t.Add(new AiTool("start_tap_timing",
                 "מתחיל את מצב התזמון בלחיצה: הסרט מתנגן, והמשתמש לוחץ על כפתור " +
                 "בכל פעם שמשפט מתחיל. עובד רק כשיש שורות שהתזמון שלהן עוד הערכה " +
@@ -235,6 +241,7 @@ namespace SubtitleStudio
                     case "set_theme": return AiSetTheme(call);
                     case "new_subtitle_here": return AiNewHere(call);
                     case "open_text_import": return AiOpenTextImport();
+                    case "transcribe_media": return AiTranscribe(call);
                     case "start_tap_timing": return AiStartTap();
                 }
                 r["error"] = "פעולה לא מוכרת: " + call.Name;
@@ -845,6 +852,26 @@ namespace SubtitleStudio
                 : "החלון נפתח והמשתמש סגר אותו בלי ליצור כתוביות";
             r["cue_count"] = now;
             r["untimed"] = UntimedCount();
+            return r;
+        }
+
+        private Dictionary<string, object> AiTranscribe(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || string.IsNullOrEmpty(_mediaPath))
+            { r["error"] = "אין סרט פתוח - צריך לפתוח קודם קובץ"; return r; }
+            if (!_mi.HasAudio)
+            { r["error"] = "אין פס קול בקובץ הזה, אז אין מה לתמלל"; return r; }
+
+            int before = _doc.Cues.Count;
+            TranscribeMedia();
+            int now = _doc.Cues.Count;
+            // המשתמש הוא זה שמאשר בחלון, ולכן ״לא קרה כלום״ הוא תוצאה
+            // לגיטימית ולא שגיאה - חשוב שהמודל לא ינסה שוב בלולאה.
+            r["done"] = now != before
+                ? "התמלול הסתיים, יש עכשיו " + now + " כתוביות"
+                : "המשתמש סגר את חלון האישור בלי לתמלל";
+            r["cue_count"] = now;
             return r;
         }
 
