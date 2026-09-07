@@ -87,7 +87,9 @@ namespace SubtitleStudio
             // ואין שום סיבה לבנות גופן חדש בכל פריים.
             Font font = CachedFont(FontName, fontPx, fs);
 
-            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            // אותו תיקון bidi שנעשה בדרך לצריבה, אחרת התצוגה המקדימה
+            // מראה דבר אחד והקובץ שייצא יראה אחר - וזה הגרוע משניהם.
+            string[] lines = Formats.RtlFix(text).Replace("\r\n", "\n").Split('\n');
             float lineH = font.GetHeight(g) * (float)LineSpacing;
             float totalH = lineH * lines.Length;
 

@@ -402,11 +402,65 @@ namespace SubtitleStudio
             for (int i = 0; i < cues.Count; i++)
             {
                 Cue c = cues[i];
-                string t = c.Text.Replace("\r\n", "\n").Replace("\n", "\\N");
+                string t = RtlFix(c.Text).Replace("\r\n", "\n").Replace("\n", "\\N");
                 sb.Append("Dialogue: 0,").Append(Tc.Ass(c.Start)).Append(",").Append(Tc.Ass(c.End))
                   .Append(",Main,,0,0,0,,").Append(t).Append("\r\n");
             }
             return sb.ToString();
+        }
+
+        /// <summary>סימן RTL בלתי נראה שמכריח את כיוון השורה.</summary>
+        private const char Rlm = '‏';
+
+        /// <summary>מוסיף RLM בתחילת שורה עברית שמתחילה בתו לא-עברי.
+        ///
+        /// **הבאג שזה מתקן:** כתובית כמו ״3 דברים שכדאי לדעת״ נצרבת כ-
+        /// ״דברים שכדאי לדעת 3״ - המספר קופץ לקצה השמאלי. הסיבה היא
+        /// אלגוריתם ה-bidi של יוניקוד: ספרה היא תו ״חלש״, וכשהיא פותחת
+        /// שורה בהקשר RTL היא מקבלת רמת הטמעה נפרדת ונדחפת לקצה.
+        /// אותו דבר קורה לגרש, למקף פותח ולמילה לועזית בתחילת משפט עברי.
+        /// ‏RLM בהתחלה הוא תו RTL חזק, והוא מעגן את השורה.
+        ///
+        /// **נעשה רק בדרך לצריבה ולתצוגה, אף פעם לא בקובץ שנשמר** - כמו
+        /// NormalizeTimeLine. הכתובית של המשתמש נשארת בדיוק כפי שכתב.
+        ///
+        /// (‏Subtitle Edit סוחבים את הבאג הזה פתוח מאז 2018, issue #2768.)</summary>
+        public static string RtlFix(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text.IndexOf(Rlm) >= 0) return text;
+
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            bool changed = false;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string ln = lines[i];
+                int j = 0;
+                while (j < ln.Length && char.IsWhiteSpace(ln[j])) j++;
+                if (j >= ln.Length) continue;
+
+                // אם השורה כבר פותחת בעברית - אין מה לתקן
+                if (IsRtl(ln[j])) continue;
+                // ואם אין בה עברית בכלל - זו שורה לועזית, אסור לגעת בה
+                if (!HasRtl(ln)) continue;
+
+                lines[i] = ln.Substring(0, j) + Rlm + ln.Substring(j);
+                changed = true;
+            }
+            if (!changed) return text;
+            return string.Join("\n", lines);
+        }
+
+        private static bool IsRtl(char c)
+        {
+            // עברית, ערבית, סורית ותאנה - טווחי ה-RTL שרלוונטיים לכתוביות
+            return (c >= '֐' && c <= 'ࣿ') || (c >= 'יִ' && c <= '﷿') ||
+                   (c >= 'ﹰ' && c <= 'ﻼ');
+        }
+
+        private static bool HasRtl(string s)
+        {
+            for (int i = 0; i < s.Length; i++) if (IsRtl(s[i])) return true;
+            return false;
         }
 
         /// <summary>ייצוא טקסט בלבד - לתרגום. כל כתובית בבלוק ממוספר.</summary>

@@ -589,6 +589,45 @@ if ($bb) {
     Check 'BuildBody נגיש לבדיקה' $false 'הפרידו את בניית הגוף למתודה כדי שאפשר יהיה לבדוק אותה'
 }
 
+# ---------- כיוון טקסט בצריבה ----------
+# כתובית ״3 דברים שכדאי לדעת״ נצרבה כ״דברים שכדאי לדעת 3״ - הספרה
+# קפצה לקצה השמאלי. אומת מול פיקסלים אמיתיים, ואומת גם שהתיקון מחזיר
+# בדיוק את מה ש-GDI+ של ווינדוס נותן לאותו טקסט.
+# ‏Subtitle Edit סוחבים את הבאג הזה פתוח (issue #2768).
+
+Write-Host 'כיוון טקסט (bidi)'
+$RLM = [char]0x200F
+$ST2 = [Reflection.BindingFlags]'NonPublic,Public,Static'
+$listCueT2 = [System.Collections.Generic.List`1].MakeGenericType($cueT)
+$fx = $fmt.GetMethod('RtlFix', $ST2)
+function Fix($t) { return $fx.Invoke($null, (Pack ([string]$t))) }
+
+Check 'ספרה בהתחלה מקבלת עוגן' ((Fix '3 דברים') -eq ($RLM + '3 דברים')) ''
+Check 'גרש בהתחלה מקבל עוגן'   ((Fix '"שלום" אמר') -eq ($RLM + '"שלום" אמר')) ''
+Check 'לועזית לפני עברית מקבלת עוגן' ((Fix 'Word הוא תוכנה') -eq ($RLM + 'Word הוא תוכנה')) ''
+
+# מה שאסור לגעת בו
+Check 'שורה שפותחת בעברית לא משתנה' ((Fix 'שלום עולם') -eq 'שלום עולם') ''
+Check 'שורה לועזית לגמרי לא משתנה'  ((Fix '3 red balloons') -eq '3 red balloons') ''
+Check 'שורה ריקה לא משתנה'          ((Fix '') -eq '') ''
+Check 'טקסט שכבר מעוגן לא מוכפל'    ((Fix ($RLM + '3 דברים')) -eq ($RLM + '3 דברים')) ''
+
+# רב-שורתי: כל שורה נשפטת בנפרד
+$multi = Fix ("3 דברים`nשלום`n5 more items")
+$want = ($RLM + "3 דברים`nשלום`n5 more items")
+Check 'כל שורה נשפטת בנפרד' ($multi -eq $want) ("got=" + ($multi -replace [regex]::Escape($RLM), '<RLM>'))
+
+# רווח מוביל נשמר לפני העוגן
+Check 'רווח מוביל נשמר' ((Fix '  3 דברים') -eq ('  ' + $RLM + '3 דברים')) ''
+
+# והחשוב מכל: זה לא דולף לקובץ שהמשתמש שומר
+$cuesRtl = [Activator]::CreateInstance($listCueT2)
+$listCueT2.GetMethod('Add').Invoke($cuesRtl, (Pack ($cueT.GetConstructor([Type[]]@([long],[long],[string])).Invoke(@([long]0,[long]2000,[string]'3 דברים שכדאי לדעת')))))
+$srtOut = $fmt.GetMethod('ToSrt', $ST2).Invoke($null, (Pack $cuesRtl))
+Check 'הקובץ הנשמר בלי עוגנים' ($srtOut.IndexOf($RLM) -lt 0) 'ה-RLM דלף ל-SRT'
+$assOut = $fmt.GetMethod('ToAss', $ST2).Invoke($null, (Pack $cuesRtl $null ([int]1280) ([int]720)))
+Check 'ה-ASS לצריבה כן מעוגן' ($assOut.IndexOf($RLM) -ge 0) 'חסר RLM ב-ASS'
+
 # ---------- תמלול אוטומטי ----------
 # החיתוך והאיחוי הם החלק שאפשר לבדוק בלי רשת, והם גם החלק שנשבר בשקט:
 # כפילות בגבול בין קטעים לא מייצרת שום שגיאה - רק כתובית כפולה בקובץ.
