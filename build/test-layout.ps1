@@ -225,6 +225,7 @@ function ToolNamed($like) {
 
 $dialogs = @(
     @{ n = 'ImportText'; needsMedia = $false; make = { NewOf 'ImportTextDlg' @([int64]0) } },
+    @{ n = 'Transcribe'; needsMedia = $true;  make = { NewOf 'TranscribeDlg' @($mi, [int]3) } },
     @{ n = 'Fix';        needsMedia = $false; make = { NewOf 'FixDlg' @($doc) } },
     @{ n = 'Sync';       needsMedia = $false; make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
     @{ n = 'Help';       needsMedia = $false; make = { NewOf 'HelpDlg' @() } },

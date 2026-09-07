@@ -18,6 +18,12 @@ namespace SubtitleStudio
         public Dictionary<string, object> ToolResult;
         public AiCall Call;                // תור של המודל שביקש להפעיל פעולה
         public bool Hidden;                // הודעות שירות שלא מוצגות בצ'אט
+
+        /// <summary>קטע שמע לתמלול, מקודד base64, יחד עם ה-mime שלו.
+        /// נשלח כ-inline_data לצד הטקסט. כשזה מלא, ההודעה נושאת שני
+        /// חלקים - ההוראה והשמע.</summary>
+        public string AudioB64;
+        public string AudioMime = "audio/mp3";
     }
 
     /// <summary>בקשה של המודל להפעיל פעולה בתוכנה.</summary>
@@ -373,6 +379,16 @@ namespace SubtitleStudio
                             { "name", m.Call.Name },
                             { "args", m.Call.Args != null ? (object)m.Call.Args : new Dictionary<string, object>() } } } } };
                 }
+                else if (!string.IsNullOrEmpty(m.AudioB64))
+                {
+                    // הוראה + קטע שמע באותה הודעה. הסדר חשוב: ההוראה קודם,
+                    // אחרת המודל מתחיל לתמלל לפני שהוא יודע מה לעשות.
+                    item["role"] = "user";
+                    item["parts"] = new object[] {
+                        new Dictionary<string, object> { { "text", m.Text } },
+                        new Dictionary<string, object> { { "inline_data", new Dictionary<string, object> {
+                            { "mime_type", m.AudioMime }, { "data", m.AudioB64 } } } } };
+                }
                 else
                 {
                     item["role"] = m.Role == "model" ? "model" : "user";
@@ -431,16 +447,29 @@ namespace SubtitleStudio
             return Ser().Serialize(body);
         }
 
+        /// <summary>נקבע כשהבקשה האחרונה נחסמה על מכסה. תמלול שולח עשרות
+        /// בקשות ברצף וצריך לדעת להבדיל בין ״המכסה נגמרה, נסה שוב״ לבין
+        /// שגיאה אמיתית שאין טעם לחזור עליה.</summary>
+        public static bool LastWasRateLimit;
+        public static int LastRetrySec;
+
         private static bool Post(string url, string json, out string reply, out string error)
         {
+            LastWasRateLimit = false;
+            LastRetrySec = 0;
             int waitSec;
             if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
             if (waitSec <= 0) return false;
+            LastWasRateLimit = true;
+            LastRetrySec = waitSec;
             if (waitSec > 30) waitSec = 30;
             Log("מכסה - ממתין " + waitSec + " שניות ומנסה שוב");
             System.Threading.Thread.Sleep(waitSec * 1000);
-            int ignore;
-            return PostOnce(url, json, out reply, out error, out ignore);
+            int again;
+            bool ok = PostOnce(url, json, out reply, out error, out again);
+            if (ok) { LastWasRateLimit = false; LastRetrySec = 0; }
+            else if (again > 0) LastRetrySec = again;
+            return ok;
         }
 
         /// <summary>‏retryDelay מגוף השגיאה של 429. אם אין - ברירת מחדל סבירה.</summary>
@@ -597,6 +626,88 @@ namespace SubtitleStudio
         }
 
         // ---------- תרגום ----------
+        /// <summary>שורה אחת שחזרה מתמלול: זמנים בשניות מתחילת הקטע שנשלח.</summary>
+        internal class TrLine
+        {
+            public double Start, End;
+            public string Text = "";
+        }
+
+        /// <summary>מתמלל קטע שמע אחד. הזמנים שחוזרים הם יחסית לתחילת הקטע.
+        ///
+        /// חשוב: הקטע חייב להיות קצר (כדקה). נמדד שכשמבקשים מהמודל לתמלל
+        /// קובץ שלם, הטקסט יוצא נכון אבל חותמות הזמן נסחפות בערך 40 שניות
+        /// לכל דקה - הוא מדווח על קובץ של 300 שניות כאילו הוא 460. בקטע של
+        /// דקה הסטייה יורדת ל-0.22 שניות. ראו docs\RESEARCH-transcription.md.
+        /// </summary>
+        public static List<TrLine> TranscribeChunk(byte[] audio, string mime, string context, out string error)
+        {
+            error = null;
+            if (audio == null || audio.Length == 0) { error = "אין שמע לתמלל."; return null; }
+
+            string sys =
+                "אתה מתמלל שמע לכתוביות. תמלל בדיוק את מה שנאמר, בשפה שבה זה נאמר.\n" +
+                "כללים: אל תתרגם; אל תסכם; אל תוסיף מילים שלא נאמרו; אל תכתוב הערות " +
+                "כמו [מוזיקה] או [לא ברור]; אם קטע לא מובן - דלג עליו.\n" +
+                "פסק כרגיל, וחלק לשורות קצרות שנוחות לקריאה על מסך.\n" +
+                (string.IsNullOrEmpty(context) ? "" : "רקע על התוכן: " + context + "\n") +
+                "החזר אך ורק מערך JSON: [{\"s\":0.00,\"e\":2.50,\"t\":\"...\"}]\n" +
+                "‏s ו-e בשניות מתחילת קובץ השמע הזה. אם אין דיבור כלל - החזר [].";
+
+            AiMsg m = new AiMsg();
+            m.Role = "user";
+            m.Text = "תמלל את קובץ השמע.";
+            m.AudioB64 = Convert.ToBase64String(audio);
+            m.AudioMime = mime;
+            List<AiMsg> h = new List<AiMsg>();
+            h.Add(m);
+
+            AiReply r = Send(sys, h, null, true);
+            if (!r.Ok) { error = r.Error; return null; }
+
+            List<TrLine> outp = new List<TrLine>();
+            try
+            {
+                string txt = r.Text.Trim();
+                int a = txt.IndexOf('[');
+                int b = txt.LastIndexOf(']');
+                if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
+                System.Collections.IList arr = Arr(Ser().DeserializeObject(txt));
+                if (arr == null) { error = "התמלול חזר בפורמט לא צפוי."; return null; }
+                foreach (object o in arr)
+                {
+                    Dictionary<string, object> d = o as Dictionary<string, object>;
+                    if (d == null) continue;
+                    TrLine ln = new TrLine();
+                    ln.Start = NumOf(d, "s");
+                    ln.End = NumOf(d, "e");
+                    object tv;
+                    if (d.TryGetValue("t", out tv)) ln.Text = Convert.ToString(tv);
+                    if (ln.Text == null) ln.Text = "";
+                    ln.Text = ln.Text.Trim();
+                    if (ln.Text.Length == 0) continue;
+                    if (ln.End <= ln.Start) ln.End = ln.Start + 1.5;
+                    outp.Add(ln);
+                }
+                return outp;
+            }
+            catch (Exception ex)
+            {
+                error = "התמלול חזר בפורמט לא צפוי: " + ex.Message;
+                return null;
+            }
+        }
+
+        private static double NumOf(Dictionary<string, object> d, string key)
+        {
+            object o;
+            if (d == null || !d.TryGetValue(key, out o) || o == null) return 0;
+            double v;
+            if (double.TryParse(Convert.ToString(o, CultureInfo.InvariantCulture),
+                    NumberStyles.Any, CultureInfo.InvariantCulture, out v)) return v;
+            return 0;
+        }
+
         /// <summary>מתרגם רשימת שורות ומחזיר רשימה באותו אורך. מחזיר null בשגיאה.</summary>
         public static List<string> Translate(List<string> lines, string targetLang, string context, out string error)
         {

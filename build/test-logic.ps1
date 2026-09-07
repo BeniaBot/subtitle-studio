@@ -589,5 +589,66 @@ if ($bb) {
     Check 'BuildBody נגיש לבדיקה' $false 'הפרידו את בניית הגוף למתודה כדי שאפשר יהיה לבדוק אותה'
 }
 
+# ---------- תמלול אוטומטי ----------
+# החיתוך והאיחוי הם החלק שאפשר לבדוק בלי רשת, והם גם החלק שנשבר בשקט:
+# כפילות בגבול בין קטעים לא מייצרת שום שגיאה - רק כתובית כפולה בקובץ.
+
+Write-Host 'תמלול אוטומטי'
+$ST2 = [Reflection.BindingFlags]'NonPublic,Public,Static'
+$trT = & $T 'Transcribe'
+Check 'מחלקת התמלול קיימת' ($null -ne $trT) ''
+if ($trT) {
+    Eq 'אורך קטע' ($trT.GetField('ChunkSec', $ST2).GetValue($null)) 60
+    Eq 'חפיפה'    ($trT.GetField('OverlapSec', $ST2).GetValue($null)) 5
+
+    $dd = $trT.GetMethod('Dedupe', $ST2)
+    $ctor = $cueT.GetConstructor([Type[]]@([long],[long],[string]))
+    $listCueT = [System.Collections.Generic.List`1].MakeGenericType($cueT)
+    # בונים את הרשימה בתוך אותה פונקציה שמשתמשת בה: פונקציה שמחזירה
+    # List<T> נפרסת ל-object[] בדרך החוצה, וזו המלכודת שמתועדת ב-CLAUDE.md.
+    function DedupCount($rows) {
+        $l = [Activator]::CreateInstance($listCueT)
+        $add = $listCueT.GetMethod('Add')
+        foreach ($r in $rows) {
+            $c = $ctor.Invoke(@([long]$r[0], [long]$r[1], [string]$r[2]))
+            [void]$add.Invoke($l, (Pack $c))
+        }
+        $r2 = $dd.Invoke($null, (Pack $l))
+        return $r2.Count
+    }
+
+    Eq 'כפילות בגבול נזרקת' `
+       (DedupCount @(@(1000,3000,'שלום לכולם'), @(1050,3100,'שלום לכולם'), @(5000,7000,'משפט אחר'))) 2
+    Eq 'אותו טקסט רחוק בזמן נשמר' `
+       (DedupCount @(@(1000,3000,'שלום לכולם'), @(3400,5000,'שלום לכולם'), @(6000,8000,'עוד'))) 3
+    Eq 'טקסט שונה לא נזרק' `
+       (DedupCount @(@(1000,3000,'שלום לכולם'), @(1050,3100,'טקסט אחר לגמרי'))) 2
+    Eq 'אמירה שנחתכה בגבול מזוהה' `
+       (DedupCount @(@(1000,3000,'שלום לכולם היום נלמד'), @(1100,2900,'שלום לכולם היום'))) 1
+    Eq 'פיסוק לא מונע זיהוי כפילות' `
+       (DedupCount @(@(1000,3000,'שלום, לכולם!'), @(1050,3100,'שלום לכולם'))) 1
+    Eq 'שתי מילים בלבד לא מאוחדות בטעות' `
+       (DedupCount @(@(1000,3000,'כן טוב'), @(1050,3100,'כן רע'))) 2
+
+    # AiMsg נושא אודיו, ו-BuildBody מוציא inline_data - זה מה שמאפשר תמלול
+    $msgT2 = & $T 'AiMsg'
+    Check 'AiMsg נושא שדה אודיו' ($null -ne $msgT2.GetField('AudioB64')) ''
+    $bb2 = (& $T 'Ai').GetMethod('BuildBody', $ST2)
+    if ($bb2 -and $msgT2.GetField('AudioB64')) {
+        $listMsgT2 = [System.Collections.Generic.List`1].MakeGenericType($msgT2)
+        $h2 = [Activator]::CreateInstance($listMsgT2)
+        $am = [Activator]::CreateInstance($msgT2)
+        $msgT2.GetField('Text').SetValue($am, 'תמלל')
+        $msgT2.GetField('AudioB64').SetValue($am, 'QUJD')
+        $listMsgT2.GetMethod('Add').Invoke($h2, (Pack $am))
+        $j3 = $bb2.Invoke($null, (Pack ([string]'sys') $h2 $null $true ([string]'gemini-2.5-flash')))
+        Check 'הבקשה כוללת inline_data' ($j3 -match '"inline_data"') ''
+        Check 'ובתוכו הבייטים'          ($j3 -match '"QUJD"') ''
+        Check 'וההוראה לפני השמע'       ($j3.IndexOf('תמלל') -lt $j3.IndexOf('QUJD')) ''
+    }
+
+    Check 'TrLine קיים' ($null -ne (& $T 'Ai+TrLine')) ''
+}
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

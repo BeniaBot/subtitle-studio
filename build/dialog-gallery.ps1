@@ -64,6 +64,7 @@ $style = NewOf "SubStyle" @()
 
 $dialogs = @(
     @{ n = "ImportText"; make = { NewOf "ImportTextDlg" @([int64]0) } },
+    @{ n = "Transcribe"; make = { NewOf "TranscribeDlg" @($mi, [int]3) } },
     @{ n = "Fix";        make = { NewOf "FixDlg" @($doc) } },
     @{ n = "Sync";       make = { $cues[1].Selected = $true; NewOf "SyncDlg" @($doc, [int64]7900, (NewOf "SyncState" @())) } },
     @{ n = "Trim";       make = { NewOf "TrimDlg" @($null, $mi, $doc, [int64]5000, [int64]15000) } },
