@@ -308,19 +308,42 @@ namespace SubtitleStudio
             }
         }
 
-        /// <summary>תיקון חפיפות: כתובית שנגמרת אחרי שהבאה מתחילה תיחתך.</summary>
+        /// <summary>תיקון חפיפות: כתובית שנגמרת אחרי שהבאה מתחילה תיחתך.
+        ///
+        /// **כשאין מקום לקצר, דוחפים את הבאה.** הגרסה הקודמת הגבילה את
+        /// הקיצור ל-100ms מינימום ואז **השאירה את החפיפה במקומה** - ודיווחה
+        /// שתיקנה. כתוביות דחוסות (למשל תמלול אוטומטי שהחזיר שורות צפופות)
+        /// נשארו חופפות אחרי ״תיקון תזמונים אוטומטי״, והמשתמש ראה את סמל
+        /// האזהרה ברשימה גם אחרי שהריץ אותו.
+        ///
+        /// חפיפה פירושה שתי שורות על המסך בו-זמנית; דחיפה של עשיריות שנייה
+        /// כמעט לא מורגשת. לכן העדיפות היא לדחוף.</summary>
         public int FixOverlaps(int gapMs)
         {
             Sort();
+            const long MinDur = 100;
             int n = 0;
             for (int i = 0; i < Cues.Count - 1; i++)
             {
-                if (Cues[i].End > Cues[i + 1].Start - gapMs)
+                Cue cur = Cues[i], next = Cues[i + 1];
+                if (cur.End <= next.Start - gapMs) continue;
+
+                // קודם מנסים לקצר את הנוכחית - זו ההתערבות הקטנה יותר
+                long ne = next.Start - gapMs;
+                if (ne >= cur.Start + MinDur)
                 {
-                    long ne = Cues[i + 1].Start - gapMs;
-                    if (ne < Cues[i].Start + 100) ne = Cues[i].Start + 100;
-                    if (ne != Cues[i].End) { Cues[i].End = ne; n++; }
+                    cur.End = ne;
+                    n++;
+                    continue;
                 }
+
+                // אין מקום. מקצרים למינימום ודוחפים את הבאה קדימה, תוך
+                // שמירה על המשך שלה.
+                cur.End = cur.Start + MinDur;
+                long dur = Math.Max(MinDur, next.End - next.Start);
+                next.Start = cur.End + gapMs;
+                next.End = next.Start + dur;
+                n++;
             }
             return n;
         }

@@ -16,7 +16,7 @@ namespace SubtitleStudio
     internal static class App
     {
         /// <summary>גרסת התוכנה. חייבת להיות זהה לתגית ה-Release בגיטהאב (בלי v).</summary>
-        public const string Version = "0.6.3";
+        public const string Version = "0.6.4";
         public const string Repo = "BeniaBot/subtitle-studio";
         public const string HomePage = "https://github.com/" + Repo;
 
@@ -536,72 +536,41 @@ namespace SubtitleStudio
 namespace SubtitleStudio
 {
     /// <summary>חלון "על התוכנה" - גרסה, מנוע וידאו ועדכונים.</summary>
+    /// <summary>״על התוכנה״ - זהות, גרסה, רישיון וקישורים. **בלי מתגים.**
+    ///
+    /// עד 0.6.4 ישבו כאן גם מתג העדכונים וניהול מנוע הווידאו, כי לא היה
+    /// חלון הגדרות. עכשיו יש - וחלון ״אודות״ בכל תוכנה אחרת הוא מסך קריאה
+    /// בלבד. מה שנשאר כאן שייך לזהות התוכנה: מי היא, איזו גרסה, לפי איזה
+    /// רישיון, ואיפה הקוד.</summary>
     internal class AboutDlg : Dlg
     {
-        private Toggle _auto;
         private Lbl _status;
 
         public AboutDlg() : base("על התוכנה", Ico.Info, 540)
         {
             Subtitle = "אולפן הכתוביות · גרסה " + App.Version;
 
-            Lbl what = Hint("תוכנה חופשית ליצירה, לתיקון ולהטמעה של כתוביות." + Environment.NewLine +
-                            "רצה בלי התקנה ובלי אינטרנט - הכול נמצא בתוך הקובץ הזה.");
-            Row(what, 46, 16);
+            Lbl what = Hint("תוכנה חופשית ליצירה, לתיקון ולהטמעה של כתוביות בעברית." + Environment.NewLine +
+                            "רצה בלי התקנה ובלי אינטרנט - הכול נמצא בתוך הקובץ הזה." + Environment.NewLine +
+                            "הפעולות היחידות שיוצאות החוצה הן התרגום, התמלול והעוזר.");
+            Row(what, 60, 14);
 
-            Section("מנוע הווידאו");
-            string ff = Ff.Exe;
-            bool ours = Ff.IsOwnEngine;
-            string engine;
-            if (string.IsNullOrEmpty(ff)) engine = "לא נמצא. התוכנה תפרוס אותו בהפעלה הבאה.";
-            else if (!ours)
-            {
-                // הפריסה נכשלה ואנחנו רצים על מנוע שמותקן במחשב. חשוב לומר
-                // את זה: כפתור המחיקה למטה לא נוגע בקובץ הזה, וגם היכולות
-                // שלו לא בשליטתנו.
-                engine = "התוכנה לא הצליחה לפרוס את המנוע שלה, ולכן היא משתמשת" +
-                         Environment.NewLine + "במנוע שמותקן במחשב:" + Environment.NewLine + Theme.Ltr(ff);
-            }
-            else
-            {
-                long size = 0;
-                try { size = new System.IO.FileInfo(ff).Length; }
-                catch { }
-                engine = Theme.Ltr(ff);
-                if (size > 0) engine += Environment.NewLine + "תופס " + Theme.Ltr(MediaInfo.FormatSize(size)) + " בדיסק";
-            }
-            Lbl eng = Hint(engine);
-            Row(eng, ours ? 46 : 62, 6);
-
-            // הכפתור מוחק את התיקייה שלנו בלבד, ולכן אין לו משמעות כשאנחנו
-            // רצים על מנוע זר - הוא היה מבטיח מחיקה של קובץ שהוא לא נוגע בו.
-            if (ours)
-            {
-                Btn del = new Btn();
-                del.Text = "מחיקת המנוע (ייפרס מחדש בהפעלה הבאה)";
-                del.Kind = BtnKind.Tool;
-                del.Font = Theme.Small;
-                del.Icon = Ico.Trash;
-                del.IconSize = Theme.S(14);
-                del.Click += delegate { RemoveEngine(); };
-                Row(del, 30, 18);
-            }
-            else Y += Theme.S(12);
-
-            Section("עדכונים");
-            _auto = new Toggle();
-            _auto.Text = "לבדוק עדכונים בכל הפעלה";
-            _auto.Checked = Settings.AutoUpdate;
-            _auto.CheckedChanged += delegate { Settings.AutoUpdate = _auto.Checked; Settings.SaveAll(); };
-            Row(_auto, 30, 6);
+            Section("גרסה");
+            Lbl ver = Hint("גרסה " + Theme.Ltr(App.Version) + "   ·   " +
+                           (Install.IsInstalled() ? "עותק מותקן" : "עותק נייד") + "   ·   " +
+                           Theme.Ltr(IntPtr.Size == 8 ? "64 bit" : "32 bit"));
+            Row(ver, 20, 6);
 
             _status = Hint(string.IsNullOrEmpty(Settings.LastCheck)
-                ? "הבדיקה מהירה ולא שולחת שום מידע - רק שואלת אם יש גרסה חדשה."
-                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck) +
-                  "   ·   הבדיקה לא שולחת שום מידע.");
-            Row(_status, 34, 16);
+                ? "לחצו ״בדיקת עדכון״ כדי לראות אם יצאה גרסה חדשה."
+                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck));
+            Row(_status, 32, 6);
 
-            Section("רישיון וקוד מקור");
+            Btn copy = Small("העתקת פרטי הגרסה", Ico.Copy);
+            copy.Click += delegate { CopyDiagnostics(); };
+            Row(copy, 30, 16);
+
+            Section("רישיון");
             Lbl lic = Hint("הקוד של התוכנה חופשי (רישיון " + Theme.Ltr("MIT") + ") - מותר לקחת אותו," + Environment.NewLine +
                            "לשנות ולבנות ממנו מה שרוצים. מנוע הווידאו " + Theme.Ltr("FFmpeg") +
                            " מגיע ברישיון " + Theme.Ltr("GPLv3") + "," + Environment.NewLine +
@@ -609,29 +578,55 @@ namespace SubtitleStudio
                            ". הנוסח המלא של כולם נמצא בתוך הקובץ.");
             Row(lic, 64, 6);
 
-            Btn save = new Btn();
-            save.Text = "שמירת נוסח הרישיונות לתיקייה";
-            save.Kind = BtnKind.Tool;
-            save.Font = Theme.Small;
-            save.Icon = Ico.Save;
-            save.IconSize = Theme.S(14);
+            Btn save = Small("שמירת נוסח הרישיונות לתיקייה", Ico.Save);
             save.Click += delegate { SaveLicenses(); };
-            Row(save, 30, 6);
+            Row(save, 30, 16);
 
-            Btn src = new Btn();
-            src.Text = "קוד המקור באינטרנט";
-            src.Kind = BtnKind.Tool;
-            src.Font = Theme.Small;
-            src.Icon = Ico.Export;
-            src.IconSize = Theme.S(14);
-            src.Click += delegate
-            {
-                try { System.Diagnostics.Process.Start("https://github.com/" + App.Repo); }
-                catch { }
-            };
+            Section("קוד ותמיכה");
+            Btn src = Small("קוד המקור באינטרנט", Ico.Export);
+            src.Click += delegate { Open("https://github.com/" + App.Repo); };
             Row(src, 30, 6);
 
+            Btn iss = Small("דיווח על תקלה או בקשה", Ico.Chat);
+            iss.Click += delegate { Open("https://github.com/" + App.Repo + "/issues"); };
+            Row(iss, 30, 6);
+
+            Btn log = Small("יומן השינויים המלא", Ico.List);
+            log.Click += delegate { Open("https://github.com/" + App.Repo + "/blob/main/CHANGELOG.md"); };
+            Row(log, 30, 6);
+
             Buttons("בדיקת עדכון עכשיו", Ico.Refresh, "סגירה");
+        }
+
+        private Btn Small(string text, Ico icon)
+        {
+            Btn b = new Btn();
+            b.Text = text;
+            b.Kind = BtnKind.Tool;
+            b.Font = Theme.Small;
+            b.Icon = icon;
+            b.IconSize = Theme.S(14);
+            return b;
+        }
+
+        private static void Open(string url)
+        {
+            try { System.Diagnostics.Process.Start(url); }
+            catch { }
+        }
+
+        /// <summary>שורה אחת להדביק בדיווח על תקלה. בלי זה מי שמדווח צריך
+        /// לתאר במילים איזו גרסה של ווינדוס יש לו.</summary>
+        private void CopyDiagnostics()
+        {
+            string s = "אולפן הכתוביות " + App.Version +
+                       " | " + (Install.IsInstalled() ? "installed" : "portable") +
+                       " | " + (IntPtr.Size == 8 ? "x64" : "x86") +
+                       " | Windows " + Environment.OSVersion.Version +
+                       " | .NET " + Environment.Version +
+                       " | engine " + (Ff.IsOwnEngine ? "embedded" : "system");
+            try { Clipboard.SetText(s); Ui.Info(this, "הועתק", s); }
+            catch { Ui.Error(this, "לא הועתק", s); }
         }
 
         /// <summary>כותב את שלושת נוסחי הרישיון מהמשאבים לתיקייה שהמשתמש בוחר.
@@ -671,14 +666,16 @@ namespace SubtitleStudio
             else Ui.Error(this, "לא נשמר", err != null ? err : "לא נמצאו נוסחי רישיון בקובץ.");
         }
 
-        private void RemoveEngine()
+        /// <summary>מוחק את המנוע שהתוכנה פרסה. סטטי כי גם חלון ההגדרות
+        /// מציע את זה, ואין סיבה לשתי הודעות שונות לאותה פעולה.</summary>
+        public static void RemoveEngine(Form owner)
         {
-            if (!Ui.Confirm(this, "למחוק את מנוע הווידאו?",
+            if (!Ui.Confirm(owner, "למחוק את מנוע הווידאו?",
                 "התוכנה תפרוס אותו מחדש בהפעלה הבאה (כמה שניות).", "למחוק", "ביטול")) return;
             string msg;
             bool ok = Runtime.Remove(out msg);
-            if (ok) Ui.Info(this, "נמחק", msg);
-            else Ui.Error(this, "לא נמחק", msg);
+            if (ok) Ui.Info(owner, "נמחק", msg);
+            else Ui.Error(owner, "לא נמחק", msg);
         }
 
         private void SetStatus(string text, Color color)
@@ -703,6 +700,8 @@ namespace SubtitleStudio
             {
                 string err;
                 Updater.Release rel = Updater.Check(out err);
+                ChangeSummary sum = rel != null && App.IsNewer(rel.Version)
+                    ? Changelog.Fetch(App.Version, rel.Version) : null;
                 try
                 {
                     BeginInvoke((MethodInvoker)delegate
@@ -716,7 +715,7 @@ namespace SubtitleStudio
                         else
                         {
                             SetStatus("יש גרסה חדשה: " + rel.Version, Theme.Accent);
-                            Updates.Offer(this, rel);
+                            Updates.Offer(this, rel, sum);
                         }
                     });
                 }
@@ -725,6 +724,238 @@ namespace SubtitleStudio
             th.IsBackground = true;
             th.Start();
             return false;                       // החלון נשאר פתוח
+        }
+    }
+
+    /// <summary>פריט אחד ביומן: מה השתנה, ובאיזו גרסה.</summary>
+    internal class ChangeItem
+    {
+        public string Kind = "";        // major / feature / fix
+        public string Text = "";
+        public string Version = "";
+    }
+
+    internal class ChangeGroup
+    {
+        public string Title = "";
+        public readonly List<string> Items = new List<string>();
+    }
+
+    /// <summary>תקציר מוכן להצגה: כותרת, קבוצות, וכמה גרסאות דילגו.</summary>
+    internal class ChangeSummary
+    {
+        public string Headline = "";
+        public string From = "", To = "";
+        public int Jump;
+        public readonly List<string> Versions = new List<string>();
+        public readonly List<ChangeGroup> Groups = new List<ChangeGroup>();
+        public int Majors, Features, Fixes;
+
+        public bool Empty { get { return Groups.Count == 0; } }
+    }
+
+    /// <summary>יומן השינויים הקריא-למכונה שבשורש המאגר.
+    ///
+    /// **למה לא לקחת את זה מה-Release.** ‏`/releases/latest` מחזיר גרסה
+    /// **אחת**, ולכן מי שנשאר על 0.3 וקפץ ל-0.6.4 ראה רק מה השתנה בגרסה
+    /// האחרונה - ועוד חתוך ב-400 תווים. הטקסט של ה-Release גם כתוב
+    /// לקריאה בדפדפן: כותרות Markdown, ציטוטים, פסקאות שלמות. אי אפשר
+    /// לקצר אותו בלי לחתוך באמצע משפט.
+    ///
+    /// ‏`changelog.json` הוא רשימה מתויגת - כל שינוי הוא שורה אחת עם
+    /// תווית major/feature/fix. מכאן אפשר **לבנות** תקציר לפי גודל
+    /// הקפיצה, במקום לחתוך אחד קיים.
+    ///
+    /// נקרא מ-raw.githubusercontent.com ולא מה-API: אין שם מגבלת קצב לפי
+    /// כתובת IP, וזה חשוב כשכל הפעלה בודקת עדכון.</summary>
+    internal static class Changelog
+    {
+        private const string RawUrl =
+            "https://raw.githubusercontent.com/" + App.Repo + "/main/changelog.json";
+
+        /// <summary>מוריד את היומן ובונה תקציר. מחזיר null אם אין רשת -
+        /// דיאלוג העדכון יציג אז את הטקסט של ה-Release במקום.</summary>
+        public static ChangeSummary Fetch(string from, string to)
+        {
+            try
+            {
+                ServicePointManager.SecurityProtocol =
+                    (SecurityProtocolType)3072 | (SecurityProtocolType)768;
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(RawUrl);
+                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.Timeout = 10000;
+                req.ReadWriteTimeout = 10000;
+                string json;
+                using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
+                using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8))
+                    json = sr.ReadToEnd();
+                return Build(json, from, to);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>בונה את התקציר מתוך ה-JSON. נפרד מ-Fetch כדי שאפשר
+        /// יהיה לבדוק את כללי הקיצור בלי רשת.</summary>
+        public static ChangeSummary Build(string json, string from, string to)
+        {
+            Dictionary<string, object> root;
+            try
+            {
+                JavaScriptSerializer js = new JavaScriptSerializer();
+                js.MaxJsonLength = 8 * 1024 * 1024;
+                root = js.DeserializeObject(json) as Dictionary<string, object>;
+            }
+            catch { return null; }
+            if (root == null) return null;
+
+            object[] arr = Get(root, "versions") as object[];
+            if (arr == null) return null;
+
+            // כל גרסה שגדולה מזו שרצה, ולא גדולה מזו שמוצעת. החסם העליון
+            // נחוץ כי הקובץ נקרא מענף main, והוא יכול להכיל גרסה שכבר
+            // נכתבה ועדיין לא שוחררה.
+            List<string> vers = new List<string>();
+            List<ChangeItem> items = new List<ChangeItem>();
+            for (int i = 0; i < arr.Length; i++)
+            {
+                Dictionary<string, object> e = arr[i] as Dictionary<string, object>;
+                if (e == null) continue;
+                string v = Str(e, "v").Trim();
+                if (v.Length == 0) continue;
+                if (Cmp(v, from) <= 0) continue;
+                if (!string.IsNullOrEmpty(to) && Cmp(v, to) > 0) continue;
+                vers.Add(v);
+                object[] its = Get(e, "items") as object[];
+                if (its == null) continue;
+                for (int k = 0; k < its.Length; k++)
+                {
+                    Dictionary<string, object> it = its[k] as Dictionary<string, object>;
+                    if (it == null) continue;
+                    string s = Str(it, "s").Trim();
+                    if (s.Length == 0) continue;
+                    ChangeItem ci = new ChangeItem();
+                    ci.Kind = Str(it, "t").Trim().ToLowerInvariant();
+                    ci.Text = s;
+                    ci.Version = v;
+                    items.Add(ci);
+                }
+            }
+
+            ChangeSummary sum = new ChangeSummary();
+            sum.From = from; sum.To = to;
+            sum.Jump = vers.Count;
+            sum.Versions.AddRange(vers);
+            if (vers.Count == 0) return sum;
+
+            List<string> majors = OfKind(items, "major");
+            List<string> feats = OfKind(items, "feature");
+            List<string> fixes = OfKind(items, "fix");
+            sum.Majors = majors.Count; sum.Features = feats.Count; sum.Fixes = fixes.Count;
+
+            if (sum.Jump == 1)
+            {
+                // גרסה אחת: הכול, מקובץ לפי סוג
+                Add(sum, "חשוב לדעת", majors, int.MaxValue);
+                Add(sum, "מה חדש", feats, int.MaxValue);
+                Add(sum, "תיקונים", fixes, int.MaxValue);
+            }
+            else if (sum.Jump <= 3)
+            {
+                // קפיצה קטנה: מה שחשוב במלואו, התיקונים כמספר. גם כאן יש
+                // תקרה לתוספות - בלעדיה קפיצה של שלוש גרסאות עמוסות יוצאת
+                // **ארוכה** מקפיצה של שש, שכן מוגבלת. התקרה חייבת לרדת עם
+                // גודל הקפיצה, אחרת ה״קיצור״ הוא רק הבטחה.
+                Add(sum, "חשוב לדעת", majors, int.MaxValue);
+                Add(sum, "מה חדש", feats, 6);
+                List<string> tail = new List<string>();
+                int rest = Math.Max(0, feats.Count - 6);
+                if (rest > 0) tail.Add("ועוד " + Count(rest, "תוספת אחת", "תוספות"));
+                if (fixes.Count > 0) tail.Add(Count(fixes.Count, "תיקון אחד", "תיקונים") + " ושיפורים");
+                if (tail.Count > 0) Tail(sum, string.Join(" · ", tail.ToArray()));
+            }
+            else
+            {
+                // קפיצה גדולה: רק הכותרות. **התקרה מתהדקת ככל שהקפיצה
+                // גדלה** - מי שדילג על תשע גרסאות צריך פחות טקסט, לא יותר.
+                // הוא ממילא לא יקרא ארבעים שורות, והמטרה כאן היא שילחץ
+                // ״לעדכן״ - לא שיֵדע הכול.
+                int nm = sum.Jump <= 6 ? 3 : 2;
+                int nf = sum.Jump <= 6 ? 4 : 3;
+                Add(sum, "חשוב לדעת", majors, nm);
+                Add(sum, "העיקר שנוסף", feats, nf);
+                List<string> tail = new List<string>();
+                int rest = Math.Max(0, majors.Count - nm) + Math.Max(0, feats.Count - nf);
+                if (rest > 0) tail.Add("ועוד " + Count(rest, "תוספת אחת", "תוספות"));
+                if (fixes.Count > 0) tail.Add(Count(fixes.Count, "תיקון אחד", "תיקונים"));
+                if (tail.Count > 0) Tail(sum, string.Join(" · ", tail.ToArray()));
+            }
+
+            string newest = vers[0], oldest = vers[0];
+            for (int i = 1; i < vers.Count; i++)
+            {
+                if (Cmp(vers[i], newest) > 0) newest = vers[i];
+                if (Cmp(vers[i], oldest) < 0) oldest = vers[i];
+            }
+            sum.Headline = sum.Jump == 1
+                ? "מה השתנה בגרסה " + newest
+                : "דילגתם על " + Count(sum.Jump, "גרסה אחת", "גרסאות") +
+                  " (" + oldest + " ← " + newest + ") — הנה העיקר";
+            return sum;
+        }
+
+        /// <summary>״תיקון אחד״ מול ״7 תיקונים״. ‏״1 תיקונים״ נראה כמו באג.</summary>
+        private static string Count(int n, string singular, string plural)
+        {
+            return n == 1 ? singular : n.ToString(CultureInfo.InvariantCulture) + " " + plural;
+        }
+
+        private static void Add(ChangeSummary sum, string title, List<string> src, int max)
+        {
+            if (src.Count == 0) return;
+            ChangeGroup g = new ChangeGroup();
+            g.Title = title;
+            for (int i = 0; i < src.Count && i < max; i++) g.Items.Add(src[i]);
+            sum.Groups.Add(g);
+        }
+
+        private static void Tail(ChangeSummary sum, string line)
+        {
+            ChangeGroup g = new ChangeGroup();
+            g.Title = "ובנוסף";
+            g.Items.Add(line);
+            sum.Groups.Add(g);
+        }
+
+        private static List<string> OfKind(List<ChangeItem> items, string kind)
+        {
+            List<string> r = new List<string>();
+            for (int i = 0; i < items.Count; i++)
+                if (items[i].Kind == kind) r.Add(items[i].Text);
+            return r;
+        }
+
+        /// <summary>השוואת גרסאות. ‏App.Parse מטפל ב-v מוביל ובחלקים לא-מספריים.</summary>
+        public static int Cmp(string a, string b)
+        {
+            int[] x = App.Parse(a), y = App.Parse(b);
+            for (int i = 0; i < 3; i++)
+            {
+                if (x[i] > y[i]) return 1;
+                if (x[i] < y[i]) return -1;
+            }
+            return 0;
+        }
+
+        private static object Get(Dictionary<string, object> d, string key)
+        {
+            object v;
+            return d != null && d.TryGetValue(key, out v) ? v : null;
+        }
+
+        private static string Str(Dictionary<string, object> d, string key)
+        {
+            object v = Get(d, key);
+            return v == null ? "" : Convert.ToString(v, CultureInfo.InvariantCulture);
         }
     }
 
@@ -746,9 +977,12 @@ namespace SubtitleStudio
                         System.Globalization.CultureInfo.InvariantCulture);
                 }
                 if (rel == null || !App.IsNewer(rel.Version)) return;
+                // עוד על חוט הרקע: הבאת היומן היא בקשת רשת שנייה,
+                // וחלון ההצעה לא אמור להיפתח לפני שיש לו מה להראות.
+                ChangeSummary sum = Changelog.Fetch(App.Version, rel.Version);
                 try
                 {
-                    owner.BeginInvoke((MethodInvoker)delegate { Offer(owner, rel); });
+                    owner.BeginInvoke((MethodInvoker)delegate { Offer(owner, rel, sum); });
                 }
                 catch { }
             });
@@ -756,24 +990,21 @@ namespace SubtitleStudio
             t.Start();
         }
 
-        public static void Offer(Form owner, Updater.Release rel)
+        public static void Offer(Form owner, Updater.Release rel) { Offer(owner, rel, null); }
+
+        /// <summary>‏<paramref name="sum"/> נאסף מראש על חוט הרקע. מותר לו
+        /// להיות null - אז החלון מציג את הטקסט של ה-Release. מה שאסור הוא
+        /// למשוך אותו כאן: זה חוט הממשק, וההורדה יכולה לקחת עשר שניות.</summary>
+        public static void Offer(Form owner, Updater.Release rel, ChangeSummary sum)
         {
-            string notes = string.IsNullOrEmpty(rel.Notes) ? "" : "\n\nמה חדש:\n" + Trim(rel.Notes, 400);
-            int r = Ui.Msg(owner, "יש גרסה חדשה: " + rel.Version,
-                "הגרסה שלכם היא " + App.Version + ". אפשר לעדכן עכשיו - זה לוקח כמה שניות, " +
-                "התוכנה תיסגר ותיפתח מחדש לבד." + notes,
-                Ico.Download, "לעדכן עכשיו", "אחר כך");
-            if (r != 0) return;
+            using (UpdateDlg d = new UpdateDlg(rel, sum))
+            {
+                d.ShowDialog(owner);
+                if (!d.Ok) return;
+            }
             // בלי בדיקה על rel.Url כאן: העותק המותקן מתעדכן דרך SetupUrl,
             // ו-DownloadAndApply הוא זה שיודע להבחין בין שני הערוצים.
             Updater.DownloadAndApply(owner, rel);
-        }
-
-        private static string Trim(string s, int max)
-        {
-            if (string.IsNullOrEmpty(s)) return "";
-            s = s.Trim();
-            return s.Length <= max ? s : s.Substring(0, max) + "…";
         }
     }
 }

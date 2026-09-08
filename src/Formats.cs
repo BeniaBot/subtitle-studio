@@ -451,38 +451,53 @@ namespace SubtitleStudio
         /// <summary>סימן RTL בלתי נראה שמכריח את כיוון השורה.</summary>
         private const char Rlm = '‏';
 
-        /// <summary>מוסיף RLM בתחילת שורה עברית שמתחילה בתו לא-עברי.
+        /// <summary>מעגן שורה עברית בשני קצותיה בעזרת RLM.
         ///
-        /// **הבאג שזה מתקן:** כתובית כמו ״3 דברים שכדאי לדעת״ נצרבת כ-
-        /// ״דברים שכדאי לדעת 3״ - המספר קופץ לקצה השמאלי. הסיבה היא
-        /// אלגוריתם ה-bidi של יוניקוד: ספרה היא תו ״חלש״, וכשהיא פותחת
-        /// שורה בהקשר RTL היא מקבלת רמת הטמעה נפרדת ונדחפת לקצה.
+        /// **הבאג הראשון (תחילת שורה):** כתובית כמו ״3 דברים שכדאי לדעת״
+        /// נצרבת כ״דברים שכדאי לדעת 3״ - המספר קופץ לקצה השמאלי. ספרה
+        /// היא תו ״חלש״, וכשהיא פותחת שורה היא מקבלת רמת הטמעה נפרדת.
         /// אותו דבר קורה לגרש, למקף פותח ולמילה לועזית בתחילת משפט עברי.
-        /// ‏RLM בהתחלה הוא תו RTL חזק, והוא מעגן את השורה.
         ///
-        /// **נעשה רק בדרך לצריבה ולתצוגה, אף פעם לא בקובץ שנשמר** - כמו
-        /// NormalizeTimeLine. הכתובית של המשתמש נשארת בדיוק כפי שכתב.
+        /// **הבאג השני (סוף שורה):** נקודה בסוף משפט עברי הופיעה **מימין**
+        /// למשפט במקום משמאל. סימן פיסוק הוא תו **ניטרלי**, וכלל N2 של
+        /// UAX#9 נותן לו את כיוון **הפסקה** - לא את כיוון האותיות שלידו.
+        /// כשהמנוע שמצייר קובע בסיס LTR (וזה מה שנגנים רבים עושים לקובץ
+        /// SRT), הנקודה יוצאת בקצה השני. ‏RLM אחריה הופך את שני שכניה
+        /// ל-RTL, וכלל N1 מכריע לפניו - הנקודה חוזרת שמאלה.
         ///
-        /// (‏Subtitle Edit סוחבים את הבאג הזה פתוח מאז 2018, issue #2768.)</summary>
+        /// לכן שני העוגנים, ולא אחד: כל אחד מהם פותר מקרה אחר.
+        ///
+        /// **נעשה רק בדרך לצריבה, לערוץ המוטמע ולתצוגה - אף פעם לא בקובץ
+        /// שהמשתמש שומר.** הכתובית שלו נשארת בדיוק כפי שכתב.
+        ///
+        /// (‏Subtitle Edit סוחבים את באג תחילת השורה פתוח מאז 2018,
+        /// issue #2768.)</summary>
         public static string RtlFix(string text)
         {
-            if (string.IsNullOrEmpty(text) || text.IndexOf(Rlm) >= 0) return text;
+            if (string.IsNullOrEmpty(text)) return text;
 
             string[] lines = text.Replace("\r\n", "\n").Split('\n');
             bool changed = false;
             for (int i = 0; i < lines.Length; i++)
             {
                 string ln = lines[i];
-                int j = 0;
-                while (j < ln.Length && char.IsWhiteSpace(ln[j])) j++;
-                if (j >= ln.Length) continue;
+                if (!HasRtl(ln)) continue;          // שורה לועזית - אסור לגעת
 
-                // אם השורה כבר פותחת בעברית - אין מה לתקן
-                if (IsRtl(ln[j])) continue;
-                // ואם אין בה עברית בכלל - זו שורה לועזית, אסור לגעת בה
-                if (!HasRtl(ln)) continue;
+                int a = 0;
+                while (a < ln.Length && char.IsWhiteSpace(ln[a])) a++;
+                if (a >= ln.Length) continue;
+                int b = ln.Length - 1;
+                while (b > a && char.IsWhiteSpace(ln[b])) b--;
 
-                lines[i] = ln.Substring(0, j) + Rlm + ln.Substring(j);
+                string head = "", tail = "";
+                // עוגן פתיחה - רק אם השורה לא כבר פותחת באות עברית
+                if (!IsRtl(ln[a]) && ln[a] != Rlm) head = Rlm.ToString();
+                // עוגן סגירה - רק אם היא לא כבר נגמרת באות עברית
+                if (!IsRtl(ln[b]) && ln[b] != Rlm) tail = Rlm.ToString();
+                if (head.Length == 0 && tail.Length == 0) continue;
+
+                lines[i] = ln.Substring(0, a) + head + ln.Substring(a, b - a + 1) + tail +
+                           ln.Substring(b + 1);
                 changed = true;
             }
             if (!changed) return text;

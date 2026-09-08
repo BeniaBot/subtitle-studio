@@ -582,9 +582,19 @@ if ($bb) {
     $json = $bb.Invoke($null, (Pack ([string]'sys') $hist $tools $false ([string]'gemini-2.5-flash')))
     Check 'פעולה בלי פרמטרים - בלי parameters' ($json -notmatch '"properties"\s*:\s*\{\s*\}') ''
     Check 'פעולה עם פרמטר - יש properties'     ($json -match '"properties"') ''
-    Check 'thinkingBudget מכובה ב-2.5'          ($json -match '"thinkingBudget"') ''
-    $json2 = $bb.Invoke($null, (Pack ([string]'sys') $hist $tools $false ([string]'gemini-2.0-flash')))
-    Check 'ובלי thinkingBudget בדגם ישן'        ($json2 -notmatch '"thinkingBudget"') ''
+    Check 'thinkingBudget נשלח ב-2.5'           ($json -match '"thinkingBudget"') ''
+    # **לכל דגם, לא רק למי ששמו מכיל 2.5.** הבדיקה הקודמת כאן דרשה את
+    # ההפך, והיא זו שאישרה את הבאג: מרגע שברירת המחדל הפכה ל-
+    # ‏gemini-flash-latest אף דגם לא התאים לתנאי, החשיבה נשארה דלוקה
+    # בכולם, ותשובות הצ׳אט חזרו קטועות.
+    foreach ($m in @('gemini-flash-latest','gemini-3.5-flash','gemini-3.1-flash-lite','gemini-2.0-flash')) {
+        $jm = $bb.Invoke($null, (Pack ([string]'sys') $hist $tools $false ([string]$m)))
+        Check "thinkingBudget נשלח גם ל-$m" ($jm -match '"thinkingBudget"') ''
+    }
+    # ותקציב הפלט חייב להיות גדול מ-8192: החשיבה נגרעת ממנו
+    Check 'תקציב הפלט הוגדל'                   ($json -match '"maxOutputTokens":16384') ''
+    $jj = $bb.Invoke($null, (Pack ([string]'sys') $hist $tools $true ([string]'gemini-flash-latest')))
+    Check 'ובתרגום גדול יותר'                  ($jj -match '"maxOutputTokens":32768') ''
 } else {
     Check 'BuildBody נגיש לבדיקה' $false 'הפרידו את בניית הגוף למתודה כדי שאפשר יהיה לבדוק אותה'
 }

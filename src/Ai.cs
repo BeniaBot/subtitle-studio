@@ -235,6 +235,22 @@ namespace SubtitleStudio
                     break;
                 }
 
+                // הדגם דחה את בקשת כיבוי החשיבה. זו לא שגיאה של
+                // המשתמש ואין טעם להציג לו אותה - שולחים שוב בלעדיה,
+                // ורושמים שהדגם הזה לא מקבל את השדה.
+                if (LastHttpCode == 400 && !NoThinking(model) && err != null &&
+                    (err.IndexOf("thinking", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     err.IndexOf("thought", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    MarkNoThinking(model);
+                    json = BuildBody(system, history, tools, jsonOut, model);
+                    if (Post(Endpoint(model), json, out reply, out err))
+                    {
+                        if (model != Model) { Log("עברנו לדגם " + model); Model = model; }
+                        break;
+                    }
+                }
+
                 // שם דגם שלא קיים בחשבון - ממשיכים לבא
                 bool notFound = err != null && err.IndexOf("404") >= 0;
 
@@ -456,7 +472,9 @@ namespace SubtitleStudio
 
             Dictionary<string, object> cfg = new Dictionary<string, object>();
             cfg["temperature"] = 0.4;
-            cfg["maxOutputTokens"] = 8192;
+            // 8192 הספיקו כשהחשיבה היתה כבויה. מרגע שהיא דלוקה היא
+            // **נגרעת מאותו תקציב**, ותשובה ארוכה נחתכת באמצע משפט.
+            cfg["maxOutputTokens"] = jsonOut ? 32768 : 16384;
             if (jsonOut) cfg["responseMimeType"] = "application/json";
             // דגמי 2.5 ״חושבים״ לפני שהם עונים, והחשיבה נגרעת מתקציב הפלט.
             // כשהיא בולעת את כולו חוזר content בלי parts, כלומר תשובה ריקה
@@ -494,13 +512,41 @@ namespace SubtitleStudio
                 body["tools"] = new object[] { new Dictionary<string, object> { { "functionDeclarations", decls } } };
             }
 
-            // דגמי 2.5 ״חושבים״ לפני שהם עונים, והחשיבה נגרעת מתקציב הפלט.
-            // כשהיא בולעת את כולו חוזר content בלי parts - תשובה ריקה עם
-            // finishReason=STOP. הצ׳אט הזה בוחר פעולה; אין לו מה לחשוב.
-            if (model != null && model.IndexOf("2.5", StringComparison.Ordinal) >= 0)
+            // **החשיבה נגרעת מתקציב הפלט.** כשהיא בולעת אותו חוזר
+            // content בלי parts - תשובה ריקה עם finishReason=STOP, או
+            // תשובה שנקטעת באמצע. הצ׳אט הזה בוחר פעולה מתוך רשימה;
+            // אין לו מה לחשוב.
+            //
+            // **הבדיקה היתה על שם הדגם, וזה נשבר בשקט.** היא חיפשה
+            // ‏"2.5" במחרוזת, ומאז שברירת המחדל היא gemini-flash-latest
+            // ‏- ולצידה 3.5, 3-preview ו-3.1-lite - אף אחד מהם לא התאים,
+            // והחשיבה נשארה דלוקה בכולם. שם דגם הוא לא תכונה של דגם:
+            // מבקשים מכולם, ומי שלא תומך מטופל ב-Post.
+            if (!NoThinking(model))
                 cfg["thinkingConfig"] = new Dictionary<string, object> { { "thinkingBudget", 0 } };
 
             return Ser().Serialize(body);
+        }
+
+        /// <summary>דגמים שדחו ‏thinkingConfig ב-400.
+        ///
+        /// לא כל משפחה מקבלת את אותו שדה - Gemini 3 עברה ל-thinkingLevel,
+        /// ו-Pro לא מאפשר לכבות חשיבה בכלל. במקום לנחש לפי שם, שולחים
+        /// ומקשיבים: דגם שדחה נרשם כאן, והבקשה נשלחת אליו שוב בלי השדה.
+        /// כך דגם חדש שיֵצא מחר עובד בלי שינוי קוד.</summary>
+        private static readonly Dictionary<string, bool> _noThink = new Dictionary<string, bool>();
+
+        private static bool NoThinking(string model)
+        {
+            if (model == null) return false;
+            lock (_noThink) return _noThink.ContainsKey(model);
+        }
+
+        private static void MarkNoThinking(string model)
+        {
+            if (model == null) return;
+            lock (_noThink) _noThink[model] = true;
+            Log("הדגם " + model + " לא מקבל thinkingConfig - שולחים בלעדיו");
         }
 
         /// <summary>קוד ה-HTTP של הכישלון האחרון. תמלול שולח עשרות בקשות

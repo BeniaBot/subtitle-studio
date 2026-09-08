@@ -110,6 +110,18 @@ namespace SubtitleStudio
             _close.Click += delegate { Close(); };
             Controls.Add(_close);
 
+            // **סגירה מסתירה, לא הורסת.** קודם כל סגירה של החלון גם מחקה
+            // את השיחה, ולכן מי שסגר את הצ׳אט כדי לעשות פעולה בתוכנה - וזה
+            // בדיוק מה שהצ׳אט מבקש ממנו לעשות - חזר לשיחה מאופסת וצריך
+            // להסביר הכול מחדש. ״שיחה חדשה״ קיים ככפתור נפרד; מי שרוצה
+            // לאפס יבקש זאת.
+            FormClosing += delegate (object s, FormClosingEventArgs e)
+            {
+                if (e.CloseReason != CloseReason.UserClosing) return;   // התוכנה נסגרת - לתת לזה לקרות
+                e.Cancel = true;
+                Hide();
+            };
+
             _keyBtn = new Btn();
             _keyBtn.Icon = Ico.Key;
             _keyBtn.IconOnly = true;

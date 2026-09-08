@@ -32,7 +32,7 @@ namespace SubtitleStudio
         private Lbl _startLbl, _endLbl;
         private Btn _startMinus, _startPlus, _startHere, _endMinus, _endPlus, _endHere;
         private Slider _volume;
-        private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _aboutBtn, _aiBtn;
+        private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _settingsBtn, _aboutBtn, _aiBtn;
         private Btn _speedBtn, _volBtn;
         private Btn _tapBar, _tapEndBtn;
         private bool _rangeMarked;
@@ -282,7 +282,12 @@ namespace SubtitleStudio
                 delegate { ShowHelp(); });
             _themeBtn = SmallBtn(Theme.Dark ? Ico.Sun : Ico.Moon, "מעבר בין מצב כהה לבהיר",
                 delegate { ToggleTheme(); });
-            _aboutBtn = SmallBtn(Ico.Info, "על התוכנה, מנוע הווידאו ועדכונים",
+            // גלגל שיניים - זה מה שמחפשים כשמחפשים הגדרות. עד 0.6.4
+            // הן היו מפוזרות בין ״על התוכנה״, תפריט ״כתוביות״ וכפתור
+            // הערכה, ולא היה שום מקום אחד ללכת אליו.
+            _settingsBtn = SmallBtn(Ico.Gear, "הגדרות התוכנה (Ctrl+,)",
+                delegate { ShowSettings(); });
+            _aboutBtn = SmallBtn(Ico.Info, "על התוכנה, הגרסה והרישיון",
                 delegate { ShowAbout(); });
 
             _exportBtn = new Btn();
@@ -311,6 +316,18 @@ namespace SubtitleStudio
             bool media = _mi != null;
             bool cues = _doc.Cues.Count > 0;
             List<MenuItem> items = new List<MenuItem>();
+
+            items.Add(MenuItem.Group("קובץ"));
+            items.Add(MenuItem.Make("פרויקט חדש", "סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)", Ico.Plus,
+                delegate { NewProject(); }));
+            MenuItem findIt = MenuItem.Make("חיפוש בכתוביות", "לקפוץ לכתובית שמכילה מילה (Ctrl+F)", Ico.Search,
+                delegate { FindText(); });
+            findIt.Enabled = cues;
+            items.Add(findIt);
+            MenuItem clr = MenuItem.Make("מחיקת כל הכתוביות", "מרוקן את הרשימה; הסרט נשאר פתוח", Ico.Trash,
+                delegate { ClearAllCues(); });
+            clr.Enabled = cues;
+            items.Add(clr);
 
             items.Add(MenuItem.Group("הבאת כתוביות"));
             MenuItem tr = MenuItem.Make("תמלול אוטומטי של הסרט",
@@ -347,6 +364,8 @@ namespace SubtitleStudio
                 delegate { AiTranslate(); });
             trAi.Enabled = cues;
             items.Add(trAi);
+            // נשאר גם כאן, למרות שיש חלון הגדרות: מי שנתקל ב״צריך
+            // מפתח״ בזמן תרגום מחפש אותו במקום שבו הוא עומד.
             MenuItem aiSet = MenuItem.Make("הגדרות ה-AI", "המפתח החינמי מגוגל - הזנה ובדיקה", Ico.Key,
                 delegate { AiSettings(); });
             items.Add(aiSet);
@@ -794,6 +813,96 @@ namespace SubtitleStudio
             _video.Invalidate();
         }
 
+        // ---------- פעולות קובץ סטנדרטיות ----------
+        //
+        // עד 0.6.4 לא היו כאן: לא ״חדש״, לא ״מחיקת הכול״ ולא ״חיפוש״.
+        // התוכנה נפתחת על קובץ ונשארת עליו, ומי שרצה להתחיל מחדש נאלץ
+        // לסגור את התוכנה. אלה שלוש הפעולות שכל עורך בעולם מציע, ולכן
+        // מחפשים אותן גם כאן.
+
+        /// <summary>מתחיל מחדש: כתוביות ריקות ובלי סרט, חזרה למסך הפתיחה.</summary>
+        internal void NewProject()
+        {
+            if (!ConfirmDiscard("לפתוח פרויקט חדש?",
+                    "הכתוביות שלא נשמרו יאבדו. הסרט ייסגר והתוכנה תחזור למסך הפתיחה.")) return;
+            CloseEverything();
+        }
+
+        /// <summary>מוחק את כל הכתוביות. הסרט נשאר פתוח - זה בדיוק ההבדל
+        /// מ״פרויקט חדש״, ומי שרוצה לתמלל מחדש את אותו שיעור צריך את זה.</summary>
+        internal void ClearAllCues()
+        {
+            if (_doc == null || _doc.Cues.Count == 0)
+            {
+                Ui.Info(this, "אין מה למחוק", "הרשימה כבר ריקה.");
+                return;
+            }
+            int n = _doc.Cues.Count;
+            if (!Ui.Confirm(this, "למחוק את כל הכתוביות?",
+                    "יימחקו " + n + " כתוביות. הסרט יישאר פתוח, ואפשר לבטל ב-Ctrl+Z.",
+                    "למחוק הכול", "ביטול")) return;
+            _doc.Push("מחיקת כל הכתוביות");
+            _doc.Cues.Clear();
+            _doc.Dirty = true;
+            SyncAfterDocChange();
+        }
+
+        /// <summary>אישור לפני שזורקים עבודה. **רק כשיש מה לאבד** - שאלה
+        /// על מסמך ריק היא רעש.</summary>
+        private bool ConfirmDiscard(string title, string body)
+        {
+            if (_doc == null || !_doc.Dirty || _doc.Cues.Count == 0) return true;
+            return Ui.Confirm(this, title, body, "להמשיך", "ביטול");
+        }
+
+        // ---------- חיפוש ----------
+        private string _findTerm = "";
+
+        /// <summary>חיפוש טקסט בכתוביות. **נפרד מ״חיפוש והחלפה״**: שם
+        /// מחליפים בכל הקובץ בבת אחת, וכאן רק קופצים למקום ורואים אותו.
+        /// זו הפעולה שמחפשים ב-Ctrl+F, ובלעדיה מי שרצה למצוא משפט אחד
+        /// היה נאלץ לפתוח חלון החלפה ולבטל אותו.</summary>
+        internal void FindText()
+        {
+            if (_doc == null || _doc.Cues.Count == 0)
+            {
+                Ui.Info(this, "אין כתוביות", "קודם פותחים או יוצרים כתוביות.");
+                return;
+            }
+            FindDlg d = new FindDlg(_findTerm, _doc.Cues.Count);
+            d.FindNext += delegate (object s, FindArgs a) { _findTerm = a.Term; a.Found = FindStep(a.Term, a.Forward); };
+            d.ShowDialog(this);
+            d.Dispose();
+        }
+
+        /// <summary>קופץ להתאמה הבאה מהכתובית שבעריכה. מעגלי: מהסוף חוזרים
+        /// להתחלה, אחרת חיפוש שהתחיל באמצע הקובץ ״לא מוצא״ מה שיש למעלה.</summary>
+        private bool FindStep(string term, bool forward)
+        {
+            if (string.IsNullOrEmpty(term) || _doc == null || _doc.Cues.Count == 0) return false;
+            int n = _doc.Cues.Count;
+            int from = _editing != null ? _doc.Cues.IndexOf(_editing) : -1;
+            if (from < 0) from = forward ? -1 : n;
+            for (int k = 1; k <= n; k++)
+            {
+                int i = ((from + (forward ? k : -k)) % n + n) % n;
+                string t = _doc.Cues[i].Text;
+                if (t == null) continue;
+                if (t.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) < 0) continue;
+                Cue c = _doc.Cues[i];
+                _doc.SelectNone();
+                c.Selected = true;
+                LoadEditor();
+                _list.ScrollToCue(c);
+                _list.Invalidate();
+                _tl.EnsureVisible(c.Start, false);
+                _tl.Invalidate();
+                Seek(c.Start);
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>מעבר לכתובית הקודמת או הבאה.</summary>
         private void StepCue(int dir)
         {
@@ -1054,7 +1163,7 @@ namespace SubtitleStudio
             // הידרדות מדורגת: קודם מקצרים את הכפתור הראשי,
             // ורק אם זה לא מספיק מוותרים על התוויות של התפריטים (שאז המסך נראה לא מובן)
             int fixedPart = S(12) + _undoBtn.Width + S(4) + _redoBtn.Width
-                            + S(14) + _moreBtn.Width * 4 + S(6) + pad * 2 + S(24);
+                            + S(14) + _moreBtn.Width * 5 + S(6) + pad * 2 + S(24);
             int menusPart;
 
             foreach (Btn b in _toolbarBtns) b.IconOnly = false;
@@ -1092,10 +1201,12 @@ namespace SubtitleStudio
             _undoBtn.SetBounds(_redoBtn.Right + S(4), by, _undoBtn.Width, btnH);
             _moreBtn.SetBounds(_undoBtn.Right + S(14), by, _moreBtn.Width, btnH);
             _themeBtn.SetBounds(_moreBtn.Right + S(2), by, _themeBtn.Width, btnH);
-            _aboutBtn.SetBounds(_themeBtn.Right + S(2), by, _aboutBtn.Width, btnH);
+            _settingsBtn.SetBounds(_themeBtn.Right + S(2), by, _settingsBtn.Width, btnH);
+            _aboutBtn.SetBounds(_settingsBtn.Right + S(2), by, _aboutBtn.Width, btnH);
             _aiBtn.SetBounds(_aboutBtn.Right + S(2), by, _aiBtn.Width, btnH);
             _moreBtn.BringToFront();
             _themeBtn.BringToFront();
+            _settingsBtn.BringToFront();
             _aboutBtn.BringToFront();
             _aiBtn.BringToFront();
 
@@ -1110,6 +1221,7 @@ namespace SubtitleStudio
                 _statsLbl.Visible = false;
                 _moreBtn.Visible = false;
                 _themeBtn.Visible = false;
+                _settingsBtn.Visible = false;
                 _aboutBtn.Visible = false;
                 _aiBtn.Visible = false;
                 _hero.SetBounds(0, 0, W, H);
@@ -1120,6 +1232,7 @@ namespace SubtitleStudio
             _toolbar.Visible = true;
             _moreBtn.Visible = true;
             _themeBtn.Visible = true;
+            _settingsBtn.Visible = true;
             _aboutBtn.Visible = true;
             _aiBtn.Visible = true;
             _hintLbl.Visible = true;
@@ -1425,6 +1538,31 @@ namespace SubtitleStudio
             _tl.Invalidate();
             UpdateHint();
             UpdateSteps();
+        }
+
+        /// <summary>סוגר סרט וכתוביות. ‏UpdateSteps מחזיר את מסך
+        /// הפתיחה לבד ברגע ששניהם ריקים.</summary>
+        private void CloseEverything()
+        {
+            try { _engine.Close(); }
+            catch { }
+            if (_wave != null) { _wave.Abort(); _wave = null; }
+            _tl.Wave = null;
+            _mi = null;
+            _mediaPath = null;
+            Formats.VideoFps = 0;
+            _video.HasMedia = false;
+            _video.ClearFrame();
+            _tl.DurationMs = 0;
+            _tl.InPoint = -1;
+            _tl.OutPoint = -1;
+            _doc.Cues.Clear();
+            _doc.FilePath = null;
+            _doc.Dirty = false;
+            _doc.ClearHistory();
+            foreach (Btn b in _needMedia) { b.Enabled = false; b.Invalidate(); }
+            SyncAfterDocChange();
+            if (_hero != null) { _hero.Recent = Settings.Recent; _hero.Invalidate(); }
         }
 
         private void UpdateSteps()
@@ -2480,7 +2618,7 @@ namespace SubtitleStudio
             catch (Exception ex) { Ui.Error(this, "שגיאה", ex.Message); }
         }
 
-        private void ToggleTheme()
+        internal void ToggleTheme()
         {
             // שומרים את הפלטה הישנה כדי למפות את הצבעים שנשמרו בפקדים
             Color[] before = Theme.Palette();
@@ -2509,35 +2647,11 @@ namespace SubtitleStudio
             d.Dispose();
         }
 
-        private void ShowAboutOld()
+        private void ShowSettings()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.Append("אולפן הכתוביות · גרסה 1.0\n");
-            sb.Append("תוכנה ניידת: קובץ EXE אחד, בלי התקנה ובלי אינטרנט.\n\n");
-            string ff = Ff.Exe;
-            if (string.IsNullOrEmpty(ff)) sb.Append("מנוע הווידאו: לא נמצא.\n");
-            else
-            {
-                long size = 0;
-                try { size = new FileInfo(ff).Length; }
-                catch { }
-                sb.Append("מנוע הווידאו (FFmpeg):\n");
-                sb.Append(Theme.Ltr(ff)).Append("\n");
-                if (size > 0) sb.Append("תופס ").Append(MediaInfo.FormatSize(size)).Append(" בדיסק.\n");
-            }
-            sb.Append(Runtime.PortableMode ? "\nמצב נייד פעיל (portable.txt) - הכול נשמר ליד התוכנה."
-                                           : "\nהמנוע נפרס פעם אחת לתיקיית המשתמש. אפשר למחוק אותו - הוא ייפרס מחדש בהפעלה הבאה.");
-
-            int r = Ui.Msg(this, "על התוכנה", sb.ToString(), Ico.Info, "סגירה", "מחיקת המנוע הפרוס");
-            if (r == 1)
-            {
-                if (!Ui.Confirm(this, "למחוק את מנוע הווידאו?",
-                    "התוכנה תפרוס אותו מחדש בהפעלה הבאה (כמה שניות).", "למחוק", "ביטול")) return;
-                string msg;
-                bool ok = Runtime.Remove(out msg);
-                if (ok) Ui.Info(this, "נמחק", msg);
-                else Ui.Error(this, "לא נמחק", msg);
-            }
+            SettingsDlg d = new SettingsDlg(this);
+            d.ShowDialog(this);
+            d.Dispose();
         }
 
         private void ShowHelp()
@@ -2623,7 +2737,12 @@ namespace SubtitleStudio
                     case Keys.O: OpenAnyDialog(); return true;
                     case Keys.I: OpenAnyDialog(); return true;
                     case Keys.S: SaveSubtitles(shift); return true;
-                    case Keys.N: NewCueAtPlayhead(); return true;
+                    // ‏Ctrl+N הוא ״מסמך חדש״ בכל תוכנה בעולם. עד 0.6.4
+                    // הוא יצר כאן כתובית, וזה הפתיע. הכתובית עברה
+                    // ל-Insert, וגם הכפתור הכחול הגדול לא זז לשום מקום.
+                    case Keys.N: NewProject(); return true;
+                    case Keys.F: FindText(); return true;
+                    case Keys.Oemcomma: ShowSettings(); return true;
                     case Keys.Z: _doc.Undo(); SyncAfterDocChange(); return true;
                     case Keys.Y: _doc.Redo(); SyncAfterDocChange(); return true;
                     case Keys.T: OpenTools(); return true;
@@ -2671,6 +2790,7 @@ namespace SubtitleStudio
                 case Keys.Q: SetEdge(true); return true;
                 case Keys.W: SetEdge(false); return true;
                 case Keys.I: MarkIn(); return true;
+                case Keys.Insert: NewCueAtPlayhead(); return true;
                 case Keys.O: MarkOut(); return true;
                 case Keys.Tab: JumpCue(shift ? -1 : 1); return true;
                 case Keys.Oemcomma: NudgeSelection(-100); return true;

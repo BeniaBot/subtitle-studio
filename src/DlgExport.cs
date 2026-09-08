@@ -46,8 +46,26 @@ namespace SubtitleStudio
             dir = Ff.TempDir();
             string ext = fmt == SubFormat.Ass ? ".ass" : (fmt == SubFormat.Vtt ? ".vtt" : ".srt");
             string name = "mux_" + DateTime.Now.Ticks.ToString() + ext;
+
+            // **הקובץ הזה נצרך בעיני נגן, לא בעיני המשתמש** - ולכן הוא
+            // מקבל את עוגני ה-RTL כמו נתיב הצריבה. ‏ToAss עושה את זה לבד;
+            // ‏ToSrt ו-ToVtt לא, כי הם גם משמשים לשמירת הקובץ של המשתמש,
+            // ושם אסור לגעת. בלי זה נקודה בסוף משפט עברי הופיעה בערוץ
+            // המוטמע בצד ימין: הנגן קובע כיוון פסקה LTR, וסימן פיסוק הוא
+            // תו ניטרלי שהולך אחרי הפסקה ולא אחרי האותיות שלידו.
+            List<Cue> render = cues;
+            if (fmt != SubFormat.Ass)
+            {
+                render = new List<Cue>(cues.Count);
+                for (int i = 0; i < cues.Count; i++)
+                {
+                    Cue c = cues[i].Clone();
+                    c.Text = Formats.RtlFix(c.Text);
+                    render.Add(c);
+                }
+            }
             string s = fmt == SubFormat.Ass ? Formats.ToAss(cues, st, vw, vh)
-                     : fmt == SubFormat.Vtt ? Formats.ToVtt(cues) : Formats.ToSrt(cues);
+                     : fmt == SubFormat.Vtt ? Formats.ToVtt(render) : Formats.ToSrt(render);
             File.WriteAllBytes(Path.Combine(dir, name), new UTF8Encoding(true).GetBytes(s));
             return name;
         }
@@ -281,7 +299,13 @@ namespace SubtitleStudio
                 sb.Append("-c copy -c:s ").Append(codec).Append(" ");
                 sb.Append("-metadata:s:s:0 language=").Append(lang).Append(" ");
                 sb.Append("-metadata:s:s:0 title=\"").Append(_lang.Text).Append("\" ");
-                if (_defaultTrack.Checked) sb.Append("-disposition:s:0 default ");
+                // **קודם מנקים את הדגל מכל ערוצי הכתוביות, ורק אז
+                // מסמנים את שלנו.** ‏ffmpeg מעתיק דיספוזיציות מהקלט,
+                // ולכן קובץ שכבר היה בו ערוץ ברירת-מחדל יצא עם שניים -
+                // והנגן בוחר את הראשון, כלומר את הישן. זו הסיבה שהמתג
+                // הזה נראה כאילו הוא לא עושה כלום.
+                if (_defaultTrack.Checked)
+                    sb.Append("-disposition:s 0 -disposition:s:0 default ");
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
