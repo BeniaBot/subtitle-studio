@@ -24,6 +24,30 @@ namespace SubtitleStudio
         private int _anchor = -1;
         private bool _dragScroll;
 
+        // ---------- הוספה בין שורות (בהשראת אקסל) ----------
+        /// <summary>הרווח שבו ריחוף מגלה את כפתור ההוספה, מעל ומתחת לגבול.</summary>
+        private static int GapZone { get { return Theme.S(5); } }
+
+        /// <summary>מעל איזה גבול מרחפים כרגע. ‏0 = לפני הראשונה,
+        /// ‏RowCount = אחרי האחרונה, ‏-1 = לא על גבול.</summary>
+        private int _hoverGap = -1;
+
+        /// <summary>המשתמש ביקש כתובית חדשה בין שתי כתוביות. הפרמטר הוא
+        /// האינדקס שלפניו היא נכנסת.</summary>
+        public event EventHandler<int> InsertRequested;
+
+        // ---------- גרירת כתובית בזמן ----------
+        private int _dragRow = -1;          // השורה שנגררת
+        private int _dragFromY;
+        private bool _dragging;             // עברנו את סף התזוזה
+        private int _dropBefore = -1;       // לאן היא תיפול
+
+        /// <summary>כתובית נגררה למקום אחר ברשימה. הזמנים שלה השתנו;
+        /// הטקסט לא זז.</summary>
+        public event EventHandler<Cue> CueMoved;
+
+        private static int DragSlop { get { return Theme.S(5); } }
+
         public CueList()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
@@ -66,6 +90,20 @@ namespace SubtitleStudio
             return (i >= 0 && i < RowCount) ? i : -1;
         }
 
+        /// <summary>איזה גבול בין שורות נמצא מתחת לעכבר, אם בכלל.
+        /// מחזיר את האינדקס שהכתובית החדשה תיכנס **לפניו**.</summary>
+        private int GapAt(int y)
+        {
+            if (Doc == null || y < HeaderH) return -1;
+            int rel = y - HeaderH + _scroll;
+            if (rel < 0) return -1;
+            int near = (int)Math.Round(rel / (double)_rowH);
+            if (near < 0 || near > RowCount) return -1;
+            // רק ממש בסמוך לקו, אחרת כל ריחוף על שורה היה מדליק את הכפתור
+            if (Math.Abs(rel - near * _rowH) > GapZone) return -1;
+            return near;
+        }
+
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             _scroll -= e.Delta / 120 * _rowH * 2;
@@ -100,6 +138,18 @@ namespace SubtitleStudio
                 DragScrollTo(e.Y);
                 return;
             }
+
+            // לחיצה על הקו שבין שתי שורות = כתובית חדשה שם. נבדק לפני
+            // בחירת שורה, אחרת הלחיצה הייתה נבלעת בשורה הסמוכה.
+            int gap = GapAt(e.Y);
+            if (gap >= 0)
+            {
+                _hoverGap = -1;
+                if (InsertRequested != null) InsertRequested(this, gap);
+                Invalidate();
+                return;
+            }
+
             int i = RowAt(e.Y);
             if (i < 0 || Doc == null) return;
             Cue c = Doc.Cues[i];
@@ -117,6 +167,12 @@ namespace SubtitleStudio
                 Doc.SelectNone();
                 c.Selected = true;
                 _anchor = i;
+                // מועמדת לגרירה. הגרירה עצמה מתחילה רק אחרי תזוזה של כמה
+                // פיקסלים, אחרת כל קליק רגיל היה נחשב לגרירה.
+                _dragRow = i;
+                _dragFromY = e.Y;
+                _dragging = false;
+                _dropBefore = -1;
             }
             if (SelectionChanged != null) SelectionChanged(this, EventArgs.Empty);
             Invalidate();
@@ -133,13 +189,112 @@ namespace SubtitleStudio
         protected override void OnMouseMove(MouseEventArgs e)
         {
             if (_dragScroll) { DragScrollTo(e.Y); return; }
-            int i = RowAt(e.Y);
-            if (i != _hoverRow) { _hoverRow = i; Invalidate(); }
+
+            if (_dragRow >= 0 && (e.Button & MouseButtons.Left) != 0)
+            {
+                if (!_dragging && Math.Abs(e.Y - _dragFromY) >= DragSlop) _dragging = true;
+                if (_dragging)
+                {
+                    int drop = DropIndexAt(e.Y);
+                    if (drop != _dropBefore) { _dropBefore = drop; Invalidate(); }
+                    Cursor = Cursors.SizeNS;
+                    return;
+                }
+            }
+
+            int gap = GapAt(e.Y);
+            int i = gap >= 0 ? -1 : RowAt(e.Y);      // על הקו לא מדגישים שורה
+            if (i != _hoverRow || gap != _hoverGap)
+            {
+                _hoverRow = i;
+                _hoverGap = gap;
+                Cursor = gap >= 0 ? Cursors.Hand : Cursors.Default;
+                Invalidate();
+            }
             base.OnMouseMove(e);
         }
 
-        protected override void OnMouseUp(MouseEventArgs e) { _dragScroll = false; base.OnMouseUp(e); }
-        protected override void OnMouseLeave(EventArgs e) { _hoverRow = -1; Invalidate(); base.OnMouseLeave(e); }
+        /// <summary>לאיזה מקום ברשימה הכתובית תיפול.</summary>
+        private int DropIndexAt(int y)
+        {
+            if (Doc == null) return -1;
+            int rel = y - HeaderH + _scroll;
+            int idx = (int)Math.Round(rel / (double)_rowH);
+            if (idx < 0) idx = 0;
+            if (idx > RowCount) idx = RowCount;
+            return idx;
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            _dragScroll = false;
+            if (_dragging && _dragRow >= 0 && _dropBefore >= 0 && Doc != null)
+            {
+                Cue moved = FinishDrag();
+                if (moved != null && CueMoved != null) CueMoved(this, moved);
+            }
+            _dragRow = -1; _dragging = false; _dropBefore = -1;
+            Cursor = Cursors.Default;
+            Invalidate();
+            base.OnMouseUp(e);
+        }
+
+        /// <summary>מזיז את הכתובית לזמן של המקום החדש ומחזיר אותה.
+        ///
+        /// **הזמן זז, הטקסט לא** - הרשימה ממוינת לפי זמן, ולכן ״להזיז שורה״
+        /// פירושו לשנות את התזמון שלה. המשך הכתובית נשמר.</summary>
+        private Cue FinishDrag()
+        {
+            if (_dragRow < 0 || _dragRow >= Doc.Cues.Count) return null;
+            Cue c = Doc.Cues[_dragRow];
+            int to = _dropBefore;
+            if (to > _dragRow) to--;                       // אחרי ההסרה הכל נסוג
+            if (to == _dragRow) return null;               // לא זז
+            if (to < 0) to = 0;
+            if (to > Doc.Cues.Count - 1) to = Doc.Cues.Count - 1;
+
+            Doc.Push("הזזת כתובית");           // כדי ש-Ctrl+Z יחזיר את הזמן הקודם
+            long dur = c.End - c.Start;
+
+            // בונים את הרשימה בלי הכתובית, כדי לדעת בין מי למי היא נוחתת
+            List<Cue> rest = new List<Cue>(Doc.Cues);
+            rest.RemoveAt(_dragRow);
+
+            long before = to > 0 ? rest[to - 1].End : 0;
+            long after = to < rest.Count ? rest[to].Start : before + dur + 2000;
+
+            long start, end;
+            if (after - before >= dur + 160)
+            {
+                start = before + 80;                    // יש מקום בין השכנות
+                end = start + dur;
+            }
+            else
+            {
+                // אין מקום למשך המלא. מתיישבים באמצע הרווח ומתקצרים אליו,
+                // כי כתובית שנוחתת בחפיפה היא באג ויזואלי - שתי שורות
+                // מוצגות יחד על המסך.
+                long room = Math.Max(300, after - before - 160);
+                start = before + 80;
+                end = start + Math.Min(dur, room);
+            }
+            if (start < 0) start = 0;
+            if (end <= start) end = start + 300;
+
+            c.Start = start;
+            c.End = end;
+            Doc.Sort();
+            return c;
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            _hoverRow = -1;
+            _hoverGap = -1;
+            Cursor = Cursors.Default;
+            Invalidate();
+            base.OnMouseLeave(e);
+        }
 
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
@@ -211,6 +366,44 @@ namespace SubtitleStudio
                     new RectangleF(tx, y, tw, rowH - Theme.S(6)), Theme.SfRtlWrap);
                 y += rowH;
             }
+        }
+
+        /// <summary>הקו עם ה-+ שמופיע בריחוף בין שתי שורות.</summary>
+        private void DrawInsertLine(Graphics g)
+        {
+            if (_hoverGap < 0 || _dragging) return;
+            int y = HeaderH + _hoverGap * _rowH - _scroll;
+            if (y < HeaderH - 2 || y > Height) return;
+
+            int r = Theme.S(9);
+            using (Pen p = new Pen(Theme.Accent, Theme.S(2) < 2 ? 2 : Theme.S(2)))
+                g.DrawLine(p, Theme.S(6), y, Width - ScrollW - Theme.S(6), y);
+
+            // העיגול באמצע - זה מה שהופך קו לכפתור בעין
+            float cx = Width / 2f;
+            Theme.FillRound(g, new RectangleF(cx - r, y - r, r * 2, r * 2), r, Theme.Accent);
+            using (Pen p = new Pen(Color.White, Theme.S(2) < 2 ? 2 : Theme.S(2)))
+            {
+                float a = r * 0.5f;
+                g.DrawLine(p, cx - a, y, cx + a, y);
+                g.DrawLine(p, cx, y - a, cx, y + a);
+            }
+        }
+
+        /// <summary>הקו שמראה לאן הכתובית הנגררת תיפול.</summary>
+        private void DrawDropLine(Graphics g)
+        {
+            if (!_dragging || _dropBefore < 0) return;
+            int y = HeaderH + _dropBefore * _rowH - _scroll;
+            if (y < HeaderH - 2 || y > Height) return;
+            using (Pen p = new Pen(Theme.Good, Theme.S(3) < 2 ? 2 : Theme.S(3)))
+                g.DrawLine(p, Theme.S(4), y, Width - ScrollW - Theme.S(4), y);
+            // משולש קטן בקצה, כדי שיהיה ברור שזו נחיתה ולא גבול
+            using (SolidBrush b = new SolidBrush(Theme.Good))
+                g.FillPolygon(b, new PointF[] {
+                    new PointF(Width - ScrollW - Theme.S(4), y),
+                    new PointF(Width - ScrollW - Theme.S(12), y - Theme.S(5)),
+                    new PointF(Width - ScrollW - Theme.S(12), y + Theme.S(5)) });
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -290,6 +483,9 @@ namespace SubtitleStudio
                 if (i < Doc.Cues.Count - 1 && c.End > Doc.Cues[i + 1].Start)
                     Icons.Draw(g, Ico.Warning, new RectangleF(numX - Theme.S(20), y + _rowH / 2f - Theme.S(7), Theme.S(14), Theme.S(14)), Theme.Warn, 2f);
             }
+
+            DrawInsertLine(g);
+            DrawDropLine(g);
             g.ResetClip();
 
             // פס גלילה

@@ -408,6 +408,16 @@ namespace SubtitleStudio
             _list.Doc = _doc;
             _list.SelectionChanged += delegate { LoadEditor(); _tl.Invalidate(); };
             _list.CueActivated += delegate (object s, Cue c) { Seek(c.Start); _text.Focus(); _text.SelectAll(); };
+            _list.InsertRequested += delegate (object s, int before) { InsertCueBefore(before); };
+            _list.CueMoved += delegate (object s, Cue c)
+            {
+                _doc.Dirty = true;
+                _doc.RaiseChanged();
+                SyncAfterDocChange();
+                _list.ScrollToCue(c);
+                _hintLbl.Text = "הכתובית הוזזה ל-" + Theme.Ltr(Tc.Short(c.Start)) + ".  לביטול - Ctrl+Z.";
+                _hintLbl.Invalidate();
+            };
             _list.ContextRequested += delegate (object s, Point pt)
             {
                 Point screen = _list.PointToScreen(pt);
@@ -1223,7 +1233,7 @@ namespace SubtitleStudio
             // ---------- שמאל: סרט + ניגון + פס קול + כפתור אחד ----------
             _videoCard.SetBounds(leftX, top, leftW, avail);
             int vHead = _videoCard.HeaderH;
-            int addH = S(50);
+            int addH = S(44);
             int transH = S(54);
             int tapH = _tapBar.Visible ? S(38) : 0;
             // שורת הכפתורים של הציר קיימת רק כשיש לה באמת מקום
@@ -1287,12 +1297,21 @@ namespace SubtitleStudio
             int addW = leftW - S(28);
             if (_tapping)
             {
+                // במצב תזמון זו הפעולה שחוזרת על עצמה כל משפט, ושם רוחב
+                // מלא הוא נכון - קל לפגוע בו בלי להסתכל.
                 // RTL: הפעולה הראשית מימין, ״כאן נגמר״ משמאלה
                 int endW = Math.Max(S(120), Math.Min(S(180), addW / 4));
                 _tapEndBtn.SetBounds(S(14), addY, endW, addH);
                 _addCueBtn.SetBounds(S(14) + endW + S(8), addY, addW - endW - S(8), addH);
             }
-            else _addCueBtn.SetBounds(S(14), addY, addW, addH);
+            else
+            {
+                // מחוץ למצב תזמון הוא היה נמתח על כל הרוחב וזה נראה בזבזני,
+                // במיוחד עכשיו כשאפשר להוסיף כתובית גם מהקו שברשימה.
+                // רוחב מדוד וממורכז - נוכח, לא משתלט.
+                int w = Math.Min(addW, S(320));
+                _addCueBtn.SetBounds(S(14) + (addW - w) / 2, addY, w, addH);
+            }
             if (_tapBar.Visible)
                 _tapBar.SetBounds(S(14), addY - S(36), addW, S(30));
 
@@ -1523,6 +1542,46 @@ namespace SubtitleStudio
         }
 
         // ---------- פעולות כתוביות ----------
+        /// <summary>כתובית חדשה בין שתי קיימות - מהלחיצה על הקו שברשימה.
+        ///
+        /// הזמן נגזר מהשכנות ולא ממיקום הנגן: המשתמש הצביע על **מקום
+        /// ברשימה**, וזו הכוונה שצריך לכבד.</summary>
+        private void InsertCueBefore(int index)
+        {
+            if (_engine.IsPlaying) _engine.Pause();
+
+            long before = index > 0 && index - 1 < _doc.Cues.Count ? _doc.Cues[index - 1].End : 0;
+            long after = index < _doc.Cues.Count ? _doc.Cues[index].Start : before + 4000;
+
+            long start, end;
+            if (after - before >= 1200)                 // יש רווח אמיתי - מתיישבים בתוכו
+            {
+                start = before + 80;
+                end = Math.Min(after - 80, start + 2500);
+            }
+            else                                        // אין מקום - נכנסים צמוד ו-FixOverlaps יסדר
+            {
+                start = before;
+                end = start + 1200;
+            }
+            if (end <= start) end = start + 600;
+
+            _doc.Push("כתובית חדשה");
+            Cue nc = new Cue(start, end, "");
+            _doc.SelectNone();
+            nc.Selected = true;
+            _doc.Cues.Add(nc);
+            _doc.Sort();
+            _doc.RaiseChanged();
+            SyncAfterDocChange();
+            _list.ScrollToCue(nc);
+            _tl.EnsureVisible(start, false);
+            Seek(start);
+            _text.Focus();
+            _hintLbl.Text = "כתובית חדשה ב-" + Theme.Ltr(Tc.Short(start)) + ".  כתבו את הטקסט.";
+            _hintLbl.Invalidate();
+        }
+
         private void NewCueAtPlayhead()
         {
             // עוצרים כדי שאפשר יהיה לכתוב בנחת
