@@ -83,14 +83,32 @@ namespace SubtitleStudio
     internal static class Ai
     {
         public const string KeyPage = "https://aistudio.google.com/apikey";
-        public static string Model = "gemini-2.5-flash";
+
+        /// <summary>‏"latest" ולא שם עם מספר גרסה: הוא לא מתיישן, והוא לא
+        /// זה שנמדד אצלו 20 בקשות ליום בלבד.</summary>
+        public static string Model = "gemini-flash-latest";
         public static string Key = "";
         public static string LastError = "";
 
-        /// <summary>דגמים לניסיון לפי הסדר - אם השם הראשון לא קיים בחשבון, עוברים לבא.</summary>
+        /// <summary>דגמים לניסיון, לפי הסדר.
+        ///
+        /// **המכסה החינמית היא לכל דגם בנפרד** (שם המכסה שגוגל מחזירה הוא
+        /// ‏GenerateRequestsPerDayPerProjectPerModel), ולכן הרשימה הזאת היא
+        /// לא רק גיבוי לשם שגוי - היא מכפילה את מה שהמשתמש יכול לעשות ביום.
+        /// נמדד: ל-gemini-2.5-flash יש **20 בקשות ליום** בלבד, ותמלול של
+        /// שיעור אחד דורש כ-66. בלי המעבר בין דגמים הפיצ'ר פשוט לא שמיש.
+        ///
+        /// הסדר: פלאש מלא קודם (איכות), ואז ה-lite (מכסות נדיבות יותר).
+        /// ‏"latest" ראשון כי הוא לא מתיישן.</summary>
         public static readonly string[] Models = new string[]
         {
-            "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"
+            "gemini-flash-latest",
+            "gemini-2.5-flash",
+            "gemini-3.5-flash",
+            "gemini-3-flash-preview",
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite"
         };
 
         public static bool HasKey { get { return !string.IsNullOrEmpty(Key); } }
@@ -196,8 +214,13 @@ namespace SubtitleStudio
             foreach (string m in Models) if (m != Model) tryModels.Add(m);
 
             bool logged = false;
+            bool anyTried = false;
             foreach (string model in tryModels)
             {
+                // דגם שכבר ידוע שמיצה את המכסה היומית - אין טעם לבזבז
+                // עליו בקשה, בטח לא 66 פעם בתמלול של שיעור
+                if (IsExhausted(model)) continue;
+                anyTried = true;
                 // הגוף נבנה מחדש לכל דגם, כי thinkingConfig קיים רק בחלקם
                 if (model != Model) json = BuildBody(system, history, tools, jsonOut, model);
                 if (!logged)
@@ -208,10 +231,43 @@ namespace SubtitleStudio
                 }
                 if (Post(Endpoint(model), json, out reply, out err))
                 {
-                    if (model != Model) Model = model;
+                    if (model != Model) { Log("עברנו לדגם " + model); Model = model; }
                     break;
                 }
-                if (err == null || err.IndexOf("404") < 0) break;    // שגיאה אמיתית - לא מנסים דגם אחר
+
+                // שם דגם שלא קיים בחשבון - ממשיכים לבא
+                bool notFound = err != null && err.IndexOf("404") >= 0;
+
+                // **והמקרה החשוב**: המכסה של הדגם הזה נגמרה. המכסה היא לכל
+                // דגם בנפרד, אז לדגם הבא יש מכסה משלו. בלי זה המשתמש מקבל
+                // "נסו מחר" אחרי 20 בקשות, בזמן שיש עוד שישה דגמים פנויים.
+                bool quotaGone = LastHttpCode == 429;
+
+                // עומס בשרת הוא כמעט תמיד ספציפי לדגם, ולכן גם הוא שווה
+                // מעבר: נמדד שדגם אחד מחזיר 503 ברצף בזמן שאחרים עונים.
+                bool busy = LastHttpCode == 503 || LastHttpCode == 500 ||
+                            LastHttpCode == 502 || LastHttpCode == 504;
+
+                if (!notFound && !quotaGone && !busy) break;         // שגיאה אמיתית
+                if (busy) Log("הדגם " + model + " עמוס - מנסים דגם אחר");
+                if (quotaGone)
+                {
+                    // רק מכסה **יומית** פוסלת את הדגם להמשך הסשן. מכסה
+                    // דקתית חולפת מעצמה, והדגם יהיה זמין שוב עוד רגע.
+                    if (LastQuotaIsDaily) MarkExhausted(model);
+                    else Log("מכסה דקתית ב-" + model + " - מנסים דגם אחר");
+                }
+            }
+
+            // כל הדגמים מוצו היום. נותנים לשכבה שמעל לדעת את זה בבירור.
+            if (!anyTried)
+            {
+                LastHttpCode = 429;
+                LastQuotaIsDaily = true;
+                r.Error = "המכסה היומית של המפתח החינמי נגמרה בכל הדגמים." + Environment.NewLine +
+                          "היא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.";
+                LastError = r.Error;
+                return r;
             }
 
             if (reply == null)
@@ -454,6 +510,30 @@ namespace SubtitleStudio
         public static int LastHttpCode;
         public static int LastRetrySec;
 
+        /// <summary>המכסה שנגמרה היא היומית ולא הדקתית - אין טעם להמתין.</summary>
+        public static bool LastQuotaIsDaily;
+
+        /// <summary>דגמים שהמכסה **היומית** שלהם נגמרה בסשן הזה.
+        ///
+        /// תמלול של שיעור שולח כ-66 בקשות. בלי הזיכרון הזה כל אחת מהן
+        /// הייתה מנסה מחדש את הדגם שכבר ידוע שנגמר - כלומר בקשה מבוזבזת,
+        /// והמתנה, לכל קטע. לא נשמר לדיסק בכוונה: המכסה מתאפסת בחצות,
+        /// והפעלה חדשה צריכה להתחיל נקי.</summary>
+        private static readonly Dictionary<string, bool> _exhausted = new Dictionary<string, bool>();
+
+        public static void ForgetExhausted() { lock (_exhausted) _exhausted.Clear(); }
+
+        private static bool IsExhausted(string model)
+        {
+            lock (_exhausted) return _exhausted.ContainsKey(model);
+        }
+
+        private static void MarkExhausted(string model)
+        {
+            lock (_exhausted) _exhausted[model] = true;
+            Log("הדגם " + model + " מיצה את המכסה היומית - מדלגים עליו עד להפעלה הבאה");
+        }
+
         /// <summary>אפשר לנסות שוב - מכסה או עומס בשרת.</summary>
         public static bool LastWasRateLimit { get { return LastRetrySec > 0; } }
 
@@ -464,16 +544,18 @@ namespace SubtitleStudio
         {
             LastHttpCode = 0;
             LastRetrySec = 0;
+            LastQuotaIsDaily = false;
             int waitSec;
             if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
             if (waitSec <= 0) return false;
             LastRetrySec = waitSec;
             if (waitSec > 30) waitSec = 30;
-            Log("מכסה - ממתין " + waitSec + " שניות ומנסה שוב");
+            Log((LastHttpCode == 429 ? "מכסה" : "עומס בשרת") +
+                " - ממתין " + waitSec + " שניות ומנסה שוב");
             System.Threading.Thread.Sleep(waitSec * 1000);
             int again;
             bool ok = PostOnce(url, json, out reply, out error, out again);
-            if (ok) { LastHttpCode = 0; LastRetrySec = 0; }
+            if (ok) { LastHttpCode = 0; LastRetrySec = 0; LastQuotaIsDaily = false; }
             else if (again > 0) LastRetrySec = again;
             return ok;
         }
@@ -541,7 +623,13 @@ namespace SubtitleStudio
                 // שווה ניסיון חוזר: בתמלול של שיעור שלם קטע בודד שנופל על
                 // עומס רגעי הופך לחור באמצע הכתוביות.
                 LastHttpCode = code;
-                if (code == 429) retrySec = RetryAfter(detail);
+                // מכסה **יומית** מול **דקתית** - שתיהן 429, אבל התגובה הפוכה:
+                // על דקתית שווה להמתין ולנסות שוב, ועל יומית אין מה לחכות
+                // (היא תתאפס מחר) וצריך לעבור לדגם אחר מיד. בלי ההבחנה הזאת
+                // כל דגם עולה 30 שניות המתנה סרק לפני שממשיכים.
+                LastQuotaIsDaily = code == 429 && detail != null &&
+                                   detail.IndexOf("PerDay", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (code == 429) retrySec = LastQuotaIsDaily ? 0 : RetryAfter(detail);
                 else if (code == 500 || code == 502 || code == 503 || code == 504) retrySec = 5;
                 error = Explain(code, detail, wex.Message);
                 return false;
@@ -575,8 +663,14 @@ namespace SubtitleStudio
                 case 401:
                 case 403: return "המפתח לא תקף או שאין לו הרשאה. הפיקו מפתח חדש בדף של גוגל.";
                 case 404: return "404 - הדגם לא נמצא בחשבון הזה.";
-                case 429: return "המפתח החינמי של גוגל מוגבל לכמה בקשות בדקה, והמכסה נגמרה כרגע. " +
-                                  "המתינו דקה ונסו שוב - או הפיקו מפתח חדש בדף של גוגל.";
+                // שתי מכסות שונות לגמרי, ושתיהן 429. ״המתינו דקה״ על מכסה
+                // יומית הוא שקר שגורם למשתמש לנסות שוב ושוב לחינם.
+                case 429:
+                    if (detail != null && detail.IndexOf("PerDay", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return "המכסה היומית של המפתח החינמי נגמרה - בכל הדגמים." + Environment.NewLine +
+                               "היא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.";
+                    return "המפתח החינמי מוגבל לכמה בקשות בדקה, והמכסה נגמרה כרגע. " +
+                           "המתינו דקה ונסו שוב.";
                 case 500:
                 case 503: return "השרת של גוגל עמוס כרגע. נסו שוב בעוד רגע.";
             }
