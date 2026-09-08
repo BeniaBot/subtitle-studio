@@ -217,6 +217,10 @@ namespace SubtitleStudio
             return list;
         }
 
+        private static readonly Regex RxVttTag = new Regex(
+            @"</?(?:b|i|u|c|v|lang|ruby|rt)(?:[ .:][^>]*)?>|<\d{1,2}:\d{2}(?::\d{2})?[.,]\d{1,3}>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         public static List<Cue> ParseVtt(string text)
         {
             List<Cue> list = ParseSrt(text);
@@ -224,7 +228,12 @@ namespace SubtitleStudio
             {
                 // קודם מסירים תגיות, ורק אז מפענחים ישויות - אחרת ‎&lt;i&gt;‎
                 // היה הופך לתגית שכבר פספסנו. יוטיוב מייצא עם ישויות.
-                string t = Regex.Replace(list[i].Text, @"<[^>]+>", "");
+                //
+                // **רק תגיות מוכרות.** ‏`<[^>]+>` הגס בלע כל דבר בסוגריים
+                // משולשים, כך שכתובית ״אמרתי <שלום>״ איבדה את המילה. אלה
+                // התגיות שהתקן מגדיר, ועוד חותמת זמן פנימית כמו
+                // ‎<00:00:01.000>‎ שיוטיוב שותל לתזמון ברמת המילה.
+                string t = RxVttTag.Replace(list[i].Text, "");
                 try { t = System.Net.WebUtility.HtmlDecode(t); }
                 catch { }
                 list[i].Text = t;
@@ -360,6 +369,29 @@ namespace SubtitleStudio
         }
 
         // ---------- כתיבה ----------
+        /// <summary>גוף הכתובית כפי שנכתב לקובץ.
+        ///
+        /// **שורה ריקה בתוך כתובית מפרקת את הקובץ.** ב-SRT וב-VTT השורה
+        /// הריקה היא המפריד בין כתוביות, אז כתובית שנכתבה עם אחת בפנים
+        /// נקראה חזרה כשתי כתוביות - והחצי השני **נעלם**. משתמש שלוחץ
+        /// Enter פעמיים בזמן הקלדה נופל בזה בלי לדעת.
+        ///
+        /// אין דרך לייצג שורה ריקה בפורמטים האלה, ולכן היא מושמטת -
+        /// וזה עדיף פי כמה על איבוד חצי מהטקסט.</summary>
+        private static string BodyLines(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].Trim().Length == 0) continue;
+                if (sb.Length > 0) sb.Append("\r\n");
+                sb.Append(lines[i]);
+            }
+            return sb.ToString();
+        }
+
         public static string ToSrt(List<Cue> cues)
         {
             StringBuilder sb = new StringBuilder();
@@ -369,7 +401,7 @@ namespace SubtitleStudio
                 Cue c = cues[i];
                 sb.Append(n++).Append("\r\n");
                 sb.Append(Tc.Srt(c.Start)).Append(" --> ").Append(Tc.Srt(c.End)).Append("\r\n");
-                sb.Append(c.Text.Replace("\r\n", "\n").Replace("\n", "\r\n")).Append("\r\n\r\n");
+                sb.Append(BodyLines(c.Text)).Append("\r\n\r\n");
             }
             return sb.ToString();
         }
@@ -382,7 +414,7 @@ namespace SubtitleStudio
             {
                 Cue c = cues[i];
                 sb.Append(Tc.Vtt(c.Start)).Append(" --> ").Append(Tc.Vtt(c.End)).Append("\r\n");
-                sb.Append(c.Text.Replace("\r\n", "\n").Replace("\n", "\r\n")).Append("\r\n\r\n");
+                sb.Append(BodyLines(c.Text)).Append("\r\n\r\n");
             }
             return sb.ToString();
         }
