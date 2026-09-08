@@ -724,6 +724,24 @@ namespace SubtitleStudio
                     AiReply r2 = Send("קרא לפונקציה אם אפשר.", h2, tools, false);
                     sb.AppendLine("בקשה עם פעולות: " + (r2.Ok ? "עובדת" : "נכשלה - " + r2.Error));
                 }
+                sb.AppendLine("הדגם שענה: " + Model);
+            }
+
+            // 3. אילו דגמים זמינים - זו השאלה שבאמת מעניינת כשמשהו נכשל,
+            // כי המכסה החינמית היא לכל דגם בנפרד ולא לחשבון.
+            lock (_exhausted)
+            {
+                if (_exhausted.Count > 0)
+                {
+                    sb.AppendLine("");
+                    sb.AppendLine("דגמים שהמכסה היומית שלהם נגמרה בהפעלה הזאת:");
+                    foreach (KeyValuePair<string, bool> kv in _exhausted)
+                        sb.AppendLine("  · " + kv.Key);
+                    int left = 0;
+                    foreach (string mm in Models) if (!_exhausted.ContainsKey(mm)) left++;
+                    sb.AppendLine("נשארו " + left + " דגמים מתוך " + Models.Length + ".");
+                }
+                else sb.AppendLine("כל " + Models.Length + " הדגמים עדיין זמינים.");
             }
             string txt = sb.ToString();
             Log("--- אבחון ---" + Environment.NewLine + Safe(txt));
