@@ -30,6 +30,11 @@ namespace SubtitleStudio
             public string Error;
             public bool Canceled;
             public int Chunks, Failed;
+
+            /// <summary>הטווחים שלא תומללו, בשניות. ההודעה למשתמש נשענת
+            /// על זה ולא על ספירת כישלונות: קטע שנכשל בסוף הקובץ, או כזה
+            /// שהקטע הקודם כיסה בזכות החפיפה, אינו חור.</summary>
+            public List<string> Gaps = new List<string>();
             /// <summary>נעצרנו כי המכסה של גוגל נגמרה, לא כי משהו שבור.
             /// זו הודעה אחרת לגמרי למשתמש.</summary>
             public bool QuotaOut;
@@ -48,7 +53,16 @@ namespace SubtitleStudio
             double totalSec = durationMs / 1000.0;
             int step = ChunkSec - OverlapSec;
             List<double> starts = new List<double>();
-            for (double s = 0; s < totalSec; s += step) starts.Add(s);
+            for (double s = 0; s < totalSec; s += step)
+            {
+                // קטע-זנב זעיר הוא רק נזק: הקטע הקודם כבר מכסה אותו (הוא
+                // ארוך ב-OverlapSec מהצעד), כל מה שנופל בתוכו נזרק ממילא
+                // כחפיפה, והוא נספר ככישלון ומדליק אזהרה על חורים שאין.
+                // קובץ של 166 שניות ייצר קטע אחרון שמכסה **שנייה אחת**.
+                if (s > 0 && totalSec - s < OverlapSec + 3) break;
+                starts.Add(s);
+            }
+            if (starts.Count == 0) starts.Add(0);
             res.Chunks = starts.Count;
 
             List<Cue> all = new List<Cue>();
@@ -74,11 +88,11 @@ namespace SubtitleStudio
                               " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(wav);
                 string so, se;
                 Ff.RunSync(Ff.Exe, args, out so, out se, dir);
-                if (!File.Exists(wav)) { res.Failed++; continue; }
+                if (!File.Exists(wav)) { res.Failed++; NoteGap(res, s, totalSec); continue; }
 
                 byte[] bytes;
                 try { bytes = File.ReadAllBytes(wav); }
-                catch { res.Failed++; continue; }
+                catch { res.Failed++; NoteGap(res, s, totalSec); continue; }
                 try { File.Delete(wav); }
                 catch { }
                 if (bytes.Length < 500) continue;          // קטע שקט לגמרי
@@ -108,6 +122,7 @@ namespace SubtitleStudio
                 if (lines == null)
                 {
                     res.Failed++;
+                    NoteGap(res, s, totalSec);
                     if (err != null) lastErr = err;
                     if (Ai.LastQuotaIsDaily)
                     {
@@ -155,6 +170,16 @@ namespace SubtitleStudio
                     ? lastErr
                     : "לא זוהה דיבור בקובץ.";
             return res;
+        }
+
+        /// <summary>רושם את הטווח שקטע כושל היה אמור לכסות, כדי שההודעה
+        /// למשתמש תגיד **איפה** חסר ולא רק ״משהו נכשל״.</summary>
+        private static void NoteGap(Result res, double startSec, double totalSec)
+        {
+            double from = startSec;
+            double to = Math.Min(startSec + ChunkSec, totalSec);
+            if (to - from < 1) return;
+            res.Gaps.Add(Tc.Short((long)(from * 1000)) + "–" + Tc.Short((long)(to * 1000)));
         }
 
         // ---------- ויסות קצב ----------

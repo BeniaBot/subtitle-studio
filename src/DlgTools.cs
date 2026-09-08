@@ -538,7 +538,7 @@ namespace SubtitleStudio
             : base("כלים לסרט ולקול", Ico.Sliders, 600)
         {
             _main = main; _mi = mi; _a = a; _b = b; _pos = pos;
-            Subtitle = mi != null ? Path.GetFileName(mi.Path) : "";
+            Subtitle = mi != null ? Theme.FileName(Path.GetFileName(mi.Path)) : "";
 
             ScrollHost host = new ScrollHost();
             host.BackColor = Theme.Panel;

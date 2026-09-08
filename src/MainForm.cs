@@ -884,7 +884,7 @@ namespace SubtitleStudio
                 {
                     Formats.Save(sd.FileName, copy, Formats.FormatFromExt(sd.FileName), _style,
                         _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
-                    _hintLbl.Text = "נשמר: " + Theme.Ltr(System.IO.Path.GetFileName(sd.FileName));
+                    _hintLbl.Text = "נשמר: " + Theme.FileName(System.IO.Path.GetFileName(sd.FileName));
                 }
                 catch (Exception ex) { Ui.Error(this, "שגיאה בשמירה", ex.Message); }
             }
@@ -1449,7 +1449,7 @@ namespace SubtitleStudio
             UpdateTapUi();
             _statsLbl.Invalidate();
 
-            _mediaLbl.Text = _mediaPath != null ? Theme.Ltr(Path.GetFileName(_mediaPath)) : "";
+            _mediaLbl.Text = _mediaPath != null ? Theme.FileName(Path.GetFileName(_mediaPath)) : "";
             _mediaLbl.Invalidate();
         }
 
@@ -2133,11 +2133,18 @@ namespace SubtitleStudio
                     "תומלל רק חלק מהסרט - " + Theme.Ltr(res.Cues.Count.ToString()) +
                     " כתוביות." + Environment.NewLine +
                     "אפשר להמשיך מחר, כשהמכסה מתאפסת.");
-            else if (res.Failed > 0)
-                Ui.Info(this, "חלק מהקטעים לא הצליחו",
-                    Theme.Ltr(res.Failed.ToString()) + " מתוך " + Theme.Ltr(res.Chunks.ToString()) +
-                    " קטעים לא תומללו, אז ייתכנו חורים." + Environment.NewLine +
-                    "אפשר להשלים אותם ידנית.");
+            else if (res.Gaps.Count > 0)
+            {
+                // אומרים **איפה** חסר, לא רק שמשהו נכשל. בלי זה המשתמש
+                // צריך לחפש את החור בעצמו לאורך כל השיעור.
+                string where = string.Join("  ·  ", res.Gaps.ToArray());
+                if (res.Gaps.Count > 4)
+                    where = string.Join("  ·  ", res.Gaps.GetRange(0, 4).ToArray()) +
+                            "  ועוד " + Theme.Ltr((res.Gaps.Count - 4).ToString());
+                Ui.Info(this, "קטע אחד לא תומלל",
+                    "הקטעים האלה לא הצליחו, וכדאי להשלים אותם ידנית:" + Environment.NewLine +
+                    Theme.Ltr(where));
+            }
         }
 
         /// <summary>פותח את הגדרות ה-AI כשאין עדיין מפתח. מחזיר אם יש מפתח אחרי.</summary>

@@ -167,7 +167,7 @@ namespace SubtitleStudio
                     {
                         string enc;
                         _text.Text = Formats.ReadTextSmart(d.FileName, out enc);
-                        Subtitle = "נטען: " + Path.GetFileName(d.FileName) + " (" + enc + ")";
+                        Subtitle = "נטען: " + Theme.FileName(Path.GetFileName(d.FileName)) + " (" + enc + ")";
                         Invalidate();
                     }
                     catch (Exception ex) { Ui.Error(this, "שגיאה בקריאה", ex.Message); }

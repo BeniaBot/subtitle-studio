@@ -317,6 +317,20 @@ namespace SubtitleStudio
             return "‪" + s + "‬";
         }
 
+        /// <summary>שם קובץ או נתיב שעשוי להיות בעברית.
+        ///
+        /// ‏`Ltr` מכריח הקשר לטיני על כל המחרוזת, וזה נכון לנתיב באנגלית -
+        /// אבל שם קובץ עברי נשבר: הסיומת ‎.mp4‎ נדחפת לתחילת השורה במקום
+        /// לסופה, ונראה ״‪mp4.מחזיק אותי חזק‬״. כשיש עברית בשם, ההקשר
+        /// הטבעי של הפקד (‏RTL) הוא הנכון, ואסור לכפות עליו כלום.</summary>
+        public static string FileName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            for (int i = 0; i < s.Length; i++)
+                if (s[i] >= '֐' && s[i] <= '׿') return s;   // יש עברית - משאירים טבעי
+            return Ltr(s);
+        }
+
         public static Color Mix(Color a, Color b, float t)
         {
             return Color.FromArgb(
