@@ -16,7 +16,13 @@ if (-not (Test-Path $ff)) {
 function Make($name, $ffargs) {
     $path = Join-Path $dest $name
     if (Test-Path $path) { Write-Host ("  ok   $name (already there)"); return }
-    & $ff -y @ffargs $path 2>$null | Out-Null
+    # ffmpeg כותב את הבאנר ל-stderr. ב-PowerShell 5.1 עם EAP=Stop זה הופך
+    # לשגיאה עוצרת - גם עם 2>$null - והסקריפט נפל בדיוק כשהקבצים חסרים,
+    # כלומר בדיוק כשצריך אותו. הבדיקות שתלויות בקבצים דילגו בשקט.
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & $ff -y -hide_banner -loglevel error @ffargs $path 2>$null | Out-Null
+    $ErrorActionPreference = $old
     if (Test-Path $path) { Write-Host ("  made $name") } else { Write-Host ("  FAIL $name") }
 }
 

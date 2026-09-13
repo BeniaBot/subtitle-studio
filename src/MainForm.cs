@@ -34,7 +34,7 @@ namespace SubtitleStudio
         private Slider _volume;
         private Btn _playBtn, _undoBtn, _redoBtn, _exportBtn, _moreBtn, _themeBtn, _settingsBtn, _aboutBtn, _aiBtn;
         private Btn _speedBtn, _volBtn;
-        private Btn _tapBar, _tapEndBtn;
+        private Btn _tapBar, _tapEndBtn, _autoTimeBtn;
         private bool _rangeMarked;
         private bool _tapping;
         private int _tapIndex = -1;
@@ -353,6 +353,12 @@ namespace SubtitleStudio
             sync.Enabled = cues;
             items.Add(sync);
 
+            MenuItem auto = MenuItem.Make("תזמון אוטומטי לפי הדיבור",
+                "מחלק את הטקסט לפי השתיקות בסרט · בלי אינטרנט", Ico.Sparkles,
+                delegate { AutoTimeBySpeech(); });
+            auto.Enabled = cues && media;
+            items.Add(auto);
+
             MenuItem fix = MenuItem.Make("תיקון תזמונים אוטומטי", "מסדר חפיפות, כתוביות קצרות מדי ורווחים", Ico.Wand,
                 delegate { AutoFix(); });
             fix.Enabled = cues;
@@ -619,6 +625,19 @@ namespace SubtitleStudio
             _tapBar.Visible = false;
             _tapBar.Click += delegate { if (_tapping) StopTapping(false); else StartTapping(); };
             _videoCard.Controls.Add(_tapBar);
+
+            // ״לתזמן לבד״ - לצד ״לתזמן בלחיצה״, באותו פס ובאותו רגע. שתי
+            // דרכים לאותה מטרה, והמשתמש בוחר לפי כמה הוא סומך על ההקלטה.
+            _autoTimeBtn = new Btn();
+            _autoTimeBtn.Text = "לתזמן לבד";
+            _autoTimeBtn.Icon = Ico.Sparkles;
+            _autoTimeBtn.Kind = BtnKind.Subtle;
+            _autoTimeBtn.Tint = Theme.Accent;
+            _autoTimeBtn.Visible = false;
+            _autoTimeBtn.Click += delegate { AutoTimeBySpeech(); };
+            Ui.Tip.SetToolTip(_autoTimeBtn, "התוכנה תזהה את השתיקות בסרט ותחלק לפיהן את השורות." +
+                Environment.NewLine + "בלי אינטרנט. אפשר לבטל ב-Ctrl+Z.");
+            _videoCard.Controls.Add(_autoTimeBtn);
 
             // סוגר את השורה הנוכחית בלי לפתוח את הבאה - לשקט שבין משפטים
             _tapEndBtn = new Btn();
@@ -1426,7 +1445,15 @@ namespace SubtitleStudio
                 _addCueBtn.SetBounds(S(14) + (addW - w) / 2, addY, w, addH);
             }
             if (_tapBar.Visible)
-                _tapBar.SetBounds(S(14), addY - S(36), addW, S(30));
+            {
+                if (_autoTimeBtn.Visible)
+                {
+                    int aw = Math.Min(S(128), addW / 3);
+                    _tapBar.SetBounds(S(14) + aw + S(6), addY - S(36), addW - aw - S(6), S(30));
+                    _autoTimeBtn.SetBounds(S(14), addY - S(36), aw, S(30));
+                }
+                else _tapBar.SetBounds(S(14), addY - S(36), addW, S(30));
+            }
 
             int hintW = Math.Min(W - S(360), S(720));
             _hintLbl.SetBounds(W - hintW - pad - S(10), H - statusH + S(2), hintW, S(22));
@@ -1745,6 +1772,48 @@ namespace SubtitleStudio
 
         // ================= תזמון בלחיצה =================
 
+        /// <summary>תזמון אוטומטי לפי השתיקות בסרט. ראו ‏AutoTime.
+        ///
+        /// **מקום בממשק:** בתפריט ״תזמון״, ו**גם** בפס ״יש N שורות בלי
+        /// תזמון״ - כי זה הרגע שבו המשתמש צריך אותו, ושם הוא כבר מסתכל.
+        /// בלי הכפתור השני היכולת הייתה קיימת ואף אחד לא היה מוצא אותה.</summary>
+        internal void AutoTimeBySpeech()
+        {
+            if (_mi == null)
+            { Ui.Info(this, "צריך סרט פתוח", "התזמון נעשה לפי הדיבור שבסרט. פתחו קודם את הסרט."); return; }
+            if (!_mi.HasAudio)
+            { Ui.Info(this, "אין פס קול", "בסרט הזה אין קול, ולכן אין לפי מה לתזמן."); return; }
+            if (_wave == null || !_wave.Ready)
+            { Ui.Info(this, "רק רגע", "פס הקול עוד נבנה. אפשר לנסות שוב בעוד כמה שניות."); return; }
+            if (_wave.Failed)
+            { Ui.Error(this, "לא הצלחתי לקרוא את הקול", "פס הקול של הסרט לא נקרא, ולכן אין לפי מה לתזמן."); return; }
+            if (_doc.Cues.Count == 0)
+            { Ui.Info(this, "אין כתוביות", "קודם צריך טקסט. ״כתוביות ← יצירת כתוביות מטקסט״."); return; }
+
+            bool all = UntimedCount() == 0;
+            if (all && !Ui.Confirm(this, "לתזמן מחדש את כל הכתוביות?",
+                    "כל הכתוביות כבר מתוזמנות. אם תמשיכו, הזמנים שלהן יחושבו מחדש לפי " +
+                    "השתיקות בסרט. אפשר לבטל ב-Ctrl+Z.", "לתזמן מחדש", "ביטול")) return;
+
+            if (_tapping) StopTapping(false);
+            _doc.Push("תזמון אוטומטי לפי הדיבור");
+            AutoTime.Result r = AutoTime.Run(_doc.Cues, _wave.Rms, _wave.Peak, _mi.DurationMs, all);
+            if (r.Timed == 0)
+            {
+                _doc.DropLastUndo();
+                Ui.Info(this, "לא תוזמן כלום", r.Error ?? "לא נמצא דיבור ברור.");
+                return;
+            }
+            _doc.Sort();
+            _doc.Dirty = true;
+            SyncAfterDocChange();
+            UpdateTapUi();
+            Ui.Info(this, "תוזמנו " + r.Timed + " כתוביות",
+                "הזמנים נקבעו לפי השתיקות בסרט. כדאי לעבור ולבדוק - אם הטקסט לא " +
+                "תואם בדיוק את מה שנאמר, כתובית יכולה לזוז משפט אחד." + Environment.NewLine +
+                "אפשר לבטל ב-Ctrl+Z.");
+        }
+
         /// <summary>כמה שורות עוד מחכות לתזמון אמיתי.</summary>
         private int UntimedCount()
         {
@@ -1770,6 +1839,8 @@ namespace SubtitleStudio
             int left = UntimedCount();
             bool show = _tapping || (left > 0 && _mi != null);
             if (_tapBar.Visible != show) { _tapBar.Visible = show; DoLayout(); }
+            bool autoShow = show && !_tapping && _mi != null && _mi.HasAudio;
+            if (_autoTimeBtn.Visible != autoShow) { _autoTimeBtn.Visible = autoShow; DoLayout(); }
 
             if (_tapEndBtn.Visible != _tapping) { _tapEndBtn.Visible = _tapping; DoLayout(); }
             _tapEndBtn.Enabled = _tapping && _tapIndex > 0;
@@ -1789,7 +1860,7 @@ namespace SubtitleStudio
                 _addCueBtn.Text = "כתובית חדשה כאן";
                 if (show)
                 {
-                    _tapBar.Text = "יש " + left + " שורות בלי תזמון  ·  ללחוץ כדי לתזמן אותן לפי הסרט";
+                    _tapBar.Text = "יש " + left + " שורות בלי תזמון  ·  לתזמן בלחיצה";
                     _tapBar.Icon = Ico.Clock;
                 }
             }
