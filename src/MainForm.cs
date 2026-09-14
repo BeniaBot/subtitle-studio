@@ -2552,10 +2552,15 @@ namespace SubtitleStudio
 
             // חלק מהסרט לא תומלל - זה חייב להיאמר, אחרת המשתמש חושב
             // שהתמלול שלם ומגלה חור באמצע רק בהמשך
+            string upTo = res.StoppedAtMs >= 0
+                ? "תומלל עד " + Theme.Ltr(Tc.Short(res.StoppedAtMs)) + " (" + Theme.Ltr(res.Cues.Count.ToString()) + " כתוביות)."
+                : "תומלל רק חלק מהסרט - " + Theme.Ltr(res.Cues.Count.ToString()) + " כתוביות.";
             if (res.QuotaOut)
                 Ui.Info(this, "המכסה של " + provider.Name + " נגמרה באמצע",
-                    "תומלל רק חלק מהסרט - " + Theme.Ltr(res.Cues.Count.ToString()) +
-                    " כתוביות." + Environment.NewLine + QuotaAdvice(provider));
+                    upTo + Environment.NewLine + QuotaAdvice(provider));
+            else if (res.StoppedAtMs >= 0 && !res.Canceled)
+                Ui.Info(this, "התמלול נעצר באמצע",
+                    upTo + Environment.NewLine + (res.Error ?? "שלושה קטעים ברצף נכשלו."));
             else if (res.Gaps.Count > 0)
             {
                 // אומרים **איפה** חסר, לא רק שמשהו נכשל. בלי זה המשתמש
@@ -2564,21 +2569,22 @@ namespace SubtitleStudio
                 if (res.Gaps.Count > 4)
                     where = string.Join("  ·  ", res.Gaps.GetRange(0, 4).ToArray()) +
                             "  ועוד " + Theme.Ltr((res.Gaps.Count - 4).ToString());
-                Ui.Info(this, "קטע אחד לא תומלל",
+                Ui.Info(this, res.Gaps.Count == 1 ? "קטע אחד לא תומלל" : "כמה קטעים לא תומללו",
                     "הקטעים האלה לא הצליחו, וכדאי להשלים אותם ידנית:" + Environment.NewLine +
                     Theme.Ltr(where));
             }
         }
 
-        /// <summary>פותח את הגדרות ה-AI כשאין עדיין מפתח. מחזיר אם יש מפתח אחרי.</summary>
         /// <summary>מה עושים כשהמכסה נגמרה - לפי השירות, ועם הצעה לשירות השני.</summary>
         private static string QuotaAdvice(ISttProvider p)
         {
-            return p.Id == "groq"
-                ? "המכסה של Groq מתאפסת תוך שעה. אפשר לנסות שוב אחר כך, או לתמלל את השאר דרך גוגל."
+            OpenAiStt o = p as OpenAiStt;
+            return o != null
+                ? o.ResetText.TrimEnd('.') + ", או לתמלל את השאר דרך גוגל."
                 : "המכסה של גוגל מתאפסת מחר. אפשר גם לעבור ל-Groq, שנותן עד 8 שעות ביום - בחלון התמלול, ״איפה לתמלל״.";
         }
 
+        /// <summary>פותח את הגדרות ה-AI כשאין עדיין מפתח. מחזיר אם יש מפתח אחרי.</summary>
         private bool AiSetupIfNeeded()
         {
             if (Ai.HasKey) return true;

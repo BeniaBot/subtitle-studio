@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 36 בדיקות.
+# צפוי: 45 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -77,7 +77,7 @@ function StopServer($s) {
     foreach ($e in $s.Ps.Streams.Error) { Write-Host ("   server error: " + $e) }
     $s.Ps.Dispose()
 }
-function R($status, $body, $retry) { return @{ status = $status; body = $body; retry = $retry } }
+function Resp($status, $body, $retry) { return @{ status = $status; body = $body; retry = $retry } }
 function NewProvider($port) {
     $p = [Activator]::CreateInstance((T 'OpenAiStt'))
     $p.BaseUrl = "http://127.0.0.1:$port/openai/v1"
@@ -93,7 +93,7 @@ $audio = New-Object byte[] 20000; (New-Object Random 1).NextBytes($audio)
 
 # ================= 1. בדיקת מפתח =================
 Write-Host 'בדיקת מפתח'
-$s = StartServer @((R 200 '{"object":"list","data":[]}' $null), (R 401 '{"error":{"message":"Invalid API Key","type":"invalid_request_error"}}' $null))
+$s = StartServer @((Resp 200 '{"object":"list","data":[]}' $null), (Resp 401 '{"error":{"message":"Invalid API Key","type":"invalid_request_error"}}' $null))
 $p = NewProvider $s.Port
 $a = New-Object object[] 2; $a[0] = 'gsk_test_123'
 $ok1 = $p.GetType().GetMethod('CheckKey').Invoke($p, $a)
@@ -118,7 +118,7 @@ $ok = @"
  {"id":4,"start":28.2,"end":29.5,"text":" תודה רבה.","avg_logprob":-0.25,"compression_ratio":0.9,"no_speech_prob":0.03}
 ]}
 "@
-$s = StartServer @((R 200 $ok $null))
+$s = StartServer @((Resp 200 $ok $null))
 $p = NewProvider $s.Port
 $ctx = 'שיעור בגמרא, מסכת ברכות, עם הרבה מונחים בארמית ושמות של אמוראים ותנאים שהמודל לא מכיר בדרך כלל ועוד ועוד'
 $r = Chunk $p $audio $ctx
@@ -150,7 +150,7 @@ Write-Host 'מכסות ותקלות'
 $hour = '{"error":{"message":"Rate limit reached for model `whisper-large-v3` in organization `org_x` service tier `on_demand` on audio seconds per hour (ASH): Limit 7200, Used 7190, Requested 180. Please try again in 20m.","type":"audio_seconds","code":"rate_limit_exceeded"}}'
 $day = '{"error":{"message":"Rate limit reached for model `whisper-large-v3-turbo` in organization `org_x` on audio seconds per day (ASD): Limit 28800, Used 28790.","code":"rate_limit_exceeded"}}'
 $minute = '{"error":{"message":"Rate limit reached for model `whisper-large-v3` on requests per minute (RPM): Limit 20, Used 20.","code":"rate_limit_exceeded"}}'
-$s = StartServer @((R 429 $hour 1200), (R 429 $day 50000))
+$s = StartServer @((Resp 429 $hour 1200), (Resp 429 $day 50000))
 $p = NewProvider $s.Port
 $r1 = Chunk $p $audio ''
 $retry1 = $p.LastRetrySec; $model1 = $p.CurrentModel; $daily1 = $p.LastQuotaIsDaily
@@ -163,7 +163,7 @@ Check 'הבקשה הבאה באמת נשלחה בדגם השני' ($req1 -match 
 Check 'גם השני נגמר: מכסה ״נגמרה לעכשיו״, בלי ניסיון נוסף' ($r2.Lines -eq $null -and $p.LastQuotaIsDaily -and $p.LastRetrySec -eq 0) ("daily=" + $p.LastQuotaIsDaily + " retry=" + $p.LastRetrySec)
 Check 'ההודעה מדברת על מכסה, לא על ״שגיאה 429״' ($r2.Error -match 'המכסה') $r2.Error
 
-$s = StartServer @((R 429 $minute 7), (R 500 '{"error":{"message":"internal"}}' $null), (R 400 '{"error":{"message":"file must be one of the following types"}}' $null))
+$s = StartServer @((Resp 429 $minute 7), (Resp 500 '{"error":{"message":"internal"}}' $null), (Resp 400 '{"error":{"message":"file must be one of the following types"}}' $null))
 $p = NewProvider $s.Port
 $r3 = Chunk $p $audio ''; $retry3 = $p.LastRetrySec; $model3 = $p.CurrentModel
 $r4 = Chunk $p $audio ''; $retry4 = $p.LastRetrySec
@@ -187,7 +187,7 @@ if (-not (Test-Path $media)) { powershell -NoProfile -ExecutionPolicy Bypass -Fi
 # קטע ראשון 0-25, שני 20-45 (צעד 20, חפיפה 5). ״בגבול״ נאמר ב-21 ונלכד בשניהם.
 $c0 = '{"segments":[{"start":1.0,"end":4.0,"text":"אחת","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":21.0,"end":24.0,"text":"בגבול","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
 $c1 = '{"segments":[{"start":1.0,"end":4.0,"text":"בגבול","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":7.0,"end":9.5,"text":"שתיים","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
-$s = StartServer @((R 200 $c0 $null), (R 200 $c1 $null))
+$s = StartServer @((Resp 200 $c0 $null), (Resp 200 $c1 $null))
 $p = NewProvider $s.Port
 $p.Chunk = 25
 $trT = T 'Transcribe'
@@ -201,6 +201,41 @@ Check 'שלוש כתוביות: הכפילות בחפיפה נזרקה' ($res.Cu
 Check 'הזמנים מוזזים לפי תחילת הקטע' (($texts -join ',') -eq 'אחת@1000,בגבול@21000,שתיים@27000') ($texts -join ',')
 Check 'שם השירות בתוצאה' ($res.ProviderName -eq 'Groq') $res.ProviderName
 Check 'בלי שגיאה ובלי חורים' ($res.Error -eq $null -and $res.Gaps.Count -eq 0 -and $res.Failed -eq 0) ("error=" + $res.Error)
+
+# ================= 4ב. עצירה באמצע =================
+Write-Host 'עצירה באמצע (שבעה קטעים של 10 שניות)'
+$okSeg = '{"segments":[{"start":1.0,"end":3.0,"text":"ראשון","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
+$bad = '{"error":{"message":"invalid file"}}'
+# קטע 0 מצליח, ואז שלושה כישלונות רצופים שאין טעם לנסות שוב
+$s = StartServer @((Resp 200 $okSeg $null), (Resp 400 $bad $null), (Resp 400 $bad $null), (Resp 400 $bad $null))
+$p = NewProvider $s.Port
+$p.Chunk = 10
+$res = $run.Invoke($null, (Pack $p ([string]$media) ([long]40000) ([string]'') $null $null))
+StopServer $s
+Check 'שלושה כישלונות רצופים: נעצר, ולא ממשיך לשאר הקטעים' ($res.Failed -eq 3 -and $res.StoppedAtMs -eq 5000) ("failed=" + $res.Failed + " stoppedAt=" + $res.StoppedAtMs)
+Check 'מה שתומלל לפני העצירה נשמר' ($res.Cues.Count -eq 1) ("cues=" + $res.Cues.Count)
+Check 'החורים של הקטעים שנכשלו לא נספרים פעמיים' ($res.Gaps.Count -eq 0) ($res.Gaps -join ', ')
+Check 'ההודעה היא של השרת' ($res.Error -match 'invalid file') $res.Error
+
+# קטע 0 מצליח. בקטע 1 השעתית של הדגם הראשון נגמרת (20 דקות), והיומית של השני.
+$s = StartServer @((Resp 200 $okSeg $null), (Resp 429 $hour 1200), (Resp 429 $day 50000), (Resp 429 $day 50000))
+$p = NewProvider $s.Port
+$p.Chunk = 10
+$res = $run.Invoke($null, (Pack $p ([string]$media) ([long]40000) ([string]'') $null $null))
+StopServer $s
+Check 'מכסה בשני הדגמים: נעצר, ומסמן מכסה' ($res.QuotaOut -and $res.StoppedAtMs -eq 5000) ("quota=" + $res.QuotaOut + " stoppedAt=" + $res.StoppedAtMs)
+Check 'ההודעה אומרת מתי אפשר להמשיך (הדגם שמתאפס ראשון)' ($res.Error -match 'בעוד כ-20 דקות') $res.Error
+Check 'ובגרסה שעוד לא עברה מכסה: ״בעוד כמה דקות״' ((NewProvider 1).ResetText -match 'כמה דקות') ''
+
+# ״הזיה״ מול עברית ארוכה: compression_ratio גבוה לבד לא מספיק כדי לזרוק
+$parse = (T 'OpenAiStt').GetMethod('Parse', $SF)
+$heb = 'ואז הגמרא שואלת מאי טעמא ומתרצת שכיון שהוא יוצא לדרך הוא צריך רחמים ולכן תיקנו לו תפילה מיוחדת'
+$loop = 'אמן אמן אמן אמן אמן אמן אמן אמן אמן אמן'
+$j = '{"segments":[{"start":0,"end":6,"text":"' + $heb + '","avg_logprob":-0.3,"compression_ratio":2.5,"no_speech_prob":0.02},{"start":7,"end":9,"text":"' + $loop + '","avg_logprob":-0.3,"compression_ratio":2.5,"no_speech_prob":0.02}]}'
+$pa = New-Object object[] 2; $pa[0] = $j
+$pl = @($parse.Invoke($null, $pa))
+Check 'משפט עברי ארוך עם יחס דחיסה גבוה - נשאר' (@($pl | Where-Object { $_.Start -lt 6.5 }).Count -ge 1) ("lines=" + $pl.Count)
+Check 'חזרה על אותה מילה עם אותו יחס - נזרקת' (-not ($pl | Where-Object { $_.Text -like 'אמן*' })) ''
 
 # ================= 5. בחירת הספק =================
 Write-Host 'בחירת הספק'

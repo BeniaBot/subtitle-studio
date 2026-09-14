@@ -91,7 +91,25 @@ namespace SubtitleStudio
         public int MinGapMs { get { return 3200; } }
         public int LastRetrySec { get { return _retry; } }
         public bool LastQuotaIsDaily { get { return _daily; } }
-        public string QuotaMessage { get { return "המכסה החינמית של " + DisplayName + " נגמרה לעכשיו."; } }
+        public string QuotaMessage { get { return "המכסה החינמית של " + DisplayName + " נגמרה לעכשיו. " + ResetText; } }
+
+        /// <summary>מתי אפשר להמשיך: הדגם שמתאפס ראשון. המכסה השעתית מתאפסת
+        /// תוך שעה, והיומית מחר - וזה ההבדל בין ״לחכות קצת״ ל״מחר״.</summary>
+        public string ResetText
+        {
+            get
+            {
+                DateTime first = DateTime.MaxValue;
+                lock (_outUntil)
+                    foreach (DateTime u in _outUntil.Values) if (u < first) first = u;
+                if (first == DateTime.MaxValue) return "אפשר לנסות שוב בעוד כמה דקות.";
+                double min = (first - DateTime.UtcNow).TotalMinutes;
+                if (min <= 1) return "אפשר לנסות שוב עכשיו.";
+                if (min < 90) return "אפשר להמשיך בעוד כ-" + Math.Ceiling(min).ToString(CultureInfo.InvariantCulture) + " דקות.";
+                if (min < 20 * 60) return "אפשר להמשיך בעוד כ-" + Math.Ceiling(min / 60).ToString(CultureInfo.InvariantCulture) + " שעות.";
+                return "אפשר להמשיך מחר.";
+            }
+        }
         public string CurrentModel { get { return Models[_model]; } }
         private string Key { get { return KeyOverride ?? Stt.GroqKey; } }
 
@@ -216,8 +234,8 @@ namespace SubtitleStudio
             if (code == 429) return "המכסה של " + DisplayName + " נגמרה לעכשיו.";
             if (code == 413) return "קטע השמע גדול מדי לשירות.";
             if (code >= 500) return "השרת של " + DisplayName + " לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.";
-            if (code == 0) return "אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת." +
-                                  (string.IsNullOrEmpty(netError) ? "" : " (" + netError + ")");
+            // הפרטים הטכניים (באנגלית) כבר ביומן - בהודעה הם רק שוברים את הכיוון
+            if (code == 0) return "אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת.";
             string msg = null;
             try
             {
@@ -279,12 +297,32 @@ namespace SubtitleStudio
                 double comp = Num(s, "compression_ratio", 1);
                 // ‏Whisper בטוח שלא היה דיבור, וגם לא בטוח במה שכתב
                 if (noSpeech > 0.6 && logp < -0.8) continue;
-                // אותה מילה שוב ושוב - לולאת הזיה מוכרת
-                if (comp > 2.6) continue;
+                // אותה מילה שוב ושוב - לולאת הזיה מוכרת. **לא לפי compression_ratio
+                // לבד:** כל אות עברית ב-UTF-8 מתחילה באותו בייט, ולכן עברית נדחסת
+                // טוב יותר מאנגלית גם בלי שום חזרה. נמדד: משפט עברי רגיל של 205
+                // תווים = 1.85, ובאנגלית 113 תווים = 1.28. קטע ארוך של Whisper
+                // היה מתקרב לסף ונזרק בשקט. לכן דורשים גם מעט מילים שונות.
+                if (comp > 2.4 && Repetitive(text)) continue;
                 if (noSpeech > 0.2 && IsPhantom(text)) continue;
                 foreach (Ai.TrLine ln in SplitLong(a, b, text)) outp.Add(ln);
             }
             return outp;
+        }
+
+        /// <summary>פחות מחצי מהמילים שונות, בקטע של שש מילים לפחות.
+        /// ״לא, לא, לא״ אמיתי קצר מדי כדי להיחשב.</summary>
+        internal static bool Repetitive(string text)
+        {
+            string[] words = Regex.Split(text.ToLowerInvariant(), "[\\p{P}\\s]+");
+            int total = 0;
+            HashSet<string> distinct = new HashSet<string>();
+            foreach (string w in words)
+            {
+                if (w.Length == 0) continue;
+                total++;
+                distinct.Add(w);
+            }
+            return total >= 6 && distinct.Count * 2 < total;
         }
 
         private static bool IsPhantom(string text)

@@ -36,11 +36,16 @@ namespace SubtitleStudio
             /// על זה ולא על ספירת כישלונות: קטע שנכשל בסוף הקובץ, או כזה
             /// שהקטע הקודם כיסה בזכות החפיפה, אינו חור.</summary>
             public List<string> Gaps = new List<string>();
+            /// <summary>תחילת כל חור בשניות, באותו סדר כמו Gaps.</summary>
+            internal List<double> GapStartSec = new List<double>();
             /// <summary>נעצרנו כי המכסה נגמרה, לא כי משהו שבור.
             /// זו הודעה אחרת לגמרי למשתמש.</summary>
             public bool QuotaOut;
             /// <summary>השירות שתמלל - להודעות.</summary>
             public string ProviderName = "";
+            /// <summary>נעצרנו באמצע (מכסה, או כישלון רצוף): מאיפה לא תומלל, במילישניות.
+            /// ‏-1 = הגענו לסוף. בלי זה ההודעה אומרת ״תומלל רק חלק״ ולא אומרת איזה.</summary>
+            public long StoppedAtMs = -1;
         }
 
         /// <summary>מתמלל קובץ מדיה שלם דרך הספק שנבחר. נקרא מחוט רקע - הוא חוסם.</summary>
@@ -77,7 +82,7 @@ namespace SubtitleStudio
             res.Chunks = starts.Count;
 
             List<Cue> all = new List<Cue>();
-            int quotaStreak = 0;
+            int quotaStreak = 0, failStreak = 0, streakFirst = 0;
             string lastErr = null;
             for (int i = 0; i < starts.Count; i++)
             {
@@ -99,11 +104,11 @@ namespace SubtitleStudio
                               " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(wav);
                 string so, se;
                 Ff.RunSync(Ff.Exe, args, out so, out se, dir);
-                if (!File.Exists(wav)) { res.Failed++; NoteGap(res, s, totalSec); continue; }
+                if (!File.Exists(wav)) { res.Failed++; NoteGap(res, s, chunkSec, totalSec); continue; }
 
                 byte[] bytes;
                 try { bytes = File.ReadAllBytes(wav); }
-                catch { res.Failed++; NoteGap(res, s, totalSec); continue; }
+                catch { res.Failed++; NoteGap(res, s, chunkSec, totalSec); continue; }
                 try { File.Delete(wav); }
                 catch { }
                 if (bytes.Length < 500) continue;          // קטע שקט לגמרי
@@ -134,7 +139,6 @@ namespace SubtitleStudio
                 if (lines == null)
                 {
                     res.Failed++;
-                    NoteGap(res, s, totalSec);
                     if (err != null) lastErr = err;
                     if (provider.LastQuotaIsDaily)
                     {
@@ -145,18 +149,29 @@ namespace SubtitleStudio
                         //
                         // מכסה **דקתית** לא נספרת כאן, כי Ai עובר לדגם הבא
                         // ולכל דגם מכסה משלו - וגם עומס רגעי בשרת (5xx) חולף.
-                        quotaStreak++;
-                        if (quotaStreak >= 2) { res.QuotaOut = true; break; }
+                        failStreak = 0;                        // השרת עונה - הוא לא שבור
+                        if (quotaStreak++ == 0) streakFirst = i;
+                        if (quotaStreak >= 2) { res.QuotaOut = true; StopAt(res, starts, streakFirst); break; }
                     }
                     else
                     {
                         quotaStreak = 0;
-                        // כישלון רצוף בתחילת הדרך = משהו שבור באמת
-                        if (res.Failed >= 3 && all.Count == 0) { res.Error = err; break; }
+                        if (failStreak++ == 0) streakFirst = i;
+                        // שלושה כישלונות רצופים = משהו שבור באמת (רשת שנפלה, מפתח
+                        // שבוטל). בלי העצירה, שיעור של שלוש שעות עם רשת שנפלה
+                        // באמצע היה מחכה לכל קטע עד תום הזמן - שעות.
+                        if (failStreak >= 3)
+                        {
+                            res.Error = err;
+                            StopAt(res, starts, streakFirst);
+                            break;
+                        }
                     }
+                    NoteGap(res, s, chunkSec, totalSec);
                     continue;
                 }
                 quotaStreak = 0;
+                failStreak = 0;
 
                 foreach (Ai.TrLine ln in lines)
                 {
@@ -187,12 +202,30 @@ namespace SubtitleStudio
 
         /// <summary>רושם את הטווח שקטע כושל היה אמור לכסות, כדי שההודעה
         /// למשתמש תגיד **איפה** חסר ולא רק ״משהו נכשל״.</summary>
-        private static void NoteGap(Result res, double startSec, double totalSec)
+        private static void NoteGap(Result res, double startSec, int chunkSec, double totalSec)
         {
             double from = startSec;
-            double to = Math.Min(startSec + ChunkSec, totalSec);
+            double to = Math.Min(startSec + chunkSec, totalSec);
             if (to - from < 1) return;
+            res.GapStartSec.Add(from);
             res.Gaps.Add(Tc.Short((long)(from * 1000)) + "–" + Tc.Short((long)(to * 1000)));
+        }
+
+        /// <summary>נעצרנו: מה שמהקטע <paramref name="first"/> והלאה לא תומלל.
+        /// החורים של הקטעים שנכשלו לפני העצירה נבלעים בטווח הזה, כדי שלא
+        /// יופיעו פעמיים.</summary>
+        private static void StopAt(Result res, List<double> starts, int first)
+        {
+            if (first < 0) first = 0;
+            if (first >= starts.Count) return;
+            double from = starts[first];
+            res.StoppedAtMs = (long)Math.Round(from * 1000);
+            for (int k = res.GapStartSec.Count - 1; k >= 0; k--)
+                if (res.GapStartSec[k] >= from)
+                {
+                    res.GapStartSec.RemoveAt(k);
+                    res.Gaps.RemoveAt(k);
+                }
         }
 
         // ---------- ויסות קצב ----------
