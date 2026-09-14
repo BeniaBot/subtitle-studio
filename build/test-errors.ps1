@@ -7,7 +7,7 @@
 #
 # **מה לא מופק:** כונן מלא, וקובץ גדול מדי לדיסק-און-קי. בשביל אלה צריך
 # כונן אמיתי מלא, והם נבדקים מול הניסוח המתועד של ffmpeg בלבד.
-# צפוי: 34 בדיקות.
+# צפוי: 35 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -163,6 +163,26 @@ try { $r = RunDlg "-i `"$media`" -t 2 `"$locked`"" $false } finally { $fs.Close(
 Check 'קובץ נעול: ההודעה בחלון אנושית' ($r.Head.Contains('פתוח בתוכנה אחרת')) $r.Head
 $logTxt = $r.Job.Log.ToString()
 Check 'והיומן הגולמי עדיין שם, מאחורי ״יומן״' ($logTxt -match 'Permission denied') ''
+
+# **מודדים את הציור, לא את הטקסט.** גרסה ראשונה של הבדיקה מדדה את ההודעה
+# עם גלישת שורות ואמרה ״נכנס״ - והחלון צייר אותה בשורה אחת עם ״...״.
+# כאן מציירים את החלון לתמונה, ומודדים כמה גבוה הדיו האדום.
+$dlg = $r.Dlg
+[void]$dlg.Handle
+$bmp = New-Object Drawing.Bitmap $dlg.Width, $dlg.Height
+$dlg.DrawToBitmap($bmp, (New-Object Drawing.Rectangle 0, 0, $dlg.Width, $dlg.Height))
+$bad = (T 'Theme').GetProperty('Bad', $SF).GetValue($null, $null)
+$sc = [double](T 'Theme').GetField('Scale', $SF).GetValue($null)
+$top = -1; $bot = -1
+for ($y = [int](50 * $sc); $y -lt [int](100 * $sc); $y++) {
+    for ($x = [int](22 * $sc); $x -lt [int](498 * $sc); $x += 2) {
+        $px = $bmp.GetPixel($x, $y)
+        if ([Math]::Abs($px.R - $bad.R) + [Math]::Abs($px.G - $bad.G) + [Math]::Abs($px.B - $bad.B) -lt 90) { if ($top -lt 0) { $top = $y }; $bot = $y; break }
+    }
+}
+$bmp.Dispose()
+$lineH = (T 'Theme').GetProperty('Small', $SF).GetValue($null, $null).Height
+Check 'ההודעה הארוכה מצוירת בשתי שורות, לא נחתכת' ($top -ge 0 -and ($bot - $top) -gt 1.5 * $lineH) ("דיו " + ($bot - $top) + "px, שורה $lineH px")
 $r.Dlg.Dispose()
 
 $slow = "-re -i `"$media`" -f null -"
@@ -174,13 +194,13 @@ $r = RunDlg "-i `"$media`" -t 1 -f null -" $false
 Check 'הצלחה' ($r.Head -eq 'הפעולה הושלמה בהצלחה') $r.Head
 $r.Dlg.Dispose()
 
-# כל הודעה נכנסת לשטח שלה בחלון: 476 על 46 לוגיים
+# כל הודעה נכנסת לשטח שלה בחלון: 476 על 44 לוגיים, באותם דגלים ש-Theme.Str מצייר
 $scale = [double](T 'Theme').GetField('Scale', $SF).GetValue($null)
 $font = (T 'Theme').GetProperty('Small', $SF).GetValue($null, $null)
-$w = [int][Math]::Round(476 * $scale); $hmax = [int][Math]::Round(46 * $scale)
+$w = [int][Math]::Round(476 * $scale); $hmax = [int][Math]::Round(44 * $scale)
 $worst = 0; $worstMsg = ''
 foreach ($m in $msgs) {
-    $sz = [Windows.Forms.TextRenderer]::MeasureText($m, $font, (New-Object Drawing.Size $w, 10000), [Windows.Forms.TextFormatFlags]'WordBreak,RightToLeft')
+    $sz = [Windows.Forms.TextRenderer]::MeasureText($m, $font, (New-Object Drawing.Size $w, 10000), [Windows.Forms.TextFormatFlags]'NoPadding,NoPrefix,RightToLeft,Right,WordBreak')
     if ($sz.Height -gt $worst) { $worst = $sz.Height; $worstMsg = $m }
 }
 Check 'כל ההודעות נכנסות לחלון ההתקדמות' ($worst -le $hmax) ("הגבוהה: $worst מתוך $hmax  ($worstMsg)")

@@ -461,8 +461,16 @@ namespace SubtitleStudio
             Theme.Str(g, _title, Theme.Big, Theme.Text,
                 new RectangleF(Theme.S(22), Theme.S(24), Theme.S(476), Theme.S(26)), Theme.SfRtl);
 
-            Theme.Str(g, SubText(), Theme.Small, _done && !_success && !_cancelled ? Theme.Bad : Theme.TextDim,
-                new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(46)), Theme.SfRtl);
+            // הודעת כישלון היא משפט-שניים, וחייבת לגלוש. ‏SfRtl הוא שורה אחת עם
+            // ״...״ - וכך ״סגרו אותו, או בחרו מקום אחר״ פשוט נחתך. הסטטוס הרגיל
+            // נשאר שורה אחת ממורכזת, כמו קודם.
+            bool failed = _done && !_success && !_cancelled;
+            if (failed)
+                Theme.Str(g, SubText(), Theme.Small, Theme.Bad,
+                    new RectangleF(Theme.S(22), Theme.S(54), Theme.S(476), Theme.S(44)), Theme.SfRtlWrap);
+            else
+                Theme.Str(g, SubText(), Theme.Small, Theme.TextDim,
+                    new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(34)), Theme.SfRtl);
 
             RectangleF bar = new RectangleF(Theme.S(22), Theme.S(100), Theme.S(476), Theme.S(12));
             Theme.FillRound(g, bar, 6, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
