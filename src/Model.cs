@@ -134,6 +134,17 @@ namespace SubtitleStudio
             return h.ToString("00") + ":" + m.ToString("00") + ":" + s.ToString("00") + "." + (ms / 10).ToString("00");
         }
 
+        /// <summary>אורך של קובץ, לקריאה: ״0:40״, ״12:05״, ״1:02:30״. בלי שברי שנייה -
+        /// ״00:00:40.00״ נראה כמו שדה עריכה, לא כמו תשובה לשאלה ״כמה זמן זה״.</summary>
+        public static string Length(long ms)
+        {
+            if (ms < 0) ms = 0;
+            long total = (ms + 500) / 1000;
+            long h = total / 3600, m = (total / 60) % 60, s = total % 60;
+            return h > 0 ? h + ":" + m.ToString("00") + ":" + s.ToString("00")
+                         : m + ":" + s.ToString("00");
+        }
+
         /// <summary>קורא כל פורמט זמן סביר: 00:00:00,000 / 0:00:00.00 / 12.5 / 1:23</summary>
         public static long Parse(string s)
         {

@@ -237,8 +237,22 @@ $dialogs = @(
     @{ n = 'Tools';      needsMedia = $true;  make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';     needsMedia = $true;  make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
     @{ n = 'FitSize';    needsMedia = $true;  make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*גודל קובץ*'), $mi, [int64]-1, [int64]-1, [int64]0) } },
-    @{ n = 'Reverse';    needsMedia = $true;  make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*ריוורס*'), $mi, [int64]-1, [int64]-1, [int64]0) } }
+    @{ n = 'Reverse';    needsMedia = $true;  make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*ריוורס*'), $mi, [int64]-1, [int64]-1, [int64]0) } },
+    # שמונת אלה חסרו מהרשימה עד 0.7.2, ובאחד מהם (הזזת תזמון) שורת הכפתורים
+    # ‎+1…-1 גלשה מהחלון מאז הגרסאות הראשונות. הבדיקה הייתה - החלון לא.
+    @{ n = 'Fps';        needsMedia = $false; make = { NewOf 'FpsDlg' @($doc) } },
+    @{ n = 'Shift';      needsMedia = $false; make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },
+    @{ n = 'Replace';    needsMedia = $false; make = { NewOf 'ReplaceDlg' @($doc) } },
+    @{ n = 'Find';       needsMedia = $false; make = { NewOf 'FindDlg' @([string]'שלום', [int]3) } },
+    @{ n = 'Style';      needsMedia = $false; make = { NewOf 'StyleDlg' @($style, $null) } },
+    @{ n = 'Settings';   needsMedia = $false; make = { NewOf 'SettingsDlg' @($mainForDlg) } },
+    @{ n = 'GroqSetup';  needsMedia = $false; make = { NewOf 'GroqSetupDlg' @() } },
+    @{ n = 'Update';     needsMedia = $false; make = { NewOf 'UpdateDlg' @($rel, $sum) } }
 )
+$mainForDlg = [Activator]::CreateInstance($formT)
+$rel = [Activator]::CreateInstance((TY 'Updater+Release'))
+$rel.Version = '0.9.9'; $rel.Notes = "**שורה**`n* אחת`n* שתיים"
+$sum = (TY 'Changelog').GetMethod('Build', $ST).Invoke($null, @([string][IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'changelog.json'), [Text.Encoding]::UTF8), [string]'0.1.0', [string]'0.7.0'))
 
 $screenH = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height
 foreach ($d in $dialogs) {

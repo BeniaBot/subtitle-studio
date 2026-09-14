@@ -555,7 +555,10 @@ namespace SubtitleStudio
             _speedBtn.Text = SpeedText(1.0);
             _speedBtn.Kind = BtnKind.Tool;
             _speedBtn.Menu = true;
-            _speedBtn.Size = new Size(Theme.S(84), Theme.S(34));
+            // הרוחב לפי המהירות הארוכה ביותר. ‏84 קבוע הכניס רק ״1×״ ו-״2×״, וכל
+            // מהירות אחרת הוצגה ״1…״ או ״0…״ - בדיוק כשהמשתמש האט כדי לתזמן.
+            _speedBtn.PrefWidth = SpeedButtonWidth();
+            _speedBtn.Size = new Size(_speedBtn.PrefWidth, Theme.S(34));
             _speedBtn.Click += delegate { ShowSpeedMenu(); };
             Ui.Tip.SetToolTip(_speedBtn, "מהירות השמעה. האטה עוזרת לתפוס בדיוק את הרגע שבו מתחיל הדיבור" +
                 Environment.NewLine + "לא משנה את הקובץ, רק את ההשמעה כאן");
@@ -581,6 +584,16 @@ namespace SubtitleStudio
         private static string SpeedText(double v)
         {
             return Theme.Ltr(v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "×");
+        }
+
+        /// <summary>באותו חשבון ש-Btn מצייר: ריפוד, חץ התפריט, אייקון, רווח וטקסט.</summary>
+        private int SpeedButtonWidth()
+        {
+            int textW = 0;
+            foreach (double sp in Speeds)
+                textW = Math.Max(textW, TextRenderer.MeasureText(SpeedText(sp), _speedBtn.Font,
+                    new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
+            return S(12) * 2 + S(16) + _speedBtn.IconSize + S(8) + textW + S(4);
         }
 
         private void ShowSpeedMenu()
@@ -824,6 +837,9 @@ namespace SubtitleStudio
             Btn b = new Btn();
             b.Text = "מהסרט";
             b.Icon = Ico.Target;
+            // הפריסה נותנת לו 28 בלבד (hw ב-DoLayout). עם טקסט, הכפתור שמר
+            // מקום לטקסט שלא נכנס, והאייקון צויר חצי מחוץ לכפתור.
+            b.IconOnly = true;
             b.Kind = BtnKind.Subtle;
             b.Font = Theme.Small;
             b.Size = new Size(Theme.S(104), Theme.S(32));
@@ -1419,10 +1435,15 @@ namespace SubtitleStudio
             // משמאל: עוצמה ומהירות (שני כפתורים קטנים). באמצע: השעון,
             // שמקבל את כל מה שנשאר בין שתי הקבוצות.
             int volW = _volBtn.Width;
-            int spW = _speedBtn.Width;
+            // מתחילים תמיד מהרוחב המועדף, לא מ-Width: ‏Width כבר יכול להיות הצר
+            // מהפריסה הקודמת, ואז חלון שהוצר פעם אחת נשאר עם כפתור צר לתמיד.
+            int spW = _speedBtn.PrefWidth;
             int leftEnd = S(14) + volW + S(6) + spW;
             int room = bx - S(10) - leftEnd - S(10);
-            if (room < S(96)) { spW = S(58); leftEnd = S(14) + volW + S(6) + spW; room = bx - S(10) - leftEnd - S(10); }
+            bool spCompact = room < S(96);
+            if (spCompact) { spW = S(44); leftEnd = S(14) + volW + S(6) + spW; room = bx - S(10) - leftEnd - S(10); }
+            // צר מדי לטקסט: אייקון בלבד (המהירות בתפריט), ולא ״1…״ חתוך
+            _speedBtn.IconOnly = spCompact;
 
             _volBtn.SetBounds(S(14), ty + S(10), volW, _volBtn.Height);
             _speedBtn.SetBounds(S(14) + volW + S(6), ty + S(10), spW, _speedBtn.Height);

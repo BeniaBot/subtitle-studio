@@ -43,6 +43,10 @@ namespace SubtitleStudio
             chips.BackColor = Theme.Panel;
             chips.SetBounds(Pad, Y, ContentW, Theme.S(38));
             double[] vals = { -1, -0.5, -0.25, -0.1, 0.1, 0.25, 0.5, 1 };
+            // הרוחב נגזר מהשורה. בקוד הקודם 8 כפתורים ברוחב 64 קבוע היו רחבים
+            // ב-16 פיקסלים מהחלון, והאחרון (‎+1) נחתך בקצה - מאז הגרסאות הראשונות.
+            int gap = Theme.S(6);
+            int bw = (ContentW - gap * (vals.Length - 1)) / vals.Length;
             int x = ContentW;
             foreach (double v in vals)
             {
@@ -51,9 +55,10 @@ namespace SubtitleStudio
                 b.Text = Theme.Ltr((v > 0 ? "+" : "") + v.ToString("0.##", CultureInfo.InvariantCulture));
                 b.Kind = BtnKind.Subtle;
                 b.Font = Theme.Small;
-                b.Size = new Size(Theme.S(60), Theme.S(34));
-                x -= Theme.S(64);
+                b.Size = new Size(bw, Theme.S(34));
+                x -= bw;
                 b.Location = new Point(x, 2);
+                x -= gap;
                 b.Click += delegate { _seconds = captured; _amount.Text = captured.ToString("0.###", CultureInfo.InvariantCulture); UpdatePreview(); };
                 chips.Controls.Add(b);
             }

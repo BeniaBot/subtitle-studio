@@ -24,6 +24,8 @@ namespace SubtitleStudio
         /// <summary>מוסיף חץ קטן שמסמן שהכפתור פותח תפריט.</summary>
         public bool Menu = false;
         public bool IconOnly = false;
+        /// <summary>להצמיד את התוכן לימין גם כשהכפתור רחב ממנו. ברירת המחדל: ממורכז.</summary>
+        public bool AlignRight = false;
         private bool _hover, _down;
 
         public Btn()
@@ -105,25 +107,46 @@ namespace SubtitleStudio
                 Theme.Str(g, Text, Font, fg, tr2, Theme.SfRtl);
                 return;
             }
+            // **ממורכז או צמוד לימין.** עד 0.7.2 כל כפתור הצמיד את התוכן לימין, וכל
+            // כפתור שרחב מהתוכן שלו נראה עקום: ב״ביטול״ נשארו 94 פיקסלים משמאל
+            // מול 15 מימין, בכל חלון. צמוד לימין נשאר רק מה שמתנהג כמו שורה
+            // ברשימה ולא כמו כפתור: כרטיס עם שורת הסבר, שורת קישור (Tool),
+            // דגימת צבע, וכפתור תפריט (שהחץ שלו בצד השני).
+            float right = Width - pad;
+            if (hasText && Sub == null && !Menu && Kind != BtnKind.Tool && !AlignRight)
+            {
+                float iconW = Icon != Ico.None ? IconSize + Theme.S(8) : 0;
+                // אותו מנוע שמצייר (Theme.Str: טקסט אטום דרך TextRenderer). המדידה של
+                // GDI+ בולעת רווחים בעברית, והגוש היה יוצא מוזז.
+                float textW = fg.A == 255
+                    ? TextRenderer.MeasureText(g, Text, Font, new Size(int.MaxValue, int.MaxValue),
+                                               TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width
+                    : Theme.Measure(g, Text, Font).Width;
+                float group = iconW + textW;
+                if (group <= Width - pad * 2) right = (Width + group) / 2f;
+            }
+
+            // בכרטיס עם שורת הסבר: שתי השורות כגוש אחד, ממורכז לגובה
+            float subTop = (Height - Theme.S(36)) / 2f;
             if (Icon != Ico.None)
             {
                 float isz = IconSize;
-                float ix = hasText ? Width - pad - isz : (Width - isz) / 2f;   // RTL: אייקון בימין
+                float ix = hasText ? right - isz : (Width - isz) / 2f;   // RTL: אייקון בימין
                 float iy = (Height - isz) / 2f;
-                if (Sub != null) iy = Theme.S(9);
+                if (Sub != null) iy = subTop + Theme.S(1);
                 Icons.Draw(g, Icon, new RectangleF(ix, iy, isz, isz), fg, 1.9f);
             }
 
             if (hasText)
             {
-                float right = Icon != Ico.None ? Width - pad - IconSize - Theme.S(8) : Width - pad;
+                float textRight = Icon != Ico.None ? right - IconSize - Theme.S(8) : right;
                 float left = pad + menuW;
-                RectangleF tr = new RectangleF(left, 0, right - left, Height);
+                RectangleF tr = new RectangleF(left, 0, textRight - left, Height);
                 if (Sub != null)
                 {
-                    Theme.Str(g, Text, Theme.UiBold, fg, new RectangleF(tr.X, Theme.S(6), tr.Width, Theme.S(19)), Theme.SfRtl);
+                    Theme.Str(g, Text, Theme.UiBold, fg, new RectangleF(tr.X, subTop, tr.Width, Theme.S(19)), Theme.SfRtl);
                     Theme.Str(g, Sub, Theme.Small, Theme.Mix(fg, Theme.Bg, 0.35f),
-                        new RectangleF(tr.X, Theme.S(25), tr.Width, Theme.S(17)), Theme.SfRtl);
+                        new RectangleF(tr.X, subTop + Theme.S(19), tr.Width, Theme.S(17)), Theme.SfRtl);
                 }
                 else Theme.Str(g, Text, Font, fg, tr, Theme.SfRtl);
             }

@@ -67,7 +67,7 @@ namespace SubtitleStudio
                 "זו הפעולה היחידה בתוכנה ששולחת את התוכן עצמו החוצה. אם ההקלטה רגישה, " +
                 "עדיף לתמלל ידנית - זה עובד בלי אינטרנט." + Environment.NewLine +
                 "התוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.");
-            Row(warn2, 58, 12);
+            Row(warn2, 44, 12);
 
             _info = Hint("");
             if (mi != null)
@@ -135,7 +135,7 @@ namespace SubtitleStudio
                 int mins = Math.Max(1, (int)Math.Ceiling(chunks * perChunk / 60.0));
                 // המספר בסוף המשפט ולא באמצעו: ‏Ltr באמצע טקסט עברי הפך את
                 // "40 שניות · 1 קטעים" ל-"1 · 40 שניות קטעים"
-                _info.Text = "אורך: " + Theme.Ltr(Tc.Clock(dur)) + Environment.NewLine +
+                _info.Text = "אורך: " + Theme.Ltr(Tc.Length(dur)) + Environment.NewLine +
                              (mins == 1 ? "לוקח בערך דקה. " : "לוקח בערך " + Theme.Ltr(mins.ToString()) + " דקות. ") +
                              "אפשר לעצור באמצע, ומה שכבר תומלל יישמר.";
                 _info.Invalidate();
