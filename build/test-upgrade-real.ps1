@@ -1,12 +1,12 @@
 ﻿# שדרוג אמיתי מגרסה קודמת לגרסה שפורסמה עכשיו - דרך מנגנון העדכון עצמו.
 #
-#   powershell -ExecutionPolicy Bypass -File build	est-upgrade-real.ps1 -From v0.7.0
+#   powershell -ExecutionPolicy Bypass -File build\test-upgrade-real.ps1 -From v0.7.0
 #
 # להריץ **אחרי** gh release create, כש-dist\SubtitleStudio.exe הוא בדיוק מה שהועלה.
 # מה קורה:
 #  1. בונה את התגית -From ב-git worktree תחת D:\Claude\_ss-upgrade (לא בכונן C)
 #  2. מריץ אותה כנייד (portable.txt) מתיקייה זמנית
-#  3. מחכה להצעת העדכון, מצלם אותה (shots-offer.png - להסתכל: התקציר נכון?)
+#  3. מחכה להצעת העדכון, מצלם אותה (shots\1-offer.png - להסתכל: התקציר נכון?)
 #  4. לוחץ ״לעדכן עכשיו״, עוקב אחרי ההורדה, ובודק שהקובץ שהוחלף זהה ל-dist
 #     ושהגרסה החדשה עלתה לבד, לא מציעה עדכון שוב, ונסגרת נקי
 #  5. מחזיר את settings.ini של המשתמש ומוחק הכול
@@ -28,14 +28,15 @@ if (-not (Test-Path (Join-Path $srcOld 'dist\SubtitleStudio.exe'))) {
     git -C $repo worktree add --detach $srcOld $From 2>&1 | Out-Null
     $ErrorActionPreference = $old
     New-Item -ItemType Directory (Join-Path $srcOld 'build\payload') -Force | Out-Null
-    Copy-Item (Join-Path $repo 'build\payloadfmpeg.pack') (Join-Path $srcOld 'build\payload') -Force
-    Copy-Item (Join-Path $repo 'buildpp.ico') (Join-Path $srcOld 'build') -Force
+    Copy-Item (Join-Path $repo 'build\payload\ffmpeg.pack') (Join-Path $srcOld 'build\payload') -Force
+    Copy-Item (Join-Path $repo 'build\app.ico') (Join-Path $srcOld 'build') -Force
     cmd /c (Join-Path $srcOld 'build.cmd') | Select-Object -Last 1
 }
 Copy-Item (Join-Path $srcOld 'dist\SubtitleStudio.exe') (Join-Path $app 'SubtitleStudio.exe') -Force
 Set-Content (Join-Path $app 'portable.txt') 'portable' -Encoding ASCII
 Remove-Item (Join-Path $app 'SubtitleStudio.exe.old') -ErrorAction SilentlyContinue
 $expected = (Get-FileHash (Join-Path $repo 'dist\SubtitleStudio.exe')).Hash
+Get-ChildItem (Join-Path $env:TEMP 'SubtitleStudio-*.exe') -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
@@ -69,6 +70,10 @@ function Shot($h, $file) {
     [void][UW]::PrintWindow($h, $hdc, 2); $g.ReleaseHdc($hdc); $g.Dispose(); $bmp.Save($file); $bmp.Dispose()
 }
 function Log($s) { Write-Host ("[" + (Get-Date -Format 'HH:mm:ss') + "] " + $s) }
+# כל שורה שמתחילה ב-"!!" היא כישלון. עד 15.9.2026 הבדיקה יצאה בקוד 0 גם אחרי
+# "!! no new instance was started" - ירוק על שדרוג שלא קרה.
+$script:failures = 0
+function Fail($s) { $script:failures++; Log ("!! " + $s) }
 
 $ini = Join-Path $env:APPDATA 'SubtitleStudio\settings.ini'
 $iniBak = Join-Path $base 'settings.ini.bak'
@@ -82,12 +87,12 @@ try {
     }
 
     $p = Start-Process (Join-Path $app 'SubtitleStudio.exe') -PassThru
-    Log ("0.7.0 started pid=" + $p.Id)
+    Log ("old version ($From) started pid=" + $p.Id)
     $btn = [IntPtr]::Zero; $dlgH = [IntPtr]::Zero
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt 90 -and $btn -eq [IntPtr]::Zero) {
         Start-Sleep -Milliseconds 500
-        $p.Refresh(); if ($p.HasExited) { Log "0.7.0 exited unexpectedly"; exit 2 }
+        $p.Refresh(); if ($p.HasExited) { Log "!! the old version exited unexpectedly"; exit 2 }
         foreach ($h in [UW]::Tops([uint32]$p.Id)) {
             $b = [UW]::ChildWithText($h, 'לעדכן עכשיו')
             if ($b -ne [IntPtr]::Zero) { $btn = $b; $dlgH = $h; break }
@@ -109,23 +114,32 @@ try {
     [void][UW]::PostMessage($btn, 0x0202, [IntPtr]0, $lp)   # WM_LBUTTONUP
     Log "clicked 'update now'"
 
+    # **לא תקרה קבועה.** בשדרוג 0.7.1 ל-0.7.2 (15.9.2026, בלילה) ההורדה זחלה
+    # 4MB לדקה, ותקרה של 180 שניות הרגה את התוכנה באמצע - בדיקה ״נכשלת״
+    # בגלל מהירות הרשת. מחכים כל עוד הקובץ גדל בדקה האחרונה, עד 20 דקות.
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $lastLog = -10; $shotN = 0
-    while ($sw.Elapsed.TotalSeconds -lt 180) {
+    $lastSize = -1; $lastGrow = 0
+    while ($sw.Elapsed.TotalSeconds -lt 1200 -and ($sw.Elapsed.TotalSeconds - $lastGrow) -lt 60) {
         Start-Sleep -Milliseconds 700
         $p.Refresh()
         if ($p.HasExited) { break }
+        $tf = Get-ChildItem (Join-Path $env:TEMP 'SubtitleStudio-*.exe') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+        $bytes = if ($tf) { $tf.Length } else { -1 }
+        if ($bytes -ne $lastSize) { $lastSize = $bytes; $lastGrow = $sw.Elapsed.TotalSeconds }
         if ($sw.Elapsed.TotalSeconds - $lastLog -ge 6) {
             $lastLog = $sw.Elapsed.TotalSeconds
-            $tmpExe = Join-Path $env:TEMP 'SubtitleStudio-*.exe'
-            $tf = Get-ChildItem $tmpExe -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1; $sz = if ($tf) { [int]($tf.Length / 1MB) } else { -1 }
+            $sz = if ($tf) { [int]($tf.Length / 1MB) } else { -1 }
             $desc = @()
             foreach ($h in [UW]::Tops([uint32]$p.Id)) { $r = New-Object UW+R; [void][UW]::GetWindowRect($h, [ref]$r); $desc += (($r.Rr - $r.L).ToString() + 'x' + ($r.B - $r.T) + ':' + (([UW]::Texts($h)) -join '|')) }
-            Log ("  t=" + [int]$sw.Elapsed.TotalSeconds + " download=" + $sz + "MB windows=" + ($desc -join ' ;; '))
+            $winLine = ($desc -join ' ;; ')
+            Log ("  t=" + [int]$sw.Elapsed.TotalSeconds + " download=" + $sz + "MB" + $(if ($winLine -ne $script:lastWin) { " windows=" + $winLine } else { "" }))
+            $script:lastWin = $winLine
             if ($shotN -lt 3) { $tops = [UW]::Tops([uint32]$p.Id); if ($tops.Count -gt 0) { Shot $tops[0] (Join-Path $out ('1b-after-click-' + $shotN + '.png')); $shotN++ } }
         }
     }
-    Log ("0.7.0 exited: " + $p.HasExited + " after " + [int]$sw.Elapsed.TotalSeconds + "s")
+    Log ("old version ($From) exited: " + $p.HasExited + " after " + [int]$sw.Elapsed.TotalSeconds + "s")
+    if (-not $p.HasExited) { Fail "the old version did not exit - download stalled for a minute, or the swap never started" }
 
     $new = $null
     $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -135,7 +149,9 @@ try {
     }
     $hash = (Get-FileHash (Join-Path $app 'SubtitleStudio.exe')).Hash
     Log ("EXE hash matches dist (the release): " + ($hash -eq $expected))
+    if ($hash -ne $expected) { Fail "the swapped EXE is not the release" }
     Log (".old left next to it: " + (Test-Path (Join-Path $app 'SubtitleStudio.exe.old')))
+    if (Test-Path (Join-Path $app 'SubtitleStudio.exe.old')) { Fail ".old was not cleaned up" }
     if ($new) {
         Log ("new instance running pid=" + $new.ProcessId)
         Start-Sleep -Seconds 8
@@ -146,14 +162,14 @@ try {
             $r = New-Object UW+R; [void][UW]::GetWindowRect($h, [ref]$r)
             $area = ($r.Rr - $r.L) * ($r.B - $r.T)
             if ($area -gt $best) { $best = $area; $main = $h }
-            if ([UW]::ChildWithText($h, 'לעדכן עכשיו') -ne [IntPtr]::Zero) { Log "!! the new version offers an update again" }
+            if ([UW]::ChildWithText($h, 'לעדכן עכשיו') -ne [IntPtr]::Zero) { Fail "the new version offers an update again" }
         }
         if ($main) { Shot $main (Join-Path $out '2-after.png') }
         Log ("windows of new instance: " + $tops.Count)
         [void]$np.CloseMainWindow()
-        if (-not $np.WaitForExit(8000)) { Log "new instance did not close; killing"; Stop-Process -Id $np.Id -Force }
+        if (-not $np.WaitForExit(8000)) { Fail "new instance did not close; killing"; Stop-Process -Id $np.Id -Force }
         else { Log "new instance closed cleanly" }
-    } else { Log "!! no new instance was started" }
+    } else { Fail "no new instance was started" }
 }
 finally {
     if (Test-Path $iniBak) { Copy-Item $iniBak $ini -Force; Remove-Item $iniBak }
@@ -166,3 +182,5 @@ finally {
     Write-Host ("shots: " + $out + "  (the folder is removed on the next run)")
     Remove-Item $app, $srcOld -Recurse -Force -ErrorAction SilentlyContinue
 }
+if ($script:failures -gt 0) { Write-Host ("FAILED: " + $script:failures); exit 1 }
+Write-Host "UPGRADE OK"
