@@ -471,12 +471,20 @@ namespace SubtitleStudio
             _frame = frame;
             Subtitle = "כך ייראו הכתוביות בסרט הסופי";
 
+            // **זוגות בשורה אחת, לא שורה לכל פקד.** בפריסה הקודמת החלון היה 769
+            // פיקסלים לוגיים: גבוה ממסך 1080p ב-150% וממחשב נייד 1366x768, ושם
+            // ״שמירת העיצוב״ נחתך מתחת לקצה. ‏test-screens.ps1 מודד את זה.
+            // בכל זוג - הראשון בקריאה מימין.
+            int gapX = Theme.S(12);
+            int half = (ContentW - gapX) / 2;
+            int right = Pad + half + gapX, left = Pad;
+
             _preview = new Panel();
-            _preview.SetBounds(Pad, Y, ContentW, Theme.S(178));
+            _preview.SetBounds(Pad, Y, ContentW, Theme.S(170));
             _preview.Paint += PreviewPaint;
             _preview.BackColor = Color.Black;
             Controls.Add(_preview);
-            Y += Theme.S(190);
+            Y += Theme.S(182);
 
             Section("גופן וגודל");
             _font = new Combo();
@@ -487,47 +495,70 @@ namespace SubtitleStudio
             _font.SelectedItem = _style.FontName;
             if (_font.SelectedIndex < 0 && _font.Items.Count > 0) _font.SelectedIndex = 0;
             _font.SelectedIndexChanged += delegate { _style.FontName = _font.Text; _preview.Invalidate(); };
-            Row(_font, 32, 10);
+            _font.SetBounds(right, Y, half, Theme.S(32));
+            Controls.Add(_font);
 
             _size = new Slider();
             _size.Min = 2; _size.Max = 12; _size.Value = _style.FontPct; _size.Step = 0.1; _size.Suffix = "%";
             _size.ValueChanged += delegate { _style.FontPct = _size.Value; _preview.Invalidate(); };
-            Row(_size, 28, 10);
+            _size.SetBounds(left, Y + Theme.S(2), half, Theme.S(28));
+            Controls.Add(_size);
+            Y += Theme.S(42);
 
             _bold = new Toggle();
             _bold.Text = "מודגש";
             _bold.Checked = _style.Bold;
             _bold.CheckedChanged += delegate { _style.Bold = _bold.Checked; _preview.Invalidate(); };
-            Row(_bold, 26, 6);
+            _bold.SetBounds(right, Y, half, Theme.S(26));
+            Controls.Add(_bold);
 
             _box = new Toggle();
-            _box.Text = "רקע מלא מאחורי הטקסט (במקום מתאר)";
+            _box.Text = "רקע מלא במקום מתאר";
             _box.Checked = _style.OpaqueBox;
             _box.CheckedChanged += delegate { _style.OpaqueBox = _box.Checked; _preview.Invalidate(); };
-            Row(_box, 26, 12);
+            _box.SetBounds(left, Y, half, Theme.S(26));
+            Controls.Add(_box);
+            Y += Theme.S(38);
 
             Section("צבעים");
             _colText = new Btn();
             _colText.Text = "צבע הטקסט";
             _colText.Kind = BtnKind.Ghost;
             _colText.Swatch = _style.Primary;
-            _colText.SetBounds(Pad, Y, ContentW / 2 - Theme.S(6), Theme.S(36));
+            _colText.SetBounds(right, Y, half, Theme.S(36));
             _colText.Click += delegate { PickColor(true); };
             Controls.Add(_colText);
             _colOutline = new Btn();
             _colOutline.Text = "צבע המתאר";
             _colOutline.Kind = BtnKind.Ghost;
             _colOutline.Swatch = _style.Outline;
-            _colOutline.SetBounds(Pad + ContentW / 2 + Theme.S(6), Y, ContentW / 2 - Theme.S(6), Theme.S(36));
+            _colOutline.SetBounds(left, Y, half, Theme.S(36));
             _colOutline.Click += delegate { PickColor(false); };
             Controls.Add(_colOutline);
             Y += Theme.S(48);
 
-            Section("עובי המתאר");
+            Lbl outlineLbl = Label("עובי המתאר", true, Theme.TextDim);
+            outlineLbl.Font = Theme.SmallBold;
+            outlineLbl.SetBounds(right, Y, half, Theme.S(18));
+            Controls.Add(outlineLbl);
+            Lbl marginLbl = Label("מרחק מהקצה", true, Theme.TextDim);
+            marginLbl.Font = Theme.SmallBold;
+            marginLbl.SetBounds(left, Y, half, Theme.S(18));
+            Controls.Add(marginLbl);
+            Y += Theme.S(24);
+
             _outline = new Slider();
             _outline.Min = 0; _outline.Max = 6; _outline.Value = _style.OutlineWidth; _outline.Step = 0.1;
             _outline.ValueChanged += delegate { _style.OutlineWidth = _outline.Value; _preview.Invalidate(); };
-            Row(_outline, 28, 10);
+            _outline.SetBounds(right, Y, half, Theme.S(28));
+            Controls.Add(_outline);
+
+            _marginV = new Slider();
+            _marginV.Min = 0; _marginV.Max = 25; _marginV.Value = _style.MarginVPct; _marginV.Step = 0.5; _marginV.Suffix = "%";
+            _marginV.ValueChanged += delegate { _style.MarginVPct = _marginV.Value; _preview.Invalidate(); };
+            _marginV.SetBounds(left, Y, half, Theme.S(28));
+            Controls.Add(_marginV);
+            Y += Theme.S(38);
 
             Section("מיקום");
             _align = new Combo();
@@ -539,13 +570,9 @@ namespace SubtitleStudio
                 _style.Alignment = map[_align.SelectedIndex];
                 _preview.Invalidate();
             };
-            Row(_align, 32, 10);
-
-            Section("מרחק מהקצה");
-            _marginV = new Slider();
-            _marginV.Min = 0; _marginV.Max = 25; _marginV.Value = _style.MarginVPct; _marginV.Step = 0.5; _marginV.Suffix = "%";
-            _marginV.ValueChanged += delegate { _style.MarginVPct = _marginV.Value; _preview.Invalidate(); };
-            Row(_marginV, 28, 10);
+            _align.SetBounds(right, Y, half, Theme.S(32));
+            Controls.Add(_align);
+            Y += Theme.S(42);
 
             Buttons("שמירת העיצוב", Ico.Check, "ביטול");
         }

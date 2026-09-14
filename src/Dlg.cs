@@ -34,6 +34,7 @@ namespace SubtitleStudio
             ShowInTaskbar = false;
             KeyPreview = true;
             ClientSize = new Size(Theme.S(width), Theme.S(300));
+            _baseW = ClientSize.Width;
             ContentW = ClientSize.Width - Pad * 2;
             Y = HeadH + Theme.S(14);
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
@@ -58,22 +59,60 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
+            // חלון שנגלל (ראו FitToHeight): הכותרת זזה יחד עם הפקדים, אחרת הם עוברים מעליה
+            int oy = AutoScroll ? AutoScrollPosition.Y : 0;
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.PanelAlt, 0.7f)))
-                g.FillRectangle(b, 0, 0, Width, HeadH);
-            using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, HeadH, Width, HeadH);
-            int tx = Width - Pad;
+                g.FillRectangle(b, 0, oy, Width, HeadH);
+            using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, HeadH + oy, Width, HeadH + oy);
+            int tx = _baseW - Pad;
             if (_icon != Ico.None)
             {
-                Icons.Draw(g, _icon, new RectangleF(tx - Theme.S(26), Theme.S(17), Theme.S(24), Theme.S(24)), Theme.Accent, 2f);
+                Icons.Draw(g, _icon, new RectangleF(tx - Theme.S(26), Theme.S(17) + oy, Theme.S(24), Theme.S(24)), Theme.Accent, 2f);
                 tx -= Theme.S(36);
             }
             int tleft = Theme.S(80);
             Theme.Str(g, _title, Theme.Big, Theme.Text,
-                new RectangleF(tleft, string.IsNullOrEmpty(Subtitle) ? Theme.S(18) : Theme.S(9), tx - tleft, Theme.S(24)), Theme.SfRtl);
+                new RectangleF(tleft, (string.IsNullOrEmpty(Subtitle) ? Theme.S(18) : Theme.S(9)) + oy, tx - tleft, Theme.S(24)), Theme.SfRtl);
             if (!string.IsNullOrEmpty(Subtitle))
                 Theme.Str(g, Subtitle, Theme.Small, Theme.TextDim,
-                    new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18)), Theme.SfRtl);
+                    new RectangleF(tleft, Theme.S(32) + oy, tx - tleft, Theme.S(18)), Theme.SfRtl);
             Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 12, Theme.Border, 1f);
+        }
+
+        // גלילה מזיזה ביטים, כולל המסגרת המעוגלת - בלי ציור מחדש היא נמרחת
+        protected override void OnScroll(ScrollEventArgs se) { base.OnScroll(se); Invalidate(); }
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); if (AutoScroll) Invalidate(); }
+
+        private int _baseW, _naturalH;
+
+        /// <summary>מתאים את החלון לגובה נתון. **חלון שלא נכנס נגלל - לא נחתך.**
+        ///
+        /// עד 0.7.1 הקוד כאן קיצץ את החלון לגובה המסך **בלי להזיז את הכפתורים**,
+        /// כך שבמסך נמוך ״אישור״ ישב מתחת לקצה ולא היה אפשר ללחוץ עליו. זו
+        /// רשת ביטחון: כל חלון אמור להיכנס מלכתחילה ב-693 פיקסלים לוגיים
+        /// (‏1080p ב-150%), ו-test-screens.ps1 מודד את זה. גלילה היא רק למקרה
+        /// של מסך חריג במיוחד.</summary>
+        internal void FitToHeight(int maxHeight)
+        {
+            int natural = _naturalH > 0 ? _naturalH : ClientSize.Height;
+            if (natural <= maxHeight)
+            {
+                AutoScroll = false;
+                ClientSize = new Size(_baseW, natural);
+                return;
+            }
+            AutoScroll = true;
+            AutoScrollMinSize = new Size(0, natural);
+            ClientSize = new Size(_baseW + SystemInformation.VerticalScrollBarWidth, maxHeight);
+            Invalidate();
+        }
+
+        private void FitToScreen()
+        {
+            int max;
+            try { max = Screen.PrimaryScreen.WorkingArea.Height - Theme.S(40); }
+            catch { max = int.MaxValue; }
+            FitToHeight(max);
         }
 
         protected static int HeadH { get { return Theme.S(60); } }
@@ -152,14 +191,8 @@ namespace SubtitleStudio
             }
             Controls.Add(CloseButton());
             Y += bh + Pad;
-            ClientSize = new Size(ClientSize.Width, Y);
-            try
-            {
-                Rectangle wa = Screen.PrimaryScreen.WorkingArea;
-                if (Height > wa.Height - Theme.S(40))
-                    ClientSize = new Size(ClientSize.Width, wa.Height - Theme.S(60));
-            }
-            catch { }
+            _naturalH = Y;
+            FitToScreen();
             return ok;
         }
 
@@ -231,7 +264,8 @@ namespace SubtitleStudio
             }
             y += Theme.S(6);
             foreach (Control b in _bottom) b.Top = y;
-            ClientSize = new Size(ClientSize.Width, y + _bottomH + Pad);
+            _naturalH = y + _bottomH + Pad;
+            FitToScreen();
         }
 
         /// <summary>מוסיף כפתור לשורת הכפתורים התחתונה (משמאל לכפתור הראשי).</summary>
@@ -247,7 +281,7 @@ namespace SubtitleStudio
             int w;
             using (Graphics g = CreateGraphics())
                 w = (int)Theme.Measure(g, text, Theme.Ui).Width + Theme.S(58);
-            int room = ClientSize.Width - Pad - left;
+            int room = _baseW - Pad - left;
             if (w > room) w = Math.Max(Theme.S(90), room);
             b.SetBounds(left, _bottom.Count > 0 ? _bottom[0].Top : Y, w, Theme.S(42));
             Controls.Add(b);
