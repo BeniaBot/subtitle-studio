@@ -111,6 +111,21 @@ namespace SubtitleStudio
             if (ViewChanged != null) ViewChanged(this, EventArgs.Empty);
         }
 
+        /// <summary>האם המשתמש שינה זום בעצמו (אחרת הציר מציג תמיד את כל הסרט).</summary>
+        public bool UserZoomed { get { return _userZoomed; } }
+
+        /// <summary>מחזיר זום וגלילה שנשמרו בפרויקט.</summary>
+        public void RestoreView(double pxPerSec, long viewStart)
+        {
+            if (double.IsNaN(pxPerSec) || pxPerSec < 0.05 || pxPerSec > 600) return;
+            PxPerSec = pxPerSec;
+            _userZoomed = true;
+            ViewStart = viewStart;
+            ClampView();
+            Invalidate();
+            if (ViewChanged != null) ViewChanged(this, EventArgs.Empty);
+        }
+
         public void ZoomToFit()
         {
             if (DurationMs <= 0 || Width < 50) return;   // עוד לא נפרס - אין ממה לחשב

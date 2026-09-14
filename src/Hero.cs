@@ -281,7 +281,8 @@ namespace SubtitleStudio
                     try { ext = Path.GetExtension(path).ToLowerInvariant(); }
                     catch { }
                     Ico ic = Ico.Film;
-                    if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".txt") ic = Ico.TextIcon;
+                    if (ext == ".subtext") ic = Ico.Layers;
+                    else if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".txt") ic = Ico.TextIcon;
                     else if (ext == ".mp3" || ext == ".wav" || ext == ".m4a" || ext == ".flac") ic = Ico.Speaker;
 
                     Icons.Draw(g, ic, new RectangleF(r.Right - Theme.S(26), r.Y + (r.Height - Theme.S(16)) / 2, Theme.S(16), Theme.S(16)),

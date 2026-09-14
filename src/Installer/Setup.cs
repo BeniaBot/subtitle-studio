@@ -198,6 +198,7 @@ namespace SubtitleStudioSetup
                 P(0.96, "רושם את התוכנה…");
                 WriteMarker(Dir, size);
                 WriteRegistry(Dir, exe, size + Math.Max(0, usize));
+                Assoc.Register(Assoc.Classes, exe);
 
                 P(1.0, "ההתקנה הסתיימה.");
                 return true;

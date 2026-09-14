@@ -191,6 +191,71 @@ namespace SubtitleStudioSetup
     }
 
     /// <summary>הסרה: קיצורים, רישום וקבצים. משותף ל-uninstall.exe ול-setup.exe /uninstall.</summary>
+    /// <summary>שיוך קובצי הפרויקט (‏.subtext) לתוכנה, ברמת המשתמש.
+    ///
+    /// **רק הסיומת שלנו.** ‏.srt לא נחטף: לאנשים יש נגן שהם רגילים שיפתח
+    /// אותו, ותוכנה שמשתלטת על סוג קובץ נפוץ היא בדיוק מה שמבריח.
+    ///
+    /// **‏ProgID הוא Subtext.Project** כבר עכשיו, לפני המיתוג (0.8.0) - אחרת
+    /// המיתוג היה צריך להגר גם אותו.
+    ///
+    /// ‏classesRoot הוא פרמטר כדי שהבדיקה תוכל לכתוב לענף משלה ולא לשיוכים
+    /// האמיתיים של המשתמש.</summary>
+    internal static class Assoc
+    {
+        public const string Ext = ".subtext";
+        public const string ProgId = "Subtext.Project";
+        public const string Classes = "Software\\Classes";
+
+        [DllImport("shell32.dll")]
+        private static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+        public static void Register(string classesRoot, string exe)
+        {
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + ProgId))
+                {
+                    k.SetValue("", Prod.Name + " - פרויקט");
+                    k.SetValue("FriendlyTypeName", Prod.Name + " - פרויקט");
+                }
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + ProgId + "\\DefaultIcon"))
+                    k.SetValue("", "\"" + exe + "\",0");
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + ProgId + "\\shell\\open\\command"))
+                    k.SetValue("", "\"" + exe + "\" \"%1\"");
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + Ext))
+                {
+                    k.SetValue("", ProgId);
+                    k.SetValue("Content Type", "application/json");
+                }
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + Ext + "\\OpenWithProgids"))
+                    k.SetValue(ProgId, new byte[0], RegistryValueKind.None);
+                if (classesRoot == Classes) SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch (Exception ex) { Log.W("assoc: " + ex.Message); }
+        }
+
+        /// <summary>מסיר את ה-ProgID שלנו, ואת הסיומת **רק אם היא עדיין שלנו** -
+        /// אם תוכנה אחרת לקחה אותה בינתיים, לא נוגעים.</summary>
+        public static void Unregister(string classesRoot)
+        {
+            try { Registry.CurrentUser.DeleteSubKeyTree(classesRoot + "\\" + ProgId, false); }
+            catch (Exception ex) { Log.W("assoc progid: " + ex.Message); }
+            try
+            {
+                bool ours = false;
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(classesRoot + "\\" + Ext))
+                    ours = k != null && ProgId.Equals(k.GetValue("") as string, StringComparison.OrdinalIgnoreCase);
+                if (ours) Registry.CurrentUser.DeleteSubKeyTree(classesRoot + "\\" + Ext, false);
+                else
+                    using (RegistryKey k = Registry.CurrentUser.OpenSubKey(classesRoot + "\\" + Ext + "\\OpenWithProgids", true))
+                        if (k != null) k.DeleteValue(ProgId, false);
+                if (classesRoot == Classes) SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch (Exception ex) { Log.W("assoc ext: " + ex.Message); }
+        }
+    }
+
     internal static class Remover
     {
         /// <summary>איפה הותקנה התוכנה לפי הרישום (ריק אם אין רישום).</summary>
@@ -229,6 +294,7 @@ namespace SubtitleStudioSetup
 
         public static void DeleteRegistry()
         {
+            Assoc.Unregister(Assoc.Classes);
             try { Registry.CurrentUser.DeleteSubKeyTree(Prod.RegUninstall, false); }
             catch (Exception ex) { Log.W("reg uninstall key: " + ex.Message); }
             try { Registry.CurrentUser.DeleteSubKeyTree(Prod.RegApp, false); }

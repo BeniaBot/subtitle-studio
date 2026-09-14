@@ -114,6 +114,9 @@ namespace SubtitleStudio
                 "שולף ערוץ כתוביות שמוטמע בתוך קובץ הווידאו (MKV/MP4) וטוען אותו לעריכה"));
 
             t.Add(new AiTool("save_subtitles_as", "שומר את הכתוביות לקובץ חדש, בפורמט לבחירת המשתמש"));
+            t.Add(new AiTool("save_project",
+                "שומר את כל העבודה - הסרט, הכתוביות, העיצוב והמקום - בקובץ פרויקט אחד, כדי להמשיך " +
+                "אחר כך. זו התשובה ל״איך אני ממשיך מחר״, ובמיוחד כשיש שורות שעוד לא תוזמנו"));
 
             // ---------- עריכה מתקדמת ----------
             t.Add(new AiTool("set_cue_times", "משנה את הזמנים של כתובית אחת")
@@ -241,6 +244,7 @@ namespace SubtitleStudio
                     case "create_subtitles_from_text": return AiFromText(call, out refused);
                     case "extract_subtitles_from_video": return AiExtract();
                     case "save_subtitles_as": return AiSaveAs();
+                    case "save_project": return AiSaveProject();
                     case "set_cue_times": return AiSetTimes(call);
                     case "split_cue": return AiSplit(call);
                     case "merge_cues": return AiMerge(call);
@@ -484,6 +488,14 @@ namespace SubtitleStudio
             bool ok = SaveSubtitles(false);
             if (ok) r["done"] = "הכתוביות נשמרו";
             else r["error"] = "השמירה לא בוצעה";
+            return r;
+        }
+
+        private Dictionary<string, object> AiSaveProject()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (SaveProject(false)) r["done"] = "הפרויקט נשמר: " + Path.GetFileName(_projectPath) + ". בפעם הבאה הוא יופיע במסך הפתיחה";
+            else r["error"] = "הפרויקט לא נשמר (אולי המשתמש ביטל את בחירת המקום)";
             return r;
         }
 

@@ -19,6 +19,8 @@ namespace SubtitleStudio
         private Waveform _wave;
         /// <summary>חיתוכי הסצנות של הסרט הפתוח, או null כל עוד לא אותרו.</summary>
         private List<long> _cuts;
+        /// <summary>קובץ הפרויקט הפתוח (‏.subtext), או null.</summary>
+        private string _projectPath;
         private SubStyle _style = new SubStyle();
 
         // ---------- אזורים ----------
@@ -110,9 +112,12 @@ namespace SubtitleStudio
                 if (!Ff.Available)
                     Ui.Error(this, "לא נמצא FFmpeg",
                         "הקובץ ffmpeg.exe צריך לשבת בתיקייה tools שליד התוכנה.\nבלעדיו אי אפשר לפתוח סרטים.");
-                Ff.CleanTemp();
                 if (_pendingOpen != null) { string x = _pendingOpen; _pendingOpen = null; OpenAny(x); }
+                // השחזור **לפני** ניקוי הזמניים: הגיבוי של 0.7.0 ומטה ישב ב-%TEMP%,
+                // והניקוי מחק כל קובץ בן יותר משש שעות - כלומר קריסה בלילה
+                // נמחקה בבוקר, לפני שמישהו הספיק להציע לשחזר אותה.
                 CheckRecovery();
+                Ff.CleanTemp();
                 Updates.CheckSilent(this);
             };
             ClientSizeChanged += delegate { DoLayout(); };
@@ -121,12 +126,22 @@ namespace SubtitleStudio
                 Settings.SaveAll();   // עוצמה ומהירות, גם אם לא נגעו בעיצוב
                 // בבדיקות אין מי שיענה על ״לשמור?״, והחלון היה נתקע לנצח
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
-                if (_doc.Dirty && _doc.Cues.Count > 0)
+                string kind = ExitSaveKind();
+                if (kind != "none")
                 {
-                    int r = Ui.Msg(this, "יש שינויים שלא נשמרו", "לשמור את קובץ הכתוביות לפני היציאה?", Ico.Question,
-                        "לשמור", "לצאת בלי לשמור", "ביטול");
-                    if (r == 2) { e.Cancel = true; return; }
-                    if (r == 0 && !SaveSubtitles(false)) { e.Cancel = true; return; }
+                    string body = kind == "project" ? "לשמור את השינויים בפרויקט לפני היציאה?"
+                        : kind == "project-new"
+                            ? "יש " + UntimedCount() + " שורות שעוד לא תוזמנו. כדי שאפשר יהיה להמשיך " +
+                              "לתזמן אותן אחר כך, העבודה תישמר כפרויקט."
+                            : "לשמור את קובץ הכתוביות לפני היציאה?";
+                    int r = Ui.Msg(this, "יש שינויים שלא נשמרו", body, Ico.Question,
+                        kind == "project-new" ? "לשמור כפרויקט" : "לשמור", "לצאת בלי לשמור", "ביטול");
+                    if (r == 2 || r < 0) { e.Cancel = true; return; }
+                    if (r == 0)
+                    {
+                        bool ok = kind == "project-new" ? SaveProject(true) : SaveSubtitles(false);
+                        if (!ok) { e.Cancel = true; return; }
+                    }
                 }
                 ClearAutoSave();
                 _engine.Dispose();
@@ -322,6 +337,11 @@ namespace SubtitleStudio
             items.Add(MenuItem.Group("קובץ"));
             items.Add(MenuItem.Make("פרויקט חדש", "סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)", Ico.Plus,
                 delegate { NewProject(); }));
+            MenuItem saveProj = MenuItem.Make("שמירת הפרויקט",
+                "הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך", Ico.Save,
+                delegate { SaveProject(false); });
+            saveProj.Enabled = media || cues;
+            items.Add(saveProj);
             MenuItem findIt = MenuItem.Make("חיפוש בכתוביות", "לקפוץ לכתובית שמכילה מילה (Ctrl+F)", Ico.Search,
                 delegate { FindText(); });
             findIt.Enabled = cues;
@@ -853,6 +873,7 @@ namespace SubtitleStudio
             if (!ConfirmDiscard("לפתוח פרויקט חדש?",
                     "הכתוביות שלא נשמרו יאבדו. הסרט ייסגר והתוכנה תחזור למסך הפתיחה.")) return;
             CloseEverything();
+            ClearAutoSave();
         }
 
         /// <summary>מוחק את כל הכתוביות. הסרט נשאר פתוח - זה בדיוק ההבדל
@@ -1585,6 +1606,7 @@ namespace SubtitleStudio
             _tl.Wave = null;
             _cuts = null;
             _tl.Cuts = null;
+            _projectPath = null;
             _mi = null;
             _mediaPath = null;
             Formats.VideoFps = 0;
@@ -1979,7 +2001,7 @@ namespace SubtitleStudio
                 _addCueBtn.Text = "כתובית חדשה כאן";
                 if (show)
                 {
-                    _tapBar.Text = "יש " + left + " שורות בלי תזמון  ·  לתזמן בלחיצה";
+                    _tapBar.Text = (left == 1 ? "יש שורה אחת בלי תזמון" : "יש " + left + " שורות בלי תזמון") + "  ·  לתזמן בלחיצה";
                     _tapBar.Icon = Ico.Clock;
                 }
             }
@@ -2259,9 +2281,9 @@ namespace SubtitleStudio
         private static readonly string MediaFilter =
             "קובצי וידאו ואודיו|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus|כל הקבצים|*.*";
         private static readonly string AnyFilter =
-            "כל הקבצים שאני מכיר|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus;*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|" +
+            "כל הקבצים שאני מכיר|*.subtext;*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus;*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|" +
             "סרטים וקובצי קול|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus|" +
-            "קובצי כתוביות|*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|כל הקבצים|*.*";
+            "קובצי כתוביות|*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|פרויקטים|*.subtext|כל הקבצים|*.*";
 
         private void OpenMediaDialog()
         {
@@ -2293,12 +2315,18 @@ namespace SubtitleStudio
         private void OpenAny(string path)
         {
             string ext = Path.GetExtension(path).ToLowerInvariant();
+            if (ext == Project.Extension) { OpenProject(path); return; }
             if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".sub" || ext == ".txt")
                 ImportSubs(path);
             else OpenMedia(path);
         }
 
-        private void OpenMedia(string path)
+        private void OpenMedia(string path) { OpenMediaCore(path, false); }
+
+        /// <summary>‏fromProject: הסרט נפתח כחלק מפרויקט. אז הוא לא נכנס
+        /// לרשימת האחרונים (הפרויקט נכנס), ולא טוענים קובץ SRT שיושב לידו -
+        /// לפרויקט יש כתוביות משלו, גם כשהן אפס.</summary>
+        private void OpenMediaCore(string path, bool fromProject)
         {
             if (!File.Exists(path)) return;
             if (!Ff.Available)
@@ -2325,9 +2353,12 @@ namespace SubtitleStudio
                     return;
                 }
                 _mediaPath = path;
-                Settings.AddRecent(path);
-                Settings.Save(_style);
-                if (_hero != null) _hero.Recent = Settings.Recent;
+                if (!fromProject)
+                {
+                    Settings.AddRecent(path);
+                    Settings.Save(_style);
+                    if (_hero != null) _hero.Recent = Settings.Recent;
+                }
                 _engine.Open(path, _mi);
                 _video.HasMedia = true;
                 _video.AudioOnly = !_mi.HasVideo;
@@ -2353,7 +2384,7 @@ namespace SubtitleStudio
 
                 foreach (Btn b in _needMedia) { b.Enabled = true; b.Invalidate(); }
 
-                TryLoadSidecar(path);
+                if (!fromProject) TryLoadSidecar(path);
                 UpdateHint();
                 UpdateSteps();
                 _tl.Invalidate();
@@ -2402,6 +2433,7 @@ namespace SubtitleStudio
                     }
                     return;
                 }
+                bool appended = false;
                 if (_doc.Cues.Count > 0)
                 {
                     int r = Ui.Msg(this, "כבר יש כתוביות פתוחות",
@@ -2410,6 +2442,7 @@ namespace SubtitleStudio
                     if (r == 2) return;
                     _doc.Push("ייבוא");
                     if (r == 0) _doc.Cues.Clear();
+                    appended = r == 1;
                 }
                 else _doc.Push("ייבוא");
 
@@ -2417,11 +2450,14 @@ namespace SubtitleStudio
                 _doc.Sort();
                 _doc.FilePath = path;
                 _doc.SourceEncoding = res.Encoding;
-                _doc.Dirty = false;
                 Settings.AddRecent(path);
                 Settings.Save(_style);
                 if (_hero != null) _hero.Recent = Settings.Recent;
                 _doc.RaiseChanged();
+                // **אחרי** RaiseChanged, שמסמן Dirty=true בעצמו. עד 0.7.0 כל קובץ
+                // שנפתח נחשב ״שונה״, וסגירה מיד אחרי פתיחה שאלה ״לשמור?״.
+                // צירוף לכתוביות קיימות כן משנה משהו - שם השאלה במקום.
+                _doc.Dirty = appended;
                 SyncAfterDocChange();
                 _hintLbl.Text = "נטענו " + res.Cues.Count + " כתוביות מהקובץ " + Path.GetFileName(path) + "  (קידוד " + res.Encoding + ")";
                 _hintLbl.Invalidate();
@@ -2550,6 +2586,16 @@ namespace SubtitleStudio
 
         private bool SaveSubtitles(bool asNew)
         {
+            // פרויקט פתוח: ״שמירה״ שומרת את מה שפתוח - הפרויקט, וקובץ הכתוביות
+            // שהוא עובד מולו אם יש כזה. אחרת SRT ליד הסרט מתיישן בשקט.
+            if (!asNew && _projectPath != null)
+            {
+                bool subsOk = true;
+                if (!string.IsNullOrEmpty(_doc.FilePath) && _doc.Cues.Count > 0 &&
+                    !_doc.FilePath.EndsWith(Project.Extension, StringComparison.OrdinalIgnoreCase))
+                    subsOk = WriteSubtitles(_doc.FilePath);
+                return SaveProject(false) && subsOk;
+            }
             if (_doc.Cues.Count == 0)
             {
                 Ui.Info(this, "אין מה לשמור", "עוד לא נוצרו כתוביות.");
@@ -2573,6 +2619,11 @@ namespace SubtitleStudio
                 if (d.ShowDialog(this) != DialogResult.OK) return false;
                 path = d.FileName;
             }
+            return WriteSubtitles(path);
+        }
+
+        private bool WriteSubtitles(string path)
+        {
             // כתובית שנוצרה ולא נכתב בה כלום היא תמיד תאונה - לא שומרים אותה,
             // וגם מוציאים אותה מהרשימה כדי שהמספרים יתאימו לקובץ.
             int blanks = 0;
@@ -2604,7 +2655,10 @@ namespace SubtitleStudio
                     _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
                 _doc.FilePath = path;
                 _doc.Dirty = false;
-                _hintLbl.Text = "הכתוביות נשמרו:  " + Path.GetFileName(path) +
+                // הגיבוי האוטומטי ישן מהשמירה. אם הוא נשאר וקרתה קריסה, ההפעלה
+                // הבאה הייתה מציעה ״לשחזר״ גרסה ישנה מזו שנשמרה.
+                ClearAutoSave();
+                _hintLbl.Text = "הכתוביות נשמרו:  " + Theme.FileName(Path.GetFileName(path)) + "\u200F" +
                     (blanks > 0 ? "   (הושמטו " + blanks + " כתוביות בלי טקסט)" : "");
                 _hintLbl.Invalidate();
                 return true;
@@ -2855,51 +2909,343 @@ namespace SubtitleStudio
         }
 
         // ---------- שמירה אוטומטית ----------
-        private string AutoSavePath { get { return Path.Combine(Ff.TempDir(), "autosave.srt"); } }
-        private string AutoSaveInfo { get { return Path.Combine(Ff.TempDir(), "autosave.txt"); } }
+        // **בפורמט הפרויקט, לא SRT.** הגיבוי הישן שמר רק טקסט וזמנים, ולכן
+        // שחזור החזיר כתוביות בלי עיצוב, בלי מקום, וכל שורה שעוד לא תוזמנה
+        // חזרה עם הערכת זמן שנראית כמו זמן אמיתי.
+        //
+        // **ב-%LOCALAPPDATA%, לא ב-%TEMP%.** ‏Ff.CleanTemp מוחק שם כל קובץ בן
+        // יותר משש שעות.
 
-        private void AutoSave()
+        private static string AutoSaveFile
+        {
+            get
+            {
+                // בבדיקות: תיקייה אחרת. אסור שחלון בדיקה ידרוס עבודה אמיתית של המשתמש.
+                string dir = Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1"
+                    ? Path.Combine(Path.GetTempPath(), "ss-test-autosave")
+                    : Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "SubtitleStudio"), "autosave");
+                try { if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); }
+                catch { }
+                return Path.Combine(dir, "session" + Project.Extension);
+            }
+        }
+
+        internal void AutoSave()
         {
             try
             {
-                if (!_doc.Dirty || _doc.Cues.Count == 0) return;
-                File.WriteAllBytes(AutoSavePath, new UTF8Encoding(true).GetBytes(Formats.ToSrt(_doc.Cues)));
-                File.WriteAllText(AutoSaveInfo, (_mediaPath == null ? "" : _mediaPath) + "\r\n" + DateTime.Now.ToString("g"), Encoding.UTF8);
+                if (!_doc.Dirty) return;
+                if (_doc.Cues.Count == 0 && _projectPath == null) return;
+                ProjectData d = CaptureProject(null);
+                d.Origin = _projectPath;
+                Project.Write(AutoSaveFile, Project.ToJson(d));
             }
             catch { }
         }
 
-        private void ClearAutoSave()
+        internal void ClearAutoSave()
         {
             try
             {
-                if (File.Exists(AutoSavePath)) File.Delete(AutoSavePath);
-                if (File.Exists(AutoSaveInfo)) File.Delete(AutoSaveInfo);
+                string f = AutoSaveFile;
+                if (File.Exists(f)) File.Delete(f);
             }
             catch { }
+        }
+
+        /// <summary>מה מחכה לשחזור, או null. נפרד מההצעה עצמה כדי שאפשר יהיה
+        /// לבדוק אותו בלי חלון.</summary>
+        internal ProjectData PendingRecovery()
+        {
+            try
+            {
+                string f = AutoSaveFile;
+                if (!File.Exists(f)) return null;
+                string err;
+                ProjectData d = Project.Load(f, out err);
+                if (d == null || (d.Cues.Count == 0 && d.MediaPath == null) ||
+                    (DateTime.UtcNow - d.Saved).TotalDays > 30)
+                {
+                    ClearAutoSave();
+                    return null;
+                }
+                return d;
+            }
+            catch { return null; }
         }
 
         private void CheckRecovery()
         {
             try
             {
-                if (!File.Exists(AutoSavePath)) return;
-                if ((DateTime.Now - File.GetLastWriteTime(AutoSavePath)).TotalHours > 12) { ClearAutoSave(); return; }
-                if (_doc.Cues.Count > 0) return;
-                string[] info = File.Exists(AutoSaveInfo) ? File.ReadAllLines(AutoSaveInfo, Encoding.UTF8) : new string[] { "", "" };
-                string media = info.Length > 0 ? info[0] : "";
-                string when = info.Length > 1 ? info[1] : "";
-                if (!Ui.Confirm(this, "נמצאה עבודה שלא נשמרה",
-                    "יש כתוביות מהפעם הקודמת (" + when + ").\nלשחזר אותן?", "לשחזר", "לא, תודה"))
-                { ClearAutoSave(); return; }
-                ParseResult r = Formats.Load(AutoSavePath);
-                _doc.Cues.AddRange(r.Cues);
-                _doc.Sort();
-                SyncAfterDocChange();
-                if (media.Length > 0 && File.Exists(media)) OpenMedia(media);
-                ClearAutoSave();
+                // נפתח קובץ מבחוץ (לחיצה כפולה) - לא מחליפים אותו בשחזור
+                if (_doc.Cues.Count > 0 || _mediaPath != null) return;
+                ProjectData d = PendingRecovery();
+                if (d != null)
+                {
+                    string what = d.Cues.Count == 1 ? "כתובית אחת" : d.Cues.Count + " כתוביות";
+                    if (d.MediaPath != null) what += "  ·  " + Theme.FileName(Path.GetFileName(d.MediaPath)) + "\u200F";
+                    string when = d.Saved.ToLocalTime().ToString("d.M.yyyy HH:mm", CultureInfo.InvariantCulture);
+                    if (!Ui.Confirm(this, "נמצאה עבודה שלא נשמרה",
+                            "בפעם הקודמת התוכנה נסגרה לפני שהעבודה נשמרה:\n" + what +
+                            "  ·  " + Theme.Ltr(when) + "\nלשחזר אותה?", "לשחזר", "לא, תודה"))
+                    {
+                        ClearAutoSave();
+                        return;
+                    }
+                    ApplyProject(d, null, true);
+                    return;
+                }
+                LegacyRecovery();
             }
             catch { }
+        }
+
+        /// <summary>הגיבוי של 0.7.0 ומטה: SRT ב-%TEMP%. נשאר כדי שקריסה ממש
+        /// לפני העדכון לא תאבד. אפשר למחוק בגרסה 0.9.</summary>
+        private void LegacyRecovery()
+        {
+            string srt = Path.Combine(Ff.TempDir(), "autosave.srt");
+            string info = Path.Combine(Ff.TempDir(), "autosave.txt");
+            try
+            {
+                if (!File.Exists(srt)) return;
+                string[] lines = File.Exists(info) ? File.ReadAllLines(info, Encoding.UTF8) : new string[] { "", "" };
+                string media = lines.Length > 0 ? lines[0] : "";
+                string when = lines.Length > 1 ? lines[1] : "";
+                if (Ui.Confirm(this, "נמצאה עבודה שלא נשמרה",
+                        "יש כתוביות מהפעם הקודמת (" + when + ").\nלשחזר אותן?", "לשחזר", "לא, תודה"))
+                {
+                    ParseResult r = Formats.Load(srt);
+                    if (media.Length > 0 && File.Exists(media)) OpenMediaCore(media, true);
+                    _doc.Cues.AddRange(r.Cues);
+                    _doc.Sort();
+                    // בלי זה היציאה הבאה לא שאלה ״לשמור?״ - והעבודה אבדה בפעם השנייה
+                    _doc.Dirty = true;
+                    SyncAfterDocChange();
+                }
+            }
+            catch { }
+            try { File.Delete(srt); } catch { }
+            try { File.Delete(info); } catch { }
+        }
+
+        // ---------- פרויקט ----------
+
+        /// <summary>מה לשאול ביציאה: "none", "project" (יש פרויקט פתוח),
+        /// "project-new" (אין פרויקט, ויש שורות בלי תזמון - SRT היה מאבד את
+        /// זה), או "subtitles".</summary>
+        internal string ExitSaveKind()
+        {
+            if (!_doc.Dirty) return "none";
+            if (_projectPath != null) return "project";
+            if (_doc.Cues.Count == 0) return "none";
+            if (UntimedCount() > 0) return "project-new";
+            return "subtitles";
+        }
+
+        /// <summary>תמונת מצב של העבודה. ‏forPath = לאן תישמר - ממנו מחושבים
+        /// הנתיבים היחסיים; null בשמירה אוטומטית, שם יחסי חסר משמעות.</summary>
+        internal ProjectData CaptureProject(string forPath)
+        {
+            ProjectData d = new ProjectData();
+            d.AppVersion = App.Version;
+            d.Saved = DateTime.UtcNow;
+            string dir = null;
+            try { if (forPath != null) dir = Path.GetDirectoryName(Path.GetFullPath(forPath)); }
+            catch { }
+            if (_mediaPath != null)
+            {
+                d.MediaPath = _mediaPath;
+                if (dir != null) d.MediaRelative = Project.Relative(dir, _mediaPath);
+                try
+                {
+                    FileInfo fi = new FileInfo(_mediaPath);
+                    d.MediaSize = fi.Length;
+                    d.MediaModified = fi.LastWriteTimeUtc.Ticks;
+                }
+                catch { }
+            }
+            if (!string.IsNullOrEmpty(_doc.FilePath))
+            {
+                d.SubtitlesPath = _doc.FilePath;
+                if (dir != null) d.SubtitlesRelative = Project.Relative(dir, _doc.FilePath);
+            }
+            d.Position = _engine != null ? _engine.Position : 0;
+            d.InPoint = _tl.InPoint;
+            d.OutPoint = _tl.OutPoint;
+            d.Zoomed = _tl.UserZoomed;
+            d.PxPerSec = _tl.PxPerSec;
+            d.ViewStart = _tl.ViewStart;
+            d.Fps = _mi != null ? _mi.Fps : Formats.VideoFps;
+            d.Style = _style.Clone();
+            d.SceneCuts = _cuts;
+            foreach (Cue c in _doc.Cues)
+            {
+                Cue q = c.Clone();
+                q.Selected = false;
+                d.Cues.Add(q);
+            }
+            return d;
+        }
+
+        /// <summary>״כתוביות ← קובץ ← שמירת הפרויקט״.</summary>
+        internal bool SaveProject(bool asNew)
+        {
+            if (_mediaPath == null && _doc.Cues.Count == 0)
+            {
+                Ui.Info(this, "אין מה לשמור", "פתחו סרט או צרו כתוביות, ואז אפשר לשמור את הפרויקט.");
+                return false;
+            }
+            string path = _projectPath;
+            if (asNew || path == null)
+            {
+                SaveFileDialog dlg = new SaveFileDialog();
+                dlg.Filter = "פרויקט של אולפן הכתוביות|*" + Project.Extension;
+                dlg.Title = "שמירת הפרויקט";
+                try
+                {
+                    string basis = _mediaPath ?? _doc.FilePath;
+                    if (basis != null)
+                    {
+                        dlg.InitialDirectory = Path.GetDirectoryName(basis);
+                        dlg.FileName = Path.GetFileNameWithoutExtension(basis) + Project.Extension;
+                    }
+                }
+                catch { }
+                if (dlg.ShowDialog(this) != DialogResult.OK) return false;
+                path = dlg.FileName;
+                if (!path.EndsWith(Project.Extension, StringComparison.OrdinalIgnoreCase)) path += Project.Extension;
+            }
+            try
+            {
+                Project.Write(path, Project.ToJson(CaptureProject(path)));
+            }
+            catch (Exception ex)
+            {
+                Ui.Error(this, "הפרויקט לא נשמר", ex.Message);
+                return false;
+            }
+            _projectPath = path;
+            _doc.Dirty = false;
+            ClearAutoSave();
+            Settings.AddRecent(path);
+            Settings.Save(_style);
+            if (_hero != null) _hero.Recent = Settings.Recent;
+            // ‏RLM אחרי שם הקובץ: בלעדיו ״·״ והמספרים שאחריו נצמדים לסיומת הלטינית
+            _hintLbl.Text = "הפרויקט נשמר:  " + Theme.FileName(Path.GetFileName(path)) + "\u200F   ·   בפעם הבאה הוא יחכה במסך הפתיחה";
+            _hintLbl.Invalidate();
+            return true;
+        }
+
+        internal void OpenProject(string path)
+        {
+            string err;
+            ProjectData d = Project.Load(path, out err);
+            if (d == null)
+            {
+                Ui.Error(this, "לא הצלחתי לפתוח את הפרויקט", err);
+                return;
+            }
+            if (!ConfirmDiscard("לפתוח את הפרויקט?", "הכתוביות שלא נשמרו יאבדו.")) return;
+            ClearAutoSave();
+            ApplyProject(d, path, false);
+        }
+
+        /// <summary>מחזיר את העבודה מתמונת מצב. ‏projectPath = הקובץ שממנו נטען
+        /// (לנתיבים היחסיים), או null בשחזור מגיבוי.
+        ///
+        /// **סרט שלא נמצא לא מפיל את הפרויקט.** הכתוביות נפתחות בכל מקרה, ויש
+        /// הצעה לאתר את הסרט. פרויקט שלא נפתח כי הסרט זז גרוע מכלום.</summary>
+        internal void ApplyProject(ProjectData d, string projectPath, bool recovered)
+        {
+            CloseEverything();
+
+            // הכתוביות **לפני** הסרט: אם הסרט ייכשל, הן כבר כאן
+            foreach (Cue c in d.Cues) _doc.Cues.Add(c.Clone());
+            _doc.Sort();
+            if (d.Style != null)
+            {
+                _style = d.Style.Clone();
+                _video.Style = _style;
+                _tl.Style = _style;
+            }
+
+            string media = null;
+            if (!string.IsNullOrEmpty(d.MediaPath))
+            {
+                media = projectPath != null
+                    ? Project.Locate(projectPath, d.MediaPath, d.MediaRelative)
+                    : (File.Exists(d.MediaPath) ? d.MediaPath : null);
+                if (media == null && !Silent)
+                    media = LocateMissingMedia(d.MediaPath);
+            }
+            if (media != null)
+            {
+                if (d.SceneCuts != null && Project.SameMedia(media, d)) SceneCuts.Remember(media, d.SceneCuts);
+                OpenMediaCore(media, true);
+            }
+            if (_mi != null)
+            {
+                if (d.InPoint >= 0 && d.InPoint < _mi.DurationMs) _tl.InPoint = d.InPoint;
+                if (d.OutPoint > _tl.InPoint && d.OutPoint <= _mi.DurationMs) _tl.OutPoint = d.OutPoint;
+                if (d.Zoomed) _tl.RestoreView(d.PxPerSec, d.ViewStart);
+                if (d.Position > 0 && d.Position < _mi.DurationMs) Seek(d.Position);
+            }
+            else if (d.Fps > 0) Formats.VideoFps = d.Fps;
+
+            string subs = null;
+            if (!string.IsNullOrEmpty(d.SubtitlesPath))
+            {
+                subs = projectPath != null ? Project.Locate(projectPath, d.SubtitlesPath, d.SubtitlesRelative) : null;
+                // קובץ שעוד לא קיים אבל התיקייה שלו כן - השמירה הבאה תיצור אותו
+                if (subs == null)
+                {
+                    try { if (Directory.Exists(Path.GetDirectoryName(d.SubtitlesPath))) subs = d.SubtitlesPath; }
+                    catch { }
+                }
+            }
+            _doc.FilePath = subs;
+            _projectPath = recovered ? d.Origin : projectPath;
+            _doc.ClearHistory();
+            if (!recovered && projectPath != null)
+            {
+                Settings.AddRecent(projectPath);
+                Settings.Save(_style);
+                if (_hero != null) _hero.Recent = Settings.Recent;
+            }
+            _doc.RaiseChanged();
+            // **אחרי** RaiseChanged: הוא מסמן Dirty=true בעצמו, ופרויקט שרק
+            // נפתח היה שואל ״לשמור?״ ביציאה
+            _doc.Dirty = recovered;
+            SyncAfterDocChange();
+            UpdateTapUi();
+            _video.Invalidate();
+            _hintLbl.Text = (recovered ? "העבודה שוחזרה" : "נפתח הפרויקט " + Theme.FileName(Path.GetFileName(projectPath)) + "\u200F") +
+                "  ·  " + (_doc.Cues.Count == 1 ? "כתובית אחת" : _doc.Cues.Count + " כתוביות") +
+                (!string.IsNullOrEmpty(d.MediaPath) && media == null ? "  ·  בלי הסרט" : "");
+            _hintLbl.Invalidate();
+        }
+
+        /// <summary>בבדיקות אין מי שיענה לחלון ״לאתר את הסרט״.</summary>
+        private static bool Silent { get { return Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1"; } }
+
+        private string LocateMissingMedia(string expected)
+        {
+            string name = "";
+            try { name = Path.GetFileName(expected); }
+            catch { }
+            if (!Ui.Confirm(this, "הסרט של הפרויקט לא נמצא",
+                    "חיפשתי את " + Theme.FileName(name) + "\u200F ולא מצאתי. אולי הוא הועבר לתיקייה אחרת, " +
+                    "או שהכונן שלו לא מחובר.\nהכתוביות נפתחות בכל מקרה.", "לאתר את הסרט", "להמשיך בלי הסרט"))
+                return null;
+            OpenFileDialog dlg = new OpenFileDialog();
+            dlg.Filter = AnyFilter;
+            dlg.FilterIndex = 2;
+            dlg.Title = "איפה הסרט?";
+            dlg.FileName = name;
+            return dlg.ShowDialog(this) == DialogResult.OK ? dlg.FileName : null;
         }
 
         // ---------- מקלדת ----------
