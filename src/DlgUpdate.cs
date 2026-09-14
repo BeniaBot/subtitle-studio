@@ -150,6 +150,10 @@ namespace SubtitleStudio
                         for (int i = 0; i < raw.Length; i++)
                         {
                             string t = raw[i].TrimEnd();
+                            // קו מפריד = סוף ההערות למשתמש; אחריו נספחים טכניים.
+                            // ‏HTML וגדרות קוד נועדו לדפדפן, וכאן הם נראים כמו תקלה.
+                            if (t.Trim() == "---") break;
+                            if (t.TrimStart().StartsWith("<") || t.TrimStart().StartsWith("```")) continue;
                             if (t.Length == 0) { y += Theme.S(8); continue; }
                             bool head = t.StartsWith("#");
                             y = Push(g, Clean(t), head, y);

@@ -87,5 +87,23 @@ Check 'חסם עליון נשמר' (((F $sc 'Versions') -notcontains '0.6.0') -a
 $sv = $build.Invoke($null, @([string]$json, 'v0.6.2', 'v0.6.3'))
 Check 'תגית עם v מובילה' ((F $sv 'Jump') -eq 1) ''
 
+# ---- כשהיומן לא ירד: תיאור המהדורה מוצג כמו שהוא ----
+# סינון אינטרנט שחוסם את raw.githubusercontent.com מביא לכאן. תיאור שנכתב
+# לדפדפן (קו מפריד, HTML, גדר קוד עם טביעות אימות) נראה בחלון כמו תקלה.
+Write-Host ''
+Write-Host 'תיאור המהדורה כגיבוי'
+Add-Type -AssemblyName System.Windows.Forms
+$relT = $asm.GetType('SubtitleStudio.Updater+Release')
+$rel = [Activator]::CreateInstance($relT)
+$relT.GetField('Notes').SetValue($rel, "**שורה ראשונה.**`n`n* פריט`n`n---`n`n<details>`n<summary>אימות</summary>`n``````n6efe9c27  SubtitleStudio.exe`n```````n</details>")
+$nvT = $asm.GetType('SubtitleStudio.UpdateDlg+NotesView')
+$nv = $nvT.GetConstructors($IN)[0].Invoke(@($null, $rel, [int]400))
+[void]$nvT.GetMethod('Measure').Invoke($nv, @())
+$texts = @(); foreach ($ln in (F $nv '_lines')) { $texts += (F $ln 'Text') }
+$joined = $texts -join ' | '
+Check 'הטקסט שלפני הקו מוצג, בלי סימני עיצוב' (($texts -contains 'שורה ראשונה.') -and ($texts -contains 'פריט')) $joined
+Check 'מה שאחרי הקו לא מוצג' (-not ($joined -match 'details|summary|6efe9c27|אימות')) $joined
+$nv.Dispose()
+
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
