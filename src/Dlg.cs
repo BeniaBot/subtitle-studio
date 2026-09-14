@@ -376,6 +376,9 @@ namespace SubtitleStudio
                 if (_done)
                 {
                     _timer.Stop();
+                    // שלב הכנה (למשל איתור חיתוכים) - ההודעה האמיתית באה מיד
+                    // אחריו, ו״הפעולה הושלמה״ + ״סגירה״ היו לחיצה מיותרת
+                    if (_success && CloseOnSuccess) { Close(); return; }
                     _cancel.Visible = false;
                     _close.Visible = true;
                     _openFolder.Visible = _success && !string.IsNullOrEmpty(job.OutputPath);
@@ -421,9 +424,17 @@ namespace SubtitleStudio
                 new RectangleF(Theme.S(22), Theme.S(118), Theme.S(476), Theme.S(18)), Theme.SfFar);
         }
 
+        public bool CloseOnSuccess;
+
         public static bool Run(IWin32Window owner, string title, FfJob job)
         {
+            return Run(owner, title, job, false);
+        }
+
+        public static bool Run(IWin32Window owner, string title, FfJob job, bool closeOnSuccess)
+        {
             ProgressDlg d = new ProgressDlg(title, job);
+            d.CloseOnSuccess = closeOnSuccess;
             d.ShowDialog(owner);
             bool ok = d.Success;
             d.Dispose();

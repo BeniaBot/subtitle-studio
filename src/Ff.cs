@@ -142,6 +142,12 @@ namespace SubtitleStudio
         public StringBuilder Log = new StringBuilder();
         public Action<double, string> OnProgress;   // 0..1, שורת מצב
         public Action<bool, string> OnDone;         // הצלחה, הודעה
+        /// <summary>כל שורה שהמנוע כותב, ברגע שהיא נכתבת. לעבודות שהתוצאה
+        /// שלהן היא היומן עצמו (למשל איתור חיתוכים) - ‏Log נחתך ב-400KB.</summary>
+        public Action<string> OnLine;
+        /// <summary>נקבעים לפני OnDone. מאפשרים לחכות לעבודה בלי קולבק -
+        /// כלי הבדיקה ב-PowerShell לא יכולים לקבל קריאה מתהליכון אחר.</summary>
+        public volatile bool Done, Succeeded;
         public string OutputPath;
 
         public void Cancel()
@@ -519,6 +525,8 @@ namespace SubtitleStudio
                         };
                     ok = RunOne(job, steps[step], inner, out msg);
                 }
+                job.Succeeded = ok && !job.Cancelled;
+                job.Done = true;
                 if (job.OnDone != null) job.OnDone(ok && !job.Cancelled, job.Cancelled ? "בוטל" : msg);
             });
             t.IsBackground = true;
@@ -545,6 +553,7 @@ namespace SubtitleStudio
                                 while ((line = p.StandardError.ReadLine()) != null)
                                 {
                                     lock (job.Log) { job.Log.AppendLine(line); if (job.Log.Length > 400000) job.Log.Remove(0, 200000); }
+                                    if (job.OnLine != null) job.OnLine(line);
                                     Match m = Regex.Match(line, @"time=(\d+:\d+:\d+\.\d+)");
                                     if (m.Success && onProgress != null)
                                     {

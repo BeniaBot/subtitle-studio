@@ -176,10 +176,23 @@ namespace SubtitleStudio
                 "פותח חלון אישור, כי הקול נשלח לשירות חיצוני - המשתמש מאשר בעצמו")
                 .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים"));
 
+            t.Add(new AiTool("auto_time_by_speech",
+                "**מתזמן לבד** את השורות שאין להן זמנים, לפי השתיקות בסרט - בלי אינטרנט, " +
+                "בלי מכסה ובלי לשלוח כלום החוצה. זו הדרך הראשונה לתזמן טקסט שהמשתמש הביא. " +
+                "אם כל הכתוביות כבר מתוזמנות, retime_all=true מתזמן מחדש את כולן - " +
+                "רק כשהמשתמש ביקש את זה במפורש")
+                .P("retime_all", "boolean", "לתזמן מחדש גם כתוביות שכבר מתוזמנות"));
+
             t.Add(new AiTool("start_tap_timing",
                 "מתחיל את מצב התזמון בלחיצה: הסרט מתנגן, והמשתמש לוחץ על כפתור " +
                 "בכל פעם שמשפט מתחיל. עובד רק כשיש שורות שהתזמון שלהן עוד הערכה " +
-                "(אחרי יבוא טקסט). זו הדרך לתזמן טקסט שאין לו זמנים"));
+                "(אחרי יבוא טקסט). זו הדרך הידנית - כשהתזמון האוטומטי לא הצליח, " +
+                "או כשהמשתמש רוצה לתזמן בעצמו"));
+
+            t.Add(new AiTool("snap_to_scene_cuts",
+                "מצמיד התחלות וסופים של כתוביות למעברי סצנה קרובים (עד חצי שנייה), " +
+                "כדי שכתובית לא תופיע רגע אחרי שהתמונה מתחלפת. בפעם הראשונה מאתר את " +
+                "המעברים בסרט - בסרט ארוך זה לוקח כמה דקות, עם חלון התקדמות שאפשר לבטל"));
 
             return t;
         }
@@ -243,6 +256,8 @@ namespace SubtitleStudio
                     case "open_text_import": return AiOpenTextImport();
                     case "transcribe_media": return AiTranscribe(call);
                     case "start_tap_timing": return AiStartTap();
+                    case "auto_time_by_speech": return AiAutoTime(call);
+                    case "snap_to_scene_cuts": return AiSnapCuts();
                 }
                 r["error"] = "פעולה לא מוכרת: " + call.Name;
             }
@@ -888,6 +903,44 @@ namespace SubtitleStudio
             }
             StartTapping();
             r["done"] = "מצב התזמון התחיל. " + left + " שורות מחכות; המשתמש לוחץ על הכפתור הכחול בכל משפט";
+            return r;
+        }
+
+        private Dictionary<string, object> AiAutoTime(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string[] why = AutoTimeBlocker();
+            if (why != null) { r["error"] = why[1]; return r; }
+            bool all = UntimedCount() == 0;
+            if (all && !c.Bool("retime_all", false))
+            {
+                r["error"] = "כל הכתוביות כבר מתוזמנות. לתזמן מחדש את כולן רק אם המשתמש ביקש - retime_all=true";
+                return r;
+            }
+            AutoTime.Result res = RunAutoTime(all, "תזמון אוטומטי מהצ'אט");
+            if (res.Timed == 0) { r["error"] = res.Error ?? "לא נמצא דיבור ברור"; return r; }
+            r["done"] = "תוזמנו " + res.Timed + " כתוביות לפי השתיקות בסרט. " +
+                        "כדאי שהמשתמש יעבור ויבדוק; Ctrl+Z מבטל";
+            return r;
+        }
+
+        private Dictionary<string, object> AiSnapCuts()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string[] why = SceneSnapBlocker();
+            if (why != null) { r["error"] = why[1]; return r; }
+            if (!EnsureSceneCuts()) { r["error"] = "איתור מעברי הסצנה בוטל או נכשל"; return r; }
+            r["scene_cuts"] = _cuts.Count;
+            if (_cuts.Count == 0)
+            {
+                r["done"] = "לא נמצאו מעברי סצנה - הסרט מצולם ברצף. לא שונה כלום";
+                return r;
+            }
+            SceneCuts.SnapResult s = ApplySceneSnap();
+            r["done"] = s.Cues == 0
+                ? "נמצאו " + _cuts.Count + " מעברי סצנה, וכל הכתוביות כבר מסודרות ביחס אליהם. לא שונה כלום"
+                : "הוצמדו " + s.Cues + " כתוביות (" + s.Starts + " התחלות, " + s.Ends + " סופים) ל-" +
+                  _cuts.Count + " מעברי סצנה. הקווים הדקים על הציר מסמנים אותם";
             return r;
         }
 

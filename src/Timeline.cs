@@ -27,6 +27,9 @@ namespace SubtitleStudio
         public bool FollowPlayhead = true;
         public bool SnapEnabled = true;
         public SubStyle Style;
+        /// <summary>חיתוכי הסצנות של הסרט, ממוינים - או null כל עוד לא אותרו.
+        /// מצוירים כקווים דקים, וגרירה של קצה כתובית נצמדת אליהם.</summary>
+        public List<long> Cuts;
 
         public event EventHandler<long> SeekRequested;
         public event EventHandler SelectionChanged;
@@ -276,6 +279,9 @@ namespace SubtitleStudio
                     candidates.Add(c.Start);
                     candidates.Add(c.End);
                 }
+            if (Cuts != null && Cuts.Count > 0)
+                for (int k = SceneCuts.LowerBound(Cuts, ms - bestDist); k < Cuts.Count && Cuts[k] <= ms + bestDist; k++)
+                    candidates.Add(Cuts[k]);
             foreach (long cand in candidates)
             {
                 long d = Math.Abs(cand - ms);
@@ -595,6 +601,8 @@ namespace SubtitleStudio
                 using (SolidBrush b = new SolidBrush(Theme.Ruler)) g.FillRectangle(b, 0, 0, Width, RulerH);
                 using (Pen p = new Pen(Theme.Border, 1)) g.DrawLine(p, 0, RulerH - 1, Width, RulerH - 1);
             }
+            DrawLaneBg(g);
+            DrawCuts(g);
             DrawCues(g);
             DrawRubber(g);
             DrawNew(g);
@@ -762,12 +770,12 @@ namespace SubtitleStudio
             }
         }
 
-        private void DrawCues(Graphics g)
+        /// <summary>רקע לפס הכתוביות - מפריד ויזואלית בין "פס הקול" (ניווט)
+        /// ל"פס הכתוביות" (יצירה). נפרד מ-DrawCues כדי שקווי החיתוך ייצאו
+        /// מעל הרקע ומתחת לבלוקים.</summary>
+        private void DrawLaneBg(Graphics g)
         {
             if (Doc == null) return;
-            int laneH = LaneH;
-
-            // רקע לפס הכתוביות - מפריד ויזואלית בין "פס הקול" (ניווט) ל"פס הכתוביות" (יצירה)
             int laneTop = TrackTop;
             int laneBottom = Height - ScrollH;
             if (laneBottom > laneTop)
@@ -778,6 +786,47 @@ namespace SubtitleStudio
                 Theme.Str(g, "כתוביות", Theme.Small, Theme.TextFaint,
                     new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfRtl);
             }
+        }
+
+        /// <summary>קווי חיתוכי הסצנות. **דקים ואפורים בכוונה** - הם מידע רקע,
+        /// לא עוד דבר שמתחרה בסמן האדום ובבלוקים. כשהם צפופים מכדי להיות
+        /// קווים (סרט שלם בזום-אאוט) - נשארים רק המשולשים הקטנים למעלה, אחרת
+        /// כל הציר נצבע אפור.</summary>
+        private void DrawCuts(Graphics g)
+        {
+            List<long> cuts = Cuts;
+            if (cuts == null || cuts.Count == 0 || DurationMs <= 1 || Width < 10) return;
+            int lo = SceneCuts.LowerBound(cuts, XToMs(0));
+            int hi = SceneCuts.LowerBound(cuts, XToMs(Width) + 1);
+            int n = hi - lo;
+            if (n <= 0) return;
+            bool lines = Width / (double)n >= Theme.S(6);
+            float tw = Theme.S(4), th = Theme.S(4);
+            System.Drawing.Drawing2D.SmoothingMode old = g.SmoothingMode;
+            using (Pen p = new Pen(Color.FromArgb(Theme.Dark ? 78 : 64, Theme.Text), 1))
+            using (SolidBrush mark = new SolidBrush(Theme.Mix(Theme.WaveBack, Theme.Text, 0.55f)))
+            {
+                for (int k = lo; k < hi; k++)
+                {
+                    float x = (float)Math.Round(MsToX(cuts[k]));
+                    if (lines)
+                    {
+                        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+                        g.DrawLine(p, x, RulerH, x, Height - ScrollH);
+                        g.SmoothingMode = old;
+                    }
+                    g.FillPolygon(mark, new PointF[] {
+                        new PointF(x - tw, RulerH), new PointF(x + tw + 1, RulerH), new PointF(x + 0.5f, RulerH + th) });
+                }
+            }
+            g.SmoothingMode = old;
+        }
+
+        private void DrawCues(Graphics g)
+        {
+            if (Doc == null) return;
+            int laneH = LaneH;
+
             // כשכל הקובץ על המסך, כל כתובית צרה מפיקסל. ציור בלוקים מעוגלים
             // עם טקסט לכל אחת הוא בזבוז - עוברים למצב צפוף.
             if (DenseMode())

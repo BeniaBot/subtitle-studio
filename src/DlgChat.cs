@@ -402,7 +402,8 @@ namespace SubtitleStudio
             sb.Append("החוצה, והמשתמש מאשר בעצמו - אל תבטיח לו שזה נשאר במחשב, ואל תנסה שוב אם הוא סגר.\n");
             sb.Append("1. הטקסט כבר כתוב אצל המשתמש (תמליל, מסמך) - open_text_import פותח לו את החלון להדביק בו. ");
             sb.Append("**אל תבקש ממנו להדביק את הטקסט לצ'אט** - זה מיותר ומעצבן. ");
-            sb.Append("אחר כך start_tap_timing, והוא מתזמן כל משפט בלחיצה אחת.\n");
+            sb.Append("אחר כך auto_time_by_speech מתזמן את השורות לבד לפי השתיקות בסרט. ");
+            sb.Append("start_tap_timing (לחיצה בכל משפט) הוא הגיבוי, אם התוצאה לא טובה.\n");
             sb.Append("2. המשתמש רוצה לכתוב תוך כדי צפייה - new_subtitle_here יוצר כתובית במקום שבו הסרט עומד, והוא מקליד.\n");
             sb.Append("3. הטקסט נמצא אצלך בשיחה (למשל תרגמת אותו) - create_subtitles_from_text, ועדיף עם tap_later=true.\n");
             sb.Append("אם לא ברור לך באיזה מצב המשתמש - שאל שאלה אחת קצרה, ואל תסביר את כל הארבע.\n\n");
@@ -411,6 +412,7 @@ namespace SubtitleStudio
             sb.Append("· לשלוף ערוץ כתוביות שמוטמע בתוך MKV/MP4 - extract_subtitles_from_video\n");
             sb.Append("· לתרגם את כל הכתוביות ולהחליף אותן - translate_subtitles\n");
             sb.Append("· לתקן תזמון שמחליק לאורך הסרט - stretch_timing; הזזה קבועה - shift_cues\n");
+            sb.Append("· שכתוביות לא יתחילו רגע אחרי שהתמונה מתחלפת - snap_to_scene_cuts\n");
             sb.Append("· חיפוש והחלפה, פיצול, איחוד, סידור שורות - replace_text / split_cue / merge_cues / wrap_lines\n");
             sb.Append("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n");
             sb.Append("· לחתוך קטע, לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");

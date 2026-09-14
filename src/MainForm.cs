@@ -17,6 +17,8 @@ namespace SubtitleStudio
         private string _mediaPath;
         private Engine _engine = new Engine();
         private Waveform _wave;
+        /// <summary>חיתוכי הסצנות של הסרט הפתוח, או null כל עוד לא אותרו.</summary>
+        private List<long> _cuts;
         private SubStyle _style = new SubStyle();
 
         // ---------- אזורים ----------
@@ -358,6 +360,12 @@ namespace SubtitleStudio
                 delegate { AutoTimeBySpeech(); });
             auto.Enabled = cues && media;
             items.Add(auto);
+
+            MenuItem cutsIt = MenuItem.Make("הצמדה למעברי סצנה",
+                "כתובית לא תתחיל רגע אחרי שהתמונה מתחלפת · בלי אינטרנט", Ico.Film,
+                delegate { SnapToSceneCuts(); });
+            cutsIt.Enabled = cues && media && _mi.HasVideo;
+            items.Add(cutsIt);
 
             MenuItem fix = MenuItem.Make("תיקון תזמונים אוטומטי", "מסדר חפיפות, כתוביות קצרות מדי ורווחים", Ico.Wand,
                 delegate { AutoFix(); });
@@ -1575,6 +1583,8 @@ namespace SubtitleStudio
             catch { }
             if (_wave != null) { _wave.Abort(); _wave = null; }
             _tl.Wave = null;
+            _cuts = null;
+            _tl.Cuts = null;
             _mi = null;
             _mediaPath = null;
             Formats.VideoFps = 0;
@@ -1779,39 +1789,148 @@ namespace SubtitleStudio
         /// בלי הכפתור השני היכולת הייתה קיימת ואף אחד לא היה מוצא אותה.</summary>
         internal void AutoTimeBySpeech()
         {
-            if (_mi == null)
-            { Ui.Info(this, "צריך סרט פתוח", "התזמון נעשה לפי הדיבור שבסרט. פתחו קודם את הסרט."); return; }
-            if (!_mi.HasAudio)
-            { Ui.Info(this, "אין פס קול", "בסרט הזה אין קול, ולכן אין לפי מה לתזמן."); return; }
-            if (_wave == null || !_wave.Ready)
-            { Ui.Info(this, "רק רגע", "פס הקול עוד נבנה. אפשר לנסות שוב בעוד כמה שניות."); return; }
-            if (_wave.Failed)
-            { Ui.Error(this, "לא הצלחתי לקרוא את הקול", "פס הקול של הסרט לא נקרא, ולכן אין לפי מה לתזמן."); return; }
-            if (_doc.Cues.Count == 0)
-            { Ui.Info(this, "אין כתוביות", "קודם צריך טקסט. ״כתוביות ← יצירת כתוביות מטקסט״."); return; }
+            string[] why = AutoTimeBlocker();
+            if (why != null)
+            {
+                if (why[2] == "error") Ui.Error(this, why[0], why[1]);
+                else Ui.Info(this, why[0], why[1]);
+                return;
+            }
 
             bool all = UntimedCount() == 0;
             if (all && !Ui.Confirm(this, "לתזמן מחדש את כל הכתוביות?",
                     "כל הכתוביות כבר מתוזמנות. אם תמשיכו, הזמנים שלהן יחושבו מחדש לפי " +
                     "השתיקות בסרט. אפשר לבטל ב-Ctrl+Z.", "לתזמן מחדש", "ביטול")) return;
 
+            AutoTime.Result r = RunAutoTime(all, "תזמון אוטומטי לפי הדיבור");
+            if (r.Timed == 0)
+            {
+                Ui.Info(this, "לא תוזמן כלום", r.Error ?? "לא נמצא דיבור ברור.");
+                return;
+            }
+            Ui.Info(this, "תוזמנו " + r.Timed + " כתוביות",
+                "הזמנים נקבעו לפי השתיקות בסרט. כדאי לעבור ולבדוק - אם הטקסט לא " +
+                "תואם בדיוק את מה שנאמר, כתובית יכולה לזוז משפט אחד." + Environment.NewLine +
+                "אפשר לבטל ב-Ctrl+Z.");
+        }
+
+        /// <summary>למה אי אפשר לתזמן לפי הדיבור עכשיו: כותרת, הסבר, ו-"error"
+        /// או "info". ‏null אם אפשר. משותף לתפריט ולעוזר, כדי ששניהם יסרבו
+        /// מאותן סיבות ובאותן מילים.</summary>
+        private string[] AutoTimeBlocker()
+        {
+            if (_mi == null)
+                return new string[] { "צריך סרט פתוח", "התזמון נעשה לפי הדיבור שבסרט. פתחו קודם את הסרט.", "info" };
+            if (!_mi.HasAudio)
+                return new string[] { "אין פס קול", "בסרט הזה אין קול, ולכן אין לפי מה לתזמן.", "info" };
+            if (_wave == null || !_wave.Ready)
+                return new string[] { "רק רגע", "פס הקול עוד נבנה. אפשר לנסות שוב בעוד כמה שניות.", "info" };
+            if (_wave.Failed)
+                return new string[] { "לא הצלחתי לקרוא את הקול", "פס הקול של הסרט לא נקרא, ולכן אין לפי מה לתזמן.", "error" };
+            if (_doc.Cues.Count == 0)
+                return new string[] { "אין כתוביות", "קודם צריך טקסט. ״כתוביות ← יצירת כתוביות מטקסט״.", "info" };
+            return null;
+        }
+
+        /// <summary>התזמון עצמו, בלי שום חלון. אם לא תוזמן כלום - נקודת
+        /// הביטול נמחקת, כדי ש-Ctrl+Z לא ״יבטל״ פעולה שלא קרתה.</summary>
+        private AutoTime.Result RunAutoTime(bool all, string undoLabel)
+        {
             if (_tapping) StopTapping(false);
-            _doc.Push("תזמון אוטומטי לפי הדיבור");
+            _doc.Push(undoLabel);
             AutoTime.Result r = AutoTime.Run(_doc.Cues, _wave.Rms, _wave.Peak, _mi.DurationMs, all);
             if (r.Timed == 0)
             {
                 _doc.DropLastUndo();
-                Ui.Info(this, "לא תוזמן כלום", r.Error ?? "לא נמצא דיבור ברור.");
-                return;
+                return r;
             }
             _doc.Sort();
             _doc.Dirty = true;
             SyncAfterDocChange();
             UpdateTapUi();
-            Ui.Info(this, "תוזמנו " + r.Timed + " כתוביות",
-                "הזמנים נקבעו לפי השתיקות בסרט. כדאי לעבור ולבדוק - אם הטקסט לא " +
-                "תואם בדיוק את מה שנאמר, כתובית יכולה לזוז משפט אחד." + Environment.NewLine +
-                "אפשר לבטל ב-Ctrl+Z.");
+            return r;
+        }
+
+        // ================= מעברי סצנה =================
+
+        /// <summary>״כתוביות ← תזמון ← הצמדה למעברי סצנה״. ההחלטות עצמן
+        /// ב-‏SceneCuts; כאן רק האיתור (פעם אחת לסרט) וההודעות.
+        ///
+        /// **ההודעה מזכירה את הקווים על הציר בכל מקרה** - גם כשלא זזה אף
+        /// כתובית. זה המקום היחיד שבו המשתמש לומד שהם קיימים ושגרירה נצמדת
+        /// אליהם, ובלי זה הם נראים כמו לכלוך על הציר.</summary>
+        internal void SnapToSceneCuts()
+        {
+            string[] why = SceneSnapBlocker();
+            if (why != null) { Ui.Info(this, why[0], why[1]); return; }
+            if (!EnsureSceneCuts()) return;
+            if (_cuts.Count == 0)
+            {
+                Ui.Info(this, "לא נמצאו מעברי סצנה",
+                    "נראה שהסרט מצולם ברצף אחד, בלי חיתוכים - אין למה להצמיד.");
+                return;
+            }
+            SceneCuts.SnapResult r = ApplySceneSnap();
+            string lines = "הקווים הדקים על ציר הזמן מסמנים את המעברים, וכשגוררים כתובית היא נצמדת אליהם.";
+            if (r.Cues == 0)
+            {
+                Ui.Info(this, "לא היה מה להזיז",
+                    "נמצאו " + _cuts.Count + " מעברי סצנה, וכל הכתוביות כבר מסודרות ביחס אליהם." +
+                    Environment.NewLine + lines);
+                return;
+            }
+            Ui.Info(this, "הוצמדו " + r.Cues + " כתוביות",
+                "נמצאו " + _cuts.Count + " מעברי סצנה. כתוביות שהתחילו או נגמרו עד חצי שנייה ממעבר - הוזזו אליו." +
+                Environment.NewLine + lines + Environment.NewLine + "אפשר לבטל ב-Ctrl+Z.");
+        }
+
+        /// <summary>למה אי אפשר להצמיד עכשיו: כותרת והסבר, או null.</summary>
+        private string[] SceneSnapBlocker()
+        {
+            if (_mi == null || _mediaPath == null)
+                return new string[] { "צריך סרט פתוח", "מעברי הסצנה נמצאים בתמונה של הסרט. פתחו קודם את הסרט." };
+            if (!_mi.HasVideo)
+                return new string[] { "אין תמונה", "בקובץ הזה יש רק קול, ולכן אין בו מעברי סצנה." };
+            int timed = 0;
+            foreach (Cue c in _doc.Cues) if (!c.Untimed) timed++;
+            if (timed == 0)
+                return new string[] { "אין כתוביות מתוזמנות", _doc.Cues.Count == 0
+                    ? "אין כתוביות להצמיד."
+                    : "השורות עוד בלי זמנים אמיתיים. קודם לתזמן אותן - למשל בכפתור ״לתזמן לבד״." };
+            return null;
+        }
+
+        /// <summary>מאתר את החיתוכים אם עוד לא אותרו. ‏false אם בוטל או נכשל
+        /// (חלון ההתקדמות כבר הראה למה).</summary>
+        private bool EnsureSceneCuts()
+        {
+            if (_cuts != null) return true;
+            List<long> found = new List<long>();
+            FfJob job = SceneCuts.MakeJob(_mediaPath, _mi.DurationMs, found);
+            if (!ProgressDlg.Run(this, "מאתר מעברי סצנה בסרט", job, true)) return false;
+            List<long> raw;
+            lock (found) raw = new List<long>(found);
+            _cuts = SceneCuts.Normalize(raw, _mi.Fps);
+            SceneCuts.Remember(_mediaPath, _cuts);
+            _tl.Cuts = _cuts;
+            _tl.Invalidate();
+            return true;
+        }
+
+        private SceneCuts.SnapResult ApplySceneSnap()
+        {
+            if (_cuts == null || _cuts.Count == 0) return new SceneCuts.SnapResult();
+            _doc.Push("הצמדה למעברי סצנה");
+            SceneCuts.SnapResult r = SceneCuts.Snap(_doc.Cues, _cuts, _mi.Fps);
+            if (r.Cues == 0)
+            {
+                _doc.DropLastUndo();
+                return r;
+            }
+            _doc.Sort();
+            _doc.Dirty = true;
+            SyncAfterDocChange();
+            return r;
         }
 
         /// <summary>כמה שורות עוד מחכות לתזמון אמיתי.</summary>
@@ -2219,6 +2338,9 @@ namespace SubtitleStudio
                 _tl.InPoint = -1;
                 _tl.OutPoint = -1;
                 _tl.ZoomToFit();
+                // אם כבר אותרו בסשן הזה - חוזרים מיד, בלי עוד ריצה של דקות
+                _cuts = _mi.HasVideo ? SceneCuts.Known(path) : null;
+                _tl.Cuts = _cuts;
 
                 _wave = new Waveform();
                 _tl.Wave = _wave;
