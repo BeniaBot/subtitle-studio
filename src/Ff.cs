@@ -580,7 +580,12 @@ namespace SubtitleStudio
                         }
                     }
                 }
-                catch (Exception ex) { ok = false; msg = ex.Message; }
+                catch (Exception ex)
+                {
+                    ok = false;
+                    msg = ErrorText.Of(ex);
+                    lock (job.Log) job.Log.AppendLine("[" + ex.GetType().Name + "] " + ex.Message);
+                }
             }
             return ok;
         }

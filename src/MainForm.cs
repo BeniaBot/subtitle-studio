@@ -1053,7 +1053,7 @@ namespace SubtitleStudio
                         _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
                     _hintLbl.Text = "נשמר: " + Theme.FileName(System.IO.Path.GetFileName(sd.FileName));
                 }
-                catch (Exception ex) { Ui.Error(this, "שגיאה בשמירה", ex.Message); }
+                catch (Exception ex) { Ui.Error(this, "לא נשמר", ErrorText.Of(ex)); }
             }
         }
 
@@ -2391,7 +2391,7 @@ namespace SubtitleStudio
             }
             catch (Exception ex)
             {
-                Ui.Error(this, "שגיאה בפתיחה", ex.Message);
+                Ui.Error(this, "לא הצלחתי לפתוח", ErrorText.Of(ex));
             }
             Cursor = Cursors.Default;
         }
@@ -2464,7 +2464,7 @@ namespace SubtitleStudio
             }
             catch (Exception ex)
             {
-                Ui.Error(this, "שגיאה בייבוא", ex.Message);
+                Ui.Error(this, "לא הצלחתי לטעון את הכתוביות", ErrorText.Of(ex));
             }
         }
 
@@ -2676,7 +2676,7 @@ namespace SubtitleStudio
             }
             catch (Exception ex)
             {
-                Ui.Error(this, "שגיאה בשמירה", ex.Message);
+                Ui.Error(this, "לא נשמר", ErrorText.Of(ex));
                 return false;
             }
         }
@@ -2852,7 +2852,7 @@ namespace SubtitleStudio
                 Ui.Info(this, "הקובץ נשמר",
                     "תרגמו את הטקסט ושמרו את הקובץ.\nחשוב: אל תמחקו את המספרים (#1, #2...) - לפיהם התרגום חוזר בדיוק לתזמון הנכון.");
             }
-            catch (Exception ex) { Ui.Error(this, "שגיאה", ex.Message); }
+            catch (Exception ex) { Ui.Error(this, "לא הצליח", ErrorText.Of(ex)); }
         }
 
         private void ImportTranslation()
@@ -2873,7 +2873,7 @@ namespace SubtitleStudio
                 if (!string.IsNullOrEmpty(warn)) Ui.Info(this, "שימו לב", warn);
                 else Ui.Info(this, "הוחזר בהצלחה", "עודכנו " + n + " כתוביות עם התרגום.");
             }
-            catch (Exception ex) { Ui.Error(this, "שגיאה", ex.Message); }
+            catch (Exception ex) { Ui.Error(this, "לא הצליח", ErrorText.Of(ex)); }
         }
 
         internal void ToggleTheme()
@@ -3135,7 +3135,7 @@ namespace SubtitleStudio
             }
             catch (Exception ex)
             {
-                Ui.Error(this, "הפרויקט לא נשמר", ex.Message);
+                Ui.Error(this, "הפרויקט לא נשמר", ErrorText.Of(ex));
                 return false;
             }
             _projectPath = path;

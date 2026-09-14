@@ -336,8 +336,10 @@ namespace SubtitleStudio
         private double _prog;
         private string _status = "מתחיל...";
         private string _title;
-        private bool _done, _success;
+        private bool _done, _success, _cancelled;
+        /// <summary>ההודעה האנושית (ErrorText). היומן הגולמי נשאר מאחורי ״יומן״.</summary>
         private string _error = "";
+        internal string Headline { get { return SubText(); } }
         private Btn _cancel, _close, _openFolder, _log;
         private TextBox _logBox;
         private Timer _timer;
@@ -392,7 +394,12 @@ namespace SubtitleStudio
             job.OnProgress = delegate (double p, string s) { _prog = p; _status = s; };
             job.OnDone = delegate (bool ok, string msg)
             {
-                _success = ok; _error = msg; _done = true;
+                // ההודעה מחושבת כאן, בחוט של העבודה, ולא בכל ציור
+                string log;
+                lock (job.Log) log = job.Log.ToString();
+                _cancelled = job.Cancelled;
+                _error = ok || _cancelled ? "" : ErrorText.Ffmpeg(log, msg);
+                _success = ok; _done = true;
             };
 
             _timer = new Timer();
@@ -429,6 +436,15 @@ namespace SubtitleStudio
             FormClosing += delegate { _timer.Stop(); if (!_done) job.Cancel(); };
         }
 
+        private string SubText()
+        {
+            if (!_done) return _status;
+            if (_success) return "הפעולה הושלמה בהצלחה";
+            // עד 0.7.2 ביטול הוצג כ״לא הצליח: בוטל״, באדום - כאילו משהו נשבר
+            if (_cancelled || _error.Length == 0) return "הפעולה בוטלה";
+            return _error;
+        }
+
         private void ToggleLog()
         {
             _logBox.Visible = !_logBox.Visible;
@@ -445,9 +461,8 @@ namespace SubtitleStudio
             Theme.Str(g, _title, Theme.Big, Theme.Text,
                 new RectangleF(Theme.S(22), Theme.S(24), Theme.S(476), Theme.S(26)), Theme.SfRtl);
 
-            string sub = _done ? (_success ? "הפעולה הושלמה בהצלחה" : (_error.Length > 0 ? "לא הצליח: " + Ff.LastLines(_error, 2) : "הפעולה בוטלה")) : _status;
-            Theme.Str(g, sub, Theme.Small, _done && !_success ? Theme.Bad : Theme.TextDim,
-                new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(34)), Theme.SfRtl);
+            Theme.Str(g, SubText(), Theme.Small, _done && !_success && !_cancelled ? Theme.Bad : Theme.TextDim,
+                new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(46)), Theme.SfRtl);
 
             RectangleF bar = new RectangleF(Theme.S(22), Theme.S(100), Theme.S(476), Theme.S(12));
             Theme.FillRound(g, bar, 6, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));

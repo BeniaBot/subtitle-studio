@@ -128,13 +128,15 @@ namespace SubtitleStudio
                 long dur = _mi.DurationMs;
                 int step = Math.Max(1, p.ChunkSec - Transcribe.OverlapSec);
                 int chunks = Math.Max(1, (int)Math.Ceiling((dur / 1000.0) / step));
-                // נמדד: גוגל - כ-13 שניות לקטע כולל ההמתנה למכסה; Groq - כ-5
-                double perChunk = p.Id == "groq" ? 5 : 13;
+                // גוגל נמדד: כ-13 שניות לקטע, כולל ההמתנה למכסה. ‏Groq **הערכה,
+                // עוד לא נמדד** (אין מפתח): 3.2 שניות המתנה, העלאה של 700KB,
+                // ותמלול שלוקח שנייה-שתיים. לעדכן אחרי תמלול אמיתי.
+                double perChunk = p.Id == "groq" ? 6 : 13;
                 int mins = Math.Max(1, (int)Math.Ceiling(chunks * perChunk / 60.0));
                 // המספר בסוף המשפט ולא באמצעו: ‏Ltr באמצע טקסט עברי הפך את
                 // "40 שניות · 1 קטעים" ל-"1 · 40 שניות קטעים"
                 _info.Text = "אורך: " + Theme.Ltr(Tc.Clock(dur)) + Environment.NewLine +
-                             "לוקח בערך " + Theme.Ltr(mins.ToString()) + " דקות. " +
+                             (mins == 1 ? "לוקח בערך דקה. " : "לוקח בערך " + Theme.Ltr(mins.ToString()) + " דקות. ") +
                              "אפשר לעצור באמצע, ומה שכבר תומלל יישמר.";
                 _info.Invalidate();
             }

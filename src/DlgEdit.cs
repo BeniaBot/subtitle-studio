@@ -170,7 +170,7 @@ namespace SubtitleStudio
                         Subtitle = "נטען: " + Theme.FileName(Path.GetFileName(d.FileName)) + " (" + enc + ")";
                         Invalidate();
                     }
-                    catch (Exception ex) { Ui.Error(this, "שגיאה בקריאה", ex.Message); }
+                    catch (Exception ex) { Ui.Error(this, "לא הצלחתי לקרוא", ErrorText.Of(ex)); }
                 }
             };
             Controls.Add(load);
@@ -404,7 +404,7 @@ namespace SubtitleStudio
             int code = Ff.RunSync(Ff.Exe, args, out so, out se, null);
             if (code != 0)
             {
-                Ui.Error(this, "החילוץ נכשל", Ff.LastLines(se, 4));
+                Ui.Error(this, "החילוץ לא הצליח", ErrorText.FfmpegWithDetail(se));
                 return false;
             }
             return true;
@@ -449,7 +449,7 @@ namespace SubtitleStudio
                 LoadedName = MediaStream.LangName(s.Language);
                 return true;
             }
-            catch (Exception ex) { Ui.Error(this, "שגיאה", ex.Message); return false; }
+            catch (Exception ex) { Ui.Error(this, "לא הצליח", ErrorText.Of(ex)); return false; }
         }
     }
 

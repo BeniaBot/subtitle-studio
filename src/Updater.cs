@@ -298,7 +298,7 @@ namespace SubtitleStudio
                 try { Process.Start(si); }
                 catch (Exception ex)
                 {
-                    Ui.Error((Form)owner, "העדכון נכשל", ex.Message);
+                    Ui.Error((Form)owner, "העדכון לא הצליח", ErrorText.Of(ex));
                     return;
                 }
                 Application.Exit();
