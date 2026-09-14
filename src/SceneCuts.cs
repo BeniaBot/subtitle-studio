@@ -13,9 +13,21 @@ namespace SubtitleStudio
     /// שנגמרת רגע אחרי חיתוך ״נמרחת״ לתוך הסצנה הבאה. זה אחד הכללים
     /// הראשונים בכל תקן כתוביות מקצועי.
     ///
-    /// **הכלל (לפי התקן של Netflix):** קצה של כתובית שנמצא עד 12 פריימים
-    /// מחיתוך - נצמד אליו. התחלה נקבעת **על** החיתוך, וסוף **שני פריימים
-    /// לפני** החיתוך, כדי שהטקסט ייעלם עם הסצנה שלו.
+    /// **הכלל - מהמדריך של Netflix** (‏Timed Text Style Guide, ״Subtitle
+    /// Timing Guidelines״). המספרים שם ב-24 פריימים, כלומר 12 פריימים = חצי
+    /// שנייה; כאן הם יחסיים לחלון, כדי שיעבדו בכל קצב:
+    ///
+    /// | קצה | איפה ביחס לחיתוך | לאן |
+    /// |---|---|---|
+    /// | התחלה | אחריו, עד 12 פריימים | **על** החיתוך |
+    /// | התחלה | לפניו, עד 8 פריימים | נדחית **אל** החיתוך |
+    /// | התחלה | לפניו, 9–11 פריימים | מוקדמת ל-**12 פריימים לפניו** - שתספיק להיקרא |
+    /// | סוף | לפניו, עד 12 פריימים | מתארך עד **2 פריימים לפניו** |
+    /// | סוף | אחריו, עד 7 פריימים | חוזר ל-**2 פריימים לפניו** |
+    /// | סוף | אחריו, 8–11 פריימים | מתארך ל-**12 פריימים אחריו** - הדיבור ממשיך |
+    ///
+    /// **הגרסה הראשונה קיצרה תמיד**, ובבדיקה על דיבור אמיתי כתובית נעלמה
+    /// 200ms לפני שהמילה האחרונה נגמרה. זה בדיוק המקרה שהמדריך מאריך בו.
     ///
     /// **ומה לא:** כתובית שהדיבור שלה עובר דרך החיתוך (החיתוך באמצע, רחוק
     /// משני הקצוות) לא זזה. ‏scdet לא יודע כלום על הקול, ולכן החלון מוגבל
@@ -188,31 +200,79 @@ namespace SubtitleStudio
             return lo;
         }
 
-        /// <summary>החיתוך הקרוב ביותר ל-ms בתוך ±win שעומד בתנאי, או ‎-1.</summary>
-        private static long Nearest(List<long> cuts, long ms, long win, Predicate<long> ok)
+        /// <summary>החיתוכים שבתוך ±win מ-ms, מהקרוב לרחוק (בשוויון - המוקדם).</summary>
+        private static List<long> Around(List<long> cuts, long ms, long win)
         {
-            long best = -1, bestD = long.MaxValue;
-            for (int k = LowerBound(cuts, ms - win); k < cuts.Count && cuts[k] <= ms + win; k++)
+            List<long> r = new List<long>();
+            for (int k = LowerBound(cuts, ms - win); k < cuts.Count && cuts[k] <= ms + win; k++) r.Add(cuts[k]);
+            r.Sort(delegate (long a, long b)
             {
-                long d = Math.Abs(cuts[k] - ms);
-                if (d < bestD && ok(cuts[k])) { bestD = d; best = cuts[k]; }
-            }
-            return best;
+                int d = Math.Abs(a - ms).CompareTo(Math.Abs(b - ms));
+                return d != 0 ? d : a.CompareTo(b);
+            });
+            return r;
         }
 
-        /// <summary>לאן תזוז התחלה של כתובית, בלי לבדוק את הכתובית שלפניה.</summary>
-        private static long StartTarget(Cue c, List<long> cuts, long win)
+        /// <summary>יעדים להתחלה, לפי סדר העדפה (ראו הטבלה למעלה). כשהיעד
+        /// המועדף לא אפשרי - למשל אין מקום להקדים - החיתוך עצמו הוא הגיבוי.</summary>
+        internal static List<long> StartOptions(long start, List<long> cuts, long win)
         {
-            return Nearest(cuts, c.Start, win, delegate (long cut) { return c.End - cut >= MinCueMs; });
+            List<long> r = new List<long>();
+            long red = win * 8 / 12;
+            foreach (long cut in Around(cuts, start, win))
+            {
+                if (cut <= start || cut - start <= red) r.Add(cut);
+                else { r.Add(cut - win); r.Add(cut); }
+            }
+            return r;
+        }
+
+        /// <summary>יעדים לסוף, לפי סדר העדפה (ראו הטבלה למעלה). כל יעד הוא
+        /// זוג: ‏[0] לאן, ‏[1] חיתוך שהכתובית הבאה **חייבת** להתחיל עליו כדי
+        /// שהיעד יהיה מותר, או ‎-1.
+        ///
+        /// **למה התנאי:** סוף שגולש 8–11 פריימים אחרי חיתוך - הדיבור ממשיך.
+        /// אם אי אפשר להאריך אותו ל-12 פריימים, החזרה לפני החיתוך מעלימה את
+        /// הטקסט כמעט חצי שנייה לפני שהמשפט נגמר. זה שווה את המחיר **רק**
+        /// כשהבאה מתחילה על החיתוך (הצמד הקלאסי: אחת נגמרת, השנייה מתחילה).
+        /// אחרת עדיף להשאיר. נתפס במבחן האקראי: הגרסה בלי התנאי קיצרה
+        /// כתוביות ב-440ms בלי שום סיבה על המסך.</summary>
+        internal static List<long[]> EndOptions(long end, List<long> cuts, long win, long gap)
+        {
+            List<long[]> r = new List<long[]>();
+            long red = win * 7 / 12;
+            foreach (long cut in Around(cuts, end, win))
+            {
+                if (cut > end || end - cut <= red) r.Add(new long[] { cut - gap, -1 });
+                else
+                {
+                    r.Add(new long[] { cut + win, -1 });
+                    r.Add(new long[] { cut - gap, cut });
+                }
+            }
+            return r;
+        }
+
+        /// <summary>לאן תזוז התחלה של כתובית, בהינתן הסוף של מה שלפניה - או
+        /// ההתחלה הנוכחית אם אין יעד תקין. **הקדמה** חייבת להשאיר שני פריימים
+        /// אחרי הקודמת; **דחייה** רק לא לחפוף.</summary>
+        private static long ChooseStart(Cue c, List<long> cuts, long win, long gap, long prevEnd)
+        {
+            foreach (long t in StartOptions(c.Start, cuts, win))
+            {
+                if (t < 0 || c.End - t < MinCueMs) continue;
+                if (t < c.Start ? t < prevEnd + gap : t < prevEnd) continue;
+                return t;
+            }
+            return c.Start;
         }
 
         /// <summary>מצמיד את הקצוות של הכתוביות המתוזמנות לחיתוכים.
         ///
         /// **סדר ההחלטות:** עוברים לפי הזמן. התחלה נבדקת מול הסוף **הסופי**
         /// של מה שלפניה. סוף נבדק מול ההתחלה של הבאה - **כולל לאן שהיא עומדת
-        /// לזוז**: אם הבאה מתחילה רגע לפני החיתוך ותיצמד אליו, מותר להאריך
-        /// את הנוכחית עד שני פריימים לפניו. בלי ההסתכלות קדימה, הצמד הנפוץ
-        /// ביותר (כתובית נגמרת, חיתוך, הבאה מתחילה) היה נחסם.
+        /// לזוז** (‏ChooseStart עם הסוף המוצע), כך שההחלטה על הסוף וההחלטה
+        /// על ההתחלה שאחריו אף פעם לא סותרות.
         ///
         /// **חפיפות קיימות לא נוגעים בהן** - שני דוברים בבת אחת זה בכוונה,
         /// והצמדה הייתה בוחרת שרירותית מי מהם ״צודק״. וכתוביות בלי תזמון
@@ -263,28 +323,31 @@ namespace SubtitleStudio
                 }
                 bool changed = false;
 
-                // ---- התחלה: על החיתוך ----
-                long pe = prevEnd;
-                long cutS = Nearest(cuts, c.Start, win, delegate (long t)
-                {
-                    return t >= pe && c.End - t >= MinCueMs;
-                });
-                if (cutS >= 0 && cutS != c.Start) { c.Start = cutS; r.Starts++; changed = true; }
+                // ---- התחלה ----
+                long ns0 = ChooseStart(c, cuts, win, gap, prevEnd);
+                if (ns0 != c.Start) { c.Start = ns0; r.Starts++; changed = true; }
 
-                // ---- סוף: שני פריימים לפני החיתוך ----
-                long limit = long.MaxValue;
-                if (i + 1 < order.Count)
+                // ---- סוף ----
+                // קיצור לא יכול לפגוע בבאה. הארכה מותרת רק אם הבאה - **אחרי
+                // שתזוז** - תתחיל לפחות שני פריימים אחרי הסוף החדש. זו ההסתכלות
+                // קדימה: ״נגמרת, חיתוך, הבאה מתחילה רגע לפניו״ היא הצורה הנפוצה
+                // ביותר, ובלעדיה ההארכה הייתה נחסמת בגלל התחלה שעוד רגע תזוז.
+                Cue next = i + 1 < order.Count ? order[i + 1] : null;
+                long origEnd = c.End;
+                foreach (long[] opt in EndOptions(origEnd, cuts, win, gap))
                 {
-                    Cue next = order[i + 1];
-                    long ns = clean[i + 1] ? StartTarget(next, cuts, win) : -1;
-                    limit = Math.Max(next.Start, ns);
+                    long t = opt[0];
+                    if (t - c.Start < MinCueMs) continue;
+                    if (next != null && (t > origEnd || opt[1] >= 0))
+                    {
+                        long nextStart = clean[i + 1] ? ChooseStart(next, cuts, win, gap, Math.Max(prevEnd, t)) : next.Start;
+                        if (t > origEnd && nextStart < t + gap) continue;
+                        if (opt[1] >= 0 && nextStart != opt[1]) continue;
+                    }
+                    else if (opt[1] >= 0) continue;
+                    if (t != c.End) { c.End = t; r.Ends++; changed = true; }
+                    break;
                 }
-                long cutE = Nearest(cuts, c.End, win, delegate (long t)
-                {
-                    long e = t - gap;
-                    return e - c.Start >= MinCueMs && e <= limit;
-                });
-                if (cutE >= 0 && cutE - gap != c.End) { c.End = cutE - gap; r.Ends++; changed = true; }
 
                 if (changed) r.Cues++;
                 if (c.End > prevEnd) prevEnd = c.End;

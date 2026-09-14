@@ -9,7 +9,7 @@
 # 4. **איתור אמיתי** בסרט סינתטי עם חיתוכים ידועים, דרך אותה עבודה שהתוכנה
 #    מריצה; ואם יש במחשב את הצילומים של focus-video - גם על צילומים אמיתיים.
 #
-# צפוי: 39 בדיקות, ו-42 כשהצילומים האמיתיים קיימים. **פחות מזה = משהו דולג.**
+# צפוי: 44 בדיקות, ו-47 כשהצילומים האמיתיים קיימים. **פחות מזה = משהו דולג.**
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -67,7 +67,10 @@ $n = $norm.Invoke($null, (Pack (Longs @(5333, 5500)) ([double]30)))
 Check 'חמישה פריימים - שני חיתוכים נפרדים' ((@($n) -join ',') -eq '5333,5500') (@($n) -join ',')
 
 # ================= 2. כללי ההצמדה =================
-# ‏30fps: חלון 12 פריימים = 400ms, ריווח 2 פריימים = 67ms
+# ‏30fps: חלון 12 פריימים = 400ms, ריווח 2 פריימים = 67ms.
+# האזורים של Netflix, יחסית לחלון: התחלה לפני חיתוך - עד 8/12 (266ms) נדחית
+# אליו, מעבר לזה מוקדמת ל-12 פריימים לפניו; סוף אחרי חיתוך - עד 7/12
+# (233ms) חוזר לפניו, מעבר לזה מתארך ל-12 פריימים אחריו.
 Write-Host 'כללי ההצמדה (30fps)'
 Check 'חלון ב-30fps'  ($sc.GetMethod('WindowMs', $ST).Invoke($null, @([double]30)) -eq 400) ''
 Check 'ריווח ב-30fps' ($sc.GetMethod('GapMs', $ST).Invoke($null, @([double]30)) -eq 67) ''
@@ -77,8 +80,10 @@ Check 'קצב לא ידוע = 25' ($sc.GetMethod('WindowMs', $ST).Invoke($null, 
 
 $l = Cues @(,@(10300, 13000)); [void](RunSnap $l @(10000) 30)
 Check 'התחלה 300ms אחרי חיתוך - נצמדת' ((St $l 0) -eq 10000) (Times $l)
+$l = Cues @(,@(9800, 13000)); [void](RunSnap $l @(10000) 30)
+Check 'התחלה 200ms לפני חיתוך (אדום) - נדחית אל החיתוך' ((St $l 0) -eq 10000) (Times $l)
 $l = Cues @(,@(9700, 13000)); [void](RunSnap $l @(10000) 30)
-Check 'התחלה 300ms לפני חיתוך - נצמדת' ((St $l 0) -eq 10000) (Times $l)
+Check 'התחלה 300ms לפני חיתוך (ירוק) - מוקדמת ל-12 פריימים לפניו' ((St $l 0) -eq 9600) (Times $l)
 $l = Cues @(,@(10600, 13000)); [void](RunSnap $l @(10000) 30)
 Check 'התחלה 600ms אחרי - מחוץ לחלון' ((St $l 0) -eq 10600) (Times $l)
 $l = Cues @(,@(8000, 12000)); [void](RunSnap $l @(10000) 30)
@@ -86,7 +91,17 @@ Check 'החיתוך באמצע הכתובית - לא זזה' ((Times $l) -eq '80
 $l = Cues @(,@(5000, 9800)); [void](RunSnap $l @(10000) 30)
 Check 'סוף 200ms לפני חיתוך - מתארך לשני פריימים לפניו' ((En $l 0) -eq 9933) (Times $l)
 $l = Cues @(,@(5000, 10200)); [void](RunSnap $l @(10000) 30)
-Check 'סוף 200ms אחרי חיתוך - מתקצר' ((En $l 0) -eq 9933) (Times $l)
+Check 'סוף 200ms אחרי חיתוך (אדום) - חוזר לשני פריימים לפניו' ((En $l 0) -eq 9933) (Times $l)
+# זה המקרה שהגרסה הראשונה קלקלה: הדיבור ממשיך אחרי החיתוך, וקיצור היה
+# מעלים את הכתובית לפני שהמילה נגמרת
+$l = Cues @(,@(5000, 10300)); [void](RunSnap $l @(10000) 30)
+Check 'סוף 300ms אחרי חיתוך (ירוק) - מתארך ל-12 פריימים אחריו' ((En $l 0) -eq 10400) (Times $l)
+$l = Cues @(@(5000, 10300), @(10350, 13000)); [void](RunSnap $l @(10000) 30)
+Check 'ירוק, אבל הבאה מתחילה על החיתוך - הצמד הקלאסי' ((Times $l) -eq '5000-9933 10000-13000') (Times $l)
+$l = Cues @(@(5000, 10300), @(10420, 13000)); [void](RunSnap $l @(10000) 30)
+Check 'ירוק, אין מקום להאריך, והבאה לא על החיתוך - נשארת' ((Times $l) -eq '5000-10300 10420-13000') (Times $l)
+$l = Cues @(@(5000, 9650), @(9700, 13000)); [void](RunSnap $l @(10000) 30)
+Check 'אין מקום להקדים - אל החיתוך, והקודמת מתארכת' ((Times $l) -eq '5000-9933 10000-13000') (Times $l)
 
 $l = Cues @(@(5000, 9900), @(10150, 13000)); $r = RunSnap $l @(10000) 30
 Check 'הצמד הקלאסי: נגמרת, חיתוך, מתחילה' ((Times $l) -eq '5000-9933 10000-13000') (Times $l)
@@ -151,11 +166,20 @@ for ($t = 0; $t -lt $trials; $t++) {
         if ($k -gt 0 -and $s -lt (St $l ($k-1))) { $bad += "t$t k$k order"; }
         if ($s -ne $os) {
             $moved++
-            if (-not ($cuts -contains $s) -or [Math]::Abs($s - $os) -gt $win) { $bad += "t$t k$k start $os->$s" }
+            if (-not (($cuts -contains $s) -or ($cuts -contains ($s + $win))) -or [Math]::Abs($s - $os) -gt $win) { $bad += "t$t k$k start $os->$s" }
+            # הקדמה משאירה שני פריימים אחרי הקודמת
+            if ($s -lt $os -and $k -gt 0 -and $s -lt (En $l ($k-1)) + $gap) { $bad += "t$t k$k start-gap" }
         }
         if ($e -ne $oe) {
             $moved++
-            if (-not ($cuts -contains ($e + $gap)) -or [Math]::Abs($e + $gap - $oe) -gt $win) { $bad += "t$t k$k end $oe->$e" }
+            if (-not (($cuts -contains ($e + $gap)) -or ($cuts -contains ($e - $win))) -or [Math]::Abs($e - $oe) -gt $win + $gap) { $bad += "t$t k$k end $oe->$e" }
+            # חזרה לפני חיתוך שהדיבור עבר אותו (מעבר לאזור האדום) - רק כשהבאה מתחילה עליו
+            $red = [long][Math]::Floor($win * 7 / 12)
+            if ($e -lt $oe -and ($cuts -contains ($e + $gap)) -and ($oe - ($e + $gap)) -gt $red) {
+                if (-not ($k + 1 -lt $l.Count -and (St $l ($k+1)) -eq ($e + $gap))) { $bad += "t$t k$k green-fallback" }
+            }
+            # הארכה משאירה שני פריימים עד הבאה
+            if ($e -gt $oe -and $k + 1 -lt $l.Count -and (St $l ($k+1)) -lt $e + $gap) { $bad += "t$t k$k end-gap" }
         }
         if (($s -ne $os -or $e -ne $oe) -and ($e - $s) -lt 700) { $bad += "t$t k$k short $($e-$s)" }
     }
