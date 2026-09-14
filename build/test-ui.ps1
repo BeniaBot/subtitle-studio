@@ -278,6 +278,42 @@ $formT.GetField('_mi', $NP).SetValue($g2, $mi)
 $items2 = $formT.GetMethod('SubtitleMenuItems', $NP).Invoke($g2, @())
 $tr2 = ItemNamed $items2 'תמלול'
 Check 'התמלול נדלק כשיש סרט' ($tr2 -and $tr2.Enabled) ''
+
+# ---- גובה התפריט מול המסך ----
+# 19 פעולות ב-125% צריכות כ-1,390 פיקסלים, ובמסך 1920x1200 יש 1,140.
+# הפריטים התחתונים פשוט לא הוצגו - מ-0.6.4, ואף בדיקה לא ראתה.
+$pmT = $asm.GetType('SubtitleStudio.PopupMenu')
+$pm = $pmT.GetConstructors()[0].Invoke(@($items2, [int]350))
+$arrange = $pmT.GetMethod('Arrange', $NP)
+$rectsF = $pmT.GetField('_rects', $NP)
+$colsP = $pmT.GetProperty('Columns', $NP)
+$arrange.Invoke($pm, @([int]::MaxValue)) | Out-Null
+$natural = $pm.ClientSize.Height
+Eq 'עם מקום - עמודה אחת' $colsP.GetValue($pm, $null) 1
+$limit = [int]($natural * 0.75)
+$arrange.Invoke($pm, @([int]$limit)) | Out-Null
+Check 'בלי מקום - נכנס לגובה' ($pm.ClientSize.Height -le $limit) ("h=" + $pm.ClientSize.Height + " limit=$limit natural=$natural")
+Check 'ובעמודות' ($colsP.GetValue($pm, $null) -ge 2) ("cols=" + $colsP.GetValue($pm, $null))
+$rects = $rectsF.GetValue($pm)
+$inside = $true; $overlap = $false; $split = @()
+$client = New-Object System.Drawing.Rectangle 0, 0, $pm.ClientSize.Width, $pm.ClientSize.Height
+for ($i = 0; $i -lt $rects.Length; $i++) {
+    if (-not $client.Contains($rects[$i])) { $inside = $false }
+    for ($j = $i + 1; $j -lt $rects.Length; $j++) { if ($rects[$i].IntersectsWith($rects[$j])) { $overlap = $true } }
+}
+# קבוצה לא נחצית: כל פריט באותה עמודה כמו הכותרת שלו
+$headX = -1
+for ($i = 0; $i -lt $items2.Count; $i++) {
+    if ($items2[$i].Header) { $headX = $rects[$i].X; continue }
+    if ($headX -ge 0 -and $rects[$i].X -ne $headX) { $split += $items2[$i].Text }
+}
+Check 'כל הפריטים בתוך התפריט' $inside ''
+Check 'אין פריטים דרוסים' (-not $overlap) ''
+Check 'קבוצה לא נחצית בין עמודות' ($split.Count -eq 0) ($split -join ', ')
+$pm.Dispose()
+
+$cutsIt = ItemNamed $items2 'מעברי סצנה'
+Check 'יש פריט הצמדה למעברי סצנה' ($null -ne $cutsIt) ''
 $g2.Close(); $g2.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 

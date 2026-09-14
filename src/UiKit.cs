@@ -785,6 +785,13 @@ namespace SubtitleStudio
         private static int SepH { get { return Theme.S(9); } }
         private static int PadY { get { return Theme.S(8); } }
 
+        private readonly int _colW;
+        private Rectangle[] _rects;
+        private int _cols = 1;
+
+        /// <summary>כמה עמודות יצאו בסידור האחרון. לבדיקות.</summary>
+        internal int Columns { get { return _cols; } }
+
         public PopupMenu(System.Collections.Generic.List<MenuItem> items, int width)
         {
             _items = items;
@@ -794,36 +801,129 @@ namespace SubtitleStudio
             BackColor = Theme.Panel;
             RightToLeft = RightToLeft.Yes;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
-            int h = PadY * 2;
-            foreach (MenuItem m in items) h += m.Separator ? SepH : (m.Header ? HeadRowH : RowH);
-            ClientSize = new Size(Theme.S(width), h);
+            _colW = Theme.S(width);
+            Arrange(int.MaxValue);
             Deactivate += delegate { Close(); };
             Load += delegate { Native.SetRoundedCorners(Handle); };
         }
 
-        private int IndexAt(int y)
+        private static int HeightOf(MenuItem m) { return m.Separator ? SepH : (m.Header ? HeadRowH : RowH); }
+
+        /// <summary>מסדר את הפריטים כך שהתפריט ייכנס לגובה הנתון.
+        ///
+        /// **למה:** תפריט הכתוביות גדל ל-19 פעולות. ב-125% הוא צריך כ-1,390
+        /// פיקסלים, ובמסך 1920×1200 יש 1,140 - הפריטים התחתונים פשוט לא
+        /// הוצגו, בלי שום סימן שהם קיימים. ‏(זה התחיל כבר ב-0.6.4, כשנוספה
+        /// קבוצת ״קובץ״, ואף בדיקה לא מדדה את גובה התפריט מול המסך.)
+        ///
+        /// **איך:** כשאין מקום - עמודות, **ושבירה רק בין קבוצות**: כותרת
+        /// ״תזמון״ לעולם לא נשארת בתחתית עמודה אחת כשהפריטים שלה בעמודה
+        /// הבאה. בוחרים את מספר העמודות הקטן ביותר שנכנס, ובתוכו את החלוקה
+        /// שהעמודה הגבוהה בה הכי נמוכה. העמודה הראשונה מימין, כמו קריאה.
+        /// גלילה נשקלה ונדחתה: היא מסתירה בדיוק את הפעולות שמחפשים.</summary>
+        internal void Arrange(int maxH)
         {
-            int cy = PadY;
+            System.Collections.Generic.List<int> starts = new System.Collections.Generic.List<int>();
             for (int i = 0; i < _items.Count; i++)
+                if (i == 0 || _items[i].Header) starts.Add(i);
+            int groups = starts.Count;
+            int[] gh = new int[groups];
+            for (int g = 0; g < groups; g++)
             {
-                int h = _items[i].Separator ? SepH : (_items[i].Header ? HeadRowH : RowH);
-                if (y >= cy && y < cy + h)
-                    return (_items[i].Separator || _items[i].Header) ? -1 : i;
-                cy += h;
+                int stop = g + 1 < groups ? starts[g + 1] : _items.Count;
+                for (int i = starts[g]; i < stop; i++) gh[g] += HeightOf(_items[i]);
             }
-            return -1;
+
+            // best[k, j] = העמודה הגבוהה ביותר בחלוקה הטובה של j הקבוצות הראשונות ל-k עמודות
+            int maxCols = Math.Max(1, Math.Min(4, groups));
+            int[] groupCol = new int[groups];
+            int chosen = 1;
+            for (int k = 1; k <= maxCols; k++)
+            {
+                int[] cut = BestSplit(gh, k);
+                int tallest = 0, c = 0, cur = 0;
+                for (int g = 0; g < groups; g++)
+                {
+                    if (c < cut.Length && g == cut[c]) { tallest = Math.Max(tallest, cur); cur = 0; c++; }
+                    groupCol[g] = c;
+                    cur += gh[g];
+                }
+                tallest = Math.Max(tallest, cur);
+                chosen = k;
+                if (tallest + PadY * 2 <= maxH) break;
+            }
+            _cols = chosen;
+
+            _rects = new Rectangle[_items.Count];
+            int[] colY = new int[_cols];
+            for (int c = 0; c < _cols; c++) colY[c] = PadY;
+            int width = _colW * _cols;
+            int bottom = 0;
+            for (int g = 0; g < groups; g++)
+            {
+                int col = groupCol[g];
+                int stop = g + 1 < groups ? starts[g + 1] : _items.Count;
+                int x = width - (col + 1) * _colW;
+                for (int i = starts[g]; i < stop; i++)
+                {
+                    int h = HeightOf(_items[i]);
+                    _rects[i] = new Rectangle(x, colY[col], _colW, h);
+                    colY[col] += h;
+                }
+                bottom = Math.Max(bottom, colY[col]);
+            }
+            if (_items.Count == 0) bottom = PadY;
+            ClientSize = new Size(width, bottom + PadY);
         }
 
-        private int TopOf(int index)
+        /// <summary>נקודות החיתוך (אינדקס הקבוצה שפותחת עמודה) לחלוקה של
+        /// הקבוצות ל-k עמודות רצופות, כך שהעמודה הגבוהה נמוכה ככל האפשר.
+        /// לכל היותר עשר קבוצות וארבע עמודות - חיפוש מלא, בלי חוכמות.</summary>
+        private static int[] BestSplit(int[] gh, int k)
         {
-            int cy = PadY;
-            for (int i = 0; i < index; i++) cy += _items[i].Separator ? SepH : (_items[i].Header ? HeadRowH : RowH);
-            return cy;
+            int n = gh.Length;
+            if (k <= 1 || n <= 1) return new int[0];
+            k = Math.Min(k, n);
+            int[] best = null;
+            int bestTall = int.MaxValue;
+            int[] cur = new int[k - 1];
+            Search(gh, cur, 0, 1, ref best, ref bestTall);
+            return best ?? new int[0];
+        }
+
+        private static void Search(int[] gh, int[] cur, int depth, int from, ref int[] best, ref int bestTall)
+        {
+            int n = gh.Length;
+            if (depth == cur.Length)
+            {
+                int tall = 0, acc = 0, c = 0;
+                for (int g = 0; g < n; g++)
+                {
+                    if (c < cur.Length && g == cur[c]) { tall = Math.Max(tall, acc); acc = 0; c++; }
+                    acc += gh[g];
+                }
+                tall = Math.Max(tall, acc);
+                if (tall < bestTall) { bestTall = tall; best = (int[])cur.Clone(); }
+                return;
+            }
+            for (int i = from; i <= n - (cur.Length - depth); i++)
+            {
+                cur[depth] = i;
+                Search(gh, cur, depth + 1, i + 1, ref best, ref bestTall);
+            }
+        }
+
+        private int IndexAt(Point p)
+        {
+            for (int i = 0; i < _items.Count; i++)
+                if (_rects[i].Contains(p))
+                    return (_items[i].Separator || _items[i].Header) ? -1 : i;
+            return -1;
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            int i = IndexAt(e.Y);
+            int i = IndexAt(e.Location);
             if (i != _hover) { _hover = i; Invalidate(); }
             base.OnMouseMove(e);
         }
@@ -832,7 +932,7 @@ namespace SubtitleStudio
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
-            int i = IndexAt(e.Y);
+            int i = IndexAt(e.Location);
             if (i >= 0 && _items[i].Enabled && _items[i].Click != null)
             {
                 EventHandler h = _items[i].Click;
@@ -847,28 +947,36 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
+            if (_cols > 1)
+                using (Pen p = new Pen(Theme.BorderSoft, 1))
+                    for (int c = 1; c < _cols; c++)
+                    {
+                        int x = Width - c * _colW;
+                        g.DrawLine(p, x, PadY + Theme.S(6), x, Height - PadY - Theme.S(6));
+                    }
             for (int i = 0; i < _items.Count; i++)
             {
                 MenuItem m = _items[i];
-                int y = TopOf(i);
+                Rectangle r = _rects[i];
+                int y = r.Y;
                 if (m.Separator)
                 {
-                    using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 12, y + SepH / 2, Width - 12, y + SepH / 2);
+                    using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, r.Left + 12, y + SepH / 2, r.Right - 12, y + SepH / 2);
                     continue;
                 }
                 if (m.Header)
                 {
                     Theme.Str(g, m.Text, Theme.SmallBold, Theme.TextFaint,
-                        new RectangleF(Theme.S(14), y + Theme.S(8), Width - Theme.S(28), Theme.S(18)), Theme.SfRtl);
+                        new RectangleF(r.Left + Theme.S(14), y + Theme.S(8), r.Width - Theme.S(28), Theme.S(18)), Theme.SfRtl);
                     continue;
                 }
                 if (i == _hover && m.Enabled)
-                    Theme.FillRound(g, new RectangleF(Theme.S(6), y + 1, Width - Theme.S(12), RowH - 2), Theme.S(8), Theme.Hover);
+                    Theme.FillRound(g, new RectangleF(r.Left + Theme.S(6), y + 1, r.Width - Theme.S(12), RowH - 2), Theme.S(8), Theme.Hover);
                 Color fg = m.Enabled ? Theme.Text : Theme.TextFaint;
                 if (m.Icon != Ico.None)
-                    Icons.Draw(g, m.Icon, new RectangleF(Width - Theme.S(42), y + (RowH - Theme.S(20)) / 2f, Theme.S(20), Theme.S(20)),
+                    Icons.Draw(g, m.Icon, new RectangleF(r.Right - Theme.S(42), y + (RowH - Theme.S(20)) / 2f, Theme.S(20), Theme.S(20)),
                         m.Enabled ? Theme.Accent : Theme.TextFaint, 1.9f);
-                float tx = Theme.S(14), tw = Width - Theme.S(56);
+                float tx = r.Left + Theme.S(14), tw = r.Width - Theme.S(56);
                 if (string.IsNullOrEmpty(m.Desc))
                     Theme.Str(g, m.Text, Theme.Ui, fg, new RectangleF(tx, y, tw, RowH), Theme.SfRtl);
                 else
@@ -880,11 +988,11 @@ namespace SubtitleStudio
             Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 10, Theme.Border, 1f);
         }
 
-        /// <summary>פותח את התפריט מתחת לפקד, מיושר לימין שלו.</summary>
         /// <summary>פתיחה במיקום עכבר (קליק ימני), בתוך גבולות המסך.</summary>
         public void ShowAt(Point screen)
         {
             Screen sc = Screen.FromPoint(screen);
+            Arrange(sc.WorkingArea.Height - 8);
             int x = screen.X - Width;
             int y = screen.Y;
             if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
@@ -895,14 +1003,22 @@ namespace SubtitleStudio
             Activate();
         }
 
+        /// <summary>פותח את התפריט מתחת לפקד, מיושר לימין שלו. אם למטה אין
+        /// מקום גם בעמודות ולמעלה יש יותר - נפתח מעליו.</summary>
         public void ShowUnder(Control anchor)
         {
             Point p = anchor.PointToScreen(new Point(anchor.Width, anchor.Height + 4));
-            int x = p.X - Width;
-            int y = p.Y;
             Screen sc = Screen.FromControl(anchor);
+            int top = anchor.PointToScreen(Point.Empty).Y;
+            int below = sc.WorkingArea.Bottom - 4 - p.Y;
+            int above = top - 4 - (sc.WorkingArea.Top + 4);
+            Arrange(below);
+            bool up = Height > below && above > below;
+            if (up) Arrange(above);
+            int x = p.X - Width;
             if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
-            if (y + Height > sc.WorkingArea.Bottom - 4) y = anchor.PointToScreen(Point.Empty).Y - Height - 4;
+            int y = up ? top - Height - 4 : p.Y;
+            if (y < sc.WorkingArea.Top + 4) y = sc.WorkingArea.Top + 4;
             Location = new Point(x, y);
             Show(anchor.FindForm());
             Activate();
