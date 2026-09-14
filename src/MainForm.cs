@@ -353,7 +353,7 @@ namespace SubtitleStudio
 
             items.Add(MenuItem.Group("הבאת כתוביות"));
             MenuItem tr = MenuItem.Make("תמלול אוטומטי של הסרט",
-                "התוכנה מקשיבה וכותבת לבד · הקול נשלח לגוגל", Ico.Sparkles,
+                "התוכנה מקשיבה וכותבת לבד · הקול נשלח לתמלול באינטרנט", Ico.Sparkles,
                 delegate { TranscribeMedia(); });
             tr.Enabled = media;
             items.Add(tr);
@@ -2498,18 +2498,18 @@ namespace SubtitleStudio
                 Ui.Error(this, "אין קול בקובץ", "אין מה לתמלל - בקובץ הזה אין פס קול.");
                 return;
             }
-            if (!Ai.HasKey && !AiSetupIfNeeded()) return;
-
+            // בלי בדיקת מפתח כאן: החלון שואל איפה לתמלל, ומחבר את השירות שנבחר
             TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count);
             d.ShowDialog(this);
             bool ok = d.Ok;
             string ctx = d.Context;
             bool replace = d.ReplaceExisting;
+            ISttProvider provider = d.Provider;
             d.Dispose();
             if (!ok) return;
 
             _engine.Pause();
-            TranscribeRunDlg run = new TranscribeRunDlg(_mediaPath, _mi.DurationMs, ctx);
+            TranscribeRunDlg run = new TranscribeRunDlg(provider, _mediaPath, _mi.DurationMs, ctx);
             run.ShowDialog(this);
             Transcribe.Result res = run.Result;
             run.Dispose();
@@ -2520,9 +2520,7 @@ namespace SubtitleStudio
                 if (res.Canceled) return;                       // המשתמש עצר - לא מטרידים אותו
                 if (res.QuotaOut)
                 {
-                    Ui.Error(this, "המכסה של גוגל נגמרה להיום",
-                        "המפתח החינמי מוגבל, והמכסה שלו נגמרה." + Environment.NewLine +
-                        "אפשר לנסות שוב מחר, או להוציא מפתח חדש בהגדרות ה-AI.");
+                    Ui.Error(this, "המכסה של " + provider.Name + " נגמרה", QuotaAdvice(provider));
                     return;
                 }
                 Ui.Error(this, "לא נוצרו כתוביות",
@@ -2555,10 +2553,9 @@ namespace SubtitleStudio
             // חלק מהסרט לא תומלל - זה חייב להיאמר, אחרת המשתמש חושב
             // שהתמלול שלם ומגלה חור באמצע רק בהמשך
             if (res.QuotaOut)
-                Ui.Info(this, "המכסה של גוגל נגמרה באמצע",
+                Ui.Info(this, "המכסה של " + provider.Name + " נגמרה באמצע",
                     "תומלל רק חלק מהסרט - " + Theme.Ltr(res.Cues.Count.ToString()) +
-                    " כתוביות." + Environment.NewLine +
-                    "אפשר להמשיך מחר, כשהמכסה מתאפסת.");
+                    " כתוביות." + Environment.NewLine + QuotaAdvice(provider));
             else if (res.Gaps.Count > 0)
             {
                 // אומרים **איפה** חסר, לא רק שמשהו נכשל. בלי זה המשתמש
@@ -2574,6 +2571,14 @@ namespace SubtitleStudio
         }
 
         /// <summary>פותח את הגדרות ה-AI כשאין עדיין מפתח. מחזיר אם יש מפתח אחרי.</summary>
+        /// <summary>מה עושים כשהמכסה נגמרה - לפי השירות, ועם הצעה לשירות השני.</summary>
+        private static string QuotaAdvice(ISttProvider p)
+        {
+            return p.Id == "groq"
+                ? "המכסה של Groq מתאפסת תוך שעה. אפשר לנסות שוב אחר כך, או לתמלל את השאר דרך גוגל."
+                : "המכסה של גוגל מתאפסת מחר. אפשר גם לעבור ל-Groq, שנותן עד 8 שעות ביום - בחלון התמלול, ״איפה לתמלל״.";
+        }
+
         private bool AiSetupIfNeeded()
         {
             if (Ai.HasKey) return true;

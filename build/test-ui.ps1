@@ -267,7 +267,7 @@ $tr = ItemNamed $items 'תמלול'
 Check 'יש פריט תמלול בתפריט' ($null -ne $tr) ''
 if ($tr) {
     Check 'התמלול כבוי בלי סרט' (-not $tr.Enabled) ("enabled=" + $tr.Enabled)
-    Check 'התיאור מזכיר שהקול נשלח' ($tr.Desc -and $tr.Desc.Contains('גוגל')) ("desc=" + $tr.Desc)
+    Check 'התיאור מזכיר שהקול נשלח' ($tr.Desc -and $tr.Desc.Contains('נשלח')) ("desc=" + $tr.Desc)
 }
 $g.Close(); $g.Dispose()
 [System.Windows.Forms.Application]::DoEvents()

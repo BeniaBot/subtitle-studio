@@ -18,6 +18,7 @@ namespace SubtitleStudio
     /// מה שנופל באזור החפיפה של הקטע הקודם נזרק, כדי שלא ייכפל.</summary>
     internal static class Transcribe
     {
+        /// <summary>אורך הקטע של גוגל. כל ספק קובע את שלו (‏ISttProvider.ChunkSec).</summary>
         public const int ChunkSec = 60;
         public const int OverlapSec = 5;
 
@@ -35,23 +36,33 @@ namespace SubtitleStudio
             /// על זה ולא על ספירת כישלונות: קטע שנכשל בסוף הקובץ, או כזה
             /// שהקטע הקודם כיסה בזכות החפיפה, אינו חור.</summary>
             public List<string> Gaps = new List<string>();
-            /// <summary>נעצרנו כי המכסה של גוגל נגמרה, לא כי משהו שבור.
+            /// <summary>נעצרנו כי המכסה נגמרה, לא כי משהו שבור.
             /// זו הודעה אחרת לגמרי למשתמש.</summary>
             public bool QuotaOut;
+            /// <summary>השירות שתמלל - להודעות.</summary>
+            public string ProviderName = "";
         }
 
-        /// <summary>מתמלל קובץ מדיה שלם. נקרא מחוט רקע - הוא חוסם.</summary>
+        /// <summary>מתמלל קובץ מדיה שלם דרך הספק שנבחר. נקרא מחוט רקע - הוא חוסם.</summary>
         public static Result Run(string mediaPath, long durationMs, string context,
                                  ProgressFn progress, Func<bool> canceled)
         {
+            return Run(Stt.Current, mediaPath, durationMs, context, progress, canceled);
+        }
+
+        public static Result Run(ISttProvider provider, string mediaPath, long durationMs, string context,
+                                 ProgressFn progress, Func<bool> canceled)
+        {
             Result res = new Result();
-            if (!Ai.HasKey) { res.Error = "לא הוגדר מפתח AI."; return res; }
+            res.ProviderName = provider.Name;
+            if (!provider.HasKey) { res.Error = "לא הוגדר מפתח ל-" + provider.Name + "."; return res; }
             if (!Ff.Available) { res.Error = "מנוע הווידאו לא זמין."; return res; }
             if (durationMs <= 0) { res.Error = "לא הצלחתי לקרוא את אורך הקובץ."; return res; }
 
             string dir = Ff.TempDir();
             double totalSec = durationMs / 1000.0;
-            int step = ChunkSec - OverlapSec;
+            int chunkSec = Math.Max(OverlapSec + 5, provider.ChunkSec);
+            int step = chunkSec - OverlapSec;
             List<double> starts = new List<double>();
             for (double s = 0; s < totalSec; s += step)
             {
@@ -83,7 +94,7 @@ namespace SubtitleStudio
 
                 string args = "-y -hide_banner -v error -ss " +
                               s.ToString("0.###", CultureInfo.InvariantCulture) +
-                              " -t " + ChunkSec.ToString(CultureInfo.InvariantCulture) +
+                              " -t " + chunkSec.ToString(CultureInfo.InvariantCulture) +
                               " -i " + Ff.Q(mediaPath) +
                               " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(wav);
                 string so, se;
@@ -96,6 +107,7 @@ namespace SubtitleStudio
                 try { File.Delete(wav); }
                 catch { }
                 if (bytes.Length < 500) continue;          // קטע שקט לגמרי
+                _gapMs = provider.MinGapMs;
 
                 // המכסה החינמית היא כחמש בקשות לדקה, ותמלול של שיעור שולח
                 // עשרות בקשות ברצף. בלי ההמתנה הזאת רוב הקטעים פשוט נחסמים -
@@ -104,17 +116,17 @@ namespace SubtitleStudio
 
                 string err = null;
                 List<Ai.TrLine> lines = null;
-                for (int attempt = 0; attempt < 2; attempt++)
+                for (int attempt = 0; attempt < 3; attempt++)
                 {
-                    lines = Ai.TranscribeChunk(bytes, "audio/mp3", context, out err);
+                    lines = provider.TranscribeChunk(bytes, "audio/mp3", context, out err);
                     if (lines != null) break;
-                    if (!Ai.LastWasRateLimit) break;                 // שגיאה אמיתית
+                    if (provider.LastRetrySec <= 0) break;           // שגיאה אמיתית, או מכסה שנגמרה
                     if (canceled != null && canceled()) break;
-                    int wait = Ai.LastRetrySec > 0 ? Ai.LastRetrySec : 20;
+                    int wait = provider.LastRetrySec;
                     if (wait > 60) wait = 60;
-                    if (progress != null)
+                    if (progress != null && wait > 2)
                         progress(i / (double)starts.Count,
-                                 "ממתין למכסה של גוגל (" + wait + " שניות)…");
+                                 "ממתין למכסה של " + provider.Name + " (" + wait + " שניות)…");
                     SleepCancelable(wait * 1000, canceled);
                     _lastSend = DateTime.MinValue;                    // המתנו כבר מספיק
                 }
@@ -124,7 +136,7 @@ namespace SubtitleStudio
                     res.Failed++;
                     NoteGap(res, s, totalSec);
                     if (err != null) lastErr = err;
-                    if (Ai.LastQuotaIsDaily)
+                    if (provider.LastQuotaIsDaily)
                     {
                         // מכסה **יומית** ש-Ai כבר מיצה בכל הדגמים. אין טעם
                         // להמשיך: בלי העצירה כל קטע נותר מבזבז ניסיונות
@@ -152,6 +164,7 @@ namespace SubtitleStudio
                     if (i > 0 && ln.Start < OverlapSec * 0.8) continue;
                     long a = (long)Math.Round((s + ln.Start) * 1000.0);
                     long b = (long)Math.Round((s + ln.End) * 1000.0);
+                    // שורה שנמשכת אל תוך החפיפה של הקטע הבא תיתפס שם שוב - Dedupe מטפל
                     if (b > durationMs) b = durationMs;
                     if (b <= a) continue;
                     all.Add(new Cue(a, b, ln.Text));
@@ -162,7 +175,7 @@ namespace SubtitleStudio
             res.Cues = Dedupe(all);
             if (progress != null) progress(1, "מסיים…");
             if (res.QuotaOut && res.Error == null)
-                res.Error = "המכסה החינמית של גוגל נגמרה להיום.";
+                res.Error = provider.QuotaMessage;
             // ״לא זוהה דיבור״ רק כשבאמת לא היה כישלון. אחרת ההודעה משקרת:
             // השרת נפל, והמשתמש חושב שהסרט שלו שקט.
             if (res.Error == null && res.Cues.Count == 0 && !res.Canceled)
@@ -186,7 +199,7 @@ namespace SubtitleStudio
         // המכסה החינמית נמדדה כ-429 אחרי שמונה בקשות בתוך 5.6 שניות,
         // וההודעה נוקבת ב-5 לדקה. 12 שניות בין בקשות עומדות בזה בבטחה,
         // וזה גם בערך הזמן שהתמלול עצמו לוקח - כלומר כמעט לא מאט כלום.
-        private const int MinGapMs = 12000;
+        private static int _gapMs = 12000;
         private static DateTime _lastSend = DateTime.MinValue;
 
         private static void Throttle()
@@ -194,7 +207,7 @@ namespace SubtitleStudio
             if (_lastSend != DateTime.MinValue)
             {
                 int elapsed = (int)(DateTime.UtcNow - _lastSend).TotalMilliseconds;
-                if (elapsed < MinGapMs) Thread.Sleep(MinGapMs - elapsed);
+                if (elapsed < _gapMs) Thread.Sleep(_gapMs - elapsed);
             }
             _lastSend = DateTime.UtcNow;
         }

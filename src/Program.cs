@@ -117,6 +117,8 @@ namespace SubtitleStudio
                 sb.AppendLine("speed=" + Speed.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("aikey=" + Ai.Protect(Ai.Key));
                 sb.AppendLine("aimodel=" + Ai.Model);
+                sb.AppendLine("groqkey=" + Ai.Protect(Stt.GroqKey));
+                sb.AppendLine("stt=" + Stt.ProviderId);
                 sb.AppendLine("font=" + s.FontName);
                 sb.AppendLine("size=" + s.FontPct.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("bold=" + (s.Bold ? "1" : "0"));
@@ -164,6 +166,8 @@ namespace SubtitleStudio
                         case "speed": Speed = Math.Max(0.25, Math.Min(4.0, D(v, 1.0))); break;
                         case "aikey": Ai.Key = Ai.Unprotect(v); break;
                         case "aimodel": if (v.Length > 0) Ai.Model = v; break;
+                        case "groqkey": Stt.GroqKey = Ai.Unprotect(v) ?? ""; break;
+                        case "stt": Stt.ProviderId = v; break;
                     }
                 }
             }
