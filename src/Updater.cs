@@ -511,7 +511,11 @@ namespace SubtitleStudio
         public void SetProgress(double p, long got, long total)
         {
             _p = p;
-            _sub = MediaInfo.FormatSize(got) + (total > 0 ? " מתוך " + MediaInfo.FormatSize(total) : "");
+            // כל גודל עטוף לבד: בלי זה ״37 MB״ בתוך משפט עברי מתהפך ל-״MB 37״
+            // (נראה בצילום של השדרוג 0.7.1 ל-0.7.2). את המשפט כולו לא עוטפים -
+            // אז ״מתוך״ היה נקרא הפוך, ״37 מתוך 1.2״.
+            _sub = Theme.Ltr(MediaInfo.FormatSize(got)) +
+                   (total > 0 ? " מתוך " + Theme.Ltr(MediaInfo.FormatSize(total)) : "");
             Invalidate();
         }
 

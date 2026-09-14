@@ -315,7 +315,10 @@ namespace SubtitleStudio
                         BeginInvoke((MethodInvoker)delegate
                         {
                             _bar.Value = pct / 100f;
-                            _stat.Text = "תורגמו " + Theme.Ltr(done + " מתוך " + _cues.Count) + " כתוביות";
+                            // כל מספר עטוף לבד. עטיפה של ״5 מתוך 40״ כולו הוצגה
+                            // ״תורגמו מתוך 40 5 כתוביות״ (נבדק בציור, 15.9.2026).
+                            _stat.Text = "תורגמו " + Theme.Ltr(done.ToString()) + " מתוך " +
+                                         Theme.Ltr(_cues.Count.ToString()) + " כתוביות";
                             _stat.Invalidate();
                         });
                     }
