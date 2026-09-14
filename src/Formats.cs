@@ -344,8 +344,13 @@ namespace SubtitleStudio
                 {
                     string body = ln.Substring(9);
                     string[] parts = body.Split(new char[] { ',' }, Math.Max(fieldCount, 10));
-                    if (iStart < 0) { iStart = 1; iEnd = 2; iStyle = 3; iName = 4; iText = 9; }
-                    if (parts.Length <= iText) continue;
+                    // שורת Format חסרה או משובשת: כל שדה שלא נמצא מקבל את המקום התקני
+                    // שלו בנפרד. קודם, Format בלי "Text" השאיר iText=-1, ושורת הדיאלוג
+                    // הראשונה זרקה IndexOutOfRange על כל הקובץ (נתפס ב-test-fuzz).
+                    if (iStart < 0) iStart = 1;
+                    if (iEnd < 0) iEnd = 2;
+                    if (iText < 0) iText = Math.Max(9, Math.Max(iStart, iEnd) + 1);
+                    if (parts.Length <= Math.Max(iText, Math.Max(iStart, iEnd))) continue;
                     long a = Tc.Parse(parts[iStart].Trim());
                     long b = Tc.Parse(parts[iEnd].Trim());
                     string t = parts[iText];
