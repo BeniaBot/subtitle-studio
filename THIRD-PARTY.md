@@ -8,6 +8,7 @@
 | **FFmpeg** (מנוע המדיה, מצורף ל‑EXE) | **GPLv3** | להשתמש ולהפיץ, כל עוד מלווים בקוד המקור או בהצעה לקבלו |
 | **גופן Assistant** (מוטמע ב‑EXE) | **SIL OFL 1.1** | להשתמש, להטמיע ולהפיץ; אסור למכור את הגופן בפני עצמו |
 | **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
+| **מילון Hspell** (בדיקת איות, **לא ב‑EXE**, יורד בנפרד רק למי שמבקש) | **AGPLv3** | להשתמש ולהפיץ, עם הרישיון והפניה למקור |
 
 הנוסח המלא של כולם נמצא בתיקייה [`licenses/`](licenses) — **וגם בתוך ה‑EXE עצמו**:
 ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
@@ -115,6 +116,38 @@ unmodified and unrenamed.*
 
 Assistant מבוסס על Source Sans Pro של Adobe, ולכן `Source` הוא **שם גופן שמור**
 (‏Reserved Font Name) — מי שיוצר גרסה נגזרת חייב לתת לה שם אחר.
+
+---
+
+## מילון Hspell — בדיקת איות
+
+בדיקת האיות נשענת על המילון העברי של פרויקט **Hspell** מאת נדב הראל ודן קנייגסברג,
+בגרסה 1.4, בפורמט Hunspell (‏`he_IL.aff`, ‏`he_IL.dic`).
+
+**המילון לא נמצא בתוך ה‑EXE.** הוא יורד בנפרד, פעם אחת, רק כשהמשתמש מבקש
+(כ‑1.2MB דחוס), ונשמר בתיקייה משלו: ‏`%LOCALAPPDATA%\SubtitleStudio\dict`,
+או `dict` ליד ה‑EXE בגרסה הניידת. הקבצים מופצים **ללא שינוי**, והתוכנה בודקת
+את טביעת ה‑SHA‑256 שלהם לפני שהיא משתמשת בהם.
+
+המנוע שקורא את המילון (`src\SpellEngine.cs`) נכתב מאפס ל‑C# 5, לא הועתק
+משום ספרייה, והוא MIT כמו שאר הקוד. הוא **קורא** את קובצי המילון, ולא מקשר אליהם קוד.
+גם רשימת מילות הלימוד (`assets\spell\torah-he.txt`, ארמית, שמות וראשי תיבות
+שחסרים ב‑Hspell) היא שלנו, ב‑MIT.
+
+*Spell checking uses the Hebrew dictionary of the **Hspell** project by Nadav Har'El and
+Dan Kenigsberg, version 1.4, in Hunspell format. **The dictionary is not in the EXE.** It is
+downloaded separately, once, only when the user asks for it, and is distributed unmodified
+(its SHA‑256 is verified before use). The engine that reads it (`src\SpellEngine.cs`) is an
+independent C# 5 implementation under MIT, as is our Torah‑study word list.*
+
+| | |
+|---|---|
+| גרסה · Version | Hspell 1.4 (‏`he_IL` Hunspell) |
+| זכויות יוצרים · Copyright | 2000‑2017 Nadav Har'El, Dan Kenigsberg |
+| רישיון · License | **GNU Affero General Public License v3** |
+| נוסח הרישיון · License text | [`licenses/AGPL-3.0-Hspell.txt`](licenses/AGPL-3.0-Hspell.txt) |
+| מקור · Source | http://hspell.ivrix.org.il/ |
+| ההפצה שלנו · Our copy | המהדורה [`spell-he-1.4`](https://github.com/BeniaBot/subtitle-studio/releases/tag/spell-he-1.4), עם הרישיון וקובץ ה‑README המקורי |
 
 ---
 
