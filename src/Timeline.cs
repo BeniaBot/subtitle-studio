@@ -225,7 +225,7 @@ namespace SubtitleStudio
                     float x2 = MsToX(c.End);
                     if (x2 < 0) continue;
                     float w = Math.Max(1f, x2 - x1);
-                    g.FillRectangle(c.Selected ? selb : (c.Cps > 25 ? warn : b), x1, top, w, laneH);
+                    g.FillRectangle(c.Selected ? selb : (c.Cps > Qa.SevereCps ? warn : b), x1, top, w, laneH);
                 }
             }
             g.SmoothingMode = old;
@@ -857,7 +857,7 @@ namespace SubtitleStudio
                 if (r.Right < -20 || r.Left > Width + 20) continue;
 
                 Color baseCol = Theme.BlockColor(i);
-                if (c.Cps > 25) baseCol = Theme.Mix(baseCol, Theme.Bad, 0.45f);
+                if (c.Cps > Qa.SevereCps) baseCol = Theme.Mix(baseCol, Theme.Bad, 0.45f);
                 bool sel = c.Selected;
                 bool hover = c == _hoverCue;
                 Color fill = sel ? Theme.Mix(baseCol, Theme.Accent, 0.55f) : baseCol;

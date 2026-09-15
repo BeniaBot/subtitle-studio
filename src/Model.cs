@@ -257,12 +257,18 @@ namespace SubtitleStudio
         }
 
         // ---------- פעולות ----------
+        /// <summary>לפי התחלה, ואז סוף. **יציב:** ‏List.Sort לא שומר על הסדר של שני
+        /// איברים שווים, ושתי כתוביות עם אותם זמנים בדיוק (הדבקה, תמלול כפול)
+        /// החליפו מקום באקראי בכל מיון. לכן שובר השוויון האחרון הוא המקום המקורי.</summary>
         public void Sort()
         {
+            Dictionary<Cue, int> pos = new Dictionary<Cue, int>(Cues.Count);
+            for (int i = 0; i < Cues.Count; i++) if (!pos.ContainsKey(Cues[i])) pos[Cues[i]] = i;
             Cues.Sort(delegate (Cue a, Cue b)
             {
                 if (a.Start != b.Start) return a.Start.CompareTo(b.Start);
-                return a.End.CompareTo(b.End);
+                if (a.End != b.End) return a.End.CompareTo(b.End);
+                return pos[a].CompareTo(pos[b]);
             });
         }
 
@@ -409,23 +415,18 @@ namespace SubtitleStudio
             Sort();
         }
 
+        /// <summary>כמה כתוביות וכמה זמן. **הבעיות לא כאן** (מ-0.7.3): הן בתג שעל
+        /// הרשימה (`Qa`). קודם נספרו כאן ״מהירות מדי״ ו״שורות ארוכות״ בספים
+        /// אחרים משל הרשימה (21 מול 20, רווחים נספרים מול לא), ושורת המצב
+        /// והצבעים ברשימה סתרו זה את זה.</summary>
         public string Stats()
         {
             if (Cues.Count == 0) return "אין כתוביות";
             long total = 0;
-            int fast = 0, over = CountOverlaps(), longLine = 0;
-            for (int i = 0; i < Cues.Count; i++)
-            {
-                total += Cues[i].Duration;
-                if (Cues[i].Cps > 21) fast++;
-                if (Cues[i].LongestLine > 42) longLine++;
-            }
+            for (int i = 0; i < Cues.Count; i++) total += Cues[i].Duration;
             StringBuilder sb = new StringBuilder();
-            sb.Append(Cues.Count).Append(" כתוביות");
-            sb.Append("  ·  משך כולל ").Append(Tc.Short(total));
-            if (fast > 0) sb.Append("  ·  ").Append(fast).Append(" מהירות מדי");
-            if (over > 0) sb.Append("  ·  ").Append(over).Append(" חפיפות");
-            if (longLine > 0) sb.Append("  ·  ").Append(longLine).Append(" שורות ארוכות");
+            sb.Append(Cues.Count == 1 ? "כתובית אחת" : Theme.Ltr(Cues.Count.ToString()) + " כתוביות");
+            sb.Append("  ·  משך כולל ").Append(Theme.Ltr(Tc.Short(total)));
             return sb.ToString();
         }
     }

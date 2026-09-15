@@ -204,6 +204,8 @@ namespace SubtitleStudio
 
             int gap = GapAt(e.Y);
             int i = gap >= 0 ? -1 : RowAt(e.Y);      // על הקו לא מדגישים שורה
+            string tip = IssueTip(i, e.X);
+            if (tip != _tipText) { _tipText = tip; Ui.Tip.SetToolTip(this, tip); }
             if (i != _hoverRow || gap != _hoverGap)
             {
                 _hoverRow = i;
@@ -287,8 +289,24 @@ namespace SubtitleStudio
             return c;
         }
 
+        private string _tipText = "";
+
+        /// <summary>ההסבר לבעיות של השורה, כשהעכבר על הסימן או על המספר שלה.</summary>
+        internal string IssueTip(int row, int x)
+        {
+            if (row < 0 || Doc == null) return "";
+            int numX = Width - Theme.S(8) - NumW;
+            if (x < numX - Theme.S(26) || x > Width) return "";
+            List<Issue> l = Qa.For(Doc, row);
+            if (l.Count == 0) return "";
+            List<string> parts = new List<string>();
+            foreach (Issue q in l) parts.Add("• " + Qa.Explain(q));
+            return string.Join(Environment.NewLine, parts.ToArray());
+        }
+
         protected override void OnMouseLeave(EventArgs e)
         {
+            if (_tipText.Length > 0) { _tipText = ""; Ui.Tip.SetToolTip(this, ""); }
             _hoverRow = -1;
             _hoverGap = -1;
             Cursor = Cursors.Default;
@@ -428,7 +446,9 @@ namespace SubtitleStudio
             int numX = Width - pad - NumW;
             int startX = pad + DurW + Theme.S(6);
             int textX = startX + StartW + Theme.S(10);
-            int textW = numX - textX - Theme.S(20);
+            // מקום לסימן הבעיה (14) ומרווח משני צדיו. ב-20 הסימן נגע באות הראשונה
+            // ונראה כמו חלק מהמילה - וזה בולט מאז שהסימן מופיע על כל בעיה, לא רק חפיפה.
+            int textW = numX - textX - Theme.S(28);
             Theme.Str(g, "#", Theme.SmallBold, Theme.TextDim, new RectangleF(numX, 0, NumW, HeaderH), Theme.SfCenter);
             Theme.Str(g, "טקסט", Theme.SmallBold, Theme.TextDim, new RectangleF(textX, 0, textW, HeaderH), Theme.SfRtl);
             Theme.Str(g, "התחלה", Theme.SmallBold, Theme.TextDim, new RectangleF(startX, 0, StartW, HeaderH), Theme.SfCenter);
@@ -474,14 +494,16 @@ namespace SubtitleStudio
                     c.Untimed ? Theme.TextFaint : Theme.TextDim,
                     new RectangleF(startX, y, StartW, _rowH), Theme.SfCenter);
                 Color durCol = Theme.TextDim;
-                if (c.Cps > 25) durCol = Theme.Bad;
-                else if (c.Cps > 20) durCol = Theme.Warn;
+                if (c.Cps > Qa.SevereCps) durCol = Theme.Bad;
+                else if (c.Cps > Qa.FastCps) durCol = Theme.Warn;
                 Theme.Str(g, (c.Duration / 1000.0).ToString("0.0"), Theme.MonoFont(8.5f), durCol,
                     new RectangleF(pad, y, DurW, _rowH), Theme.SfCenter);
 
-                // סימון חפיפה
-                if (i < Doc.Cues.Count - 1 && c.End > Doc.Cues[i + 1].Start)
-                    Icons.Draw(g, Ico.Warning, new RectangleF(numX - Theme.S(20), y + _rowH / 2f - Theme.S(7), Theme.S(14), Theme.S(14)), Theme.Warn, 2f);
+                // סימן לכל בעיה (Qa), לא רק לחפיפה. אדום לחמורה. ריחוף מסביר.
+                bool severe;
+                if (Qa.Has(Doc, i, out severe))
+                    Icons.Draw(g, Ico.Warning, new RectangleF(numX - Theme.S(21), y + _rowH / 2f - Theme.S(7), Theme.S(14), Theme.S(14)),
+                               severe ? Theme.Bad : Theme.Warn, 2f);
             }
 
             DrawInsertLine(g);

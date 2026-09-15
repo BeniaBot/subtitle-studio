@@ -64,7 +64,8 @@ namespace SubtitleStudio
                 .Req("seconds", "number", "כמה שניות. מספר חיובי מאחר, שלילי מקדים")
                 .P("from_index", "integer", "להזיז רק מכתובית זו והלאה. אם חסר - הכל"));
 
-            t.Add(new AiTool("fix_timings", "תיקון אוטומטי: חפיפות, כתוביות קצרות מדי ורווחים"));
+            t.Add(new AiTool("find_problems", "בדיקת שגיאות: חפיפות, קצב קריאה מהיר מדי, כתוביות קצרות או ארוכות מדי, שורות ארוכות, יותר משתי שורות וכתוביות ריקות. מחזיר כמה מכל סוג, ואת 20 הראשונות עם מספר והסבר"));
+            t.Add(new AiTool("fix_timings", "תיקון אוטומטי של מה שבטוח לתקן: חפיפות, כתוביות קצרות ומהירות מדי (מאריך לתוך המקום הפנוי), שורות ארוכות (מסדר בשתי שורות) וכתוביות ריקות. אחר כך אומר מה נשאר לתקן ביד"));
 
             t.Add(new AiTool("translate_subtitles", "מתרגם את כל הכתוביות ומחליף אותן במקום")
                 .Req("target_language", "string", "שם השפה בעברית, למשל: אנגלית")
@@ -232,6 +233,7 @@ namespace SubtitleStudio
                     case "delete_cues": return AiDeleteCues(call, out refused);
                     case "shift_cues": return AiShift(call);
                     case "fix_timings": return AiFixTimings();
+                    case "find_problems": return AiFindProblems();
                     case "translate_subtitles": return AiDoTranslate(call, out refused);
                     case "set_style": return AiSetStyle(call);
                     case "seek": return AiSeek(call);
@@ -401,22 +403,48 @@ namespace SubtitleStudio
             return r;
         }
 
+        /// <summary>אותו תיקון כמו ״לתקן אוטומטית״ בתג שעל הרשימה (`Qa.FixAll`).
+        /// קודם הצ׳אט הריץ תיקון משלו, והאריך כתוביות קצרות **בלי לבדוק מקום** -
+        /// ואז תיקן את החפיפות שהוא עצמו יצר, בדחיפה של הכתובית הבאה.</summary>
         private Dictionary<string, object> AiFixTimings()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
             _doc.Push("תיקון מהצ'אט");
-            int fixedCount = _doc.FixOverlaps(80);
-            int shorts = 0;
-            foreach (Cue q in _doc.Cues)
-            {
-                long min = Math.Max(900, q.PlainText.Length * 55);
-                if (q.Duration < min) { q.End = q.Start + min; shorts++; }
-            }
-            _doc.FixOverlaps(80);
-            _doc.Dirty = true;
+            QaFixResult res = Qa.FixAll(_doc);
+            if (res.Total == 0 && res.Cleaned == 0) _doc.DropLastUndo();
+            else _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "תוקנו " + fixedCount + " חפיפות ו-" + shorts + " כתוביות קצרות";
+            r["done"] = Qa.Summary(res);
+            r["problems_left"] = res.Left.Count;
+            return r;
+        }
+
+        private Dictionary<string, object> AiFindProblems()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = "אין כתוביות"; return r; }
+            List<Issue> all = Qa.Find(_doc);
+            r["total"] = all.Count;
+            Dictionary<string, object> counts = new Dictionary<string, object>();
+            foreach (Issue x in all)
+            {
+                string k = x.Kind.ToString();
+                counts[k] = counts.ContainsKey(k) ? (int)counts[k] + 1 : 1;
+            }
+            r["by_kind"] = counts;
+            List<object> first = new List<object>();
+            foreach (Issue x in all)
+            {
+                if (first.Count >= 20) break;
+                Dictionary<string, object> o = new Dictionary<string, object>();
+                o["index"] = x.Index + 1;
+                o["kind"] = x.Kind.ToString();
+                o["text"] = x.Cue.PlainText;
+                o["explain"] = Qa.Explain(x);
+                first.Add(o);
+            }
+            r["first"] = first;
             return r;
         }
 

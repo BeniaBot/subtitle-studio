@@ -61,7 +61,6 @@ $sum = (TY 'Changelog').GetMethod('Build', $ST).Invoke($null, @([string]$json, [
 $dialogs = @(
     @{ n = 'ImportText';  make = { NewOf 'ImportTextDlg' @([int64]0, $true) } },
     @{ n = 'Transcribe';  make = { NewOf 'TranscribeDlg' @($mi, [int]3) } },
-    @{ n = 'Fix';         make = { NewOf 'FixDlg' @($doc) } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
     @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },

@@ -413,6 +413,8 @@ namespace SubtitleStudio
             sb.Append("· לתרגם את כל הכתוביות ולהחליף אותן - translate_subtitles\n");
             sb.Append("· לתקן תזמון שמחליק לאורך הסרט - stretch_timing; הזזה קבועה - shift_cues\n");
             sb.Append("· שכתוביות לא יתחילו רגע אחרי שהתמונה מתחלפת - snap_to_scene_cuts\n");
+            sb.Append("· ״מה לא בסדר בכתוביות?״ או ״תבדוק שהכול תקין״ - find_problems, ואז fix_timings למה שאפשר לתקן לבד. ");
+            sb.Append("מה ש-fix_timings לא תיקן (למשל כתובית ארוכה מכדי להיכנס בשתי שורות) - הסבר בקצרה מה צריך לעשות בה ביד\n");
             sb.Append("· חיפוש והחלפה, פיצול, איחוד, סידור שורות - replace_text / split_cue / merge_cues / wrap_lines\n");
             sb.Append("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n");
             sb.Append("· לחתוך קטע, לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");

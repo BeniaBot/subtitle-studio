@@ -26,6 +26,14 @@ namespace SubtitleStudio
         // ---------- אזורים ----------
         private Panel _toolbar;
         private Card _listCard, _videoCard, _editCard, _tlCard;
+        /// <summary>התג ״N בעיות״ בכותרת הרשימה (בדיקת שגיאות, 0.7.3).</summary>
+        private Btn _qaBtn;
+        private int _qaCount = -1;
+        private DateTime _qaChecked = DateTime.MinValue;
+        /// <summary>ההסבר האחרון שהצגנו בשורת המצב על כתובית עם בעיה. משווים אליו כדי
+        /// לדעת שהשורה עדיין ״שלנו״ - ולא לדרוס הודעה שמישהו אחר כתב אחרינו.</summary>
+        private string _lastIssueHint;
+        private Cue _qaHintCue;
         private HeroPanel _hero;
         private VideoPreview _video;
         private CueList _list;
@@ -387,11 +395,6 @@ namespace SubtitleStudio
             cutsIt.Enabled = cues && media && _mi.HasVideo;
             items.Add(cutsIt);
 
-            MenuItem fix = MenuItem.Make("תיקון תזמונים אוטומטי", "מסדר חפיפות, כתוביות קצרות מדי ורווחים", Ico.Wand,
-                delegate { AutoFix(); });
-            fix.Enabled = cues;
-            items.Add(fix);
-
             items.Add(MenuItem.Group("תרגום"));
             MenuItem trAi = MenuItem.Make("תרגום אוטומטי עם AI",
                 "בוחרים שפה והכתוביות מתורגמות במקום - התזמונים נשמרים", Ico.Sparkles,
@@ -456,6 +459,20 @@ namespace SubtitleStudio
             _listCard.CaptionIcon = Ico.List;
             _listCard.HeaderH = Theme.S(42);
             Controls.Add(_listCard);
+
+            // **במקום פריט בתפריט.** ״תיקון תזמונים אוטומטי״ היה חלון עם שישה מתגים,
+            // ואף אחד לא ידע אם יש בכלל מה לתקן לפני שפתח אותו. התג מופיע רק כשיש.
+            _qaBtn = new Btn();
+            _qaBtn.Kind = BtnKind.Tool;
+            _qaBtn.Icon = Ico.Warning;
+            _qaBtn.Tint = Theme.Warn;
+            _qaBtn.Font = Theme.SmallBold;
+            _qaBtn.IconSize = Theme.S(16);
+            _qaBtn.Menu = true;
+            _qaBtn.Visible = false;
+            _qaBtn.Click += delegate { ShowQaMenu(); };
+            Ui.Tip.SetToolTip(_qaBtn, "מה כדאי לתקן בכתוביות, ותיקון אוטומטי");
+            _listCard.Controls.Add(_qaBtn);
 
             _list = new CueList();
             _list.Doc = _doc;
@@ -1311,6 +1328,7 @@ namespace SubtitleStudio
             // ---------- ימין: רשימה + עורך באותו כרטיס ----------
             _listCard.SetBounds(pad, top, listW, avail);
             int headH = _listCard.HeaderH;
+            LayoutQaBtn();
             int editH = Math.Max(S(176), Math.Min(S(206), avail / 3));
             int listH = Math.Max(S(90), avail - headH - editH);
             _list.SetBounds(1, headH, listW - 2, listH);
@@ -1544,6 +1562,7 @@ namespace SubtitleStudio
         {
             Bitmap f = _engine.Tick();
             if (f != null) _video.SetFrame(f);
+            if (WindowState != FormWindowState.Minimized) RefreshQa(false);
 
             long pos = _engine.Position;
             if (_lastShownDuration != _engine.DurationMs)
@@ -1656,6 +1675,7 @@ namespace SubtitleStudio
             {
                 _hero.Visible = empty;
                 _listCard.Visible = !empty;
+                if (empty && _qaBtn != null) { _qaBtn.Visible = false; _qaCount = -1; }
                 _videoCard.Visible = !empty;
                 _editCard.Visible = !empty;
                 _tlCard.Visible = !empty;
@@ -1735,8 +1755,8 @@ namespace SubtitleStudio
                 _durLbl.Text = "משך " + (_editing.Duration / 1000.0).ToString("0.0") + " שניות";
                 double cps = _editing.Cps;
                 _cpsLbl.Text = _editing.PlainText.Length == 0 ? "" :
-                    (cps > 25 ? "מהיר מדי לקריאה" : (cps > 20 ? "קצת מהיר" : "קצב קריאה טוב"));
-                _cpsLbl.Color = cps > 25 ? Theme.Bad : (cps > 20 ? Theme.Warn : Theme.Good);
+                    (cps > Qa.SevereCps ? "מהיר מדי לקריאה" : (cps > Qa.FastCps ? "קצת מהיר" : "קצב קריאה טוב"));
+                _cpsLbl.Color = cps > Qa.SevereCps ? Theme.Bad : (cps > Qa.FastCps ? Theme.Warn : Theme.Good);
             }
             _durLbl.Invalidate();
             _cpsLbl.Invalidate();
@@ -2818,13 +2838,146 @@ namespace SubtitleStudio
             _hintLbl.Invalidate();
         }
 
-        private void AutoFix()
+        // ---------- בדיקת שגיאות ----------
+
+        private void LayoutQaBtn()
         {
-            if (_doc.Cues.Count == 0) { Ui.Info(this, "אין כתוביות", "אין מה לתקן."); return; }
-            FixDlg d = new FixDlg(_doc);
-            d.ShowDialog(this);
-            d.Dispose();
+            if (_qaBtn == null || _listCard == null) return;
+            int h = Theme.S(30);
+            int w;
+            using (Graphics g = CreateGraphics())
+                w = TextRenderer.MeasureText(g, _qaBtn.Text ?? "", _qaBtn.Font, new Size(int.MaxValue, int.MaxValue),
+                        TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+            w += Theme.S(12) * 2 + Theme.S(16) + _qaBtn.IconSize + Theme.S(8) + Theme.S(4);
+            _qaBtn.SetBounds(Theme.S(10), (_listCard.HeaderH - h) / 2, w, h);
+        }
+
+        /// <summary>נקרא מהטיימר. הבדיקה עצמה רצה פעם בחצי שנייה לכל היותר: 5,000
+        /// כתוביות לוקחות כמה אלפיות, ואין סיבה להריץ אותן 30 פעם בשנייה.</summary>
+        private void RefreshQa(bool force)
+        {
+            if (_qaBtn == null) return;
+            if (force || (DateTime.UtcNow - _qaChecked).TotalMilliseconds >= 500)
+            {
+                _qaChecked = DateTime.UtcNow;
+                int n = _doc.Cues.Count == 0 ? 0 : Qa.Find(_doc).Count;
+                if (n != _qaCount)
+                {
+                    _qaCount = n;
+                    _qaBtn.Text = n == 1 ? "בעיה אחת" : Theme.Ltr(n.ToString()) + " בעיות";
+                    _qaBtn.Visible = n > 0;             // ילד של הכרטיס: כשהכרטיס מוסתר, גם הוא
+                    LayoutQaBtn();
+                    _qaBtn.Invalidate();
+                }
+            }
+
+            // ההסבר בשורת המצב, לכתובית שנבחרה
+            string ih = IssueHint();
+            bool ours = _lastIssueHint != null && _hintLbl.Text == _lastIssueHint;
+            if (_editing != _qaHintCue)
+            {
+                _qaHintCue = _editing;
+                if (ih != null) ShowIssueHint(ih);
+                else if (ours) { _lastIssueHint = null; UpdateHint(); }
+            }
+            else if (ours && ih != _lastIssueHint)
+            {
+                if (ih == null) { _lastIssueHint = null; UpdateHint(); }
+                else ShowIssueHint(ih);
+            }
+        }
+
+        private void ShowIssueHint(string text)
+        {
+            _lastIssueHint = text;
+            _hintLbl.Text = text;
+            _hintLbl.Invalidate();
+        }
+
+        /// <summary>״כתובית 12: 23 תווים בשנייה - אי אפשר לקרוא בזמן...״, או null.</summary>
+        private string IssueHint()
+        {
+            if (_editing == null) return null;
+            int i = _doc.Cues.IndexOf(_editing);
+            List<Issue> l = Qa.For(_doc, i);
+            if (l.Count == 0) return null;
+            string s = "כתובית " + Theme.Ltr((i + 1).ToString()) + ": " + Qa.Explain(l[0]);
+            if (l.Count > 1)
+                s += "  (ועוד " + (l.Count == 2 ? "בעיה אחת" : Theme.Ltr((l.Count - 1).ToString()) + " בעיות") +
+                     " - הסבר בריחוף על הסימן ברשימה)";
+            return s;
+        }
+
+        private void ShowQaMenu()
+        {
+            List<MenuItem> items = QaMenuItems();
+            if (items == null) { RefreshQa(true); return; }
+            PopupMenu m = new PopupMenu(items, 360);
+            m.ShowUnder(_qaBtn);
+        }
+
+        /// <summary>הפריטים של תפריט הבעיות, או null כשאין. נפרד מ-ShowQaMenu כדי שהבדיקה
+        /// תקרא אותם בלי לפתוח חלון (PopupMenu עושה Activate, וזה גונב מיקוד).</summary>
+        internal List<MenuItem> QaMenuItems()
+        {
+            List<Issue> all = Qa.Find(_doc);
+            if (all.Count == 0) return null;
+            List<MenuItem> items = new List<MenuItem>();
+            items.Add(MenuItem.Group("מה נמצא"));
+            foreach (IssueKind k in Enum.GetValues(typeof(IssueKind)))
+            {
+                int n = 0;
+                foreach (Issue x in all) if (x.Kind == k) n++;
+                if (n == 0) continue;
+                IssueKind kind = k;
+                items.Add(MenuItem.Make(Qa.Title(k, n),
+                    Qa.Why(k) + " · " + (n == 1 ? "לחיצה קופצת אליה" : "כל לחיצה קופצת לבאה"), Ico.Warning,
+                    delegate { JumpToIssue(kind); }));
+            }
+            items.Add(MenuItem.Group("תיקון"));
+            items.Add(MenuItem.Make("לתקן אוטומטית",
+                "חפיפות, קצרות ומהירות מדי, שורות ארוכות וריקות · Ctrl+Z מבטל", Ico.Wand,
+                delegate { FixProblems(); }));
+            return items;
+        }
+
+        /// <summary>הבעיה הבאה מהסוג הזה, אחרי הכתובית שנבחרה. בסוף חוזרים להתחלה.</summary>
+        internal void JumpToIssue(IssueKind kind)
+        {
+            List<Issue> all = Qa.Find(_doc);
+            int cur = _editing != null ? _doc.Cues.IndexOf(_editing) : -1;
+            Issue first = null, next = null;
+            foreach (Issue x in all)
+            {
+                if (x.Kind != kind) continue;
+                if (first == null) first = x;
+                if (x.Index > cur) { next = x; break; }
+            }
+            Issue go = next ?? first;
+            if (go == null) return;
+            _doc.SelectNone();
+            go.Cue.Selected = true;
+            LoadEditor();
+            _list.ScrollToCue(go.Cue);
+            _list.Invalidate();
+            _tl.Invalidate();
+            if (_mi != null) Seek(go.Cue.Start);
+            _qaHintCue = null;              // שההסבר יתעדכן מיד
+            RefreshQa(false);
+        }
+
+        internal void FixProblems()
+        {
+            if (_doc.Cues.Count == 0) return;
+            _doc.Push("תיקון אוטומטי");
+            QaFixResult r = Qa.FixAll(_doc);
+            if (r.Total == 0 && r.Cleaned == 0) _doc.DropLastUndo();
+            else _doc.RaiseChanged();
             SyncAfterDocChange();
+            RefreshQa(true);
+            _lastIssueHint = null;
+            _hintLbl.Text = Qa.Summary(r);
+            _hintLbl.Invalidate();
         }
 
         private void EditStyle()
