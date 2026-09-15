@@ -578,9 +578,10 @@ namespace SubtitleStudio
             Lbl lic = Hint("הקוד של התוכנה חופשי (רישיון " + Theme.Ltr("MIT") + ") - מותר לקחת אותו," + Environment.NewLine +
                            "לשנות ולבנות ממנו מה שרוצים. מנוע הווידאו " + Theme.Ltr("FFmpeg") +
                            " מגיע ברישיון " + Theme.Ltr("GPLv3") + "," + Environment.NewLine +
-                           "וגופן " + Theme.Ltr("Assistant") + " ברישיון " + Theme.Ltr("OFL") +
-                           ". הנוסח המלא של כולם נמצא בתוך הקובץ.");
-            Row(lic, 64, 6);
+                           "גופן " + Theme.Ltr("Assistant") + " ברישיון " + Theme.Ltr("OFL") +
+                           ", ומילון האיות (יורד בנפרד) ברישיון " + Theme.Ltr("AGPLv3") + "." + Environment.NewLine +
+                           "הנוסח המלא של כולם נמצא בתוך הקובץ.");
+            Row(lic, 84, 6);
 
             Btn save = Small("שמירת נוסח הרישיונות לתיקייה", Ico.Save);
             save.Click += delegate { SaveLicenses(); };
@@ -647,7 +648,8 @@ namespace SubtitleStudio
             {
                 new string[] { "MIT.txt",      "SubtitleStudio-MIT.txt" },
                 new string[] { "GPL-3.0.txt",  "FFmpeg-GPLv3.txt" },
-                new string[] { "OFL-1.1.txt",  "Assistant-font-OFL.txt" }
+                new string[] { "OFL-1.1.txt",  "Assistant-font-OFL.txt" },
+                new string[] { "AGPL-3.0.txt", "Hspell-dictionary-AGPLv3.txt" }
             };
             int n = 0;
             string err = null;

@@ -406,7 +406,8 @@ Write-Host 'רישיונות'
 $want = @(
     @('MIT.txt',      'MIT License'),
     @('GPL-3.0.txt',  'GNU GENERAL PUBLIC LICENSE'),
-    @('OFL-1.1.txt',  'SIL OPEN FONT LICENSE')
+    @('OFL-1.1.txt',  'SIL OPEN FONT LICENSE'),
+    @('AGPL-3.0.txt', 'GNU AFFERO GENERAL PUBLIC LICENSE')
 )
 foreach ($w in $want) {
     $st = $asm.GetManifestResourceStream($w[0])

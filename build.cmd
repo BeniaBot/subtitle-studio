@@ -45,6 +45,8 @@ echo Compiling...
   /resource:"licenses\GPL-3.0.txt",GPL-3.0.txt ^
   /resource:"licenses\OFL-1.1-Assistant.txt",OFL-1.1.txt ^
   /resource:"LICENSE",MIT.txt ^
+  /resource:"licenses\AGPL-3.0-Hspell.txt",AGPL-3.0.txt ^
+  /resource:"assets\spell\torah-he.txt",torah-he.txt ^
   /reference:System.dll ^
   /reference:System.Core.dll ^
   /reference:System.Drawing.dll ^

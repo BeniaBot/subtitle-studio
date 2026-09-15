@@ -114,6 +114,7 @@ namespace SubtitleStudio
                 DoLayout();
                 UpdateSteps();
                 UpdateHint();
+                Spell.EnsureLoaded();              // ברקע, כחצי שנייה; רק אם המילון מותקן ודלוק
                 if (Math.Abs(Settings.Speed - 1.0) > 0.001) SetSpeed(Settings.Speed);
                 // בבדיקות אוטומטיות אין משתמש שילחץ על דיאלוג, ואין טעם לפנות לרשת
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
@@ -395,7 +396,8 @@ namespace SubtitleStudio
             cutsIt.Enabled = cues && media && _mi.HasVideo;
             items.Add(cutsIt);
 
-            items.Add(MenuItem.Group("תרגום"));
+            items.Add(MenuItem.Group("טקסט ותרגום"));
+            items.Add(SpellMenuItem());
             MenuItem trAi = MenuItem.Make("תרגום אוטומטי עם AI",
                 "בוחרים שפה והכתוביות מתורגמות במקום - התזמונים נשמרים", Ico.Sparkles,
                 delegate { AiTranslate(); });
@@ -1093,15 +1095,139 @@ namespace SubtitleStudio
         /// <summary>אותן פעולות, במיקום של עכבר.</summary>
         private void ShowCueMenuAt(Point screen)
         {
+            PopupMenu m = new PopupMenu(CueMenuItems(), 300);
+            m.ShowAt(screen);
+        }
+
+        /// <summary>הפריטים של קליק ימני על שורה. **איות קודם:** מי שלחץ על שורה עם
+        /// מילה חשודה כמעט תמיד בא לתקן אותה. נפרד מ-ShowCueMenuAt כדי שהבדיקה תקרא
+        /// אותם בלי לפתוח חלון.</summary>
+        internal List<MenuItem> CueMenuItems()
+        {
             List<MenuItem> items = new List<MenuItem>();
+            Cue c = _editing;
+            if (c != null && Spell.Ready)
+            {
+                int shown = 0;
+                foreach (string bad in Spell.Misspelled(c.Text))
+                {
+                    if (shown++ >= 3) break;
+                    string word = bad;
+                    items.Add(MenuItem.Group("״" + word + "״"));
+                    List<string> sug = Spell.Suggest(word, 3);
+                    foreach (string s1 in sug)
+                    {
+                        string with = s1;
+                        items.Add(MenuItem.Make("להחליף ב״" + with + "״", "", Ico.Check,
+                            delegate { ReplaceSpelling(c, word, with); }));
+                    }
+                    if (sug.Count == 0)
+                    {
+                        MenuItem none = MenuItem.Make("אין הצעות", "אפשר לתקן ביד בתיבת הטקסט", Ico.None, null);
+                        none.Enabled = false;
+                        items.Add(none);
+                    }
+                    items.Add(MenuItem.Make("להוסיף למילון", "המילה תיחשב נכונה מעכשיו, בכל הכתוביות", Ico.Plus,
+                        delegate { AddToDictionary(word); }));
+                }
+                if (items.Count > 0) items.Add(MenuItem.Group("הכתובית"));
+            }
             items.Add(MenuItem.Make("לחלק לשתי כתוביות", "מחלק במקום שבו נמצא הסמן", Ico.Split,
                 delegate { SplitCue(); }));
             items.Add(MenuItem.Make("לחבר כתוביות לאחת", "מאחד את המסומנות", Ico.Merge,
                 delegate { MergeCues(); }));
             items.Add(MenuItem.Make("מחיקה", "מוחק את המסומנות (Delete)", Ico.Trash,
                 delegate { DeleteCues(); }));
-            PopupMenu m = new PopupMenu(items, 300);
-            m.ShowAt(screen);
+            return items;
+        }
+
+        // ---------- בדיקת איות ----------
+
+        /// <summary>״בדיקת איות״: פריט אחד, שלושה מצבים - לא מותקנת, כבויה, דלוקה.</summary>
+        private MenuItem SpellMenuItem()
+        {
+            string desc;
+            if (!Spell.Installed) desc = "מסמנת מילים שאולי כתובות לא נכון · מילון חינמי, פעם אחת";
+            else if (!Spell.Enabled) desc = "כבויה · לחיצה מדליקה אותה";
+            else if (!Spell.Ready) desc = "המילון נטען…";
+            else
+            {
+                int n = 0;
+                foreach (Issue x in Qa.Find(_doc)) if (x.Kind == IssueKind.Spelling) n++;
+                desc = n == 0 ? "לא נמצאו מילים חשודות"
+                     : (n == 1 ? "כתובית אחת עם מילה חשודה" : Theme.Ltr(n.ToString()) + " כתוביות עם מילים חשודות") +
+                       " · לחיצה קופצת";
+            }
+            return MenuItem.Make("בדיקת איות", desc, Ico.Check, delegate { SpellCheck(); });
+        }
+
+        internal void SpellCheck()
+        {
+            if (!Spell.Installed)
+            {
+                SpellSetupDlg d = new SpellSetupDlg();
+                d.ShowDialog(this);
+                bool ok = d.Ok;
+                d.Dispose();
+                if (!ok) return;
+            }
+            else if (!Spell.Enabled)
+            {
+                Spell.Enabled = true;
+                Settings.SaveAll();
+                Spell.EnsureLoaded();
+                SetHint("בדיקת האיות דלוקה. עוד רגע המילים החשודות יסומנו ברשימה.");
+                return;
+            }
+            if (!Spell.Ready)
+            {
+                Spell.EnsureLoaded();
+                SetHint("המילון עוד נטען. עוד רגע המילים החשודות יסומנו ברשימה.");
+                return;
+            }
+            RefreshQa(true);
+            _list.Invalidate();
+            foreach (Issue x in Qa.Find(_doc))
+                if (x.Kind == IssueKind.Spelling) { JumpToIssue(IssueKind.Spelling); return; }
+            SetHint(_doc.Cues.Count == 0 ? "אין עדיין כתוביות לבדוק." : "לא נמצאו מילים שאולי כתובות לא נכון.");
+        }
+
+        internal void ReplaceSpelling(Cue c, string word, string with)
+        {
+            if (c == null || !_doc.Cues.Contains(c)) return;
+            string next = Spell.ReplaceWord(c.Text, word, with);
+            if (next == c.Text) return;
+            _doc.Push("תיקון כתיב");
+            c.Text = next;
+            _doc.RaiseChanged();
+            SyncAfterDocChange();
+            RefreshQa(true);
+            SetHint("״" + word + "״ הוחלפה ב״" + with + "״.  לביטול - Ctrl+Z.");
+        }
+
+        internal void AddToDictionary(string word)
+        {
+            Spell.AddWord(word);
+            RefreshQa(true);
+            _list.Invalidate();
+            SetHint("״" + word + "״ נוספה למילון, ולא תסומן יותר.");
+        }
+
+        internal void TurnSpellOff()
+        {
+            Spell.Enabled = false;
+            Spell.Unload();
+            Settings.SaveAll();
+            RefreshQa(true);
+            _list.Invalidate();
+            SetHint("בדיקת האיות כבויה. אפשר להדליק אותה שוב: ״כתוביות ← בדיקת איות״.");
+        }
+
+        private void SetHint(string text)
+        {
+            _lastIssueHint = null;
+            _hintLbl.Text = text;
+            _hintLbl.Invalidate();
         }
 
         private void ShowCueMenu(Control anchor)
@@ -2938,6 +3064,13 @@ namespace SubtitleStudio
             items.Add(MenuItem.Make("לתקן אוטומטית",
                 "חפיפות, קצרות ומהירות מדי, שורות ארוכות וריקות · Ctrl+Z מבטל", Ico.Wand,
                 delegate { FixProblems(); }));
+            foreach (Issue x in all)
+                if (x.Kind == IssueKind.Spelling)
+                {
+                    items.Add(MenuItem.Make("לכבות את בדיקת האיות", "אפשר להדליק שוב מתפריט הכתוביות", Ico.Close,
+                        delegate { TurnSpellOff(); }));
+                    break;
+                }
             return items;
         }
 

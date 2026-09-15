@@ -119,6 +119,7 @@ namespace SubtitleStudio
                 sb.AppendLine("aimodel=" + Ai.Model);
                 sb.AppendLine("groqkey=" + Ai.Protect(Stt.GroqKey));
                 sb.AppendLine("stt=" + Stt.ProviderId);
+                sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
                 sb.AppendLine("font=" + s.FontName);
                 sb.AppendLine("size=" + s.FontPct.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("bold=" + (s.Bold ? "1" : "0"));
@@ -168,6 +169,7 @@ namespace SubtitleStudio
                         case "aimodel": if (v.Length > 0) Ai.Model = v; break;
                         case "groqkey": Stt.GroqKey = Ai.Unprotect(v) ?? ""; break;
                         case "stt": Stt.ProviderId = v; break;
+                        case "spell": Spell.Enabled = v != "0"; break;
                     }
                 }
             }

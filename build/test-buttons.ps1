@@ -92,6 +92,7 @@ $forms = @(
     @{ n = 'Settings';    make = { NewOf 'SettingsDlg' @($main) } },
     @{ n = 'AiSetup';     make = { NewOf 'AiSetupDlg' @() } },
     @{ n = 'GroqSetup';   make = { NewOf 'GroqSetupDlg' @() } },
+    @{ n = 'SpellSetup';  make = { NewOf 'SpellSetupDlg' @() } },
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
     @{ n = 'Trim';        make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },

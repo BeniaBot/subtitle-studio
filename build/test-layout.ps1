@@ -246,6 +246,7 @@ $dialogs = @(
     @{ n = 'Style';      needsMedia = $false; make = { NewOf 'StyleDlg' @($style, $null) } },
     @{ n = 'Settings';   needsMedia = $false; make = { NewOf 'SettingsDlg' @($mainForDlg) } },
     @{ n = 'GroqSetup';  needsMedia = $false; make = { NewOf 'GroqSetupDlg' @() } },
+    @{ n = 'SpellSetup'; needsMedia = $false; make = { NewOf 'SpellSetupDlg' @() } },
     @{ n = 'Update';     needsMedia = $false; make = { NewOf 'UpdateDlg' @($rel, $sum) } }
 )
 $mainForDlg = [Activator]::CreateInstance($formT)

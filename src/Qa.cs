@@ -18,6 +18,8 @@ namespace SubtitleStudio
         LongLine,
         /// <summary>שלוש שורות ומעלה: מכסה את התמונה.</summary>
         ManyLines,
+        /// <summary>מילה שאולי כתובה לא נכון (רק כשהמילון מותקן ודלוק).</summary>
+        Spelling,
         /// <summary>בלי טקסט.</summary>
         Empty
     }
@@ -29,6 +31,8 @@ namespace SubtitleStudio
         public IssueKind Kind;
         /// <summary>חמור: חפיפה, או קצב שאי אפשר לקרוא בכלל. צבע אדום ולא כתום.</summary>
         public bool Severe;
+        /// <summary>לאיות: המילים שאולי שגויות בכתובית, לפי הסדר.</summary>
+        public List<string> Words;
     }
 
     /// <summary>מה תוקן ומה נשאר.</summary>
@@ -124,6 +128,17 @@ namespace SubtitleStudio
             }
             if (lines > MaxLines) Add(r, i, c, IssueKind.ManyLines, false);
             if (longest > MaxLineChars) Add(r, i, c, IssueKind.LongLine, false);
+
+            // איות: בעיה אחת לכתובית, עם כל המילים שבה. ‏Spell ממטמן לפי הטקסט.
+            if (Spell.Ready)
+            {
+                List<string> bad = Spell.Misspelled(c.Text);
+                if (bad.Count > 0)
+                {
+                    Add(r, i, c, IssueKind.Spelling, false);
+                    r[r.Count - 1].Words = bad;
+                }
+            }
         }
 
         private static void Add(List<Issue> r, int i, Cue c, IssueKind k, bool severe)
@@ -159,6 +174,7 @@ namespace SubtitleStudio
                 case IssueKind.TooLong: one = "נשארת יותר מדי זמן"; many = "נשארות יותר מדי זמן"; break;
                 case IssueKind.LongLine: one = "עם שורה ארוכה מדי"; many = "עם שורה ארוכה מדי"; break;
                 case IssueKind.ManyLines: one = "עם יותר משתי שורות"; many = "עם יותר משתי שורות"; break;
+                case IssueKind.Spelling: one = "עם מילה שאולי שגויה"; many = "עם מילים שאולי שגויות"; break;
                 default: one = "ריקה"; many = "ריקות"; break;
             }
             return n == 1 ? "כתובית אחת " + one : Theme.Ltr(n.ToString(CultureInfo.InvariantCulture)) + " כתוביות " + many;
@@ -175,6 +191,7 @@ namespace SubtitleStudio
                 case IssueKind.TooLong: return "נשארות אחרי שהדיבור נגמר";
                 case IssueKind.LongLine: return "יוצאות מהמסך בטלפון";
                 case IssueKind.ManyLines: return "מכסות את התמונה";
+                case IssueKind.Spelling: return "אולי שגיאת כתיב";
                 default: return "אין בהן טקסט";
             }
         }
@@ -200,6 +217,19 @@ namespace SubtitleStudio
                            " תווים יוצאת מהמסך בטלפון ובטלוויזיה קטנה.";
                 case IssueKind.ManyLines:
                     return "שלוש שורות ומעלה מכסות את התמונה. כדאי לפצל לשתי כתוביות.";
+                case IssueKind.Spelling:
+                    {
+                        List<string> w = x.Words ?? new List<string>();
+                        if (w.Count == 0) return "אולי יש בה שגיאת כתיב.";
+                        if (w.Count == 1)
+                        {
+                            List<string> sug = Spell.Suggest(w[0], 1);
+                            return "״" + w[0] + "״ אולי כתובה לא נכון" + (sug.Count > 0 ? " - אולי ״" + sug[0] + "״?" : ".") +
+                                   " קליק ימני על השורה מציע תיקון.";
+                        }
+                        return "״" + w[0] + "״ ו-״" + w[1] + "״" + (w.Count > 2 ? " ועוד" : "") +
+                               " אולי כתובות לא נכון. קליק ימני על השורה מציע תיקון.";
+                    }
                 default:
                     return "אין בה טקסט. אפשר לכתוב, או למחוק אותה.";
             }
