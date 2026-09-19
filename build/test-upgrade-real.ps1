@@ -22,6 +22,9 @@ $base = 'D:\Claude\_ss-upgrade'
 $app = Join-Path $base 'app'
 $out = Join-Path $base 'shots'
 $srcOld = Join-Path $base 'src-old'
+# צילומים מריצה קודמת נמחקים: ״1b-after-click-1.png״ מ-15.9 נשאר בתיקייה ב-19.9,
+# והראה ״מוריד את הגרסה 0.7.2״ בשדרוג ל-0.7.3. זה נראה כמו באג, ולא היה.
+Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory $app, $out -Force | Out-Null
 if (-not (Test-Path (Join-Path $srcOld 'dist\SubtitleStudio.exe'))) {
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
@@ -179,7 +182,7 @@ finally {
     git -C $repo worktree remove --force $srcOld 2>&1 | Out-Null
     git -C $repo worktree prune 2>&1 | Out-Null
     $ErrorActionPreference = $old
-    Write-Host ("shots: " + $out + "  (the folder is removed on the next run)")
+    Write-Host ("shots: " + $out + "  (cleared at the start of the next run)")
     Remove-Item $app, $srcOld -Recurse -Force -ErrorAction SilentlyContinue
 }
 if ($script:failures -gt 0) { Write-Host ("FAILED: " + $script:failures); exit 1 }
