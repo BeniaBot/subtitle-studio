@@ -162,6 +162,57 @@ namespace SubtitleStudio
             return "הפעולה לא הצליחה." + Environment.NewLine + Theme.Ltr(ex.Message);
         }
 
+        // ---------- רשת ----------
+
+        /// <summary>**אצל הקהל שלנו רשת מסוננת היא המצב הרגיל, לא מקרה קצה.** מסנן
+        /// שחוסם עונה לרוב בדף HTML ובקוד 200, כלומר ״הצלחה״. עד 0.8.0 זה הגיע
+        /// למשתמש כ״המילון שירד פגום״ או ״תשובה לא מובנת״, והוא ניסה שוב ושוב.</summary>
+        public const string Filtered =
+            "נראה שסינון האינטרנט חסם את ההורדה. אפשר לבקש מהסינון לאשר את האתר github.com, ולנסות שוב.";
+
+        /// <summary>האם מה שהגיע הוא דף אינטרנט ולא הקובץ שביקשנו.</summary>
+        public static bool IsWebPage(string contentType, byte[] head, int len)
+        {
+            if (!string.IsNullOrEmpty(contentType) &&
+                contentType.IndexOf("text/html", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (head == null) return false;
+            for (int i = 0; i < len && i < head.Length && i < 64; i++)
+            {
+                byte b = head[i];
+                if (b == 0xEF || b == 0xBB || b == 0xBF || b == ' ' || b == '\r' || b == '\n' || b == '\t') continue;
+                return b == '<';
+            }
+            return false;
+        }
+
+        /// <summary>כשל רשת במילים. <paramref name="notFound"/> הוא מה לומר על 404,
+        /// כי ״לא נמצא״ אומר דבר אחר בעדכון ובמילון.</summary>
+        public static string Web(System.Net.WebException wex, string notFound)
+        {
+            System.Net.HttpWebResponse res = wex.Response as System.Net.HttpWebResponse;
+            if (res != null)
+            {
+                int code = (int)res.StatusCode;
+                if (code == 404) return notFound;
+                // 403, ‏418 ו-451: קודים שמסננים מחזירים כשהם חוסמים בלי להגיש דף
+                if (code == 403 || code == 418 || code == 451) return Filtered;
+                return "השרת לא זמין כרגע (" + Theme.Ltr(code.ToString()) + "). אפשר לנסות שוב בעוד כמה דקות.";
+            }
+            switch (wex.Status)
+            {
+                case System.Net.WebExceptionStatus.TrustFailure:
+                case System.Net.WebExceptionStatus.SecureChannelFailure:
+                    return "החיבור המאובטח נחסם. ייתכן שסינון האינטרנט חוסם את האתר.";
+                case System.Net.WebExceptionStatus.Timeout:
+                    return "החיבור איטי מדי, וההורדה לא הסתיימה. אפשר לנסות שוב.";
+                case System.Net.WebExceptionStatus.ConnectionClosed:
+                case System.Net.WebExceptionStatus.ReceiveFailure:
+                case System.Net.WebExceptionStatus.KeepAliveFailure:
+                    return "החיבור נותק באמצע. אפשר לנסות שוב.";
+            }
+            return "אין חיבור לאינטרנט, או שהאתר חסום ברשת הזאת.";
+        }
+
         private static bool Has(string s, string what)
         {
             return s.IndexOf(what, StringComparison.OrdinalIgnoreCase) >= 0;

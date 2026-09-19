@@ -61,6 +61,9 @@ namespace SubtitleStudio
             public long Size;
             public string SetupUrl = "";     // SubtitleStudio-Setup.exe
             public long SetupSize;
+            /// <summary>טביעת SHA-256 שגיטהאב מפרסם לכל קובץ (‎"digest": "sha256:..."‎), או ריק.</summary>
+            public string Sha256 = "";
+            public string SetupSha256 = "";
         }
 
         private const string Api = "https://api.github.com/repos/" + App.Repo + "/releases/latest";
@@ -84,14 +87,13 @@ namespace SubtitleStudio
                 using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8))
                     json = sr.ReadToEnd();
 
+                // דף חסימה של סינון מגיע כ״הצלחה״. בלי זה: ״תשובה לא מובנת מהמאגר״
+                if (json.TrimStart().StartsWith("<")) { error = ErrorText.Filtered; return null; }
                 return Parse(json, out error);
             }
             catch (WebException wex)
             {
-                error = wex.Status == WebExceptionStatus.NameResolutionFailure ||
-                        wex.Status == WebExceptionStatus.ConnectFailure
-                    ? "אין חיבור לאינטרנט."
-                    : "לא הצלחתי לבדוק עדכונים: " + wex.Message;
+                error = ErrorText.Web(wex, "לא נמצאה אף גרסה במאגר.");
                 return null;
             }
             catch (Exception ex)
@@ -137,20 +139,35 @@ namespace SubtitleStudio
                     if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
                     if (!IsOurDownload(url)) continue;
                     long sz = Num(a, "size");
+                    string sha = Digest(Str(a, "digest"));
                     // "setup" בשם = המתקין; כל השאר = הקובץ הנייד. הראשון מנצח
                     // בשני הצדדים, כדי שנכס נוסף שיועלה מאוחר יותר לא ידרוס.
                     if (name.IndexOf("setup", StringComparison.OrdinalIgnoreCase) >= 0)
-                    { if (r.SetupUrl.Length == 0) { r.SetupUrl = url; r.SetupSize = sz; } }
+                    { if (r.SetupUrl.Length == 0) { r.SetupUrl = url; r.SetupSize = sz; r.SetupSha256 = sha; } }
                     else if (r.Url.Length == 0)
-                    { r.Url = url; r.Size = sz; }
+                    { r.Url = url; r.Size = sz; r.Sha256 = sha; }
                 }
             return r;
         }
 
+        /// <summary>״sha256:abc…״ ← ״ABC…״. כל צורה אחרת ← ריק (ואז בודקים רק אורך).</summary>
+        private static string Digest(string d)
+        {
+            if (string.IsNullOrEmpty(d) || !d.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase)) return "";
+            string h = d.Substring(7).Trim();
+            return h.Length == 64 ? h.ToUpperInvariant() : "";
+        }
+
+        /// <summary>השמות שהמאגר נקרא בהם. **גשר לשינוי השם ל-Subtext:** גרסאות
+        /// 0.7.x ומטה מקבלות רק את הראשון, ולכן המאגר לא משנה שם עד שרוב המשתמשים
+        /// עברו לגרסה שמקבלת את שניהם. אחרי שינוי שם, גיטהאב מפנה את הבקשה הישנה,
+        /// אבל כתובות ההורדה שבתשובה כבר בשם החדש.</summary>
+        internal static readonly string[] RepoNames = { "BeniaBot/subtitle-studio", "BeniaBot/subtext" };
+
         /// <summary>הקובץ הזה יורד ומורץ, ולכן הכתובת חייבת להיות של המאגר
         /// שלנו ותו לא. קודם נבדק רק שיש בה ‎"/releases/download/"‎ - כלומר
         /// המארח עצמו לא נבדק בכלל.</summary>
-        private static bool IsOurDownload(string url)
+        internal static bool IsOurDownload(string url)
         {
             try
             {
@@ -158,8 +175,10 @@ namespace SubtitleStudio
                 if (u.Scheme != Uri.UriSchemeHttps) return false;
                 if (!string.Equals(u.Host, "github.com", StringComparison.OrdinalIgnoreCase) &&
                     !u.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)) return false;
-                return u.AbsolutePath.StartsWith("/" + App.Repo + "/releases/download/",
-                                                 StringComparison.OrdinalIgnoreCase);
+                foreach (string repo in RepoNames)
+                    if (u.AbsolutePath.StartsWith("/" + repo + "/releases/download/", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                return false;
             }
             catch { return false; }
         }
@@ -216,36 +235,16 @@ namespace SubtitleStudio
                 (useSetup ? "SubtitleStudio-Setup-" : "SubtitleStudio-") + rel.Version + ".exe");
 
             long total = useSetup ? rel.SetupSize : rel.Size;
+            long expectSize = total;
+            string expectSha = useSetup ? rel.SetupSha256 : rel.Sha256;
             long got = 0;
             bool done = false;
             string error = null;
 
             Thread worker = new Thread(delegate ()
             {
-                try
-                {
-                    ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-                    req.UserAgent = "SubtitleStudio/" + App.Version;
-                    req.Timeout = 20000;
-                    using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
-                    {
-                        if (res.ContentLength > 0) total = res.ContentLength;
-                        using (Stream src = res.GetResponseStream())
-                        using (FileStream dst = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 18))
-                        {
-                            byte[] buf = new byte[1 << 18];
-                            int n;
-                            while ((n = src.Read(buf, 0, buf.Length)) > 0)
-                            {
-                                dst.Write(buf, 0, n);
-                                got += n;
-                            }
-                        }
-                    }
-                    if (new FileInfo(tmp).Length < 1000000) throw new Exception("הקובץ שהתקבל קטן מדי - ההורדה נכשלה.");
-                }
-                catch (Exception ex) { error = ex.Message; }
+                try { error = Fetch(url, tmp, expectSize, expectSha, ref total, ref got); }
+                catch (Exception ex) { error = ErrorText.Of(ex); }
                 done = true;
             });
             worker.IsBackground = true;
@@ -333,6 +332,72 @@ namespace SubtitleStudio
             }
             catch { }
             Application.Exit();
+        }
+
+        /// <summary>מוריד לקובץ, ובודק שהוא בדיוק מה שפורסם: לא דף חסימה של סינון,
+        /// לא קובץ שנקטע באמצע, ואותה טביעה שגיטהאב מפרסם. מחזיר null, או הודעה למשתמש.
+        ///
+        /// **עד 0.8.0 נבדק רק שהקובץ גדול מ-1MB.** חיבור שנפל אחרי 20MB השאיר קובץ
+        /// חתוך, והוא היה מחליף את התוכנה. נפרד כדי ש-test-release יריץ אותו מול שרת מדומה.</summary>
+        internal static string Fetch(string url, string tmp, long expectSize, string expectSha, ref long total, ref long got)
+        {
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.Timeout = 20000;
+                req.ReadWriteTimeout = 60000;
+                using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
+                {
+                    if (res.ContentLength > 0) total = res.ContentLength;
+                    byte[] head = new byte[64];
+                    int headLen = 0;
+                    using (Stream src = res.GetResponseStream())
+                    using (FileStream dst = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 18))
+                    {
+                        byte[] buf = new byte[1 << 18];
+                        int n;
+                        while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                        {
+                            if (headLen < head.Length)
+                            {
+                                int k = Math.Min(n, head.Length - headLen);
+                                Array.Copy(buf, 0, head, headLen, k);
+                                headLen += k;
+                            }
+                            dst.Write(buf, 0, n);
+                            got += n;
+                        }
+                    }
+                    if (ErrorText.IsWebPage(res.ContentType, head, headLen)) return ErrorText.Filtered;
+                    if (res.ContentLength > 0 && got != res.ContentLength) return "ההורדה נקטעה באמצע. אפשר לנסות שוב.";
+                }
+                long len = new FileInfo(tmp).Length;
+                if (len < 1000000) return "הקובץ שהתקבל קטן מדי - ההורדה נכשלה.";
+                if (expectSize > 0 && len != expectSize) return "ההורדה נקטעה באמצע. אפשר לנסות שוב.";
+                if (!string.IsNullOrEmpty(expectSha) &&
+                    !string.Equals(Sha256Of(tmp), expectSha, StringComparison.OrdinalIgnoreCase))
+                    return "הקובץ שירד לא זהה לגרסה שפורסמה. אפשר לנסות שוב.";
+                return null;
+            }
+            catch (WebException wex)
+            {
+                return ErrorText.Web(wex, "הקובץ לא נמצא בשרת. אפשר לנסות שוב מאוחר יותר.");
+            }
+            catch (IOException ioex)
+            {
+                // כונן מלא נשאר כונן מלא; כל השאר כאן הוא חיבור שנפל באמצע הקריאה
+                string m = ErrorText.Of(ioex);
+                return m.StartsWith("הפעולה לא הצליחה") ? "החיבור נותק באמצע. אפשר לנסות שוב." : m;
+            }
+        }
+
+        internal static string Sha256Of(string path)
+        {
+            using (System.Security.Cryptography.SHA256 h = System.Security.Cryptography.SHA256.Create())
+            using (FileStream fs = File.OpenRead(path))
+                return BitConverter.ToString(h.ComputeHash(fs)).Replace("-", "");
         }
 
         /// <summary>כשההחלפה האוטומטית לא הצליחה - לא סוגרים את התוכנה

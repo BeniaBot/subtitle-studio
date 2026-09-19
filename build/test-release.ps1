@@ -147,9 +147,79 @@ try {
     Check 'T_LIVE_PORT'  ($u -like 'https://github.com/*/releases/download/*') $u
     Check 'T_LIVE_SETUP' ($s -like 'https://github.com/*/releases/download/*') $s
     Check 'T_LIVE_SIZES' ((F $p.Rel 'Size') -gt 1000000 -and (F $p.Rel 'SetupSize') -gt 1000000) ((F $p.Rel 'Size').ToString() + ' / ' + (F $p.Rel 'SetupSize').ToString())
+    # גיטהאב מפרסם טביעה לכל קובץ; בלעדיה ההורדה נבדקת רק לפי אורך
+    Check 'T_LIVE_DIGEST' ((F $p.Rel 'Sha256') -match '^[0-9A-F]{64}$' -and (F $p.Rel 'SetupSha256') -match '^[0-9A-F]{64}$') (F $p.Rel 'Sha256')
 } catch {
     Write-Host ("  --   HDR_NONET: " + $_.Exception.Message)
 }
+
+# ---------- 0.8.0: הורדה שנבדקת, וגשר לשם המאגר ----------
+# עד 0.8.0 ההורדה נבדקה רק לפי ״גדול מ-1MB״: קובץ שנחתך באמצע, או דף חסימה של
+# סינון, היו עוברים. והמאגר עתיד להיקרא subtext: הגרסה הזאת חייבת לקבל את שני השמות.
+Write-Host ''
+Write-Host 'HDR_FETCH'
+$ours = $updT.GetMethod('IsOurDownload', $ST)
+Check 'T_REPO_OLD'   ($ours.Invoke($null, @([string]'https://github.com/BeniaBot/subtitle-studio/releases/download/v1/a.exe'))) ''
+Check 'T_REPO_NEW'   ($ours.Invoke($null, @([string]'https://github.com/BeniaBot/subtext/releases/download/v1/a.exe'))) ''
+Check 'T_REPO_OTHER' (-not $ours.Invoke($null, @([string]'https://github.com/Evil/subtext/releases/download/v1/a.exe')) -and
+                      -not $ours.Invoke($null, @([string]'https://github.com/BeniaBot/subtext-evil/releases/download/v1/a.exe'))) ''
+
+$dj = Release ((Asset 'SubtitleStudio.exe' 5 'x') -replace '"size":5', '"size":5,"digest":"sha256:ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12"') 'v9.9.9' 'x'
+$dp = DoParse $dj
+Check 'T_DIGEST_READ' ((F $dp.Rel 'Sha256') -eq 'AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12') (F $dp.Rel 'Sha256')
+
+$srv = {
+    param($port, $status, $ctype, [byte[]]$body, $declared)
+    $l = New-Object System.Net.Sockets.TcpListener ([Net.IPAddress]::Loopback), $port
+    $l.Start()
+    try {
+        $deadline = [DateTime]::UtcNow.AddSeconds(20)
+        while (-not $l.Pending() -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+        if (-not $l.Pending()) { return }
+        $c = $l.AcceptTcpClient(); $ns = $c.GetStream(); $ns.ReadTimeout = 15000
+        $ms = New-Object IO.MemoryStream; $buf = New-Object byte[] 8192
+        while ($true) { $n = $ns.Read($buf, 0, $buf.Length); if ($n -le 0) { break }; $ms.Write($buf, 0, $n); if ([Text.Encoding]::ASCII.GetString($ms.ToArray()).Contains("`r`n`r`n")) { break } }
+        $head = "HTTP/1.1 $status X`r`nContent-Type: $ctype`r`nContent-Length: $declared`r`nConnection: close`r`n`r`n"
+        $hb = [Text.Encoding]::ASCII.GetBytes($head)
+        try { $ns.Write($hb, 0, $hb.Length); $ns.Write($body, 0, $body.Length); $ns.Flush() } catch { }
+        $c.Close()
+    } finally { $l.Stop() }
+}
+function FreePort { $t = New-Object System.Net.Sockets.TcpListener ([Net.IPAddress]::Loopback), 0; $t.Start(); $p = $t.LocalEndpoint.Port; $t.Stop(); return $p }
+$fetch = $updT.GetMethod('Fetch', $ST)
+$tmpDl = Join-Path $env:TEMP ('ss-fetch-' + [guid]::NewGuid().ToString('N').Substring(0, 6) + '.exe')
+function TryFetch($status, $ctype, [byte[]]$body, $declared, $expectSize, $expectSha) {
+    $port = FreePort
+    $ps = [powershell]::Create()
+    [void]$ps.AddScript($srv).AddArgument($port).AddArgument($status).AddArgument($ctype).AddArgument($body).AddArgument($declared)
+    $h = $ps.BeginInvoke(); Start-Sleep -Milliseconds 300
+    $a = New-Object object[] 6
+    $a[0] = [string]"http://127.0.0.1:$port/x.exe"; $a[1] = [string]$tmpDl; $a[2] = [long]$expectSize; $a[3] = [string]$expectSha; $a[4] = [long]0; $a[5] = [long]0
+    $err = $fetch.Invoke($null, $a)
+    if (-not $h.AsyncWaitHandle.WaitOne(20000)) { $ps.Stop() }
+    try { [void]$ps.EndInvoke($h) } catch { }
+    $ps.Dispose()
+    Remove-Item $tmpDl -ErrorAction SilentlyContinue
+    return [string]$err
+}
+$exeBody = New-Object byte[] 1200000; (New-Object Random 7).NextBytes($exeBody)
+$sha = ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($exeBody))).Replace('-', '')
+$html = [Text.Encoding]::UTF8.GetBytes('<html><body>blocked</body></html>')
+
+$e = TryFetch 200 'application/octet-stream' $exeBody $exeBody.Length $exeBody.Length $sha
+Check 'T_FETCH_OK'        ($e -eq '') $e
+$e = TryFetch 200 'application/octet-stream' $exeBody $exeBody.Length $exeBody.Length ('0' * 64)
+Check 'T_FETCH_BADHASH'   ($e.Contains('לא זהה')) $e
+$e = TryFetch 200 'text/html' $html $html.Length 0 ''
+Check 'T_FETCH_BLOCKPAGE' ($e.Contains('סינון')) $e
+$e = TryFetch 418 'text/html' $html $html.Length 0 ''
+Check 'T_FETCH_418'       ($e.Contains('סינון')) $e
+$e = TryFetch 200 'application/octet-stream' $exeBody ($exeBody.Length + 500000) 0 ''
+Check 'T_FETCH_CUT'       ($e.Contains('נקטעה') -or $e.Contains('נותק')) $e
+$e = TryFetch 200 'application/octet-stream' $exeBody $exeBody.Length ($exeBody.Length + 1) ''
+Check 'T_FETCH_SIZE'      ($e.Contains('נקטעה')) $e
+$e = TryFetch 404 'text/plain' ([Text.Encoding]::ASCII.GetBytes('nope')) 4 0 ''
+Check 'T_FETCH_404'       ($e.Contains('לא נמצא')) $e
 
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)

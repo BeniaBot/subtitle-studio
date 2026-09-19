@@ -254,6 +254,12 @@ namespace SubtitleStudio
                 {
                     byte[] gz = Fetch(BaseUrl + Files[i] + ".gz", ref done, progress, canceled);
                     if (gz == null) { error = "ההורדה בוטלה."; return false; }
+                    // לא קובץ דחוס: דף חסימה של סינון (הכי נפוץ אצלנו), או סתם שבור
+                    if (gz.Length < 2 || gz[0] != 0x1F || gz[1] != 0x8B)
+                    {
+                        error = ErrorText.IsWebPage(null, gz, gz.Length) ? ErrorText.Filtered : "המילון שירד פגום. נסו שוב.";
+                        return false;
+                    }
                     byte[] raw;
                     try
                     {
@@ -286,15 +292,7 @@ namespace SubtitleStudio
             }
             catch (WebException wex)
             {
-                HttpWebResponse res = wex.Response as HttpWebResponse;
-                if (res != null && res.StatusCode == HttpStatusCode.NotFound)
-                    error = "המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.";
-                else if (res != null)
-                    error = "השרת לא זמין כרגע (" + Theme.Ltr(((int)res.StatusCode).ToString()) + "). אפשר לנסות שוב בעוד כמה דקות.";
-                else if (wex.Status == WebExceptionStatus.TrustFailure || wex.Status == WebExceptionStatus.SecureChannelFailure)
-                    error = "החיבור המאובטח נחסם. ייתכן שסינון האינטרנט חוסם את האתר.";
-                else
-                    error = "אין חיבור לאינטרנט, או שהאתר חסום ברשת הזאת.";
+                error = ErrorText.Web(wex, "המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.");
                 Ai.Log("הורדת המילון נכשלה: " + wex.Status + " " + wex.Message);
                 return false;
             }

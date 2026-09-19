@@ -7,7 +7,7 @@
 # **לא נוגעים ב-%TEMP%\ss-test-dict**, התיקייה שמצב הבדיקה של התוכנה משתמש בה.
 # מילון שנשאר שם היה נטען ברקע בכל בדיקת ממשק אחרת, ומוסיף ״בעיות״ באמצע מדידה.
 # כאן הכול דרך Spell.FolderOverride לתיקיות זמניות.
-# צפוי: 45 בדיקות.
+# צפוי: 47 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -203,6 +203,16 @@ StopServer $s
 Check '404: ״המילון לא נמצא בשרת״' ($r.Error.Contains('לא נמצא בשרת')) $r.Error
 $r = Download (Join-Path $work 'dictD') (FreePort) $false
 Check 'אין שרת: ״אין חיבור לאינטרנט, או שהאתר חסום״' ($r.Error.Contains('אין חיבור')) $r.Error
+# רשת מסוננת: דף חסימה בקוד 200. עד 0.8.0 המשתמש קיבל ״המילון שירד פגום״ וניסה שוב ושוב.
+$block = [Text.Encoding]::UTF8.GetBytes("`r`n<!DOCTYPE html><html dir=""rtl""><body>האתר חסום</body></html>")
+$s = StartServer @((Resp 200 $block))
+$r = Download (Join-Path $work 'dictF') $s.Port $false
+StopServer $s
+Check 'דף חסימה של סינון: ״נראה שסינון האינטרנט חסם״, לא ״פגום״' ((-not $r.Ok) -and $r.Error.Contains('סינון') -and -not $r.Error.Contains('פגום')) $r.Error
+$s = StartServer @((Resp 418 $block))
+$r = Download (Join-Path $work 'dictG') $s.Port $false
+StopServer $s
+Check 'סינון שחוסם בקוד 418: אותה הודעה' ($r.Error.Contains('סינון')) $r.Error
 $s = StartServer @((Resp 200 $affGz))
 $E2 = Join-Path $work 'dictE'
 $r = Download $E2 $s.Port $true
