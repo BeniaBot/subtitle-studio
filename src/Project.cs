@@ -193,26 +193,9 @@ namespace SubtitleStudio
             return sb.ToString();
         }
 
-        /// <summary>כתיבה בלי להשאיר קובץ חצוי. כותבים לקובץ זמני ליד היעד,
-        /// ורק אז מחליפים. **‏File.Replace לא עובד בכל כונן** - בדיסק-און-קי
-        /// (‏FAT/exFAT) ובכונן רשת הוא זורק, ואז נופלים להעתקה רגילה. זה עדיין
-        /// עדיף על כתיבה ישירה: אם הכתיבה נכשלת, הקובץ הישן נשאר שלם.</summary>
         public static void Write(string path, string content)
         {
-            string full = Path.GetFullPath(path);
-            string tmp = full + ".tmp";
-            File.WriteAllText(tmp, content, new UTF8Encoding(false));
-            if (!File.Exists(full)) { File.Move(tmp, full); return; }
-            try
-            {
-                File.Replace(tmp, full, null);
-            }
-            catch (Exception)
-            {
-                File.Copy(tmp, full, true);
-                try { File.Delete(tmp); }
-                catch { }
-            }
+            SafeFile.Write(path, new UTF8Encoding(false).GetBytes(content));
         }
 
         // ================= קריאה =================
@@ -446,6 +429,40 @@ namespace SubtitleStudio
                 return d.MediaSize >= 0 && fi.Length == d.MediaSize && fi.LastWriteTimeUtc.Ticks == d.MediaModified;
             }
             catch { return false; }
+        }
+    }
+
+    /// <summary>כתיבה בלי להשאיר קובץ חצוי. כותבים לקובץ זמני ליד היעד,
+    /// ורק אז מחליפים. **‏File.Replace לא עובד בכל כונן** - בדיסק-און-קי
+    /// (‏FAT/exFAT) ובכונן רשת הוא זורק, ואז נופלים להעתקה רגילה. זה עדיין
+    /// עדיף על כתיבה ישירה: אם הכתיבה נכשלת, הקובץ הישן נשאר שלם.
+    ///
+    /// **עד 0.8.0 רק קובץ הפרויקט נכתב כך.** קובץ הכתוביות, שהוא העבודה עצמה,
+    /// נכתב ישירות על המקור: כונן מלא או דיסק-און-קי שנשלף באמצע השאירו קובץ חתוך.</summary>
+    internal static class SafeFile
+    {
+        public static void Write(string path, byte[] data)
+        {
+            string full = Path.GetFullPath(path);
+            string tmp = full + ".tmp";
+            try { File.WriteAllBytes(tmp, data); }
+            catch
+            {
+                try { File.Delete(tmp); }
+                catch { }
+                throw;
+            }
+            if (!File.Exists(full)) { File.Move(tmp, full); return; }
+            try
+            {
+                File.Replace(tmp, full, null);
+            }
+            catch (Exception)
+            {
+                File.Copy(tmp, full, true);
+                try { File.Delete(tmp); }
+                catch { }
+            }
         }
     }
 }

@@ -2615,7 +2615,9 @@ namespace SubtitleStudio
 
                 _doc.Cues.AddRange(res.Cues);
                 _doc.Sort();
-                _doc.FilePath = path;
+                // צירוף: הכתוביות שייכות לקובץ שהיה פתוח, לא לזה שצורף. עד 0.8.0
+                // ״שמירה״ אחרי צירוף כתבה את שניהם לתוך הקובץ שצורף, ודרסה אותו.
+                if (!appended) _doc.FilePath = path;
                 _doc.SourceEncoding = res.Encoding;
                 Settings.AddRecent(path);
                 Settings.Save(_style);
@@ -2762,6 +2764,10 @@ namespace SubtitleStudio
             return Ai.HasKey;
         }
 
+        /// <summary>לבדיקות בלבד: במקום חלון ״שמירה בשם״ (כותרת, שם מוצע) ← נתיב, או null לביטול.
+        /// חלון מודאלי היה תוקע את הבדיקה.</summary>
+        internal static Func<string, string, string> SavePathPicker;
+
         private bool SaveSubtitles(bool asNew)
         {
             // פרויקט פתוח: ״שמירה״ שומרת את מה שפתוח - הפרויקט, וקובץ הכתוביות
@@ -2769,8 +2775,8 @@ namespace SubtitleStudio
             if (!asNew && _projectPath != null)
             {
                 bool subsOk = true;
-                if (!string.IsNullOrEmpty(_doc.FilePath) && _doc.Cues.Count > 0 &&
-                    !_doc.FilePath.EndsWith(Project.Extension, StringComparison.OrdinalIgnoreCase))
+                // רק קובץ שאפשר לשמור באותו פורמט. ‎.sub‎ או ‎.txt‎ שנפתחו נשארים כמו שהם.
+                if (_doc.Cues.Count > 0 && Formats.CanSaveInPlace(_doc.FilePath))
                     subsOk = WriteSubtitles(_doc.FilePath);
                 return SaveProject(false) && subsOk;
             }
@@ -2780,22 +2786,31 @@ namespace SubtitleStudio
                 return false;
             }
             string path = _doc.FilePath;
-            if (asNew || string.IsNullOrEmpty(path))
+            // נפתח מ-‎.sub‎ או מ-‎.txt‎: שומרים ליד, בשם חדש, והמקור לא משתנה
+            bool keepOriginal = !asNew && !string.IsNullOrEmpty(path) && !Formats.CanSaveInPlace(path);
+            if (asNew || string.IsNullOrEmpty(path) || keepOriginal)
             {
                 SaveFileDialog d = new SaveFileDialog();
                 d.Filter = "קובץ כתוביות SRT (הכי נפוץ)|*.srt|WebVTT|*.vtt|ASS מעוצב|*.ass|טקסט לתרגום|*.txt";
-                d.Title = "שמירת קובץ הכתוביות";
+                d.Title = keepOriginal ? "שמירה כקובץ SRT - הקובץ המקורי לא ישתנה" : "שמירת קובץ הכתוביות";
                 try
                 {
-                    if (_mediaPath != null)
+                    if (keepOriginal)
+                    {
+                        d.InitialDirectory = Path.GetDirectoryName(path);
+                        d.FileName = Path.GetFileNameWithoutExtension(path) + ".srt";
+                    }
+                    else if (_mediaPath != null)
                     {
                         d.InitialDirectory = Path.GetDirectoryName(_mediaPath);
                         d.FileName = Path.GetFileNameWithoutExtension(_mediaPath) + ".srt";
                     }
                 }
                 catch { }
-                if (d.ShowDialog(this) != DialogResult.OK) return false;
-                path = d.FileName;
+                if (SavePathPicker != null) path = SavePathPicker(d.Title, d.FileName);
+                else path = d.ShowDialog(this) == DialogResult.OK ? d.FileName : null;
+                d.Dispose();
+                if (string.IsNullOrEmpty(path)) return false;
             }
             return WriteSubtitles(path);
         }
@@ -3234,7 +3249,22 @@ namespace SubtitleStudio
         // **ב-%LOCALAPPDATA%, לא ב-%TEMP%.** ‏Ff.CleanTemp מוחק שם כל קובץ בן
         // יותר משש שעות.
 
-        private static string AutoSaveFile
+        // **גיבוי לכל חלון, ומנעול שמחזיק אותו.** עד 0.8.0 היה קובץ גיבוי אחד לכל
+        // התוכנה. עם שני חלונות פתוחים, כל אחד דרס את הגיבוי של השני, שמירה באחד
+        // מחקה את הגיבוי של השני, וחלון שני שנפתח הציע ״לשחזר״ עבודה שפתוחה כרגע
+        // בחלון הראשון.
+        //
+        // עכשיו לכל חלון session-<מזהה>.subtext, וקובץ ‎.lock‎ לידו שהחלון מחזיק
+        // פתוח כל עוד הוא חי. גיבוי שאף אחד לא מחזיק את המנעול שלו = עבודה שנשארה
+        // מקריסה. בקריסה אמיתית ווינדוס משחרר את המנעול בעצמו, יחד עם התהליך.
+
+        private static int _sessionCounter;
+        private readonly string _sessionId = System.Diagnostics.Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
+                                             "-" + System.Threading.Interlocked.Increment(ref _sessionCounter).ToString(CultureInfo.InvariantCulture);
+        private FileStream _sessionLock;
+        private string _recoveryFile;
+
+        internal static string AutoSaveDir
         {
             get
             {
@@ -3245,8 +3275,40 @@ namespace SubtitleStudio
                         "SubtitleStudio"), "autosave");
                 try { if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); }
                 catch { }
-                return Path.Combine(dir, "session" + Project.Extension);
+                return dir;
             }
+        }
+
+        internal string AutoSaveFile
+        {
+            get { return Path.Combine(AutoSaveDir, "session-" + _sessionId + Project.Extension); }
+        }
+
+        /// <summary>המנעול נלקח לפני הכתיבה הראשונה ומשתחרר ב-<see cref="ReleaseSessionLock"/>.</summary>
+        private void HoldSessionLock()
+        {
+            if (_sessionLock != null) return;
+            try
+            {
+                _sessionLock = new FileStream(Path.ChangeExtension(AutoSaveFile, ".lock"),
+                    FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch { }
+        }
+
+        internal void ReleaseSessionLock()
+        {
+            FileStream s = _sessionLock;
+            _sessionLock = null;
+            if (s == null) return;
+            try { s.Dispose(); } catch { }
+            try { File.Delete(Path.ChangeExtension(AutoSaveFile, ".lock")); } catch { }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) ReleaseSessionLock();
+            base.Dispose(disposing);
         }
 
         internal void AutoSave()
@@ -3257,6 +3319,7 @@ namespace SubtitleStudio
                 if (_doc.Cues.Count == 0 && _projectPath == null) return;
                 ProjectData d = CaptureProject(null);
                 d.Origin = _projectPath;
+                HoldSessionLock();
                 Project.Write(AutoSaveFile, Project.ToJson(d));
             }
             catch { }
@@ -3272,25 +3335,64 @@ namespace SubtitleStudio
             catch { }
         }
 
-        /// <summary>מה מחכה לשחזור, או null. נפרד מההצעה עצמה כדי שאפשר יהיה
-        /// לבדוק אותו בלי חלון.</summary>
-        internal ProjectData PendingRecovery()
+        /// <summary>גיבוי שאין חלון חי מאחוריו. המנעול לא נפתח = חלון אחר מחזיק אותו.</summary>
+        private static bool IsOrphan(string file)
         {
+            string lk = Path.ChangeExtension(file, ".lock");
+            if (!File.Exists(lk)) return true;              // קריסה לפני המנעול, או הגיבוי של 0.7.x
             try
             {
-                string f = AutoSaveFile;
-                if (!File.Exists(f)) return null;
-                string err;
-                ProjectData d = Project.Load(f, out err);
-                if (d == null || (d.Cues.Count == 0 && d.MediaPath == null) ||
-                    (DateTime.UtcNow - d.Saved).TotalDays > 30)
-                {
-                    ClearAutoSave();
-                    return null;
-                }
-                return d;
+                using (new FileStream(lk, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+                try { File.Delete(lk); } catch { }
+                return true;
             }
-            catch { return null; }
+            catch (IOException) { return false; }
+            catch { return true; }
+        }
+
+        /// <summary>מה מחכה לשחזור, או null: הגיבוי הכי חדש שאף חלון פתוח לא מחזיק.
+        /// הגיבוי של החלון הזה עצמו לא נחשב. נפרד מההצעה כדי שאפשר יהיה לבדוק אותו בלי חלון.</summary>
+        internal ProjectData PendingRecovery()
+        {
+            _recoveryFile = null;
+            try
+            {
+                string mine = AutoSaveFile;
+                string[] files = Directory.GetFiles(AutoSaveDir, "session*" + Project.Extension);
+                Array.Sort(files, delegate (string a, string b)
+                {
+                    return File.GetLastWriteTimeUtc(b).CompareTo(File.GetLastWriteTimeUtc(a));
+                });
+                foreach (string f in files)
+                {
+                    if (string.Equals(f, mine, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!IsOrphan(f)) continue;
+                    string err;
+                    ProjectData d = Project.Load(f, out err);
+                    if (d == null || (d.Cues.Count == 0 && d.MediaPath == null) ||
+                        (DateTime.UtcNow - d.Saved).TotalDays > 30)
+                    {
+                        try { File.Delete(f); } catch { }
+                        continue;
+                    }
+                    _recoveryFile = f;
+                    return d;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>אחרי שהמשתמש החליט (לשחזר או לא): הגיבוי היתום נמחק. אם שוחזר,
+        /// העבודה עוברת לגיבוי של החלון הזה מיד, ולא רק בפעם הבאה שהטיימר יירה.</summary>
+        internal void ResolveRecovery(bool restored)
+        {
+            if (restored) AutoSave();
+            string f = _recoveryFile;
+            _recoveryFile = null;
+            if (f == null) return;
+            try { File.Delete(f); } catch { }
+            try { File.Delete(Path.ChangeExtension(f, ".lock")); } catch { }
         }
 
         private void CheckRecovery()
@@ -3309,10 +3411,11 @@ namespace SubtitleStudio
                             "בפעם הקודמת התוכנה נסגרה לפני שהעבודה נשמרה:\n" + what +
                             "  ·  " + Theme.Ltr(when) + "\nלשחזר אותה?", "לשחזר", "לא, תודה"))
                     {
-                        ClearAutoSave();
+                        ResolveRecovery(false);
                         return;
                     }
                     ApplyProject(d, null, true);
+                    ResolveRecovery(true);
                     return;
                 }
                 LegacyRecovery();

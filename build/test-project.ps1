@@ -11,7 +11,7 @@
 # 4. **בתוך החלון**: פתיחה אמיתית, בלי טעינת SRT שיושב ליד הסרט, סרט
 #    חסר, מה שואלים ביציאה, גיבוי ושחזור.
 #
-# צפוי: 87 בדיקות. **פחות מזה = משהו דולג.**
+# צפוי: 105 בדיקות. **פחות מזה = משהו דולג.**
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
@@ -211,10 +211,13 @@ function NewForm {
 }
 function Pump($ms) { $sw = [Diagnostics.Stopwatch]::StartNew(); while ($sw.ElapsedMilliseconds -lt $ms) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 20 } }
 
-$testAuto = [string](Join-Path $env:TEMP 'ss-test-autosave\session.subtext')
-if (Test-Path $testAuto) { Remove-Item $testAuto -Force }
-$realAuto = [string](Join-Path $env:LOCALAPPDATA 'SubtitleStudio\autosave\session.subtext')
-$realBefore = if (Test-Path $realAuto) { (Get-Item $realAuto).LastWriteTimeUtc.Ticks } else { 0 }
+$testAutoDir = [string](Join-Path $env:TEMP 'ss-test-autosave')
+if (Test-Path $testAutoDir) { Remove-Item $testAutoDir -Recurse -Force }
+$realAutoDir = [string](Join-Path $env:LOCALAPPDATA 'SubtitleStudio\autosave')
+function DirStamp($d) { if (-not (Test-Path $d)) { return '' }; return ((Get-ChildItem $d | ForEach-Object { $_.Name + '@' + $_.LastWriteTimeUtc.Ticks }) -join '|') }
+$realBefore = DirStamp $realAutoDir
+function LoadPd($path) { $a = New-Object object[] 2; $a[0] = [string]$path; return $prj.GetMethod('Load', $ST).Invoke($null, $a) }
+function AutoFile($form) { return [string]$formT.GetProperty('AutoSaveFile', $NP).GetValue($form) }
 $f = NewForm
 $formT.GetMethod('OpenMedia', $NP, $null, [Type[]]@([string]), $null).Invoke($f, (Pack ([string]$media))) | Out-Null
 Pump 400
@@ -234,9 +237,20 @@ Check 'ביציאה: שורות בלי תזמון -> להציע פרויקט' ((
 
 # גיבוי אוטומטי
 Call $f 'AutoSave' @() | Out-Null
-$pending = Call $f 'PendingRecovery' @()
-Check 'גיבוי אוטומטי נכתב' ($pending -ne $null -and $pending.Cues.Count -eq 3) ''
-Check 'הגיבוי נכתב לתיקיית הבדיקה' (Test-Path $testAuto) $testAuto
+$fAuto = AutoFile $f
+$pending = if (Test-Path $fAuto) { LoadPd $fAuto } else { $null }
+Check 'גיבוי אוטומטי נכתב' ($pending -ne $null -and $pending.Cues.Count -eq 3) $fAuto
+# לפי שם התיקייה: %TEMP% מגיע לפעמים בשם הקצר (4157~1) והתוכנה מחזירה את הארוך
+Check 'הגיבוי נכתב לתיקיית הבדיקה' ((Split-Path (Split-Path $fAuto -Parent) -Leaf) -eq 'ss-test-autosave') $fAuto
+
+# שני חלונות: עד 0.8.0 היה קובץ גיבוי אחד. החלון השני הציע ״לשחזר״ את העבודה
+# שפתוחה כרגע בראשון, ושמירה באחד מחקה את הגיבוי של השני.
+$w2 = NewForm
+Check 'שני חלונות: לכל אחד גיבוי משלו' ((AutoFile $w2) -ne $fAuto) (AutoFile $w2)
+Check 'שני חלונות: השני לא מציע לשחזר עבודה שפתוחה בראשון' ((Call $w2 'PendingRecovery' @()) -eq $null) ''
+Call $w2 'ClearAutoSave' @() | Out-Null
+Check 'שני חלונות: ניקוי בשני לא מוחק את הגיבוי של הראשון' (Test-Path $fAuto) ''
+$w2.Close(); $w2.Dispose(); Pump 100
 
 # שמירת פרויקט (בלי חלון: דרך הנתיב הפתוח)
 $pp = [string](Join-Path $work 'עבודה #7.subtext')
@@ -244,7 +258,7 @@ $formT.GetField('_projectPath', $NP).SetValue($f, $pp)
 $ok = Call $f 'SaveProject' (Pack $false)
 Check 'שמירת פרויקט הצליחה' $ok ''
 Check 'אחרי שמירה - לא מסומן כלא-שמור' (-not $doc.Dirty) ''
-Check 'אחרי שמירה - הגיבוי נמחק (אחרת שחזור ״ישן מהשמור״)' ((Call $f 'PendingRecovery' @()) -eq $null) ''
+Check 'אחרי שמירה - הגיבוי נמחק (אחרת שחזור ״ישן מהשמור״)' (-not (Test-Path $fAuto)) ''
 $txt = [IO.File]::ReadAllText($pp)
 Check 'הנתיב היחסי לסרט נשמר' ($txt.Contains('"relative": "שיעור #7.mp4"')) ''
 $doc.Dirty = $true
@@ -310,16 +324,91 @@ $docM = Fld $m '_doc'
 Check 'שוחזר: הטקסט, ועדיין בלי תזמון' ($docM.Cues.Count -eq 1 -and $docM.Cues[0].Text -eq 'לפני הקריסה' -and $docM.Cues[0].Untimed) ''
 Check 'שוחזר: **מסומן כלא-שמור** (הבאג של הגיבוי הישן)' ($docM.Dirty) ''
 Check 'שוחזר: יודע לאיזה פרויקט הוא שייך' ((Fld $m '_projectPath') -eq $pp) ''
-Check 'שוחזר: הגיבוי נשאר עד שמירה' ((Call $m 'PendingRecovery' @()) -ne $null) ''
+Call $m 'ResolveRecovery' (Pack $true) | Out-Null
+Check 'שוחזר: העבודה מגובה מיד בגיבוי של החלון החדש' ((Test-Path (AutoFile $m)) -and ((LoadPd (AutoFile $m)).Cues.Count -eq 1)) ''
+Check 'שוחזר: הגיבוי היתום נמחק, ולא יוצע שוב' (@(Get-ChildItem $testAutoDir -Filter 'session*.subtext' | Where-Object { $_.FullName -ne (AutoFile $m) }).Count -eq 0) ''
 Call $m 'ClearAutoSave' @() | Out-Null
 Check 'אחרי ניקוי - אין שחזור' ((Call $m 'PendingRecovery' @()) -eq $null) ''
+
+# קריסה אמיתית: התהליך מת, וקובץ המנעול נשאר על הדיסק בלי אף אחד שמחזיק אותו
+$json = [string]$toJson.Invoke($null, (Pack (LoadPd $pp)))
+[IO.File]::WriteAllText((Join-Path $testAutoDir 'session-99999-1.subtext'), $json, (New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText((Join-Path $testAutoDir 'session-99999-1.lock'), '')
+Check 'קריסה: מנעול שנשאר בלי בעלים לא מסתיר את הגיבוי' ((Call $m 'PendingRecovery' @()) -ne $null) ''
+Call $m 'ResolveRecovery' (Pack $false) | Out-Null
+Check 'לא שוחזר: הגיבוי והמנעול נמחקו' (-not (Test-Path (Join-Path $testAutoDir 'session-99999-1.subtext')) -and -not (Test-Path (Join-Path $testAutoDir 'session-99999-1.lock'))) ''
+
+# הגיבוי של 0.7.1 עד 0.7.3 (session.subtext, בלי מנעול) עדיין מוצע אחרי העדכון
+[IO.File]::WriteAllText((Join-Path $testAutoDir 'session.subtext'), $json, (New-Object Text.UTF8Encoding $false))
+Check 'הגיבוי מהגרסה הקודמת מוצע לשחזור' ((Call $m 'PendingRecovery' @()) -ne $null) ''
+Call $m 'ResolveRecovery' (Pack $false) | Out-Null
 $docM.Dirty = $false
 Check 'ביציאה: הכול שמור -> לא שואלים' ((Call $m 'ExitSaveKind' @()) -eq 'none') ''
 $docM.Cues[0].Untimed = $false; $formT.GetField('_projectPath', $NP).SetValue($m, $null); $docM.Dirty = $true
 Check 'ביציאה: כתוביות רגילות -> לשמור כתוביות' ((Call $m 'ExitSaveKind' @()) -eq 'subtitles') ''
 $m.Close(); $m.Dispose()
-$realAfter = if (Test-Path $realAuto) { (Get-Item $realAuto).LastWriteTimeUtc.Ticks } else { 0 }
-Check 'הגיבוי האמיתי של המשתמש לא נגעו בו' ($realBefore -eq $realAfter) ''
+Check 'הגיבוי האמיתי של המשתמש לא נגעו בו' ($realBefore -eq (DirStamp $realAutoDir)) ''
+
+# ================= 4ב. שמירה בלי להרוס את המקור =================
+# עד 0.8.0: Ctrl+S על ‎.sub‎ כתב לתוכו SRT (נגן כבר לא קרא אותו), ועל ‎.txt‎ עם
+# כתוביות כתב ״טקסט לתרגום״. והקובץ נכתב ישירות על המקור, לא דרך קובץ זמני.
+Write-Host 'שמירה בלי להרוס את המקור'
+$fmtT = T 'Formats'
+$inPlace = $fmtT.GetMethod('CanSaveInPlace', $ST)
+$okExt = @('a.srt', 'a.VTT', 'a.ass') | Where-Object { $inPlace.Invoke($null, @([string]$_)) }
+$noExt = @('a.sub', 'a.txt', 'a.ssa', 'a.subtext', '') | Where-Object { -not $inPlace.Invoke($null, @([string]$_)) }
+Check 'שומרים במקום רק SRT, ‏VTT ו-ASS' (@($okExt).Count -eq 3 -and @($noExt).Count -eq 5) ''
+
+$srtBody = "1`r`n00:00:01,000 --> 00:00:03,000`r`nשלום לכולם`r`n`r`n2`r`n00:00:04,000 --> 00:00:06,000`r`nהיום נלמד`r`n"
+$subBody = "{25}{75}שלום לכולם`r`n{100}{150}היום נלמד`r`n"
+$pickerT = [Func[string, string, string]]
+$picker = $formT.GetField('SavePathPicker', $ST)
+foreach ($case in @(@('מקור.sub', $subBody), @('מקור.txt', $srtBody))) {
+    $src = Join-Path $work $case[0]
+    [IO.File]::WriteAllText($src, $case[1], (New-Object Text.UTF8Encoding $true))
+    $before = [IO.File]::ReadAllBytes($src)
+    $script:asked = $null
+    $script:target = [string](Join-Path $work ([IO.Path]::GetFileNameWithoutExtension($src) + '-' + $case[0].Substring($case[0].Length - 3) + '.srt'))
+    $picker.SetValue($null, [Func[string, string, string]] { param($title, $name) $script:asked = $title + '|' + $name; return $script:target })
+    $sv = NewForm
+    $formT.GetMethod('ImportSubs', $NP).Invoke($sv, (Pack ([string]$src))) | Out-Null
+    $ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
+    $after = [IO.File]::ReadAllBytes($src)
+    $same = ($before.Length -eq $after.Length) -and (-not (Compare-Object $before $after -SyncWindow 0))
+    Check ('שמירה של ' + $case[0] + ': המקור לא השתנה') $same ''
+    Check ('ובמקומו נשאל ״שמירה בשם״, עם שם SRT מוצע') ($ok -and $script:asked -ne $null -and $script:asked.EndsWith('.srt') -and $script:asked.Contains('לא ישתנה')) ([string]$script:asked)
+    Check ('והקובץ החדש הוא SRT עם הזמנים, ומעכשיו ״שמירה״ כותבת אליו') ((Test-Path $script:target) -and ([IO.File]::ReadAllText($script:target)).Contains('00:00:01,000 --> 00:00:03,000') -and (Fld $sv '_doc').FilePath -eq $script:target) ''
+    $sv.Close(); $sv.Dispose(); Pump 50
+}
+# ביטול בחלון ״שמירה בשם״ - לא נשמר כלום, והמקור לא משתנה
+$src = Join-Path $work 'מקור.sub'
+$before = [IO.File]::ReadAllText($src)
+$picker.SetValue($null, [Func[string, string, string]] { param($title, $name) return $null })
+$sv = NewForm
+$formT.GetMethod('ImportSubs', $NP).Invoke($sv, (Pack ([string]$src))) | Out-Null
+$ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
+Check 'ביטול ״שמירה בשם״: לא נשמר, והמקור כמו שהיה' ((-not $ok) -and [IO.File]::ReadAllText($src) -eq $before) ''
+# פרויקט פתוח שעובד מול ‎.sub‎: שמירת הפרויקט לא כותבת לתוך ה-‎.sub‎
+$formT.GetField('_projectPath', $NP).SetValue($sv, [string](Join-Path $work 'עם-sub.subtext'))
+(Fld $sv '_doc').Dirty = $true
+$ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
+Check 'פרויקט פתוח מול ‎.sub‎: הפרויקט נשמר, וה-‎.sub‎ לא נגעו בו' ($ok -and [IO.File]::ReadAllText($src) -eq $before -and (Test-Path (Join-Path $work 'עם-sub.subtext'))) ''
+$sv.Close(); $sv.Dispose(); Pump 50
+$picker.SetValue($null, $null)
+
+# כתיבה בטוחה: אם אי אפשר לכתוב את הקובץ הזמני, הקובץ הקיים נשאר שלם
+$safe = Join-Path $work 'בטוח.srt'
+[IO.File]::WriteAllText($safe, $srtBody, (New-Object Text.UTF8Encoding $true))
+$orig = [IO.File]::ReadAllText($safe)
+$cuesL = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))
+$cuesL.Add($ctor.Invoke(@([long]0, [long]1000, [string]'חדש')))
+$lockTmp = New-Object IO.FileStream (($safe + '.tmp'), [IO.FileMode]::Create, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+$threw = $false
+try { $fmtT.GetMethod('Save', $ST).Invoke($null, (Pack ([string]$safe) $cuesL ([Enum]::Parse((T 'SubFormat'), 'Srt')) $null 1920 1080 $true)) | Out-Null } catch { $threw = $true }
+$lockTmp.Dispose()
+Check 'כתיבה שנכשלה: הקובץ הקיים שלם, והשגיאה מגיעה למשתמש' ($threw -and [IO.File]::ReadAllText($safe) -eq $orig) ''
+$fmtT.GetMethod('Save', $ST).Invoke($null, (Pack ([string]$safe) $cuesL ([Enum]::Parse((T 'SubFormat'), 'Srt')) $null 1920 1080 $true)) | Out-Null
+Check 'כתיבה רגילה: הקובץ התחלף, ולא נשאר קובץ זמני' (([IO.File]::ReadAllText($safe)).Contains('חדש') -and -not (Test-Path ($safe + '.tmp'))) ''
 
 # ================= 5. שיוך הסיומת במתקין =================
 # לענף רישום משלנו, לא לשיוכים האמיתיים. דורש את המתקין הבנוי.

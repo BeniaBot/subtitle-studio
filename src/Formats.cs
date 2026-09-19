@@ -603,7 +603,19 @@ namespace SubtitleStudio
                 case SubFormat.Txt: s = ToTranslationText(cues); break;
                 default: s = ToSrt(cues); break;
             }
-            File.WriteAllBytes(path, new UTF8Encoding(bom).GetBytes(s));
+            SafeFile.Write(path, new UTF8Encoding(bom).GetBytes(s));
+        }
+
+        /// <summary>האם ״שמירה״ יכולה לכתוב לתוך הקובץ שנפתח, בלי לשנות את הפורמט שלו.
+        ///
+        /// **עד 0.8.0 היא תמיד כתבה.** קובץ ‎.sub‎ קיבל תוכן SRT ונגן כבר לא קרא אותו,
+        /// וקובץ ‎.txt‎ עם כתוביות (אנשים שולחים גם כך) הפך ל״טקסט לתרגום״.
+        /// מה שלא ברשימה נשמר בשם חדש, והמקור לא משתנה.</summary>
+        public static bool CanSaveInPlace(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string e = Path.GetExtension(path).ToLowerInvariant();
+            return e == ".srt" || e == ".vtt" || e == ".ass";
         }
 
         public static SubFormat FormatFromExt(string path)
