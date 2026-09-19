@@ -85,6 +85,17 @@ namespace SubtitleStudioSetup
             }
         }
 
+        /// <summary>מילון האיות שהתוכנה מורידה (מ-0.7.3). גם הוא מטמון שאפשר להוריד שוב,
+        /// ולכן נמחק יחד עם המנוע. **עד 0.8.0 הוא נשאר**, והתיקייה שמעליו נשארה איתו.</summary>
+        public static string DictDir
+        {
+            get
+            {
+                string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                return Path.Combine(Path.Combine(local, "SubtitleStudio"), "dict");
+            }
+        }
+
         /// <summary>ההגדרות של המשתמש. אסור לגעת בזה בהסרה.</summary>
         public static string SettingsDir
         {
@@ -348,6 +359,7 @@ namespace SubtitleStudioSetup
             if (alsoEngine)
             {
                 TryDeleteDir(Prod.EngineDir);
+                TryDeleteDir(Prod.DictDir);
                 try
                 {
                     string parent = Path.GetDirectoryName(Prod.EngineDir);

@@ -38,12 +38,12 @@ namespace SubtitleStudioSetup
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
 
-            long eng = DirSize(Prod.EngineDir);
+            long eng = DirSize(Prod.EngineDir) + DirSize(Prod.DictDir);
             _engine = new CheckLine();
             _engine.Checked = false;
             _engine.Text = eng > 0
-                ? "למחוק גם את מנוע הווידאו השמור (" + Skin.Ltr(Fmt(eng)) + ")"
-                : "למחוק גם את מנוע הווידאו השמור";
+                ? "למחוק גם את מנוע הווידאו ואת המילון (" + Skin.Ltr(Fmt(eng)) + ")"
+                : "למחוק גם את מנוע הווידאו ואת המילון";
             Controls.Add(_engine);
 
             _ok = new FlatBtn();
