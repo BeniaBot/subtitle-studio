@@ -414,33 +414,6 @@ namespace SubtitleStudio
             try { Process.Start("explorer.exe", "/select,\"" + tmp + "\""); }
             catch { }
         }
-
-        private static string ShortPath(string p) { return ShortPathHelper.Of(p); }
-
-        /// <summary>גוף הסקריפט שמחליף את הקובץ. מופרד כדי שאפשר יהיה לבדוק
-        /// אותו: הוא חייב לצאת ASCII נקי גם כשהנתיב של המשתמש בעברית.</summary>
-        public static string UpdateScript(string tmp, string exe)
-        {
-            string sTmp = ShortPath(tmp);
-            string sExe = ShortPath(exe);
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("@echo off");
-            sb.AppendLine("ping -n 3 127.0.0.1 >nul");
-            sb.AppendLine("set n=0");
-            sb.AppendLine(":retry");
-            sb.AppendLine("move /y \"" + sTmp + "\" \"" + sExe + "\" >nul 2>&1");
-            sb.AppendLine("if not errorlevel 1 goto done");
-            sb.AppendLine("set /a n+=1");
-            sb.AppendLine("if %n% geq 15 goto giveup");
-            sb.AppendLine("ping -n 2 127.0.0.1 >nul");
-            sb.AppendLine("goto retry");
-            sb.AppendLine(":giveup");
-            sb.AppendLine("del \"" + sTmp + "\" >nul 2>&1");
-            sb.AppendLine(":done");
-            sb.AppendLine("start \"\" \"" + sExe + "\"");
-            sb.AppendLine("del \"%~f0\"");
-            return sb.ToString();
-        }
     }
 
     /// <summary>האם העותק שרץ הותקן, או שהוא קובץ בודד שמישהו הוריד.
@@ -497,60 +470,6 @@ namespace SubtitleStudio
                 return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
             }
             catch { return false; }
-        }
-    }
-
-    /// <summary>נתיב 8.3 - היחיד שבטוח לכתוב לתוך קובץ cmd כשיש עברית בנתיב.
-    /// אם ההמרה נכשלת (‏8.3 מכובה בכונן) מחזירים את המקור, וזו עדיין הדרך
-    /// הטובה ביותר שיש.</summary>
-    internal static class ShortPathHelper
-    {
-        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-        private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
-
-        public static string Of(string path)
-        {
-            string sp = Raw(path);
-            if (sp != null && IsAscii(sp)) return sp;
-            // GetShortPathName עובד רק על מה שכבר קיים בדיסק, וקובץ היעד של
-            // ההורדה - או תיקיית ההתקנה - עוד לא נוצרו. אז עולים למעלה עד
-            // האב הקיים הראשון, מקצרים אותו, ומצרפים בחזרה את הזנב הלטיני.
-            try
-            {
-                string tail = "";
-                string cur = path;
-                for (int i = 0; i < 12; i++)
-                {
-                    string name = System.IO.Path.GetFileName(cur);
-                    string dir = System.IO.Path.GetDirectoryName(cur);
-                    if (string.IsNullOrEmpty(dir) || !IsAscii(name)) break;
-                    tail = tail.Length == 0 ? name : System.IO.Path.Combine(name, tail);
-                    string sd = Raw(dir);
-                    if (sd != null && IsAscii(sd)) return System.IO.Path.Combine(sd, tail);
-                    cur = dir;
-                }
-            }
-            catch { }
-            return path;
-        }
-
-        private static string Raw(string path)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(path)) return null;
-                StringBuilder sb = new StringBuilder(600);
-                int n = GetShortPathName(path, sb, sb.Capacity);
-                if (n > 0 && n < sb.Capacity) return sb.ToString();
-            }
-            catch { }
-            return null;
-        }
-
-        public static bool IsAscii(string s)
-        {
-            for (int i = 0; i < s.Length; i++) if (s[i] > 126) return false;
-            return true;
         }
     }
 

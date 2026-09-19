@@ -336,7 +336,7 @@ namespace SubtitleStudio
         }
 
         /// <summary>בניית התפריט הופרדה מהצגתו כדי שאפשר יהיה לבדוק אותה
-        /// בלי לפתוח חלון - כמו ‏BuildBody ו-UpdateScript.</summary>
+        /// בלי לפתוח חלון - כמו ‏BuildBody.</summary>
         internal List<MenuItem> SubtitleMenuItems()
         {
             bool media = _mi != null;
@@ -1655,23 +1655,6 @@ namespace SubtitleStudio
             Invalidate();
         }
 
-        /// <summary>שורת זמן אחת: תווית, מינוס, שדה, פלוס, וכפתור מהסרט - מימין לשמאל.</summary>
-        private void LayoutTimeRow(int y, int colW, int fieldW, Lbl lbl, Btn minus, Field field, Btn plus, Btn here)
-        {
-            int right = S(14) + colW;
-            int lblW = S(54), h = S(32);
-            int x = right - lblW;
-            lbl.SetBounds(x, y + S(7), lblW, S(18));
-            x -= S(6) + fieldW;
-            field.SetBounds(x, y, fieldW, h);
-            x -= S(6) + plus.Width;
-            plus.SetBounds(x, y, plus.Width, h);
-            x -= S(2) + minus.Width;
-            minus.SetBounds(x, y, minus.Width, h);
-            x -= S(8) + here.Width;
-            here.SetBounds(x, y, here.Width, h);
-        }
-
         protected override void OnPaintBackground(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -2753,16 +2736,6 @@ namespace SubtitleStudio
                 : "המכסה של גוגל מתאפסת מחר. אפשר גם לעבור ל-Groq, שנותן עד 8 שעות ביום - בחלון התמלול, ״איפה לתמלל״.";
         }
 
-        /// <summary>פותח את הגדרות ה-AI כשאין עדיין מפתח. מחזיר אם יש מפתח אחרי.</summary>
-        private bool AiSetupIfNeeded()
-        {
-            if (Ai.HasKey) return true;
-            if (!Ui.Confirm(this, "צריך מפתח חינמי מגוגל",
-                "התמלול עובד דרך גוגל. המפתח חינמי ולוקח שלוש דקות להוציא, פעם אחת.",
-                "להזין מפתח", "לא עכשיו")) return false;
-            AiSettings();
-            return Ai.HasKey;
-        }
 
         /// <summary>לבדיקות בלבד: במקום חלון ״שמירה בשם״ (כותרת, שם מוצע) ← נתיב, או null לביטול.
         /// חלון מודאלי היה תוקע את הבדיקה.</summary>
