@@ -424,6 +424,14 @@ namespace SubtitleStudio
         {
             string outPath = _out.Text.Trim();
             if (outPath.Length == 0) { Ui.Error(this, "חסר קובץ יעד", "בחרו לאן לשמור."); return false; }
+            // כמו בהטמעה ובכלים. עד 0.8.0 החיתוך לבדו לא בדק, ו״להחליף את הקובץ הקיים?״
+            // על הסרט עצמו נענה ב״כן״ - והמנוע כתב על הקובץ שהוא קורא ממנו.
+            try
+            {
+                if (string.Equals(Path.GetFullPath(outPath), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))
+                { Ui.Error(this, "אותו קובץ", "אי אפשר לכתוב על קובץ המקור. בחרו שם אחר."); return false; }
+            }
+            catch { }
             if (File.Exists(outPath) && !Ui.Confirm(this, "הקובץ קיים", "להחליף את הקובץ הקיים?", "להחליף", "ביטול")) return false;
 
             FfJob job = new FfJob();
