@@ -167,8 +167,9 @@ namespace SubtitleStudio
         /// <summary>**אצל הקהל שלנו רשת מסוננת היא המצב הרגיל, לא מקרה קצה.** מסנן
         /// שחוסם עונה לרוב בדף HTML ובקוד 200, כלומר ״הצלחה״. עד 0.8.0 זה הגיע
         /// למשתמש כ״המילון שירד פגום״ או ״תשובה לא מובנת״, והוא ניסה שוב ושוב.</summary>
-        public const string Filtered =
-            "נראה שסינון האינטרנט חסם את ההורדה. אפשר לבקש מהסינון לאשר את האתר github.com, ולנסות שוב.";
+        public static readonly string Filtered =
+            "נראה שסינון האינטרנט חסם את ההורדה. אפשר לבקש מהסינון לאשר את האתר " +
+            Theme.Ltr("github.com") + ", ולנסות שוב.";
 
         /// <summary>האם מה שהגיע הוא דף אינטרנט ולא הקובץ שביקשנו.</summary>
         public static bool IsWebPage(string contentType, byte[] head, int len)
