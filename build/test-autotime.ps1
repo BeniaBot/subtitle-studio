@@ -7,7 +7,7 @@
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist/SubtitleStudio.exe')))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist/Subtext.exe')))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 function T($n) { $asm.GetType("SubtitleStudio.$n") }
 # ‏New-Object byte[] מחזיר PSObject עוטף, ו-Invoke לא יודע להמיר אותו
