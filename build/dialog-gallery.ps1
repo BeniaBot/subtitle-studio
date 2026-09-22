@@ -26,7 +26,7 @@ public class GW{
 "@
 [void][GW]::SetProcessDPIAware()
 
-$asm = [Reflection.Assembly]::LoadFrom("D:\Claude\subtitle-studio\dist\SubtitleStudio.exe")
+$asm = [Reflection.Assembly]::LoadFrom("D:\Claude\subtitle-studio\dist\Subtext.exe")
 $NP = [Reflection.BindingFlags]::NonPublic
 $PB = [Reflection.BindingFlags]::Public
 $ST = [Reflection.BindingFlags]::Static

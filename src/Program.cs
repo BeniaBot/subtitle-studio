@@ -55,7 +55,7 @@ namespace SubtitleStudio
                 File.WriteAllText(p, ex.ToString(), Encoding.UTF8);
             }
             catch { }
-            MessageBox.Show("קרתה תקלה בלתי צפויה:\n\n" + ex.Message, "אולפן הכתוביות",
+            MessageBox.Show("קרתה תקלה בלתי צפויה:\n\n" + ex.Message, "Subtext",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }

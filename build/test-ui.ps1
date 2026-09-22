@@ -6,7 +6,7 @@
 # שהלחיצה הייתה מפעילה.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe  = Join-Path $root 'dist\Subtext.exe'
 if (-not (Test-Path $exe)) { Write-Host 'no exe - run build.cmd first'; exit 1 }
 
 $env:SUBSTUDIO_TEST = '1'

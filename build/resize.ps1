@@ -38,7 +38,7 @@ public class RS{
 $dest = "$env:TEMP\ss-gallery"
 New-Item -ItemType Directory -Force $dest | Out-Null
 
-$p = Get-Process SubtitleStudio -ErrorAction SilentlyContinue
+$p = Get-Process Subtext -ErrorAction SilentlyContinue
 if (-not $p) { Write-Host "not running"; exit 1 }
 
 # החלון הגדול ביותר מסוג WinForms הוא הראשי

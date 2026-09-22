@@ -10,7 +10,7 @@ param([string]$Key = $env:GEMKEY, [string]$Model = "", [int]$Rounds = 6,
 $ErrorActionPreference = 'Continue'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes('D:\Claude\subtitle-studio\dist\SubtitleStudio.exe'))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes('D:\Claude\subtitle-studio\dist\Subtext.exe'))
 $NP=[Reflection.BindingFlags]::NonPublic; $PB=[Reflection.BindingFlags]::Public
 $ST=[Reflection.BindingFlags]::Static; $IN=[Reflection.BindingFlags]::Instance
 $CI=[Reflection.BindingFlags]::CreateInstance

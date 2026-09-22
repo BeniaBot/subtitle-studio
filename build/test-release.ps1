@@ -13,7 +13,7 @@
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
-$exe = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe = Join-Path $root 'dist\Subtext.exe'
 if (-not (Test-Path $exe)) { Write-Host 'no exe - run build.cmd first'; exit 1 }
 
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($exe))
@@ -64,60 +64,60 @@ function Release($assets, $tag, $body) {
 
 Write-Host 'HDR_FIXED'
 
-$both = Release @((Asset 'SubtitleStudio-Setup.exe' 41000000 'BeniaBot'),
-                  (Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '0.9.9' 'notes here'
+$both = Release @((Asset 'Subtext-Setup.exe' 41000000 'BeniaBot'),
+                  (Asset 'Subtext.exe' 38000000 'BeniaBot')) '0.9.9' 'notes here'
 $p = DoParse $both
 Check 'T_BOTH_NOERR' ($null -eq $p.Err -and $null -ne $p.Rel) ("err=" + $p.Err)
 Check 'T_BOTH_VER'   ((F $p.Rel 'Version') -eq '0.9.9') (F $p.Rel 'Version')
-Check 'T_BOTH_PORT'  ((F $p.Rel 'Url') -like '*/SubtitleStudio.exe') (F $p.Rel 'Url')
-Check 'T_BOTH_SETUP' ((F $p.Rel 'SetupUrl') -like '*/SubtitleStudio-Setup.exe') (F $p.Rel 'SetupUrl')
+Check 'T_BOTH_PORT'  ((F $p.Rel 'Url') -like '*/Subtext.exe') (F $p.Rel 'Url')
+Check 'T_BOTH_SETUP' ((F $p.Rel 'SetupUrl') -like '*/Subtext-Setup.exe') (F $p.Rel 'SetupUrl')
 Check 'T_BOTH_SZ1'   ((F $p.Rel 'Size') -eq 38000000) (F $p.Rel 'Size')
 Check 'T_BOTH_SZ2'   ((F $p.Rel 'SetupSize') -eq 41000000) (F $p.Rel 'SetupSize')
 
-$long = Release @((Asset 'SubtitleStudio-Setup.exe' 41000000 ('a' * 120)),
-                  (Asset 'SubtitleStudio.exe' 38000000 ('a' * 120))) '1.0.0' 'x'
+$long = Release @((Asset 'Subtext-Setup.exe' 41000000 ('a' * 120)),
+                  (Asset 'Subtext.exe' 38000000 ('a' * 120))) '1.0.0' 'x'
 $p = DoParse $long
 Check 'T_LONGUPLOADER' ((F $p.Rel 'Url').Length -gt 0 -and (F $p.Rel 'SetupUrl').Length -gt 0) ("url=" + (F $p.Rel 'Url').Length + " setup=" + (F $p.Rel 'SetupUrl').Length)
 
-$onlySetup = Release @((Asset 'SubtitleStudio-Setup.exe' 41000000 'BeniaBot')) '1.0.1' 'x'
+$onlySetup = Release @((Asset 'Subtext-Setup.exe' 41000000 'BeniaBot')) '1.0.1' 'x'
 $p = DoParse $onlySetup
 Check 'T_ONLYSETUP_HAS' ((F $p.Rel 'SetupUrl').Length -gt 0) (F $p.Rel 'SetupUrl')
 Check 'T_ONLYSETUP_NOPORT' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
 
-$onlyPort = Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.2' 'x'
+$onlyPort = Release @((Asset 'Subtext.exe' 38000000 'BeniaBot')) '1.0.2' 'x'
 $p = DoParse $onlyPort
 Check 'T_ONLYPORT_HAS' ((F $p.Rel 'Url').Length -gt 0) (F $p.Rel 'Url')
 Check 'T_ONLYPORT_NOSETUP' ((F $p.Rel 'SetupUrl') -eq '') ("'" + (F $p.Rel 'SetupUrl') + "'")
 
 $noise = Release @((Asset 'SHA256SUMS.txt' 200 'BeniaBot'),
                    (Asset 'source.zip' 900 'BeniaBot'),
-                   (Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.3' 'x'
+                   (Asset 'Subtext.exe' 38000000 'BeniaBot')) '1.0.3' 'x'
 $p = DoParse $noise
-Check 'T_NOISE' ((F $p.Rel 'Url') -like '*/SubtitleStudio.exe') (F $p.Rel 'Url')
+Check 'T_NOISE' ((F $p.Rel 'Url') -like '*/Subtext.exe') (F $p.Rel 'Url')
 
-$two = Release @((Asset 'SubtitleStudio-Setup.exe' 41000000 'BeniaBot'),
-                 (Asset 'SubtitleStudio-Setup-x86.exe' 39000000 'BeniaBot')) '1.0.4' 'x'
+$two = Release @((Asset 'Subtext-Setup.exe' 41000000 'BeniaBot'),
+                 (Asset 'Subtext-Setup-x86.exe' 39000000 'BeniaBot')) '1.0.4' 'x'
 $p = DoParse $two
-Check 'T_FIRSTSETUPWINS' ((F $p.Rel 'SetupUrl') -like '*/SubtitleStudio-Setup.exe') (F $p.Rel 'SetupUrl')
+Check 'T_FIRSTSETUPWINS' ((F $p.Rel 'SetupUrl') -like '*/Subtext-Setup.exe') (F $p.Rel 'SetupUrl')
 
-$evil = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.5' 'x').Replace('https://github.com/BeniaBot/subtitle-studio/releases/download/v9.9.9/', 'https://evil.example.com/')
+$evil = (Release @((Asset 'Subtext.exe' 38000000 'BeniaBot')) '1.0.5' 'x').Replace('https://github.com/BeniaBot/subtitle-studio/releases/download/v9.9.9/', 'https://evil.example.com/')
 $p = DoParse $evil
 Check 'T_FOREIGNURL' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
 
 # מאגר אחר בגיטהאב עצמו - גם הוא נדחה
-$other = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.7' 'x').Replace(
+$other = (Release @((Asset 'Subtext.exe' 38000000 'BeniaBot')) '1.0.7' 'x').Replace(
         'https://github.com/BeniaBot/subtitle-studio/releases/download/v9.9.9/',
         'https://github.com/someone/else/releases/download/v9.9.9/')
 $p = DoParse $other
 Check 'T_OTHERREPO' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
 
 # http במקום https נדחה
-$plain = (Release @((Asset 'SubtitleStudio.exe' 38000000 'BeniaBot')) '1.0.8' 'x').Replace(
+$plain = (Release @((Asset 'Subtext.exe' 38000000 'BeniaBot')) '1.0.8' 'x').Replace(
         'https://github.com/BeniaBot/', 'http://github.com/BeniaBot/')
 $p = DoParse $plain
 Check 'T_PLAINHTTP' ((F $p.Rel 'Url') -eq '') ("'" + (F $p.Rel 'Url') + "'")
 
-$esc = Release @((Asset 'SubtitleStudio.exe' 1 'BeniaBot')) '1.0.6' 'line one\nline two \"quoted\" and a backslash \\\\ end'
+$esc = Release @((Asset 'Subtext.exe' 1 'BeniaBot')) '1.0.6' 'line one\nline two \"quoted\" and a backslash \\\\ end'
 $p = DoParse $esc
 $notes = F $p.Rel 'Notes'
 Check 'T_NOTES_NL'    ($notes.Contains("`n")) ''
@@ -136,7 +136,7 @@ Write-Host 'HDR_LIVE'
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $wc = New-Object Net.WebClient
-    $wc.Headers.Add('User-Agent', 'SubtitleStudio-test')
+    $wc.Headers.Add('User-Agent', 'Subtext-test')
     $wc.Headers.Add('Accept', 'application/vnd.github+json')
     $live = $wc.DownloadString('https://api.github.com/repos/BeniaBot/subtitle-studio/releases/latest')
     $p = DoParse $live
@@ -164,7 +164,7 @@ Check 'T_REPO_NEW'   ($ours.Invoke($null, @([string]'https://github.com/BeniaBot
 Check 'T_REPO_OTHER' (-not $ours.Invoke($null, @([string]'https://github.com/Evil/subtext/releases/download/v1/a.exe')) -and
                       -not $ours.Invoke($null, @([string]'https://github.com/BeniaBot/subtext-evil/releases/download/v1/a.exe'))) ''
 
-$dj = Release ((Asset 'SubtitleStudio.exe' 5 'x') -replace '"size":5', '"size":5,"digest":"sha256:ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12"') 'v9.9.9' 'x'
+$dj = Release ((Asset 'Subtext.exe' 5 'x') -replace '"size":5', '"size":5,"digest":"sha256:ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12ab12"') 'v9.9.9' 'x'
 $dp = DoParse $dj
 Check 'T_DIGEST_READ' ((F $dp.Rel 'Sha256') -eq 'AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12AB12') (F $dp.Rel 'Sha256')
 

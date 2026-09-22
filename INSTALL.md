@@ -1,6 +1,6 @@
-# התקנה והסרה · אולפן הכתוביות
+# התקנה והסרה · Subtext
 
-התוכנה רצה **גם בלי להתקין** — מספיק להוריד את `SubtitleStudio.exe`
+התוכנה רצה **גם בלי להתקין** — מספיק להוריד את `Subtext.exe`
 וללחוץ פעמיים. ההתקנה נועדה רק למי שרוצה קיצור בתפריט התחל
 ושורה ברשימת התוכנות של ווינדוס.
 
@@ -8,10 +8,10 @@
 
 ## התקנה רגילה
 
-מריצים את `SubtitleStudio-Setup.exe` ולוחצים ״התקנה״.
+מריצים את `Subtext-Setup.exe` ולוחצים ״התקנה״.
 
 - **בלי הרשאות מנהל.** ההתקנה היא למשתמש הנוכחי בלבד.
-- ברירת המחדל: `%LOCALAPPDATA%\Programs\SubtitleStudio`
+- ברירת המחדל: `%LOCALAPPDATA%\Programs\Subtext`
 - נוצר קיצור בתפריט התחל, ואם סימנתם — גם בשולחן העבודה.
 - התוכנה מופיעה ב״הוספה או הסרה של תוכניות״.
 
@@ -22,8 +22,8 @@
 ## התקנה שקטה
 
 ```
-SubtitleStudio-Setup.exe /S
-SubtitleStudio-Setup.exe /S /D="C:\Tools\SubtitleStudio"
+Subtext-Setup.exe /S
+Subtext-Setup.exe /S /D="C:\Tools\Subtext"
 ```
 
 | דגל | מה הוא עושה |
@@ -47,7 +47,7 @@ SubtitleStudio-Setup.exe /S /D="C:\Tools\SubtitleStudio"
 ```
 uninstall.exe                       (בתיקיית ההתקנה)
 uninstall.exe /S                    (שקט)
-SubtitleStudio-Setup.exe /uninstall
+Subtext-Setup.exe /uninstall
 ```
 
 או פשוט ״הוספה או הסרה של תוכניות״ בהגדרות ווינדוס.
@@ -71,11 +71,11 @@ SubtitleStudio-Setup.exe /uninstall
 ## מה בונה את מה
 
 ```
-build.cmd                  ->  dist\SubtitleStudio.exe        (~36MB, הכול בפנים)
-build\make-installer.cmd   ->  dist\SubtitleStudio-Setup.exe  (~37MB)
+build.cmd                  ->  dist\Subtext.exe        (~36MB, הכול בפנים)
+build\make-installer.cmd   ->  dist\Subtext-Setup.exe  (~37MB)
 ```
 
-**סדר הפעולות חשוב.** המתקין מטמיע את `dist\SubtitleStudio.exe` כמשאב,
+**סדר הפעולות חשוב.** המתקין מטמיע את `dist\Subtext.exe` כמשאב,
 אז בנייה שלו לפני `build.cmd` תארוז את הקובץ הקודם — בשקט, בלי אזהרה.
 
 המתקין נבנה עם אותו מהדר מובנה של ווינדוס

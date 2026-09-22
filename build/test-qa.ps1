@@ -10,7 +10,7 @@
 # צפוי: 60 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe  = Join-Path $root 'dist\Subtext.exe'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()

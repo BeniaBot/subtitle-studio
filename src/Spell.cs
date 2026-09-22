@@ -367,7 +367,7 @@ namespace SubtitleStudio
         private static byte[] Fetch(string url, ref long done, Action<long, long> progress, Func<bool> canceled)
         {
             HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-            req.UserAgent = "SubtitleStudio/" + App.Version;
+            req.UserAgent = "Subtext/" + App.Version;
             req.Timeout = 30000;
             req.ReadWriteTimeout = 60000;
             using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())

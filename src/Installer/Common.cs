@@ -11,14 +11,14 @@ namespace SubtitleStudioSetup
     /// <summary>שמות, נתיבים וערכי רישום קבועים - משותפים למתקין ולמסיר.</summary>
     internal static class Prod
     {
-        public const string Name = "אולפן הכתוביות";
-        public const string NameEn = "Subtitle Studio";
-        public const string ExeName = "SubtitleStudio.exe";
+        public const string Name = "Subtext";
+        public const string NameEn = "אולפן הכתוביות";
+        public const string ExeName = "Subtext.exe";
         public const string UninstallExe = "uninstall.exe";
         public const string Marker = "installed.txt";
         public const string Publisher = "BeniaBot";
         public const string Home = "https://github.com/BeniaBot/subtitle-studio";
-        public const string ShortcutName = "אולפן הכתוביות.lnk";
+        public const string ShortcutName = "Subtext.lnk";
 
         public const string RegUninstall =
             "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SubtitleStudio";
@@ -48,13 +48,20 @@ namespace SubtitleStudioSetup
             }
         }
 
-        /// <summary>ברירת המחדל: תיקיית המשתמש. אין צורך בהרשאות מנהל.</summary>
+        /// <summary>ברירת המחדל: תיקיית המשתמש. אין צורך בהרשאות מנהל.
+        ///
+        /// **התקנה קיימת גוברת.** משתמש ותיק מתקין לאותה תיקייה שבה הוא כבר יושב
+        /// (‏`Programs\SubtitleStudio` מהשם הישן), ולא לשנייה לידה - אחרת נשארות שתי
+        /// עותקים, שני קיצורים ושתי שורות ב״אפליקציות והתקנות״. מי שמתקין מאפס
+        /// מקבל את השם החדש. **בלי קוד הגירה**, וזו כל הנקודה.</summary>
         public static string DefaultDir
         {
             get
             {
+                string existing = Remover.RegisteredDir();
+                if (!string.IsNullOrEmpty(existing) && Directory.Exists(existing)) return existing;
                 string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                return Path.Combine(Path.Combine(local, "Programs"), "SubtitleStudio");
+                return Path.Combine(Path.Combine(local, "Programs"), "Subtext");
             }
         }
 
@@ -324,7 +331,7 @@ namespace SubtitleStudioSetup
             string[] known = new string[]
             {
                 Prod.ExeName, Prod.UninstallExe, Prod.Marker,
-                Prod.ExeName + ".new", "SubtitleStudio.exe.old"
+                Prod.ExeName + ".new", "Subtext.exe.old", "SubtitleStudio.exe", "SubtitleStudio.exe.old"
             };
             bool stuck = false;
             foreach (string f in known)
@@ -449,10 +456,18 @@ namespace SubtitleStudioSetup
                 // הסרה בתיקייה אחת סגרה עותק נייד שרץ מתיקייה אחרת.
                 string want = null;
                 if (!string.IsNullOrEmpty(dir))
-                    try { want = Path.Combine(Path.GetFullPath(dir), "SubtitleStudio.exe"); }
+                    try { want = Path.Combine(Path.GetFullPath(dir), Prod.ExeName); }
                     catch { want = null; }
 
-                Process[] all = Process.GetProcessesByName("SubtitleStudio");
+                Process[] all = Process.GetProcessesByName("Subtext");
+            // גם השם הישן: מי שמעדכן מ-0.7.x עדיין מריץ SubtitleStudio.exe
+            Process[] old = Process.GetProcessesByName("SubtitleStudio");
+            if (old.Length > 0)
+            {
+                Process[] both = new Process[all.Length + old.Length];
+                all.CopyTo(both, 0); old.CopyTo(both, all.Length);
+                all = both;
+            }
                 foreach (Process p in all)
                 {
                     using (p)

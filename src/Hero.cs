@@ -207,7 +207,7 @@ namespace SubtitleStudio
             int top = BlockTop;
 
             DrawTitle(g, top);
-            Theme.Str(g, "כתוביות לסרטים: ליצור, לתקן ולהטמיע", Theme.F(11.5f), Theme.TextDim,
+            Theme.Str(g, "אולפן הכתוביות · ליצור, לתקן ולהטמיע כתוביות בעברית", Theme.F(11.5f), Theme.TextDim,
                 new RectangleF(0, top + Theme.S(46), Width, Theme.S(26)), Theme.SfCenter);
 
             // אזור הגרירה
@@ -300,25 +300,27 @@ namespace SubtitleStudio
             DrawLinks(g, Theme.S(14));
         }
 
-        /// <summary>הכותרת בשתי מילים ובשני צבעים - המילה השנייה בצבע המותג.
-        /// ‏RTL: ״אולפן״ מימין, ״הכתוביות״ משמאלו, והזוג ממורכז יחד.</summary>
+        /// <summary>שם המותג, מילה אחת בשני צבעים: ‏**Sub**text.
+        ///
+        /// **לטיני, ולכן משמאל לימין** - ״Sub״ בשמאל ו״text״ מימינו, הפוך מהכותרת
+        /// העברית שהייתה כאן עד 0.8.0. השם העברי לא נעלם: הוא בשורת ההסבר שמתחת,
+        /// כי מי שנתקל בתוכנה בפעם הראשונה צריך לדעת מה היא עושה.</summary>
         private void DrawTitle(Graphics g, int top)
         {
             Font f = Theme.F(23f, FontStyle.Bold);
-            // בלי רווח בתוך המחרוזת: GDI בולע רווח בקצה של קטע RTL,
-            // והמילים נדבקות. הרווח נמדד בפיקסלים במקום.
-            const string a = "אולפן";
-            const string b = "הכתוביות";
+            // בלי רווח בתוך המחרוזת, ובלי לסמוך על מדידה של המחרוזת המלאה:
+            // שני החלקים מצוירים בנפרד וחייבים להיראות כמילה אחת.
+            const string a = "Sub";
+            const string b = "text";
             float wa = Theme.Measure(g, a, f).Width;
             float wb = Theme.Measure(g, b, f).Width;
-            float sp = Theme.S(12);
             float h = Theme.S(44);
-            float right = (Width + wa + sp + wb) / 2f;
+            float left = (Width - wa - wb) / 2f;
             // מלבן צמוד בדיוק לרוחב הנמדד גורם ל-Trimming לחתוך את הסוף.
             // נותנים שוליים, וממרכזים כל חלק סביב המרכז המיועד שלו.
             float pad = Theme.S(20);
-            float ca = right - wa / 2f;
-            float cb = right - wa - sp - wb / 2f;
+            float ca = left + wa / 2f;
+            float cb = left + wa + wb / 2f;
             Theme.Str(g, a, f, Theme.Text,
                 new RectangleF(ca - (wa + pad) / 2f, top, wa + pad, h), Theme.SfCenter);
             Theme.Str(g, b, f, Theme.Accent,

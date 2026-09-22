@@ -431,7 +431,7 @@ namespace SubtitleStudio
             if (videoH <= 0) videoH = 1080;
             StringBuilder sb = new StringBuilder();
             sb.Append("[Script Info]\r\n");
-            sb.Append("; נוצר באולפן הכתוביות\r\n");
+            sb.Append("; נוצר ב-Subtext\r\n");
             sb.Append("ScriptType: v4.00+\r\n");
             sb.Append("WrapStyle: 0\r\n");
             sb.Append("ScaledBorderAndShadow: yes\r\n");

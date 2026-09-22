@@ -2,7 +2,7 @@
 # עם -Key אפשר לבדוק מפתח אמיתי; בלי מפתח נבדקת רק תקינות הבקשה מול השרת.
 param([string]$Key = "INVALID_TEST_KEY", [switch]$WithTools, [string]$Prompt = "ענה במילה אחת: שלום", [switch]$Translate)
 
-$exe = "D:\Claude\subtitle-studio\dist\SubtitleStudio.exe"
+$exe = "D:\Claude\subtitle-studio\dist\Subtext.exe"
 if (-not (Test-Path $exe)) { Write-Host "no exe"; exit 1 }
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($exe))

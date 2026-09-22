@@ -4,7 +4,7 @@
 
 | מה | רישיון | מה מותר |
 |---|---|---|
-| **הקוד של אולפן הכתוביות** (`src\*.cs`, `build.cmd`, `build\*.ps1`) | **MIT** | הכול. לקחת, לשנות, למכור, לבנות גרסה למק — בלי לשאול ובלי לשלם |
+| **הקוד של Subtext** (`src\*.cs`, `build.cmd`, `build\*.ps1`) | **MIT** | הכול. לקחת, לשנות, למכור, לבנות גרסה למק — בלי לשאול ובלי לשלם |
 | **FFmpeg** (מנוע המדיה, מצורף ל‑EXE) | **GPLv3** | להשתמש ולהפיץ, כל עוד מלווים בקוד המקור או בהצעה לקבלו |
 | **גופן Assistant** (מוטמע ב‑EXE) | **SIL OFL 1.1** | להשתמש, להטמיע ולהפיץ; אסור למכור את הגופן בפני עצמו |
 | **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
@@ -44,7 +44,7 @@ portable C#. If you bundle FFmpeg yourself, the GPLv3 obligations below become y
 דחוס בתוך ה‑EXE, ונפרס לתיקיית המשתמש בהפעלה הראשונה.
 התוכנה מריצה אותו **כתהליך נפרד** בשורת פקודה — היא לא מקשרת אליו קוד ולא משנה אותו.
 
-*Subtitle Studio uses **FFmpeg**, unmodified, as its media engine. A compressed copy of
+*Subtext uses **FFmpeg**, unmodified, as its media engine. A compressed copy of
 `ffmpeg.exe` is embedded in the published EXE and unpacked to the user's folder on first
 run. The app runs it as a separate process; it does not link against it or patch it.*
 

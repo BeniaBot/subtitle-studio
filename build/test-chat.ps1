@@ -3,7 +3,7 @@ param([string]$Key = $env:GEMKEY, [string]$Model = "", [string]$Prompt = "תקר
 $ErrorActionPreference = 'Continue'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
-$exe = 'D:\Claude\subtitle-studio\dist\SubtitleStudio.exe'
+$exe = 'D:\Claude\subtitle-studio\dist\Subtext.exe'
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($exe))
 $NP=[Reflection.BindingFlags]::NonPublic; $PB=[Reflection.BindingFlags]::Public
 $ST=[Reflection.BindingFlags]::Static; $IN=[Reflection.BindingFlags]::Instance

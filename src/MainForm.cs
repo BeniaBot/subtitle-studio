@@ -64,7 +64,7 @@ namespace SubtitleStudio
 
         public MainForm()
         {
-            Text = "אולפן הכתוביות";
+            Text = "Subtext";
             // התוכנה מקנה סקאלה בעצמה (Theme.S) - מתיחה נוספת של WinForms
             // מכפילה פעמיים ומנפחת את MinimumSize
             AutoScaleMode = AutoScaleMode.None;
@@ -3489,7 +3489,7 @@ namespace SubtitleStudio
             if (asNew || path == null)
             {
                 SaveFileDialog dlg = new SaveFileDialog();
-                dlg.Filter = "פרויקט של אולפן הכתוביות|*" + Project.Extension;
+                dlg.Filter = "פרויקט של Subtext|*" + Project.Extension;
                 dlg.Title = "שמירת הפרויקט";
                 try
                 {

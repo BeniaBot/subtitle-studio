@@ -388,7 +388,7 @@ namespace SubtitleStudio
         private string SystemPrompt()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("אתה העוזר של ״אולפן הכתוביות״, תוכנת עריכת כתוביות בעברית. ");
+            sb.Append("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת עריכת כתוביות בעברית. ");
             sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון.\n");
 
             sb.Append("אתה לא צ׳אט של עצות - אתה מפעיל את התוכנה בפועל. ");

@@ -216,7 +216,7 @@ namespace SubtitleStudio
                     "לא הצלחתי להכין את מנוע הווידאו:\n\n" + error +
                     "\n\nהתיקייה: " + dir +
                     "\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.",
-                    "אולפן הכתוביות", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    "Subtext", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             _ffmpeg = File.Exists(target) ? target : null;
@@ -250,7 +250,7 @@ namespace SubtitleStudio
             ShowInTaskbar = true;
             BackColor = Theme.Panel;
             ClientSize = new Size(Theme.S(460), Theme.S(190));
-            Text = "אולפן הכתוביות";
+            Text = "Subtext";
             RightToLeft = RightToLeft.Yes;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             try { Icon = AppIcon.Build(); }

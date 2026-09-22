@@ -134,7 +134,7 @@ namespace SubtitleStudioSetup
 
             if (_page == 0)
             {
-                Skin.Str(g, "להסיר את אולפן הכתוביות מהמחשב?", Skin.Semi, Skin.Text,
+                Skin.Str(g, "להסיר את Subtext מהמחשב?", Skin.Semi, Skin.Text,
                          new Rectangle(pad, Skin.S(100), w - pad * 2, Skin.S(24)), true, false, true);
                 Skin.Str(g, "יימחקו התוכנה, הקיצורים והרישום בווינדוס.\n" +
                             "ההגדרות שלכם וקבצי הכתוביות שיצרתם יישארו במקומם.",

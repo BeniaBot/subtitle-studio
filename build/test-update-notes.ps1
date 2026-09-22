@@ -1,7 +1,7 @@
 ﻿# תקציר העדכון: מה רואה מי שקופץ מכל גרסה היסטורית.
 $ErrorActionPreference = 'Continue'
 $env:SUBSTUDIO_TEST = '1'
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes('D:\Claude\subtitle-studio\dist\SubtitleStudio.exe'))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes('D:\Claude\subtitle-studio\dist\Subtext.exe'))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 $IN = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 $cl = $asm.GetType('SubtitleStudio.Changelog')

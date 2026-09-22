@@ -14,7 +14,7 @@ $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path $PSScriptRoot -Parent
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\SubtitleStudio.exe')))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
 $SF = [Reflection.BindingFlags]'NonPublic,Public,Static'
 $NP = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 function T($n) { $asm.GetType("SubtitleStudio.$n") }

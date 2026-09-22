@@ -35,7 +35,7 @@ rem  paperwork: MIT for our code, GPLv3 for FFmpeg, OFL for the font.
 
 echo Compiling...
 "%CSC%" /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 ^
-  /out:"dist\SubtitleStudio.exe" ^
+  /out:"dist\Subtext.exe" ^
   /win32icon:"build\app.ico" ^
   /win32manifest:"build\app.manifest" ^
   %RES% ^
@@ -60,7 +60,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-for %%F in ("dist\SubtitleStudio.exe") do set SIZE=%%~zF
+for %%F in ("dist\Subtext.exe") do set SIZE=%%~zF
 echo.
-echo Done:  %cd%\dist\SubtitleStudio.exe   (%SIZE% bytes)
+echo Done:  %cd%\dist\Subtext.exe   (%SIZE% bytes)
 endlocal

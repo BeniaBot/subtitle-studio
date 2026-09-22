@@ -16,7 +16,7 @@ namespace SubtitleStudio
     internal static class App
     {
         /// <summary>גרסת התוכנה. חייבת להיות זהה לתגית ה-Release בגיטהאב (בלי v).</summary>
-        public const string Version = "0.7.3";
+        public const string Version = "0.8.0";
         public const string Repo = "BeniaBot/subtitle-studio";
         public const string HomePage = "https://github.com/" + Repo;
 
@@ -56,10 +56,10 @@ namespace SubtitleStudio
         internal class Release
         {
             public string Version = "";
-            public string Url = "";          // SubtitleStudio.exe - הקובץ הנייד
+            public string Url = "";          // Subtext.exe - הקובץ הנייד
             public string Notes = "";
             public long Size;
-            public string SetupUrl = "";     // SubtitleStudio-Setup.exe
+            public string SetupUrl = "";     // Subtext-Setup.exe
             public long SetupSize;
             /// <summary>טביעת SHA-256 שגיטהאב מפרסם לכל קובץ (‎"digest": "sha256:..."‎), או ריק.</summary>
             public string Sha256 = "";
@@ -77,7 +77,7 @@ namespace SubtitleStudio
                 ServicePointManager.SecurityProtocol =
                     (SecurityProtocolType)3072 | (SecurityProtocolType)768;      // TLS 1.2 + 1.1
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(Api);
-                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.UserAgent = "Subtext/" + App.Version;
                 req.Accept = "application/vnd.github+json";
                 req.Timeout = 12000;
                 req.ReadWriteTimeout = 12000;
@@ -232,7 +232,7 @@ namespace SubtitleStudio
 
             string url = useSetup ? rel.SetupUrl : rel.Url;
             string tmp = Path.Combine(Path.GetTempPath(),
-                (useSetup ? "SubtitleStudio-Setup-" : "SubtitleStudio-") + rel.Version + ".exe");
+                (useSetup ? "Subtext-Setup-" : "Subtext-") + rel.Version + ".exe");
 
             long total = useSetup ? rel.SetupSize : rel.Size;
             long expectSize = total;
@@ -345,7 +345,7 @@ namespace SubtitleStudio
             {
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.UserAgent = "Subtext/" + App.Version;
                 req.Timeout = 20000;
                 req.ReadWriteTimeout = 60000;
                 using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
@@ -536,7 +536,7 @@ namespace SubtitleStudio
 
         public AboutDlg() : base("על התוכנה", Ico.Info, 540)
         {
-            Subtitle = "אולפן הכתוביות · גרסה " + App.Version;
+            Subtitle = "Subtext · אולפן הכתוביות · גרסה " + App.Version;
 
             Lbl what = Hint("תוכנה חופשית ליצירה, לתיקון ולהטמעה של כתוביות בעברית." + Environment.NewLine +
                             "רצה בלי התקנה ובלי אינטרנט - הכול נמצא בתוך הקובץ הזה." + Environment.NewLine +
@@ -608,7 +608,7 @@ namespace SubtitleStudio
         /// לתאר במילים איזו גרסה של ווינדוס יש לו.</summary>
         private void CopyDiagnostics()
         {
-            string s = "אולפן הכתוביות " + App.Version +
+            string s = "Subtext " + App.Version +
                        " | " + (Install.IsInstalled() ? "installed" : "portable") +
                        " | " + (IntPtr.Size == 8 ? "x64" : "x86") +
                        " | Windows " + Environment.OSVersion.Version +
@@ -630,7 +630,7 @@ namespace SubtitleStudio
 
             string[][] files = new string[][]
             {
-                new string[] { "MIT.txt",      "SubtitleStudio-MIT.txt" },
+                new string[] { "MIT.txt",      "Subtext-MIT.txt" },
                 new string[] { "GPL-3.0.txt",  "FFmpeg-GPLv3.txt" },
                 new string[] { "OFL-1.1.txt",  "Assistant-font-OFL.txt" },
                 new string[] { "AGPL-3.0.txt", "Hspell-dictionary-AGPLv3.txt" }
@@ -772,7 +772,7 @@ namespace SubtitleStudio
                 ServicePointManager.SecurityProtocol =
                     (SecurityProtocolType)3072 | (SecurityProtocolType)768;
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(RawUrl);
-                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.UserAgent = "Subtext/" + App.Version;
                 req.Timeout = 10000;
                 req.ReadWriteTimeout = 10000;
                 string json;

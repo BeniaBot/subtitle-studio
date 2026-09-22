@@ -2,7 +2,7 @@
 param([string]$Media = "")
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
-Get-Process SubtitleStudio -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process Subtext -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 300
 
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
@@ -28,7 +28,7 @@ public class PW{
 [void][PW]::SetProcessDPIAware()
 
 $dest = "$env:TEMP\ss-gallery"
-$p = Start-Process "dist\SubtitleStudio.exe" -ArgumentList $Media -PassThru
+$p = Start-Process "dist\Subtext.exe" -ArgumentList $Media -PassThru
 Start-Sleep -Seconds 7
 
 function Shot($name) {

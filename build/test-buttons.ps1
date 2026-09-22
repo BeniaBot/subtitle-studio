@@ -48,7 +48,7 @@ public static class InkBox {
 '@
 [void][InkBox]::SetProcessDPIAware()
 $root = Split-Path $PSScriptRoot -Parent
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\SubtitleStudio.exe')))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 $IN = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 function TY($n) { return $asm.GetType("SubtitleStudio.$n") }

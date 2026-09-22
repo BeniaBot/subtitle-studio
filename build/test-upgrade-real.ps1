@@ -2,7 +2,7 @@
 #
 #   powershell -ExecutionPolicy Bypass -File build\test-upgrade-real.ps1 -From v0.7.0
 #
-# להריץ **אחרי** gh release create, כש-dist\SubtitleStudio.exe הוא בדיוק מה שהועלה.
+# להריץ **אחרי** gh release create, כש-dist\Subtext.exe הוא בדיוק מה שהועלה.
 # מה קורה:
 #  1. בונה את התגית -From ב-git worktree תחת D:\Claude\_ss-upgrade (לא בכונן C)
 #  2. מריץ אותה כנייד (portable.txt) מתיקייה זמנית
@@ -26,7 +26,17 @@ $srcOld = Join-Path $base 'src-old'
 # והראה ״מוריד את הגרסה 0.7.2״ בשדרוג ל-0.7.3. זה נראה כמו באג, ולא היה.
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory $app, $out -Force | Out-Null
-if (-not (Test-Path (Join-Path $srcOld 'dist\SubtitleStudio.exe'))) {
+# **שם הקובץ תלוי בגרסה שבונים.** עד 0.7.3 הבנייה יצרה SubtitleStudio.exe, ומ-0.8.0
+# היא יוצרת Subtext.exe. הבדיקה עובדת עם שניהם, ובכוונה **לא משנה שם** לעותק הנייד:
+# גם בעדכון אמיתי, קובץ שהמשתמש הוריד פעם שומר את שמו.
+function BuiltExe($dir) {
+    foreach ($n in @('Subtext.exe', 'SubtitleStudio.exe')) {
+        $p = Join-Path $dir (Join-Path 'dist' $n)
+        if (Test-Path $p) { return $p }
+    }
+    return $null
+}
+if (-not (BuiltExe $srcOld)) {
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
     git -C $repo worktree add --detach $srcOld $From 2>&1 | Out-Null
     $ErrorActionPreference = $old
@@ -35,11 +45,17 @@ if (-not (Test-Path (Join-Path $srcOld 'dist\SubtitleStudio.exe'))) {
     Copy-Item (Join-Path $repo 'build\app.ico') (Join-Path $srcOld 'build') -Force
     cmd /c (Join-Path $srcOld 'build.cmd') | Select-Object -Last 1
 }
-Copy-Item (Join-Path $srcOld 'dist\SubtitleStudio.exe') (Join-Path $app 'SubtitleStudio.exe') -Force
+$oldExe = BuiltExe $srcOld
+if (-not $oldExe) { Write-Host '!! the old version did not build'; exit 2 }
+$appExe = Join-Path $app (Split-Path $oldExe -Leaf)
+$procName = [IO.Path]::GetFileNameWithoutExtension($appExe)
+Copy-Item $oldExe $appExe -Force
 Set-Content (Join-Path $app 'portable.txt') 'portable' -Encoding ASCII
-Remove-Item (Join-Path $app 'SubtitleStudio.exe.old') -ErrorAction SilentlyContinue
-$expected = (Get-FileHash (Join-Path $repo 'dist\SubtitleStudio.exe')).Hash
-Get-ChildItem (Join-Path $env:TEMP 'SubtitleStudio-*.exe') -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+Remove-Item ($appExe + '.old') -ErrorAction SilentlyContinue
+$expected = (Get-FileHash (BuiltExe $repo)).Hash
+foreach ($pat in @('Subtext-*.exe', 'SubtitleStudio-*.exe')) {
+    Get-ChildItem (Join-Path $env:TEMP $pat) -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+}
 
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
@@ -89,7 +105,7 @@ try {
         [IO.File]::WriteAllLines($ini, $lines, (New-Object Text.UTF8Encoding $false))
     }
 
-    $p = Start-Process (Join-Path $app 'SubtitleStudio.exe') -PassThru
+    $p = Start-Process $appExe -PassThru
     Log ("old version ($From) started pid=" + $p.Id)
     $btn = [IntPtr]::Zero; $dlgH = [IntPtr]::Zero
     $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -127,7 +143,7 @@ try {
         Start-Sleep -Milliseconds 700
         $p.Refresh()
         if ($p.HasExited) { break }
-        $tf = Get-ChildItem (Join-Path $env:TEMP 'SubtitleStudio-*.exe') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+        $tf = Get-ChildItem (Join-Path $env:TEMP 'Subtext-*.exe') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
         $bytes = if ($tf) { $tf.Length } else { -1 }
         if ($bytes -ne $lastSize) { $lastSize = $bytes; $lastGrow = $sw.Elapsed.TotalSeconds }
         if ($sw.Elapsed.TotalSeconds - $lastLog -ge 6) {
@@ -148,13 +164,13 @@ try {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt 30 -and -not $new) {
         Start-Sleep -Milliseconds 500
-        $new = Get-CimInstance Win32_Process -Filter "Name='SubtitleStudio.exe'" | Where-Object { $_.ExecutablePath -like "$app*" -and $_.ProcessId -ne $p.Id } | Select-Object -First 1
+        $new = Get-CimInstance Win32_Process -Filter "Name='$procName.exe'" | Where-Object { $_.ExecutablePath -like "$app*" -and $_.ProcessId -ne $p.Id } | Select-Object -First 1
     }
-    $hash = (Get-FileHash (Join-Path $app 'SubtitleStudio.exe')).Hash
+    $hash = (Get-FileHash $appExe).Hash
     Log ("EXE hash matches dist (the release): " + ($hash -eq $expected))
     if ($hash -ne $expected) { Fail "the swapped EXE is not the release" }
-    Log (".old left next to it: " + (Test-Path (Join-Path $app 'SubtitleStudio.exe.old')))
-    if (Test-Path (Join-Path $app 'SubtitleStudio.exe.old')) { Fail ".old was not cleaned up" }
+    Log (".old left next to it: " + (Test-Path ($appExe + '.old')))
+    if (Test-Path ($appExe + '.old')) { Fail ".old was not cleaned up" }
     if ($new) {
         Log ("new instance running pid=" + $new.ProcessId)
         Start-Sleep -Seconds 8
@@ -176,7 +192,7 @@ try {
 }
 finally {
     if (Test-Path $iniBak) { Copy-Item $iniBak $ini -Force; Remove-Item $iniBak }
-    Get-CimInstance Win32_Process -Filter "Name='SubtitleStudio.exe'" | Where-Object { $_.ExecutablePath -like "$app*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Get-CimInstance Win32_Process -Filter "Name='$procName.exe'" | Where-Object { $_.ExecutablePath -like "$app*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Seconds 2
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
     git -C $repo worktree remove --force $srcOld 2>&1 | Out-Null

@@ -50,7 +50,7 @@ public class DG{
 $dest = "$env:TEMP\ss-gallery"
 New-Item -ItemType Directory -Force $dest | Out-Null
 
-$p = Get-Process SubtitleStudio -ErrorAction SilentlyContinue
+$p = Get-Process Subtext -ErrorAction SilentlyContinue
 if (-not $p) { Write-Host "not running"; exit 1 }
 $wins = [DG]::Wins([uint32]$p.Id)
 if ($wins.Count -eq 0) { Write-Host "no window"; exit 1 }

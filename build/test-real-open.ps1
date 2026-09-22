@@ -48,7 +48,7 @@ if (Test-Path $ini) { Copy-Item $ini $iniBak -Force }
 
 try {
     # ---- פרויקט ----
-    $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\SubtitleStudio.exe')))
+    $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
     $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
     $pdT = $asm.GetType('SubtitleStudio.ProjectData'); $cueT = $asm.GetType('SubtitleStudio.Cue')
     $ctor = $cueT.GetConstructor([Type[]]@([long],[long],[string]))
@@ -70,7 +70,7 @@ try {
     [IO.File]::WriteAllText($prjFile, $json, (New-Object Text.UTF8Encoding $false))
 
     Remove-Item "$env:TEMP\SubStudio-error.txt" -ErrorAction SilentlyContinue
-    $p = Start-Process (Join-Path $root 'dist\SubtitleStudio.exe') -ArgumentList ('"' + $prjFile + '"') -PassThru
+    $p = Start-Process (Join-Path $root 'dist\Subtext.exe') -ArgumentList ('"' + $prjFile + '"') -PassThru
     Start-Sleep -Seconds 9
     $p.Refresh()
     if ($p.HasExited) {

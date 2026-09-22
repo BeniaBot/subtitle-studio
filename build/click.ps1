@@ -34,7 +34,7 @@ public class CK{
 "@
 [void][CK]::SetProcessDPIAware()
 $dest = "$env:TEMP\ss-gallery"
-$p = Get-Process SubtitleStudio -ErrorAction SilentlyContinue
+$p = Get-Process Subtext -ErrorAction SilentlyContinue
 if (-not $p) { Write-Host "not running"; exit 1 }
 $wins = [CK]::Wins([uint32]$p.Id)
 $h = $wins[[Math]::Min($WinIndex, $wins.Count - 1)]

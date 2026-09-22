@@ -4,13 +4,13 @@ $ErrorActionPreference = 'Continue'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 
-Get-Process SubtitleStudio -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process Subtext -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 400
 Remove-Item "$env:TEMP\SubStudio-error.txt" -ErrorAction SilentlyContinue
 
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $res = if (Test-Path "build\payload\ffmpeg.pack") { '/resource:build\payload\ffmpeg.pack,ffmpeg.pack' } else { '/nowarn:0' }
-$out = & $csc /nologo /target:winexe /platform:anycpu /codepage:65001 /out:"dist\SubtitleStudio.exe" `
+$out = & $csc /nologo /target:winexe /platform:anycpu /codepage:65001 /out:"dist\Subtext.exe" `
     /win32icon:"build\app.ico" /win32manifest:"build\app.manifest" $res `
     /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll `
     src\*.cs 2>&1
@@ -47,7 +47,7 @@ public class WW{
 [void][WW]::SetProcessDPIAware()
 $args2 = @()
 if ($Media -ne "") { $args2 += $Media }
-$p = if ($args2.Count -gt 0) { Start-Process "dist\SubtitleStudio.exe" -ArgumentList $args2 -PassThru } else { Start-Process "dist\SubtitleStudio.exe" -PassThru }
+$p = if ($args2.Count -gt 0) { Start-Process "dist\Subtext.exe" -ArgumentList $args2 -PassThru } else { Start-Process "dist\Subtext.exe" -PassThru }
 Start-Sleep -Seconds $Wait
 $p.Refresh()
 if ($p.HasExited) {

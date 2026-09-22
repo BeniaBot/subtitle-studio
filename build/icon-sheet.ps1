@@ -1,7 +1,7 @@
 ﻿# מצייר את כל האייקונים של התוכנה לגיליון אחד לבדיקה חזותית
 Add-Type -AssemblyName System.Drawing
 $dest = "$env:TEMP\ss-gallery"
-$asm = [Reflection.Assembly]::LoadFrom("D:\Claude\subtitle-studio\dist\SubtitleStudio.exe")
+$asm = [Reflection.Assembly]::LoadFrom("D:\Claude\subtitle-studio\dist\Subtext.exe")
 $NP = [Reflection.BindingFlags]::NonPublic
 $PB = [Reflection.BindingFlags]::Public
 $ST = [Reflection.BindingFlags]::Static

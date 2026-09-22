@@ -411,7 +411,7 @@ namespace SubtitleStudio
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
                 req.Method = method;
-                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.UserAgent = "Subtext/" + App.Version;
                 req.Headers["Authorization"] = "Bearer " + key;
                 // בלי זה ‎.NET שולח Expect: 100-continue ומחכה לפני שהוא שולח את הקול
                 req.ServicePoint.Expect100Continue = false;

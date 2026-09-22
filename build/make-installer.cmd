@@ -2,7 +2,7 @@
 setlocal
 rem ============================================================
 rem  Subtitle Studio - installer build script
-rem  Wraps dist\SubtitleStudio.exe into a per-user setup EXE.
+rem  Wraps dist\Subtext.exe into a per-user setup EXE.
 rem  Same in-box C# compiler as build.cmd. No SDK, no third
 rem  party installer tooling - the setup is plain WinForms.
 rem  ASCII only: one Hebrew byte here breaks cmd parsing.
@@ -17,11 +17,11 @@ if not exist "%CSC%" (
 )
 
 rem  A running setup locks the output file and csc fails with CS0016.
-taskkill /f /im SubtitleStudio-Setup.exe >nul 2>&1
-taskkill /f /im SubtitleStudio.exe >nul 2>&1
+taskkill /f /im Subtext-Setup.exe >nul 2>&1
+taskkill /f /im Subtext.exe >nul 2>&1
 
-if not exist "dist\SubtitleStudio.exe" (
-  echo [ERROR] dist\SubtitleStudio.exe is missing.
+if not exist "dist\Subtext.exe" (
+  echo [ERROR] dist\Subtext.exe is missing.
   echo         Run build.cmd first - the setup carries that file inside it.
   exit /b 1
 )
@@ -64,10 +64,10 @@ if errorlevel 1 (
 
 echo Compiling setup (embedding the app - takes a few seconds)...
 "%CSC%" /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 ^
-  /out:"dist\SubtitleStudio-Setup.exe" ^
+  /out:"dist\Subtext-Setup.exe" ^
   /win32icon:"build\app.ico" ^
   /win32manifest:"%OUT%\setup.manifest" ^
-  /resource:"dist\SubtitleStudio.exe",SubtitleStudio.exe ^
+  /resource:"dist\Subtext.exe",Subtext.exe ^
   /resource:"%OUT%\uninstall.exe",uninstall.exe ^
   /resource:"%OUT%\version.txt",version.txt ^
   /reference:System.dll ^
@@ -83,12 +83,12 @@ if errorlevel 1 (
 )
 
 for %%F in ("%OUT%\uninstall.exe") do set USIZE=%%~zF
-for %%F in ("dist\SubtitleStudio-Setup.exe") do set SSIZE=%%~zF
+for %%F in ("dist\Subtext-Setup.exe") do set SSIZE=%%~zF
 echo.
-echo Done:  %cd%\dist\SubtitleStudio-Setup.exe   (%SSIZE% bytes)
+echo Done:  %cd%\dist\Subtext-Setup.exe   (%SSIZE% bytes)
 echo        uninstaller %USIZE% bytes (embedded, dropped next to the app)
 echo.
-echo Silent install:    SubtitleStudio-Setup.exe /S
-echo Silent to folder:  SubtitleStudio-Setup.exe /S /D="C:\path\SubtitleStudio"
-echo Uninstall:         SubtitleStudio-Setup.exe /uninstall   (or uninstall.exe in the app folder)
+echo Silent install:    Subtext-Setup.exe /S
+echo Silent to folder:  Subtext-Setup.exe /S /D="C:\path\Subtext"
+echo Uninstall:         Subtext-Setup.exe /uninstall   (or uninstall.exe in the app folder)
 endlocal

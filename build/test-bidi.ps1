@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path $PSScriptRoot -Parent
-$exe = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe = Join-Path $root 'dist\Subtext.exe'
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($exe))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 function T($n) { $asm.GetType("SubtitleStudio.$n") }

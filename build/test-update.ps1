@@ -1,5 +1,5 @@
 ﻿# בודק שמנגנון העדכון מוצא את המהדורה בגיטהאב וקורא אותה נכון
-$exe = "D:\Claude\subtitle-studio\dist\SubtitleStudio.exe"
+$exe = "D:\Claude\subtitle-studio\dist\Subtext.exe"
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($exe))
 $BF = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Public -bor [Reflection.BindingFlags]::Static
 function T($n) { $asm.GetType("SubtitleStudio.$n") }

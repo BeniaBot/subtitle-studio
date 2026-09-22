@@ -671,8 +671,10 @@ namespace SubtitleStudio
         {
             string[] masks = new string[]
             {
-                "SubtitleStudio-Setup-*.exe",   // המתקין שירד בעדכון
-                "SubtitleStudio-*.exe",         // הקובץ הנייד שירד בעדכון
+                "Subtext-Setup-*.exe",          // המתקין שירד בעדכון
+                "Subtext-*.exe",                // הקובץ הנייד שירד בעדכון
+                "SubtitleStudio-Setup-*.exe",   // ומה שנשאר מהשם הישן
+                "SubtitleStudio-*.exe",
                 "substudio-uninstall-*.exe",    // עותק ההסרה שמוחק את עצמו
                 "SubStudio-update-*.cmd"
             };

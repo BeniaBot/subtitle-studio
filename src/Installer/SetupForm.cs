@@ -209,7 +209,7 @@ namespace SubtitleStudioSetup
                     });
                 }
                 int tx = pad, tw2 = w - pad * 2 - Skin.S(34) - Skin.S(14);
-                Skin.Str(g, "אולפן הכתוביות מוכן לשימוש", Skin.Big, Skin.Text,
+                Skin.Str(g, "Subtext מוכן לשימוש", Skin.Big, Skin.Text,
                          new Rectangle(tx, cy - Skin.S(2), tw2, Skin.S(24)), true, false, true);
                 Skin.Str(g, "התוכנה הותקנה אל:", Skin.Small, Skin.TextFaint,
                          new Rectangle(tx, cy + Skin.S(24), tw2, Skin.S(18)), true, false, true);
@@ -225,7 +225,7 @@ namespace SubtitleStudioSetup
         private void Browse()
         {
             FolderBrowserDialog fb = new FolderBrowserDialog();
-            fb.Description = "לאן להתקין את אולפן הכתוביות?";
+            fb.Description = "לאן להתקין את Subtext?";
             fb.ShowNewFolderButton = true;
             try
             {
@@ -240,8 +240,8 @@ namespace SubtitleStudioSetup
                 try
                 {
                     string leaf = Path.GetFileName(d.TrimEnd('\\'));
-                    if (!string.Equals(leaf, "SubtitleStudio", StringComparison.OrdinalIgnoreCase))
-                        d = Path.Combine(d, "SubtitleStudio");
+                    if (!string.Equals(leaf, "Subtext", StringComparison.OrdinalIgnoreCase))
+                        d = Path.Combine(d, "Subtext");
                 }
                 catch { }
                 _path.Text = d;

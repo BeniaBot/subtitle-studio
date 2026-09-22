@@ -12,7 +12,7 @@
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\SubtitleStudio.exe')))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
 $SF = [Reflection.BindingFlags]'NonPublic,Public,Static'
 function T($n) { $asm.GetType("SubtitleStudio.$n") }
 function Pack { $a = New-Object object[] $args.Count; for ($i=0;$i -lt $args.Count;$i++){ $v=$args[$i]; if ($v -ne $null) { $v = $v.psobject.BaseObject }; $a[$i]=$v }; return ,$a }

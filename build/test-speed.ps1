@@ -1,7 +1,7 @@
 ﻿# בדיקת מהירות ניגון בלי ממשק: מפעילים את המנוע ומודדים כמה זמן בסרט עבר בזמן אמיתי קבוע.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe  = Join-Path $root 'dist\Subtext.exe'
 $media = Join-Path $env:TEMP 'ss-gallery\test.mp4'
 if (-not (Test-Path $exe))   { Write-Host 'no exe - run build.cmd first'; exit 1 }
 if (-not (Test-Path $media)) { Write-Host "no media: $media"; exit 1 }

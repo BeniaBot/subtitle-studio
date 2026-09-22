@@ -4,7 +4,7 @@ $scratch = "$env:TEMP\ss-gallery"
 $media = "$scratch\test.mp4"
 $expected = "$scratch\test - עם כתוביות צרובות.mp4"
 Remove-Item $expected -ErrorAction SilentlyContinue
-Get-Process SubtitleStudio -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process Subtext -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 400
 
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
@@ -38,7 +38,7 @@ public class MS{
 "@
 [void][MS]::SetProcessDPIAware()
 
-$p = Start-Process "$root\dist\SubtitleStudio.exe" -ArgumentList $media -PassThru
+$p = Start-Process "$root\dist\Subtext.exe" -ArgumentList $media -PassThru
 Start-Sleep -Seconds 8
 $wins = [MS]::Wins([uint32]$p.Id)
 [MS]::Focus($wins[0])

@@ -10,7 +10,7 @@
 $ErrorActionPreference = 'Continue'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
-$exe = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe = Join-Path $root 'dist\Subtext.exe'
 if (-not (Test-Path $exe)) { Write-Host 'no exe - run build.cmd first'; exit 1 }
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($exe))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'

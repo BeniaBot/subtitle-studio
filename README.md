@@ -1,13 +1,15 @@
 <div align="center">
 
-# אולפן הכתוביות
+# Subtext
+
+### אולפן הכתוביות
 
 **תוכנה חינמית לווינדוס שמוסיפה כתוביות לסרטים.**
 בלי התקנה · בלי אינטרנט · בלי הרשמה · הכול בעברית
 
 ### [⬇ להורדה](../../releases/latest)
 
-<sub>‏`SubtitleStudio.exe` — בלי התקנה · ‏`SubtitleStudio-Setup.exe` — עם קיצור בתפריט התחל</sub>
+<sub>‏`Subtext.exe` — בלי התקנה · ‏`Subtext-Setup.exe` — עם קיצור בתפריט התחל</sub>
 
 
 </div>
@@ -61,7 +63,7 @@
 
 ## איך מתחילים
 
-1. [מורידים את הקובץ](../../releases/latest) — `SubtitleStudio.exe`
+1. [מורידים את הקובץ](../../releases/latest) — `Subtext.exe`
 2. לוחצים עליו פעמיים. אין התקנה.
 3. גוררים סרט לחלון — ומתחילים.
 
@@ -70,8 +72,8 @@
 **דרישות:** ווינדוס 10 או 11, במהדורת 64 סיביות (כל מחשב מהעשור האחרון). שום דבר נוסף — בלי התקנה, בלי ‎.NET, בלי קודקים.
 
 **שתי דרכים להוריד, שתיהן אותה תוכנה:**
-`SubtitleStudio.exe` הוא קובץ בודד שרץ בלי להתקין כלום.
-`SubtitleStudio-Setup.exe` מוסיף קיצור בתפריט התחל ושורה ברשימת התוכנות —
+`Subtext.exe` הוא קובץ בודד שרץ בלי להתקין כלום.
+`Subtext-Setup.exe` מוסיף קיצור בתפריט התחל ושורה ברשימת התוכנות —
 בלי הרשאות מנהל, וההגדרות שורדות הסרה. פרטים: [INSTALL.md](INSTALL.md).
 
 **רוצים שהכול יישב על דיסק‑און‑קי?** שימו לצד הקובץ קובץ ריק בשם `portable.txt`.
@@ -122,7 +124,7 @@ offer.*
 
 Write subtitles against the waveform · fix out‑of‑sync subtitles by pointing at where a line is actually spoken · burn them into the picture (correct Hebrew RTL) or add them as a separate track · open SRT/VTT/ASS/SUB or plain text · translate automatically · trim, adjust volume, denoise, convert, reverse, make a GIF, shrink to a target size. Your original file is never modified.
 
-[**Download**](../../releases/latest) `SubtitleStudio.exe` and run it. Windows 10 or 11.
+[**Download**](../../releases/latest) `Subtext.exe` and run it. Windows 10 or 11.
 
 ---
 

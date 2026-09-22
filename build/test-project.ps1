@@ -17,7 +17,7 @@ $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path $PSScriptRoot -Parent
-$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\SubtitleStudio.exe')))
+$asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 $NP = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 function T($n) { $asm.GetType("SubtitleStudio.$n") }
@@ -413,7 +413,7 @@ Check 'כתיבה רגילה: הקובץ התחלף, ולא נשאר קובץ ז
 # ================= 5. שיוך הסיומת במתקין =================
 # לענף רישום משלנו, לא לשיוכים האמיתיים. דורש את המתקין הבנוי.
 Write-Host 'שיוך .subtext במתקין'
-$setupExe = Join-Path $root 'dist\SubtitleStudio-Setup.exe'
+$setupExe = Join-Path $root 'dist\Subtext-Setup.exe'
 Check 'המתקין בנוי (make-installer.cmd)' (Test-Path $setupExe) $setupExe
 if (Test-Path $setupExe) {
     $sasm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($setupExe))

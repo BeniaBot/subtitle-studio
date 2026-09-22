@@ -119,7 +119,7 @@ function Wordmark($file, $fg, $bg, $tag) {
     $textW = $W - $pad - $mark - 140 - $pad
     $title = New-Object System.Drawing.SolidBrush $fg
     $sub   = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(150, $fg.R, $fg.G, $fg.B))
-    $fT = FitFont $g 'אולפן הכתוביות' $textW 140 ([System.Drawing.FontStyle]::Bold)
+    $fT = FitFont $g 'Subtext' $textW 140 ([System.Drawing.FontStyle]::Bold)
     $fS = $null
     if ($tag -ne '') { $fS = FitFont $g $tag $textW 54 ([System.Drawing.FontStyle]::Regular) }
 
@@ -128,12 +128,12 @@ function Wordmark($file, $fg, $bg, $tag) {
     $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
     $sf.FormatFlags = [System.Drawing.StringFormatFlags]::DirectionRightToLeft
 
-    $hT = $g.MeasureString('אולפן הכתוביות', $fT).Height
+    $hT = $g.MeasureString('Subtext', $fT).Height
     $hS = 0; $gap = 0
     if ($fS) { $hS = $g.MeasureString($tag, $fS).Height; $gap = 14 }
     $top = ($H - ($hT + $gap + $hS)) / 2
 
-    $g.DrawString('אולפן הכתוביות', $fT, $title,
+    $g.DrawString('Subtext', $fT, $title,
         (New-Object System.Drawing.RectangleF $pad, $top, $textW, $hT), $sf)
     if ($fS) {
         $g.DrawString($tag, $fS, $sub,
@@ -159,12 +159,12 @@ $b = NewCanvas 1200 1200
 $g = [System.Drawing.Graphics]::FromImage($b); Prep $g
 $g.Clear([System.Drawing.Color]::FromArgb(0xF7, 0xF8, 0xFA))
 DrawMark $g 240 200 720
-$fT = FitFont $g 'אולפן הכתוביות' 1020 100 ([System.Drawing.FontStyle]::Bold)
+$fT = FitFont $g 'Subtext' 1020 100 ([System.Drawing.FontStyle]::Bold)
 $br = New-Object System.Drawing.SolidBrush $Ink
 $sf = New-Object System.Drawing.StringFormat
 $sf.Alignment = [System.Drawing.StringAlignment]::Center
 $sf.FormatFlags = [System.Drawing.StringFormatFlags]::DirectionRightToLeft
-$g.DrawString('אולפן הכתוביות', $fT, $br, (New-Object System.Drawing.RectangleF 60, 980, 1080, 140), $sf)
+$g.DrawString('Subtext', $fT, $br, (New-Object System.Drawing.RectangleF 60, 980, 1080, 140), $sf)
 $fT.Dispose(); $br.Dispose(); $g.Dispose()
 $b.Save((Join-Path $Out 'logo-square.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $b.Dispose()

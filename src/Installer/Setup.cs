@@ -188,6 +188,13 @@ namespace SubtitleStudioSetup
                 P(0.86, "מתקין…");
                 long usize = Extract(Prod.UninstallExe, Path.Combine(Dir, Prod.UninstallExe), 0.86, 0.90);
 
+                // **שאריות השם הישן (0.7.x).** עדכון של עותק מותקן מתקין לאותה
+                // תיקייה, ובלי זה היו נשארים שני קובצי הרצה ושני קיצורים - אחד
+                // מהם מצביע על קובץ שכבר לא מתעדכן.
+                RemoveLegacy(Path.Combine(Dir, "SubtitleStudio.exe"));
+                RemoveLegacy(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "אולפן הכתוביות.lnk"));
+                RemoveLegacy(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "אולפן הכתוביות.lnk"));
+
                 P(0.92, "יוצר קיצורי דרך…");
                 ShortcutStart = Shortcuts.Create(Prod.StartMenuLink, exe, Dir,
                                                  Prod.Name + " - " + Prod.NameEn, exe);
@@ -235,6 +242,17 @@ namespace SubtitleStudioSetup
                 }
                 return total;
             }
+        }
+
+        /// <summary>מוחק שארית מהשם הישן. כישלון כאן לא מפיל את ההתקנה -
+        /// במקרה הגרוע נשאר קובץ מיותר, וזה לא שווה הודעת שגיאה למשתמש.</summary>
+        private static void RemoveLegacy(string path)
+        {
+            try
+            {
+                if (File.Exists(path)) { File.Delete(path); Log.W("legacy removed: " + path); }
+            }
+            catch (Exception ex) { Log.W("legacy stays: " + path + " - " + ex.Message); }
         }
 
         /// <summary>מעביר את הקובץ החדש למקומו. אם התוכנה פתוחה - מחכה,

@@ -635,7 +635,7 @@ namespace SubtitleStudio
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
                 req.Method = "POST";
                 req.ContentType = "application/json; charset=utf-8";
-                req.UserAgent = "SubtitleStudio/" + App.Version;
+                req.UserAgent = "Subtext/" + App.Version;
                 req.Timeout = 180000;
                 req.ReadWriteTimeout = 180000;
                 byte[] data = Encoding.UTF8.GetBytes(json);

@@ -1,7 +1,7 @@
 ﻿# בדיקות לוגיקה ללא ממשק: טוען את ה-EXE כאסמבלי ומריץ את מנועי הזמן, הפורמטים והחישובים.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = Join-Path $root 'dist\SubtitleStudio.exe'
+$exe  = Join-Path $root 'dist\Subtext.exe'
 if (-not (Test-Path $exe)) { Write-Host 'no exe - run build.cmd first'; exit 1 }
 
 $bytes = [System.IO.File]::ReadAllBytes($exe)
@@ -398,6 +398,18 @@ Eq 'undo on 3000 cues' (Cues $bigDoc)[0].Start $before
 
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 Write-Host ''
+
+# ---------- זהות הקובץ ----------
+# מה שווינדוס מציג במנהל המשימות ובמאפייני הקובץ. הגרסה כתובה פעמיים
+# (‏App.Version ו-AssemblyVersion) כי csc לא קורא קבוע מקוד אחר, ואם היא
+# תפגר, הקובץ יצהיר על גרסה ישנה בלי שאף אחד ישים לב.
+Write-Host 'זהות הקובץ'
+$appV = (& $T 'App').GetField('Version').GetValue($null)
+$title = $asm.GetCustomAttributes([Reflection.AssemblyTitleAttribute], $false)[0].Title
+$prod = $asm.GetCustomAttributes([Reflection.AssemblyProductAttribute], $false)[0].Product
+$asmV = $asm.GetName().Version
+Check 'שם התוכנה בקובץ עצמו: Subtext' ($title -eq 'Subtext' -and $prod -eq 'Subtext') "$title / $prod"
+Check 'AssemblyVersion תואם ל-App.Version' ("$($asmV.Major).$($asmV.Minor).$($asmV.Build)" -eq $appV) ("$asmV מול $appV")
 
 # ---------- רישיונות מוטמעים ----------
 # GPLv3 דורש שנוסח הרישיון ילווה את הבינארי. אם מישהו ימחק שורת /resource
