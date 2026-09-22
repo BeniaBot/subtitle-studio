@@ -67,6 +67,16 @@ namespace SubtitleStudio
             t.Add(new AiTool("find_problems", "בדיקת שגיאות: חפיפות, קצב קריאה מהיר מדי, כתוביות קצרות או ארוכות מדי, שורות ארוכות, יותר משתי שורות וכתוביות ריקות. מחזיר כמה מכל סוג, ואת 20 הראשונות עם מספר והסבר"));
             t.Add(new AiTool("fix_timings", "תיקון אוטומטי של מה שבטוח לתקן: חפיפות, כתוביות קצרות ומהירות מדי (מאריך לתוך המקום הפנוי), שורות ארוכות (מסדר בשתי שורות) וכתוביות ריקות. אחר כך אומר מה נשאר לתקן ביד"));
 
+            // **איות (0.8.0).** ‏find_problems כבר מדווח על מילים חשודות, אבל לא
+            // נתן דרך לתקן: ההחלפה חייבת להיות על מילה שלמה, ובכתובית אחת.
+            t.Add(new AiTool("check_spelling", "מוצא מילים שאולי כתובות לא נכון, ומחזיר לכל אחת הצעות תיקון. עובד רק אם המילון מותקן"));
+            t.Add(new AiTool("fix_spelling", "מחליף מילה אחת בכתובית אחת, רק כמילה שלמה. לתיקון שגיאת כתיב שהמשתמש אישר")
+                .Req("index", "integer", "מספר הכתובית, כמו שמוצג ברשימה")
+                .Req("word", "string", "המילה כמו שהיא כתובה עכשיו")
+                .Req("replacement", "string", "המילה הנכונה"));
+            t.Add(new AiTool("add_word_to_dictionary", "מוסיף מילה למילון האישי. מעכשיו היא תיחשב נכונה בכל הכתוביות. **רק כשהמשתמש אומר שהמילה תקינה**")
+                .Req("word", "string", "המילה"));
+
             t.Add(new AiTool("translate_subtitles", "מתרגם את כל הכתוביות ומחליף אותן במקום")
                 .Req("target_language", "string", "שם השפה בעברית, למשל: אנגלית")
                 .P("context", "string", "רקע קצר על התוכן, לשיפור התרגום"));
@@ -234,6 +244,9 @@ namespace SubtitleStudio
                     case "shift_cues": return AiShift(call);
                     case "fix_timings": return AiFixTimings();
                     case "find_problems": return AiFindProblems();
+                    case "check_spelling": return AiCheckSpelling();
+                    case "fix_spelling": return AiFixSpelling(call);
+                    case "add_word_to_dictionary": return AiAddWord(call);
                     case "translate_subtitles": return AiDoTranslate(call, out refused);
                     case "set_style": return AiSetStyle(call);
                     case "seek": return AiSeek(call);
@@ -417,6 +430,70 @@ namespace SubtitleStudio
             AiRefresh();
             r["done"] = Qa.Summary(res);
             r["problems_left"] = res.Left.Count;
+            return r;
+        }
+
+        private Dictionary<string, object> AiCheckSpelling()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = "אין כתוביות"; return r; }
+            if (!Spell.Enabled) { r["done"] = "בדיקת האיות כבויה. אפשר להדליק אותה בהגדרות."; return r; }
+            if (!Spell.Installed) { r["done"] = "המילון עוד לא הורד. בהגדרות יש כפתור להורדה (1.2 MB, פעם אחת)."; return r; }
+            if (!Spell.Ready) { Spell.LoadNow(); }
+            List<object> found = new List<object>();
+            int total = 0;
+            for (int i = 0; i < _doc.Cues.Count; i++)
+            {
+                List<string> bad = Spell.Misspelled(_doc.Cues[i].Text);
+                if (bad.Count == 0) continue;
+                total += bad.Count;
+                if (found.Count >= 30) continue;
+                foreach (string w in bad)
+                {
+                    Dictionary<string, object> o = new Dictionary<string, object>();
+                    o["index"] = i + 1;
+                    o["word"] = w;
+                    o["suggestions"] = Spell.Suggest(w, 3);
+                    o["text"] = _doc.Cues[i].PlainText;
+                    found.Add(o);
+                    if (found.Count >= 30) break;
+                }
+            }
+            r["total"] = total;
+            r["words"] = found;
+            if (total == 0) r["done"] = "לא נמצאו מילים חשודות";
+            return r;
+        }
+
+        private Dictionary<string, object> AiFixSpelling(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            int idx = (int)c.Num("index", 0) - 1;
+            if (_doc == null || idx < 0 || idx >= _doc.Cues.Count) { r["error"] = "אין כתובית במספר הזה"; return r; }
+            string word = c.Str("word", "").Trim();
+            string with = c.Str("replacement", "").Trim();
+            if (word.Length == 0 || with.Length == 0) { r["error"] = "חסרה המילה או התיקון"; return r; }
+            Cue q = _doc.Cues[idx];
+            string after = Spell.ReplaceWord(q.Text, word, with);
+            if (after == q.Text) { r["error"] = "המילה ״" + word + "״ לא נמצאה בכתובית " + (idx + 1); return r; }
+            _doc.Push("תיקון כתיב");
+            q.Text = after;
+            _doc.Dirty = true;
+            AiRefresh();
+            r["done"] = "״" + word + "״ הוחלפה ב״" + with + "״";
+            r["text"] = q.PlainText;
+            return r;
+        }
+
+        private Dictionary<string, object> AiAddWord(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string word = c.Str("word", "").Trim();
+            if (word.Length == 0) { r["error"] = "לא צוינה מילה"; return r; }
+            if (!Spell.Ready) { r["error"] = "המילון לא טעון"; return r; }
+            Spell.AddWord(word);
+            AiRefresh();
+            r["done"] = "״" + word + "״ נוספה למילון האישי, ולא תסומן יותר";
             return r;
         }
 

@@ -7,7 +7,7 @@
 # **לא נוגעים ב-%TEMP%\ss-test-dict**, התיקייה שמצב הבדיקה של התוכנה משתמש בה.
 # מילון שנשאר שם היה נטען ברקע בכל בדיקת ממשק אחרת, ומוסיף ״בעיות״ באמצע מדידה.
 # כאן הכול דרך Spell.FolderOverride לתיקיות זמניות.
-# צפוי: 54 בדיקות.
+# צפוי: 59 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -284,6 +284,31 @@ Check 'ואחרי טעינה מחדש עדיין נכונה' (@($spT.GetMethod('
 
 $doc.Cues.Add((NewCue 8000 11000 'עוד שגיאה בתוספוט'))
 [void](Call 'SyncAfterDocChange' @()); [void](Call 'RefreshQa' (Pack $true))
+
+# ---- הכלים של העוזר (0.8.0) ----
+# ‏find_problems כבר דיווח על מילים חשודות, אבל לא הייתה דרך לתקן אותן מהצ׳אט.
+$callT = T 'AiCall'
+function AiCall($name, $argv) {
+    $c = [Activator]::CreateInstance($callT)
+    $c.Name = $name
+    foreach ($k in $argv.Keys) { $c.Args[$k] = $argv[$k] }
+    return $c
+}
+$cs = $formT.GetMethod('AiCheckSpelling', $IF).Invoke($f, @())
+$w0 = @($cs['words'])[0]
+$badIdx = [int]$w0['index']
+# המילה חוזרת כמו שהיא בטקסט, עם אות השימוש: ״בתוספוט״, לא ״תוספוט״
+Check 'בצ׳אט check_spelling: המילה, מספר הכתובית והצעות' ($cs['total'] -eq 1 -and $w0['word'] -eq 'בתוספוט' -and $doc.Cues[$badIdx - 1].Text.Contains('בתוספוט') -and @($w0['suggestions']).Count -gt 0) ("שורה " + $badIdx + ": " + $w0['word'] + " -> " + (@($w0['suggestions']) -join '/'))
+$bad = $formT.GetMethod('AiFixSpelling', $IF).Invoke($f, (Pack (AiCall 'fix_spelling' @{ index = $badIdx; word = 'אין-כזו'; replacement = 'משהו' })))
+Check 'fix_spelling על מילה שאינה שם: שגיאה, בלי לגעת בטקסט' ($bad.ContainsKey('error') -and $doc.Cues[$badIdx - 1].Text.Contains('בתוספוט')) ([string]$bad['error'])
+$wrong = $formT.GetMethod('AiFixSpelling', $IF).Invoke($f, (Pack (AiCall 'fix_spelling' @{ index = 1; word = 'בתוספוט'; replacement = 'בתוספות' })))
+Check 'ועל כתובית אחרת: שגיאה, ולא תיקון בכתובית הלא נכונה' ($wrong.ContainsKey('error') -and $doc.Cues[$badIdx - 1].Text.Contains('בתוספוט')) ([string]$wrong['error'])
+$fix = $formT.GetMethod('AiFixSpelling', $IF).Invoke($f, (Pack (AiCall 'fix_spelling' @{ index = $badIdx; word = 'בתוספוט'; replacement = 'בתוספות' })))
+Check 'fix_spelling מתקן את הכתובית שצוינה, וניתן לביטול' ($doc.Cues[$badIdx - 1].Text -eq 'עוד שגיאה בתוספות' -and $doc.CanUndo) $doc.Cues[$badIdx - 1].Text
+$doc.Undo(); [void](Call 'SyncAfterDocChange' @())
+$add = $formT.GetMethod('AiAddWord', $IF).Invoke($f, (Pack (AiCall 'add_word_to_dictionary' @{ word = 'בתוספוט' })))
+Check 'add_word_to_dictionary: המילה כבר לא נחשבת שגויה' (@($spT.GetMethod('Misspelled', $SF).Invoke($null, (Pack 'בתוספוט'))).Count -eq 0) ([string]$add['done'])
+
 [void](Call 'TurnSpellOff' @())
 $sp = @(@($qaT.GetMethod('Find', $SF).Invoke($null, (Pack $doc))) | Where-Object { [string]$_.Kind -eq 'Spelling' })
 Check 'לכבות: אין יותר בעיות איות, והמילון משתחרר מהזיכרון' ($sp.Count -eq 0 -and -not [bool]$spT.GetProperty('Ready', $SF).GetValue($null, $null)) ''

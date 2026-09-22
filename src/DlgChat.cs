@@ -416,6 +416,8 @@ namespace SubtitleStudio
             sb.Append("· ״מה לא בסדר בכתוביות?״ או ״תבדוק שהכול תקין״ - find_problems, ואז fix_timings למה שאפשר לתקן לבד. ");
             sb.Append("מה ש-fix_timings לא תיקן (למשל כתובית ארוכה מכדי להיכנס בשתי שורות) - הסבר בקצרה מה צריך לעשות בה ביד\n");
             sb.Append("· חיפוש והחלפה, פיצול, איחוד, סידור שורות - replace_text / split_cue / merge_cues / wrap_lines\n");
+            sb.Append("· ״יש שגיאות כתיב?״ - check_spelling. **לא לתקן לבד:** הצג את המילים החשודות עם ההצעות, ותקן ");
+            sb.Append("עם fix_spelling רק מה שהמשתמש אישר. מילה שהוא אומר שהיא תקינה (שם, מונח) - add_word_to_dictionary\n");
             sb.Append("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n");
             sb.Append("· לחתוך קטע, לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");
 
