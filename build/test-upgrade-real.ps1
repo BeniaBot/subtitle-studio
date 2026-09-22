@@ -143,7 +143,11 @@ try {
         Start-Sleep -Milliseconds 700
         $p.Refresh()
         if ($p.HasExited) { break }
-        $tf = Get-ChildItem (Join-Path $env:TEMP 'Subtext-*.exe') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+        # **שני הדפוסים.** הגרסה שמורידה היא הישנה, והיא שומרת בשם שלה:
+        # עד 0.7.3 ‏SubtitleStudio-<גרסה>.exe, ומ-0.8.0 ‏Subtext-<גרסה>.exe.
+        # כשהדפוס לא תאם, ״הקובץ לא גדל״ עצר את ההמתנה אחרי דקה והבדיקה
+        # הכריזה על כישלון בזמן שההורדה עוד רצה.
+        $tf = Get-ChildItem (Join-Path $env:TEMP 'Subtext-*.exe'), (Join-Path $env:TEMP 'SubtitleStudio-*.exe') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
         $bytes = if ($tf) { $tf.Length } else { -1 }
         if ($bytes -ne $lastSize) { $lastSize = $bytes; $lastGrow = $sw.Elapsed.TotalSeconds }
         if ($sw.Elapsed.TotalSeconds - $lastLog -ge 6) {
