@@ -60,7 +60,7 @@ namespace SubtitleStudio
         {
             Result res = new Result();
             res.ProviderName = provider.Name;
-            if (!provider.HasKey) { res.Error = "לא הוגדר מפתח ל-" + provider.Name + "."; return res; }
+            if (!provider.HasKey) { res.Error = Theme.Pfx("לא הוגדר מפתח ל", provider.Name) + "."; return res; }
             if (!Ff.Available) { res.Error = "מנוע הווידאו לא זמין."; return res; }
             if (durationMs <= 0) { res.Error = "לא הצלחתי לקרוא את אורך הקובץ."; return res; }
 

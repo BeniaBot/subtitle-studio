@@ -116,11 +116,11 @@ namespace SubtitleStudio
 
             _connect.Text = p.HasKey
                 ? "החלפת המפתח של " + p.Name
-                : "חיבור ל-" + p.Name + " - מפתח חינמי, פעם אחת";
+                : Theme.Pfx("חיבור ל", p.Name) + " - מפתח חינמי, פעם אחת";
             _connect.Kind = p.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
             _connect.Invalidate();
 
-            _warn.Text = "הקול מהסרט יישלח ל-" + p.Name + ".";
+            _warn.Text = Theme.Pfx("הקול מהסרט יישלח ל", p.Name) + ".";
             _warn.Invalidate();
 
             if (_mi != null)

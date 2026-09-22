@@ -130,7 +130,7 @@ namespace SubtitleStudio
             _retry = 0;
             _daily = false;
             if (audio == null || audio.Length == 0) { error = "אין שמע לתמלל."; return null; }
-            if (!HasKey) { error = "לא הוגדר מפתח ל-" + DisplayName + "."; return null; }
+            if (!HasKey) { error = Theme.Pfx("לא הוגדר מפתח ל", DisplayName) + "."; return null; }
 
             string boundary = "----SubStudio" + Guid.NewGuid().ToString("N");
             byte[] body = Multipart(boundary, audio, mime, context);

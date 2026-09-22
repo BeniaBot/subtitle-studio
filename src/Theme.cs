@@ -310,6 +310,18 @@ namespace SubtitleStudio
             return g.MeasureString(s, f, 10000, StringFormat.GenericTypographic);
         }
 
+        /// <summary>אות שימוש לפני שם: ‏<c>Pfx("ל", "גוגל")</c> ← ״לגוגל״, ו-<c>Pfx("ל", "Groq")</c>
+        /// ← ״ל-Groq״. המקף נכון רק לפני מילה לועזית.
+        ///
+        /// **עד 0.8.0 היה מקף תמיד**, ובחלון התמלול נכתב ״הקול מהסרט יישלח ל-גוגל״.</summary>
+        public static string Pfx(string letter, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return letter;
+            return letter + (IsHebrew(name[0]) ? "" : "-") + name;
+        }
+
+        public static bool IsHebrew(char c) { return c >= 'א' && c <= 'ת'; }
+
         /// <summary>עוטף מחרוזת טכנית (נתיב, זמן, רזולוציה) כדי שתוצג משמאל לימין בתוך טקסט עברי.</summary>
         public static string Ltr(string s)
         {
