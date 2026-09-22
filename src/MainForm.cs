@@ -403,11 +403,9 @@ namespace SubtitleStudio
                 delegate { AiTranslate(); });
             trAi.Enabled = cues;
             items.Add(trAi);
-            // נשאר גם כאן, למרות שיש חלון הגדרות: מי שנתקל ב״צריך
-            // מפתח״ בזמן תרגום מחפש אותו במקום שבו הוא עומד.
-            MenuItem aiSet = MenuItem.Make("הגדרות ה-AI", "המפתח החינמי מגוגל - הזנה ובדיקה", Ico.Key,
-                delegate { AiSettings(); });
-            items.Add(aiSet);
+            // **״הגדרות ה-AI״ ירד מכאן ב-0.8.0.** שני המפתחות יושבים עכשיו בחלון
+            // ההגדרות, ומי שמנסה לתרגם בלי מפתח מקבל את מסך ההזנה בעצמו
+            // (`EnsureAiKey`). פריט בתפריט שמוביל לאותו מקום הוא עוד שורה לקרוא.
             MenuItem tr1 = MenuItem.Make("ייצוא הטקסט לתרגום", "יוצר קובץ טקסט ממוספר, בלי לגעת בתזמונים", Ico.Translate,
                 delegate { ExportForTranslation(); });
             tr1.Enabled = cues;
@@ -1018,11 +1016,6 @@ namespace SubtitleStudio
             return Ai.HasKey;
         }
 
-        private void AiSettings()
-        {
-            AiSetupDlg d = new AiSetupDlg();
-            d.ShowDialog(this);
-        }
 
         /// <summary>תרגום כל הכתוביות בכמה קליקים.</summary>
         private void AiTranslate()

@@ -137,6 +137,43 @@ namespace SubtitleStudio
             Interlocked.Increment(ref _generation);
         }
 
+        /// <summary>כמה המילון תופס בדיסק, או 0. מוצג בהגדרות תחת ״אחסון״.</summary>
+        public static long SizeOnDisk
+        {
+            get
+            {
+                long n = 0;
+                try
+                {
+                    if (!Directory.Exists(Folder)) return 0;
+                    foreach (string f in Directory.GetFiles(Folder))
+                        try { n += new FileInfo(f).Length; }
+                        catch { }
+                }
+                catch { }
+                return n;
+            }
+        }
+
+        /// <summary>מוחק את המילון מהדיסק ומשחרר אותו מהזיכרון. הוא מטמון - אפשר
+        /// להוריד אותו שוב. **המילון האישי של המשתמש לא נמחק**, הוא יושב ליד ההגדרות.</summary>
+        public static bool Remove(out string error)
+        {
+            error = null;
+            Unload();
+            try
+            {
+                if (Directory.Exists(Folder)) Directory.Delete(Folder, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ErrorText.Of(ex);
+                Ai.Log("מחיקת המילון נכשלה: " + ex.Message);
+                return false;
+            }
+        }
+
         internal static IEnumerable<string> TorahWords()
         {
             List<string> r = new List<string>();

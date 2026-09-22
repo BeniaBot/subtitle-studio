@@ -279,8 +279,12 @@ namespace SubtitleStudio
             int left = Pad;
             foreach (Control c in _bottom) left = Math.Max(left, c.Right + Theme.S(10));
             int w;
+            // **באותו מנוע שמצייר** (TextRenderer). ‏GDI+ בולע רווחים בעברית ומחזיר
+            // מדידה קטנה מדי: ״איפוס הגדרות״ יצא 86 במקום 103, והטקסט נחתך ב-״...״.
             using (Graphics g = CreateGraphics())
-                w = (int)Theme.Measure(g, text, Theme.Ui).Width + Theme.S(58);
+                w = TextRenderer.MeasureText(g, text, Theme.Ui, new Size(int.MaxValue, int.MaxValue),
+                                             TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width +
+                    b.IconSize + Theme.S(42);
             int room = _baseW - Pad - left;
             if (w > room) w = Math.Max(Theme.S(90), room);
             b.SetBounds(left, _bottom.Count > 0 ? _bottom[0].Top : Y, w, Theme.S(42));

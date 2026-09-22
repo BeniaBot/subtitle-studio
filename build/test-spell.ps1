@@ -7,7 +7,7 @@
 # **לא נוגעים ב-%TEMP%\ss-test-dict**, התיקייה שמצב הבדיקה של התוכנה משתמש בה.
 # מילון שנשאר שם היה נטען ברקע בכל בדיקת ממשק אחרת, ומוסיף ״בעיות״ באמצע מדידה.
 # כאן הכול דרך Spell.FolderOverride לתיקיות זמניות.
-# צפוי: 47 בדיקות.
+# צפוי: 54 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -299,6 +299,56 @@ $f.Close(); $f.Dispose(); [Windows.Forms.Application]::DoEvents()
 $dlg = [Activator]::CreateInstance((T 'SpellSetupDlg'), $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @(), $null)
 Check 'חלון ההורדה נבנה, ואומר כמה יורד ושאחרי זה בלי אינטרנט' ($dlg -ne $null) ''
 $dlg.Dispose()
+
+# ---- חלון ההגדרות (0.8.0) ----
+# עד 0.8.0 הוא אמר ״לא הוגדר מפתח - התרגום, התמלול והעוזר כבויים״ (לא נכון מאז
+# 0.7.2), ולא היו בו המפתח של Groq, בדיקת האיות, ולא מה התוכנה שמה על הדיסק.
+$setT = T 'SettingsDlg'
+$aiT = T 'Ai'; $sttT = T 'Stt'
+$oldKey = $aiT.GetField('Key', $SF).GetValue($null); $oldGroq = $sttT.GetField('GroqKey', $SF).GetValue($null)
+function SetText($dlg, $field) { return [string]($setT.GetField($field, $IF).GetValue($dlg)).Sub }
+$aiT.GetField('Key', $SF).SetValue($null, ''); $sttT.GetField('GroqKey', $SF).SetValue($null, '')
+$spT.GetField('FolderOverride', $SF).SetValue($null, [string]$dict)
+$spT.GetField('Enabled', $SF).SetValue($null, $true)
+# **המשתנה כאן לא נקרא ‎$sf‎:** ב-PowerShell משתנים לא רגישים לרישיות, והוא היה
+# דורס את ‎$SF‎ (דגלי ה-reflection). הבדיקה נפלה שתי שורות אחר כך עם
+# ״Cannot find an overload for GetMethod״, שלא רומז על שום דבר.
+$setDlg = [Activator]::CreateInstance($setT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($null), $null)
+Check 'הגדרות: בלי מפתחות - שני השירותים מסומנים ״לא מוגדר״' ((SetText $setDlg '_google').Contains('לא מוגדר') -and (SetText $setDlg '_groq').Contains('לא מוגדר')) ((SetText $setDlg '_google') + ' | ' + (SetText $setDlg '_groq'))
+$dictLine = [string]($setT.GetField('_dictLine', $IF).GetValue($setDlg)).Text
+$engLine = [string]($setT.GetField('_engineLine', $IF).GetValue($setDlg)).Text
+Check 'הגדרות: ״אחסון״ אומר כמה תופסים המנוע והמילון' ($dictLine.Contains('מילון האיות') -and $dictLine -match '\d' -and $engLine.Contains('מנוע הווידאו')) ($engLine + ' | ' + $dictLine)
+$setDlg.Dispose()
+$sttT.GetField('GroqKey', $SF).SetValue($null, 'gsk_test')
+$aiT.GetField('Key', $SF).SetValue($null, 'AIza_test')
+$setDlg = [Activator]::CreateInstance($setT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($null), $null)
+Check 'הגדרות: עם מפתחות - ״מוגדר״, ובלי לחשוף את המפתח עצמו' ((SetText $setDlg '_google').StartsWith('מוגדר') -and (SetText $setDlg '_groq').StartsWith('מוגדר') -and -not (SetText $setDlg '_groq').Contains('gsk_test')) ((SetText $setDlg '_google') + ' | ' + (SetText $setDlg '_groq'))
+# המתג מכבה ומדליק את הבדיקה, ומשחרר את המילון מהזיכרון
+[void]$spT.GetMethod('LoadNow', $SF).Invoke($null, @())
+$tog = $setT.GetField('_spellOn', $IF).GetValue($setDlg)
+$tog.Checked = $false
+Check 'הגדרות: המתג מכבה את בדיקת האיות ומשחרר את המילון' ((-not [bool]$spT.GetField('Enabled', $SF).GetValue($null)) -and (-not [bool]$spT.GetProperty('Ready', $SF).GetValue($null, $null))) ''
+$tog.Checked = $true
+Check 'והדלקה מחזירה אותה' ([bool]$spT.GetField('Enabled', $SF).GetValue($null)) ''
+$setDlg.Dispose()
+$aiT.GetField('Key', $SF).SetValue($null, $oldKey); $sttT.GetField('GroqKey', $SF).SetValue($null, $oldGroq)
+
+# מחיקת המילון: יורד מהדיסק, משתחרר מהזיכרון, והמילון האישי לא נמחק
+$delDir = Join-Path $work 'to-delete'
+New-Item -ItemType Directory $delDir | Out-Null
+Copy-Item (Join-Path $dict 'he_IL.aff') $delDir; Copy-Item (Join-Path $dict 'he_IL.dic') $delDir
+$spT.GetField('FolderOverride', $SF).SetValue($null, [string]$delDir)
+$words = Join-Path $work 'my-words.txt'
+[IO.File]::WriteAllText($words, "מילהשלי`r`n", (New-Object Text.UTF8Encoding $false))
+$spT.GetField('UserFileOverride', $SF).SetValue($null, [string]$words)
+[void]$spT.GetMethod('LoadNow', $SF).Invoke($null, @())
+$sizeBefore = [long]$spT.GetProperty('SizeOnDisk', $SF).GetValue($null, $null)
+$a = New-Object object[] 1
+$okDel = $spT.GetMethod('Remove', $SF).Invoke($null, $a)
+Check 'מחיקת המילון: נמחק מהדיסק, ומשתחרר מהזיכרון' ($okDel -and $sizeBefore -gt 1000000 -and -not (Test-Path $delDir) -and -not [bool]$spT.GetProperty('Ready', $SF).GetValue($null, $null)) ("היה " + $sizeBefore)
+Check 'והמילון האישי של המשתמש נשאר' ((Test-Path $words) -and ([IO.File]::ReadAllText($words)).Contains('מילהשלי')) ''
+$spT.GetField('UserFileOverride', $SF).SetValue($null, $null)
+$spT.GetField('FolderOverride', $SF).SetValue($null, [string]$dict)
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ''

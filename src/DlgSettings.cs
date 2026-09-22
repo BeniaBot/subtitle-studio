@@ -12,15 +12,31 @@ namespace SubtitleStudio
     /// תפריט ״כתוביות״, והערכה הוחלפה בכפתור בסרגל. מי שחיפש הגדרה לא
     /// ידע לאן ללכת, כי בכל תוכנה אחרת יש גלגל שיניים אחד.
     ///
+    /// **מה השתנה ב-0.8.0** (הסקירה, `docs/REVIEW-0.8.md`):
+    /// - החלון סיפר סיפור ישן: ״לא הוגדר מפתח - התרגום, התמלול והעוזר
+    ///   כבויים״. מאז 0.7.2 התמלול עובד גם דרך Groq, בלי המפתח של גוגל.
+    /// - **שני המפתחות יושבים כאן עכשיו.** קודם המפתח של Groq היה מגיע רק
+    ///   דרך חלון התמלול, ומי שחיפש אותו בהגדרות לא מצא כלום.
+    /// - **בדיקת האיות** הייתה רק בתפריטים.
+    /// - **״אחסון״:** מה התוכנה שמה על הדיסק (מנוע ~100MB, מילון ~8MB),
+    ///   כמה, ומחיקה. זה המידע היחיד שהמשתמש לא יכול לנחש, והוא מסביר
+    ///   למה כונן C התמלא.
+    /// - האיפוס ירד לשורת הכפתורים, כדי לפנות גובה.
+    ///
+    /// **הגובה חייב להישאר מתחת ל-693** (מסך 1080p ב-150%), וגם אחרי
+    /// שיתווסף בורר השפה של 0.8.1. הוא מתוכנן לשבת בשורת ״מראה״, ליד מצב
+    /// כהה, ולא בשורה משלו. ‏`test-screens` שומר על זה.
+    ///
     /// ״על התוכנה״ נשאר מה שהוא בכל מקום אחר: מי אנחנו, איזו גרסה, ואיזה
     /// רישיון - בלי מתגים.</summary>
     internal class SettingsDlg : Dlg
     {
         private readonly MainForm _main;
-        private Toggle _dark, _auto;
-        private Lbl _keyState, _engineState;
+        private Toggle _dark, _auto, _spellOn;
+        private Btn _google, _groq, _getDict, _delEngine, _delDict;
+        private Lbl _spellLine, _engineLine, _dictLine;
 
-        public SettingsDlg(MainForm main) : base("הגדרות", Ico.Gear, 560)
+        public SettingsDlg(MainForm main) : base("הגדרות", Ico.Gear, 580)
         {
             _main = main;
             Subtitle = "נשמר מיד, ונזכר בפעם הבאה";
@@ -36,8 +52,51 @@ namespace SubtitleStudio
                 if (_main != null) _main.ToggleTheme();
                 else { Theme.Dark = _dark.Checked; Settings.SaveAll(); }
             };
-            Row(_dark, 30, 4);
-            Row(Hint("אפשר להחליף גם בכפתור השמש/הירח בסרגל העליון."), 20, 16);
+            Row(_dark, 30, 16);
+
+            // ---------- שירותים באינטרנט ----------
+            Section("שירותים באינטרנט");
+            _google = Card("המפתח של גוגל", Ico.Key);
+            _google.Click += delegate
+            {
+                AiSetupDlg d = new AiSetupDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+                Refresh2();
+            };
+            Row(_google, 52, 6);
+
+            _groq = Card("המפתח של " + Theme.Ltr("Groq"), Ico.Mic);
+            _groq.Click += delegate
+            {
+                GroqSetupDlg d = new GroqSetupDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+                Refresh2();
+            };
+            Row(_groq, 52, 14);
+
+            // ---------- בדיקת איות ----------
+            Section("בדיקת איות");
+            _spellOn = new Toggle();
+            _spellOn.Text = "לסמן מילים שאולי כתובות לא נכון";
+            _spellOn.Checked = Spell.Enabled;
+            _spellOn.CheckedChanged += delegate { SpellSwitch(); };
+            Row(_spellOn, 30, 4);
+
+            _spellLine = Hint("");
+            Row(_spellLine, 22, 6);
+
+            _getDict = Small("להוריד את המילון (" + Theme.Ltr("1.2 MB") + ", פעם אחת)", Ico.Download);
+            _getDict.Click += delegate
+            {
+                SpellSetupDlg d = new SpellSetupDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+                _spellOn.Checked = Spell.Enabled;
+                Refresh2();
+            };
+            Row(_getDict, 30, 14);
 
             // ---------- עדכונים ----------
             Section("עדכונים");
@@ -47,54 +106,53 @@ namespace SubtitleStudio
             _auto.CheckedChanged += delegate { Settings.AutoUpdate = _auto.Checked; Settings.SaveAll(); };
             Row(_auto, 30, 4);
 
-            Lbl when = Hint(string.IsNullOrEmpty(Settings.LastCheck)
-                ? "הבדיקה מהירה ולא שולחת שום מידע - רק שואלת אם יש גרסה חדשה."
-                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck) + "   ·   הבדיקה לא שולחת שום מידע.");
-            Row(when, 20, 6);
-
-            Btn check = Small("בדיקת עדכונים עכשיו", Ico.Download);
+            Btn check = Card("בדיקת עדכונים עכשיו", Ico.Download);
+            check.Sub = string.IsNullOrEmpty(Settings.LastCheck)
+                ? "הבדיקה לא שולחת שום מידע - רק שואלת אם יש גרסה חדשה"
+                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck) + " · לא נשלח שום מידע";
             check.Click += delegate
             {
                 AboutDlg d = new AboutDlg();
                 d.ShowDialog(this);
+                d.Dispose();
             };
-            Row(check, 30, 18);
+            Row(check, 46, 14);
 
-            // ---------- AI ----------
-            Section("עוזר ותרגום (AI)");
-            _keyState = Hint("");
-            Row(_keyState, 20, 6);
-            Btn key = Small("המפתח החינמי של גוגל - הזנה ובדיקה", Ico.Key);
-            key.Click += delegate
+            // ---------- אחסון ----------
+            Section("אחסון");
+            _engineLine = StorageRow(out _delEngine, "מחיקת המנוע", 6);
+            _delEngine.Click += delegate
             {
-                AiSetupDlg d = new AiSetupDlg();
-                d.ShowDialog(this);
-                RefreshKey();
+                AboutDlg.RemoveEngine(this);
+                Refresh2();
             };
-            Row(key, 30, 4);
-            Row(Hint("נחוץ לתרגום, לתמלול האוטומטי ולעוזר. כל השאר עובד בלי אינטרנט."), 20, 18);
-
-            // ---------- מנוע הווידאו ----------
-            Section("מנוע הווידאו");
-            _engineState = Hint(EngineLine());
-            Row(_engineState, 34, 6);
-            if (Ff.IsOwnEngine)
-            {
-                Btn del = Small("מחיקת המנוע (ייפרס מחדש בהפעלה הבאה)", Ico.Trash);
-                del.Click += delegate { AboutDlg.RemoveEngine(this); _engineState.Text = EngineLine(); _engineState.Invalidate(); };
-                Row(del, 30, 18);
-            }
-            else Y += Theme.S(12);
-
-            // ---------- איפוס ----------
-            Section("איפוס");
-            Btn reset = Small("החזרת כל ההגדרות לברירת המחדל", Ico.Refresh);
-            reset.Click += delegate { ResetAll(); };
-            Row(reset, 30, 4);
-            Row(Hint("לא נוגע בכתוביות שפתוחות ולא במפתח של גוגל."), 20, 8);
+            _dictLine = StorageRow(out _delDict, "מחיקת המילון", 12);
+            _delDict.Click += delegate { RemoveDict(); };
 
             Buttons("סגירה", Ico.Check, null);
-            RefreshKey();
+            BottomButton("איפוס הגדרות", Ico.Refresh, delegate { ResetAll(); });
+            Refresh2();
+        }
+
+        /// <summary>שורת אחסון: כמה תופס מה, וכפתור מחיקה בצד שמאל.</summary>
+        private Lbl StorageRow(out Btn del, string delText, int gap)
+        {
+            Lbl l = Row(Hint(""), 28, gap);
+            int bw = Theme.S(150);
+            l.SetBounds(l.Left + bw + Theme.S(10), l.Top, l.Width - bw - Theme.S(10), l.Height);
+            del = Small(delText, Ico.Trash);
+            del.SetBounds(Pad, l.Top, bw, Theme.S(28));
+            Controls.Add(del);
+            return l;
+        }
+
+        private Btn Card(string text, Ico icon)
+        {
+            Btn b = new Btn();
+            b.Text = text;
+            b.Icon = icon;
+            b.Kind = BtnKind.Subtle;
+            return b;
         }
 
         private Btn Small(string text, Ico icon)
@@ -108,48 +166,100 @@ namespace SubtitleStudio
             return b;
         }
 
+        /// <summary>הדלקה וכיבוי של בדיקת האיות. בלי מילון - שולחים להוריד אותו,
+        /// כי מתג דלוק שלא עושה כלום גרוע ממתג כבוי.</summary>
+        private void SpellSwitch()
+        {
+            if (Spell.Enabled == _spellOn.Checked) return;
+            if (_spellOn.Checked)
+            {
+                Spell.Enabled = true;
+                Settings.SaveAll();
+                if (Spell.Installed) Spell.EnsureLoaded();
+            }
+            else if (_main != null) _main.TurnSpellOff();
+            else { Spell.Enabled = false; Spell.Unload(); Settings.SaveAll(); }
+            Refresh2();
+        }
+
+        private void RemoveDict()
+        {
+            if (Ui.Msg(this, "למחוק את המילון?",
+                    "בדיקת האיות תפסיק לעבוד עד שהמילון יורד שוב (" + Theme.Ltr("1.2 MB") + "). " +
+                    "המילים שהוספתם למילון האישי נשמרות.",
+                    Ico.Warning, "למחוק", "ביטול") != 0) return;
+            string err;
+            if (!Spell.Remove(out err)) Ui.Error(this, "לא נמחק", err);
+            Refresh2();
+        }
+
+        /// <summary>מרענן את כל מה שיכול להשתנות מחלון אחר: מפתחות, מילון, מנוע.</summary>
+        private void Refresh2()
+        {
+            _google.Sub = Ai.HasKey
+                ? "מוגדר · הדגם שבשימוש: " + Theme.Ltr(Ai.Model)
+                : "לא מוגדר · בלעדיו אין תרגום ואין עוזר";
+            _groq.Sub = string.IsNullOrEmpty(Stt.GroqKey)
+                ? "לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם"
+                : "מוגדר · עד 8 שעות תמלול ביום";
+            _google.Invalidate();
+            _groq.Invalidate();
+
+            bool has = Spell.Installed;
+            _spellLine.Text = !has
+                ? "המילון עוד לא הורד. הוא חינמי, ואחרי ההורדה הבדיקה עובדת בלי אינטרנט."
+                : Spell.Enabled
+                    ? "המילון מוכן. הוא מכיר גם ארמית, ראשי תיבות ומספרים באותיות."
+                    : "המילון מותקן, והבדיקה כבויה.";
+            _spellLine.Color = has ? Theme.TextFaint : Theme.Warn;
+            _spellLine.Invalidate();
+            _getDict.Visible = !has;
+
+            _engineLine.Text = EngineLine();
+            _delEngine.Visible = Ff.IsOwnEngine;
+            // בלי מילון אין מה לספר כאן, והמקטע ״בדיקת איות״ כבר מציע להוריד אותו
+            long dict = Spell.SizeOnDisk;
+            _dictLine.Text = "מילון האיות · " + Theme.Ltr(MediaInfo.FormatSize(dict));
+            _dictLine.Visible = dict > 0;
+            _delDict.Visible = dict > 0;
+            _engineLine.Invalidate();
+            _dictLine.Invalidate();
+            Restack();
+        }
+
         private static string EngineLine()
         {
             string ff = Ff.Exe;
-            if (string.IsNullOrEmpty(ff)) return "לא נמצא. התוכנה תפרוס אותו בהפעלה הבאה.";
-            if (!Ff.IsOwnEngine)
-                return "התוכנה לא הצליחה לפרוס את המנוע שלה ומשתמשת במנוע" +
-                       Environment.NewLine + "שמותקן במחשב: " + Theme.Ltr(ff);
+            if (string.IsNullOrEmpty(ff)) return "מנוע הווידאו · ייפרס בהפעלה הבאה";
+            if (!Ff.IsOwnEngine) return "מנוע הווידאו · מותקן במחשב: " + Theme.Ltr(ff);
             long size = 0;
             try { size = new FileInfo(ff).Length; }
             catch { }
-            string s = Theme.Ltr(ff);
-            if (size > 0) s += Environment.NewLine + "תופס " + Theme.Ltr(MediaInfo.FormatSize(size)) + " בדיסק";
-            return s;
+            return "מנוע הווידאו · " + (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff));
         }
 
-        private void RefreshKey()
-        {
-            _keyState.Text = Ai.HasKey
-                ? "מפתח מוגדר · הדגם שבשימוש: " + Theme.Ltr(Ai.Model)
-                : "לא הוגדר מפתח - התרגום, התמלול והעוזר כבויים.";
-            _keyState.Color = Ai.HasKey ? Theme.TextFaint : Theme.Warn;
-            _keyState.Invalidate();
-        }
-
-        /// <summary>מחזיר את ההעדפות לברירת המחדל. **המפתח לא נמחק** - הוא
-        /// לא ״הגדרה״ אלא נכס של המשתמש, ומחיקה שלו בטעות שולחת אותו
-        /// להנפיק מפתח חדש אצל גוגל.</summary>
+        /// <summary>מחזיר את ההעדפות לברירת המחדל. **המפתחות לא נמחקים** - הם
+        /// לא ״הגדרה״ אלא נכס של המשתמש, ומחיקה שלהם בטעות שולחת אותו
+        /// להנפיק מפתח חדש.</summary>
         private void ResetAll()
         {
             if (Ui.Msg(this, "להחזיר את ההגדרות לברירת המחדל?",
                     "הערכה, עוצמת הקול, מהירות ההשמעה, עיצוב הכתוביות ורשימת הקבצים " +
-                    "האחרונים יחזרו למצב ההתחלתי. הכתוביות הפתוחות והמפתח של גוגל לא ייגעו.",
+                    "האחרונים יחזרו למצב ההתחלתי. הכתוביות הפתוחות, המפתחות והמילון לא ייגעו.",
                     Ico.Warning, "להחזיר", "ביטול") != 0) return;
 
             Settings.Volume = 80;
             Settings.Speed = 1.0;
             Settings.AutoUpdate = true;
+            Spell.Enabled = true;
             Settings.Recent.Clear();
             Settings.Save(new SubStyle());
             if (!Theme.Dark && _main != null) _main.ToggleTheme();      // ברירת המחדל היא כהה
             _dark.Checked = Theme.Dark;
             _auto.Checked = Settings.AutoUpdate;
+            _spellOn.Checked = Spell.Enabled;
+            if (Spell.Installed) Spell.EnsureLoaded();
+            Refresh2();
             Ui.Msg(this, "ההגדרות אופסו", "הכול חזר לברירת המחדל.", Ico.Info, "אישור");
         }
     }
