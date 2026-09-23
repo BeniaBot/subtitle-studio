@@ -39,9 +39,11 @@ $bad = @()
 foreach ($f in (Get-ChildItem (Join-Path $root 'build') -Filter *.ps1)) {
     $b = [IO.File]::ReadAllBytes($f.FullName)
     $hasBom = $b.Length -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF
-    if (-not $hasBom -and ([Text.Encoding]::UTF8.GetString($b) -match $heb)) { $bad += $f.Name }
+    # לא רק עברית: כל בית מעל 127 בלי BOM נקרא ב-CP1255. ‏extract-strings.ps1 הכיל
+    # את ״[֐-׿]״ (שני תווים שאינם אותיות), והטווח נקרא כזבל שכלל גם ״·״ ו-״×״.
+    if (-not $hasBom -and @($b | Where-Object { $_ -gt 127 }).Count -gt 0) { $bad += $f.Name }
 }
-Check 'כל סקריפט PowerShell עם עברית שמור עם BOM' ($bad.Count -eq 0) ($bad -join ', ')
+Check 'כל סקריפט PowerShell עם תו שאינו ASCII שמור עם BOM' ($bad.Count -eq 0) ($bad -join ', ')
 
 # ---- 3. Theme.Ltr לא עוטף עברית ----
 # מחפש את הארגומנט של כל Theme.Ltr( עם ספירת סוגריים, גם כשהוא נמשך על כמה שורות.
