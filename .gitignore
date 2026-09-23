@@ -19,3 +19,6 @@ desktop.ini
 # תוצרי בניית המתקין (uninstall.exe נבנה מ-src\Installer)
 build/installer/uninstall.exe
 build/installer/version.txt
+
+# a generated report of every Hebrew literal (made by build/extract-strings.ps1)
+build/strings.tsv

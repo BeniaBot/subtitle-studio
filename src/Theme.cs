@@ -271,6 +271,45 @@ namespace SubtitleStudio
         public static StringFormat SfRtlWrap { get { return _sfRtlWrap; } }
         public static StringFormat SfWrap { get { return _sfWrap; } }
 
+        private static readonly StringFormat _sfLtrEnd = MakeFormat(StringAlignment.Far, StringAlignment.Center, false);
+
+        /// <summary>טקסט **ממשק** שמתחיל בתחילת השורה: בעברית מימין,
+        /// באנגלית משמאל. זה מה שרוב הפקדים צריכים.
+        ///
+        /// ‏**לא** לשימוש בתוכן של המשתמש - כתובית עברית נשארת עברית גם
+        /// בממשק אנגלי, ושם היעד הוא `SfRtl` או `Theme.FileName`.</summary>
+        public static StringFormat SfUi { get { return Lang.Rtl ? _sfRtl : _sfNear; } }
+
+        /// <summary>טקסט ממשק בקצה הנגדי (בעברית משמאל, באנגלית מימין).</summary>
+        public static StringFormat SfUiEnd { get { return Lang.Rtl ? _sfFar : _sfLtrEnd; } }
+
+        /// <summary>פסקת ממשק עם גלישת שורות.</summary>
+        public static StringFormat SfUiWrap { get { return Lang.Rtl ? _sfRtlWrap : _sfWrap; } }
+
+        /// <summary>מלבן במראה.
+        ///
+        /// הממשק מצויר ביד, ולכן אין מי שיהפוך אותו: כל מלבן מחושב לפי
+        /// עברית. במקום לכתוב כל חישוב פעמיים - מחשבים כרגיל, ועוטפים.
+        /// באנגלית המלבן משתקף בתוך `outer`, ובעברית חוזר כמו שהוא.</summary>
+        public static RectangleF Mir(RectangleF outer, RectangleF r)
+        {
+            if (Lang.Rtl) return r;
+            return new RectangleF(outer.X + (outer.Right - r.Right), r.Y, r.Width, r.Height);
+        }
+
+        public static Rectangle Mir(Rectangle outer, Rectangle r)
+        {
+            if (Lang.Rtl) return r;
+            return new Rectangle(outer.X + (outer.Right - r.Right), r.Y, r.Width, r.Height);
+        }
+
+        /// <summary>מראה של קואורדינטת X בלבד, כשהרוחב ידוע.</summary>
+        public static float MirX(RectangleF outer, float x, float w)
+        {
+            if (Lang.Rtl) return x;
+            return outer.X + (outer.Right - (x + w));
+        }
+
         public static void Str(Graphics g, string s, Font f, Color c, RectangleF r, StringFormat sf)
         {
             if (string.IsNullOrEmpty(s)) return;

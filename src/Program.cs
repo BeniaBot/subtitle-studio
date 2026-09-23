@@ -37,6 +37,13 @@ namespace SubtitleStudio
 
             SubStyle style = Settings.Load();
 
+            // בפעם הראשונה השפה נקבעת לפי ווינדוס. מרגע שהמשתמש בחר,
+            // הבחירה שלו קובעת - גם אם היא שונה משפת המערכת.
+            // הבדיקות מריצות את אותו חלון בשתי השפות, ולכן יש עקיפה.
+            string forced = Environment.GetEnvironmentVariable("SUBTEXT_LANG");
+            if (!string.IsNullOrEmpty(forced)) Lang.Set(forced);
+            else if (!Settings.LangChosen) Lang.Set(Lang.Detect());
+
             // פריסת מנוע הווידאו המוטמע (בפעם הראשונה בלבד)
             Runtime.Prepare();
 
@@ -76,6 +83,9 @@ namespace SubtitleStudio
         private static string File_ { get { return Path.Combine(Dir, "settings.ini"); } }
 
         public static bool AutoUpdate = true;
+        /// <summary>האם המשתמש (או קובץ הגדרות קיים) כבר קבע שפה.
+        /// בלי זה מזהים לפי שפת ווינדוס בהפעלה הראשונה.</summary>
+        public static bool LangChosen = false;
         public static string LastCheck = "";
         /// <summary>עוצמת ההשמעה ומהירותה - העדפות של המשתמש, לא של הקובץ.</summary>
         public static int Volume = 80;
@@ -111,6 +121,7 @@ namespace SubtitleStudio
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("dark=" + (Theme.Dark ? "1" : "0"));
+                sb.AppendLine("lang=" + Lang.Code);
                 sb.AppendLine("autoupdate=" + (AutoUpdate ? "1" : "0"));
                 sb.AppendLine("lastcheck=" + LastCheck);
                 sb.AppendLine("volume=" + Volume.ToString(CultureInfo.InvariantCulture));
@@ -151,6 +162,7 @@ namespace SubtitleStudio
                     switch (k)
                     {
                         case "dark": Theme.Dark = v == "1"; break;
+                        case "lang": if (v.Length > 0) { Lang.Set(v); LangChosen = true; } break;
                         case "font": if (v.Length > 0) s.FontName = v; break;
                         case "size": s.FontPct = D(v, s.FontPct); break;
                         case "bold": s.Bold = v == "1"; break;
