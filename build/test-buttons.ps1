@@ -16,7 +16,7 @@
 #
 # **סובלנות:** 8 פיקסלים ב-125% לרוחב. אייקון מצויר בתוך ריבוע עם שוליים משלו
 # (חץ צר, למשל), ואות כמו ״ק״ יורדת מתחת לשורה - זה לא באג.
-# צפוי: 9 בדיקות.
+# צפוי: 10 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -58,6 +58,13 @@ function Check($n, $ok, $d) { if ($ok) { $script:pass++; Write-Host "  ok    $n 
 
 $scale = 1.25
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]$scale)
+
+# כל המדידות כאן הן של טקסט מצויר. בלי הגופן המוטמע הכול נמדד ב-Segoe UI,
+# שרחב ממנו, והבדיקה מדווחת על כפתורים צרים שבתוכנה האמיתית תקינים. זה קרה:
+# test-run.ps1 בנה עד 0.8.1 קובץ בלי הגופנים ודרס את dist.
+$fontReady = (TY 'Fonts').GetProperty('Ready', $ST).GetValue($null, $null)
+Check 'הגופן המוטמע נטען (אחרת כל מדידה כאן היא של גופן אחר)' $fontReady ((TY 'Fonts').GetField('FaceRegular', $ST).GetValue($null))
+if (-not $fontReady) { Write-Host "`n$pass passed, $fail failed"; exit 1 }
 function S([double]$v) { return [int][Math]::Round($v * $scale) }
 
 # ---- חומרים ----

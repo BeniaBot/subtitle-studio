@@ -8,14 +8,13 @@ Get-Process Subtext -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 400
 Remove-Item "$env:TEMP\SubStudio-error.txt" -ErrorAction SilentlyContinue
 
-$csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-$res = if (Test-Path "build\payload\ffmpeg.pack") { '/resource:build\payload\ffmpeg.pack,ffmpeg.pack' } else { '/nowarn:0' }
-$out = & $csc /nologo /target:winexe /platform:anycpu /codepage:65001 /out:"dist\Subtext.exe" `
-    /win32icon:"build\app.ico" /win32manifest:"build\app.manifest" $res `
-    /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll `
-    src\*.cs 2>&1
-$errs = $out | Where-Object { $_ -match ': error ' }
-if ($errs) { $errs | Select-Object -First 30; exit 1 }
+# **אותה בנייה בדיוק כמו build.cmd, ולא פקודה משלה.** עד 0.8.1 היה כאן csc נפרד
+# שהטמיע רק את מנוע הווידאו - בלי הגופנים, הרישיונות ורשימת מילות התורה. הוא
+# דרס את dist\Subtext.exe, וכל בדיקה שרצה אחריו מדדה Segoe UI במקום Assistant:
+# test-buttons נכשלה על ״תחילת קטע״ שבתוכנה האמיתית נכנס שלם.
+$build = Join-Path (Split-Path $PSScriptRoot -Parent) 'build.cmd'
+$out = & cmd /c ('"' + $build + '"') 2>&1
+if ($LASTEXITCODE -ne 0) { $out | Select-Object -Last 30; exit 1 }
 Write-Host "BUILD OK"
 
 Add-Type -AssemblyName System.Drawing
