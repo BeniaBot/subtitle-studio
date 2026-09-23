@@ -353,6 +353,11 @@ namespace SubtitleStudio
         private Btn _cancel, _close, _openFolder, _log;
         private TextBox _logBox;
         private Timer _timer;
+        // מה שמוצג נע בעדינות אל ההתקדמות האמיתית, והברק רץ לאורך הפס
+        private double _shown;
+        private float _phase;
+        private int _ticks;
+        private bool _framed;
         public bool Success { get { return _success; } }
 
         public ProgressDlg(string title, FfJob job)
@@ -413,11 +418,15 @@ namespace SubtitleStudio
             };
 
             _timer = new Timer();
-            _timer.Interval = 100;
+            // 30 פעמים בשנייה בשביל התנועה; היומן מתעדכן רק בכל שלישית, כמו קודם
+            _timer.Interval = 33;
             _timer.Tick += delegate
             {
+                _shown += (_prog - _shown) * 0.22;
+                if (Math.Abs(_prog - _shown) < 0.001) _shown = _prog;
+                _phase = (_phase + 0.033f / 1.6f) % 1f;
                 Invalidate();
-                if (_logBox.Visible)
+                if (_logBox.Visible && (_ticks++ % 3) == 0)
                 {
                     string t;
                     lock (job.Log) t = job.Log.ToString();
@@ -434,12 +443,13 @@ namespace SubtitleStudio
                     _close.Visible = true;
                     _openFolder.Visible = _success && !string.IsNullOrEmpty(job.OutputPath);
                     _prog = _success ? 1 : _prog;
+                    _shown = _prog;
                     Invalidate();
                 }
             };
             Load += delegate
             {
-                Native.SetRoundedCorners(Handle);
+                _framed = Native.SetPopupFrame(Handle, Theme.Dark ? Theme.Mix(Theme.Panel, Color.White, 0.13f) : Theme.Mix(Color.White, Color.Black, 0.17f), false);
                 _timer.Start();
                 Ff.RunJob(job);
             };
@@ -466,7 +476,8 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
-            Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 12, Theme.Border, 1f);
+            // בווינדוס 11 DWM מצייר פינות וקו מתאר; ציור נוסף שלנו יצר מסגרת כפולה בפינות
+            if (!_framed) Theme.DrawRound(g, new RectangleF(0, 0, Width, Height), 0, Theme.Border, 1f);
 
             Theme.Str(g, _title, Theme.Big, Theme.Text,
                 new RectangleF(Theme.S(22), Theme.S(24), Theme.S(476), Theme.S(26)), Theme.SfRtl);
@@ -482,13 +493,49 @@ namespace SubtitleStudio
                 Theme.Str(g, SubText(), Theme.Small, Theme.TextDim,
                     new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(34)), Theme.SfRtl);
 
-            RectangleF bar = new RectangleF(Theme.S(22), Theme.S(100), Theme.S(476), Theme.S(12));
-            Theme.FillRound(g, bar, 6, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
-            float w = (float)(bar.Width * Math.Max(0, Math.Min(1, _prog)));
+            // המסילה שקועה; המילוי מתחיל מתחילת השורה - מימין בעברית, משמאל באנגלית.
+            // עד 0.8.1 הוא התמלא משמאל גם בממשק עברי.
+            RectangleF bar = new RectangleF(Theme.S(22), Theme.S(100), Theme.S(476), Theme.S(10));
+            float br = bar.Height / 2f;
+            Color rail = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f);
+            Theme.FillRound(g, bar, br, rail);
+            Surface.Rim(g, bar, br, Theme.Mix(rail, Color.Black, 0.30f), Theme.Mix(rail, Color.White, 0.06f));
+            float w = (float)(bar.Width * Math.Max(0, Math.Min(1, _shown)));
             if (w > 2)
-                Theme.FillRound(g, new RectangleF(bar.X, bar.Y, w, bar.Height), 6, _done ? (_success ? Theme.Good : Theme.Bad) : Theme.Accent);
-            Theme.Str(g, ((int)(_prog * 100)) + "%", Theme.SmallBold, Theme.TextDim,
-                new RectangleF(Theme.S(22), Theme.S(118), Theme.S(476), Theme.S(18)), Theme.SfFar);
+            {
+                RectangleF fr = Theme.Mir(bar, new RectangleF(bar.Right - w, bar.Y, w, bar.Height));
+                Color fc = _done ? (_success ? Theme.Good : Theme.Bad) : Theme.Accent;
+                Surface.Fill(g, fr, br, Theme.Mix(fc, Color.White, 0.18f), fc);
+                // ברק שנע לאורך המילוי כל עוד העבודה רצה: סימן שהתוכנה חיה, גם כשהאחוז
+                // עומד (ffmpeg מדווח בקפיצות)
+                if (!_done && fr.Width > Theme.S(30))
+                {
+                    float bandW = Math.Max(Theme.S(60), fr.Width * 0.35f);
+                    float t = Lang.Rtl ? 1f - _phase : _phase;
+                    float bx = fr.X - bandW + (fr.Width + bandW) * t;
+                    using (System.Drawing.Drawing2D.GraphicsPath gp = Theme.RoundRect(fr, br))
+                    using (System.Drawing.Drawing2D.LinearGradientBrush lb = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        new RectangleF(bx, fr.Y, bandW, fr.Height), Color.FromArgb(0, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 0f))
+                    {
+                        System.Drawing.Drawing2D.ColorBlend cb = new System.Drawing.Drawing2D.ColorBlend(3);
+                        cb.Colors = new Color[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(70, 255, 255, 255), Color.FromArgb(0, 255, 255, 255) };
+                        cb.Positions = new float[] { 0f, 0.5f, 1f };
+                        lb.InterpolationColors = cb;
+                        // בלי WrapMode.Clamp: מברשת מדורגת לא תומכת בו וזורקת ArgumentException
+                        // - החלון היה קורס בכל יצוא (נתפס בצילום). המלבן שממולא זהה למברשת,
+                        // אז החזרה של ברירת המחדל לא נראית.
+                        // Clip מחזיר עותק - חייב להשתחרר, אחרת 30 אזורים בשנייה דולפים ביצוא ארוך
+                        using (Region old = g.Clip)
+                        {
+                            g.SetClip(gp, System.Drawing.Drawing2D.CombineMode.Intersect);
+                            g.FillRectangle(lb, bx, fr.Y, bandW, fr.Height);
+                            g.Clip = old;
+                        }
+                    }
+                }
+            }
+            Theme.Num(g, ((int)Math.Round(_shown * 100)) + "%", Theme.SmallBold, Theme.TextDim,
+                new RectangleF(Theme.S(22), Theme.S(116), Theme.S(476), Theme.S(18)), Lang.Rtl ? StringAlignment.Near : StringAlignment.Far);
         }
 
         public bool CloseOnSuccess;
