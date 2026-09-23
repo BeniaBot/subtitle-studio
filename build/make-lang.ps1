@@ -19,6 +19,7 @@ function Dec([string]$s)
             switch ($s[$i])
             {
                 'n'     { [void]$sb.Append("`n") }
+                'r'     { [void]$sb.Append("`r") }
                 't'     { [void]$sb.Append("`t") }
                 '\'     { [void]$sb.Append('\') }
                 default { [void]$sb.Append('\'); [void]$sb.Append($s[$i]) }

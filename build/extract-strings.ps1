@@ -148,7 +148,9 @@ foreach ($f in $files)
 # build\make-lang.ps1 decodes it back before writing the C# literal.
 function Enc([string]$s)
 {
-    return $s.Replace('\', '\\').Replace("`r", '').Replace("`n", '\n').Replace("`t", '\t')
+    # \r stays: Lang.T looks the runtime value up byte for byte, and a key that
+    # lost its \r (Environment.NewLine) would never be found
+    return $s.Replace('\', '\\').Replace("`r", '\r').Replace("`n", '\n').Replace("`t", '\t')
 }
 
 $sb = New-Object System.Text.StringBuilder
