@@ -352,8 +352,13 @@ namespace SubtitleStudio
                         break;
                     }
                 case Ico.Refresh:
-                case Ico.Sync:
                     d.ArcArrow(12, 12, 7.4f, 55, 270, 4.2f);
+                    break;
+                case Ico.Sync:
+                    // שני חצים שרודפים זה אחר זה - ״מתאימים שני דברים״. עד 0.8.1 זה היה
+                    // אותו ציור בדיוק כמו ״רענון״, והם הופיעו זה ליד זה בחלון הכלים
+                    d.ArcArrow(12, 12, 7.4f, 20, 140, 3.8f);
+                    d.ArcArrow(12, 12, 7.4f, 200, 140, 3.8f);
                     break;
                 case Ico.Image: d.Rect(3, 4.5f, 18, 15, 2f); d.FEll(7, 8, 3.2f, 3.2f); d.Poly(4, 17, 10, 11, 14, 15, 17, 12.5f, 20, 15.5f); break;
                 case Ico.Mic: d.Rect(9, 2.5f, 6, 12, 3f); d.Arc(5.5f, 8, 13, 12, 20, 140); d.L(12, 18, 12, 21.5f); break;
