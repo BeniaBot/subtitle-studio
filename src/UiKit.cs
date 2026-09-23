@@ -259,8 +259,11 @@ namespace SubtitleStudio
         public bool Checked
         {
             get { return _on; }
-            set { if (_on != value) { _on = value; Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); } }
+            set { if (_on != value) { _on = value; _pos.To(value ? 1f : 0f); Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); } }
         }
+
+        // הידית מחליקה והמסילה מתמלאת בהדרגה, במקום לקפוץ
+        private readonly Tween _pos, _hot;
 
         public Toggle()
         {
@@ -268,7 +271,13 @@ namespace SubtitleStudio
             Size = new Size(Theme.S(180), Theme.S(26));
             Cursor = Cursors.Hand;
             Font = Theme.Ui;
+            _pos = new Tween(this);
+            _pos.Ms = 170;
+            _hot = new Tween(this);
         }
+
+        protected override void OnMouseEnter(EventArgs e) { _hot.To(1); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hot.To(0); base.OnMouseLeave(e); }
 
         protected override void OnPaintBackground(PaintEventArgs e)
         {
@@ -281,11 +290,24 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             float h = Theme.S(20), w = Theme.S(36);
-            float x = Width - w, y = (Height - h) / 2;
-            Theme.FillRound(g, new RectangleF(x, y, w, h), h / 2, _on ? Theme.Accent : Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
-            float kn = h - Theme.S(6);
-            float kx = _on ? x + w - kn - Theme.S(3) : x + Theme.S(3);
-            using (SolidBrush b = new SolidBrush(Color.White)) g.FillEllipse(b, kx, y + Theme.S(3), kn, kn);
+            float x = Width - w, y = (float)Math.Round((Height - h) / 2);
+            float t = _pos.Eased, hot = Enabled ? _hot.Eased : 0f;
+            RectangleF track = new RectangleF(x, y, w, h);
+            // המסילה: כבויה - שקועה ואפורה; דלוקה - בצבע ההדגשה, עם מילוי מדורג
+            Color off = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f);
+            Color on = Theme.Accent;
+            Color c = Theme.Mix(off, on, t);
+            if (!Enabled) c = Theme.Mix(c, Theme.Bg, 0.5f);
+            Surface.Fill(g, track, h / 2, Theme.Mix(c, Color.White, 0.08f * t), Theme.Mix(c, Color.Black, 0.05f));
+            Surface.Rim(g, track, h / 2, Theme.Mix(c, Color.Black, 0.30f), Theme.Mix(c, Color.White, 0.12f));
+            // הידית: לבנה, עם צל רך, וגדלה מעט בריחוף
+            float kn = h - Theme.S(6) + hot * Theme.S(2);
+            float x0 = x + Theme.S(3), x1 = x + w - Theme.S(3) - (h - Theme.S(6));
+            float kx = x0 + (x1 - x0) * t - (kn - (h - Theme.S(6))) / 2f;
+            float ky = y + (h - kn) / 2f;
+            using (SolidBrush sh = new SolidBrush(Color.FromArgb(Theme.Dark ? 90 : 45, 0, 0, 0)))
+                g.FillEllipse(sh, kx - 0.5f, ky + 1f, kn + 1f, kn + 1f);
+            using (SolidBrush b = new SolidBrush(Enabled ? Color.White : Theme.Mix(Color.White, Theme.Bg, 0.4f))) g.FillEllipse(b, kx, ky, kn, kn);
             Theme.Str(g, Text, Font, Enabled ? Theme.Text : Theme.TextFaint,
                 new RectangleF(0, 0, Width - w - Theme.S(10), Height), Theme.SfRtl);
         }
@@ -299,13 +321,18 @@ namespace SubtitleStudio
         public bool ShowValue = true;
         public event EventHandler ValueChanged;
         private bool _drag;
+        private readonly Tween _hot;
 
         public Slider()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             Height = Theme.S(28);
             Font = Theme.Small;
+            _hot = new Tween(this);
         }
+
+        protected override void OnMouseEnter(EventArgs e) { _hot.To(1); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { if (!_drag) _hot.To(0); base.OnMouseLeave(e); }
 
         protected override void OnPaintBackground(PaintEventArgs e)
         {
@@ -331,7 +358,12 @@ namespace SubtitleStudio
 
         protected override void OnMouseDown(MouseEventArgs e) { _drag = true; SetFromX(e.X); base.OnMouseDown(e); }
         protected override void OnMouseMove(MouseEventArgs e) { if (_drag) SetFromX(e.X); base.OnMouseMove(e); }
-        protected override void OnMouseUp(MouseEventArgs e) { _drag = false; base.OnMouseUp(e); }
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            _drag = false;
+            if (!ClientRectangle.Contains(e.Location)) _hot.To(0);
+            base.OnMouseUp(e);
+        }
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             double v = Value + (e.Delta > 0 ? Step : -Step);
@@ -346,16 +378,33 @@ namespace SubtitleStudio
             Theme.Smooth(g);
             float w = Width - LabelW - Theme.S(12);
             float cy = Height / 2f;
-            float th = Theme.S(6), kr = Theme.S(7), x0 = Theme.S(6);
+            float hot = Math.Max(_hot.Eased, _drag ? 1f : 0f);
+            float th = Theme.S(6), kr = Theme.S(7) + hot * Theme.S(1.5), x0 = Theme.S(6);
             float t = (float)((Value - Min) / Math.Max(1e-9, Max - Min));
-            Theme.FillRound(g, new RectangleF(x0, cy - th / 2, w, th), th / 2, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.7f));
-            Theme.FillRound(g, new RectangleF(x0, cy - th / 2, w * t, th), th / 2, Theme.Accent);
+            // מסילה שקועה, ומילוי בצבע ההדגשה עם גוון בהיר למעלה
+            RectangleF track = new RectangleF(x0, (float)Math.Round(cy - th / 2), w, th);
+            Color rail = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.7f);
+            Theme.FillRound(g, track, th / 2, rail);
+            Surface.Rim(g, track, th / 2, Theme.Mix(rail, Color.Black, 0.30f), Theme.Mix(rail, Color.White, 0.08f));
+            if (w * t >= 1)
+                Surface.Fill(g, new RectangleF(track.X, track.Y, w * t, th), th / 2,
+                    Theme.Mix(Theme.Accent, Color.White, 0.14f), Theme.Accent);
+            // הידית: לבנה עם צל רך וטבעת בצבע ההדגשה; גדלה בריחוף ובגרירה
             float kx = x0 + w * t;
+            using (SolidBrush sh = new SolidBrush(Color.FromArgb(Theme.Dark ? 90 : 40, 0, 0, 0)))
+                g.FillEllipse(sh, kx - kr - 0.5f, cy - kr + 1f, kr * 2 + 1f, kr * 2 + 1f);
             using (SolidBrush b = new SolidBrush(Color.White)) g.FillEllipse(b, kx - kr, cy - kr, kr * 2, kr * 2);
-            using (Pen p = new Pen(Theme.Accent, 2)) g.DrawEllipse(p, kx - kr, cy - kr, kr * 2, kr * 2);
+            using (Pen p = new Pen(Theme.Accent, 2)) g.DrawEllipse(p, kx - kr + 1, cy - kr + 1, kr * 2 - 2, kr * 2 - 2);
             if (ShowValue)
-                Theme.Str(g, Theme.Ltr(Value.ToString("0.##") + Suffix), Theme.SmallBold, Theme.TextDim,
-                    new RectangleF(Width - LabelW - 2, 0, LabelW, Height), Theme.SfFar);
+            {
+                // ספרות אחידות בגופן הממשק - אבל סיומת עברית (״שנ׳״) מצוירת תו אחר תו
+                // משמאל לימין ויוצאת הפוכה, ולכן היא נשארת בדרך הרגילה
+                bool heb = false;
+                foreach (char ch in Suffix ?? "") if (Theme.IsHebrew(ch)) heb = true;
+                RectangleF vr = new RectangleF(Width - LabelW - 2, 0, LabelW, Height);
+                if (heb) Theme.Str(g, Theme.Ltr(Value.ToString("0.##") + Suffix), Theme.SmallBold, Theme.TextDim, vr, Theme.SfFar);
+                else Theme.Num(g, Value.ToString("0.##") + Suffix, Theme.SmallBold, Theme.TextDim, vr, StringAlignment.Far);
+            }
         }
     }
 
@@ -534,8 +583,10 @@ namespace SubtitleStudio
             set { }
         }
 
-        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        private Tween _hot;
+        private Tween Hot { get { if (_hot == null) _hot = new Tween(this); return _hot; } }
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Hot.To(1); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Hot.To(0); base.OnMouseLeave(e); }
 
         protected override void OnClick(EventArgs e)
         {
@@ -563,13 +614,15 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(BackColor)) g.FillRectangle(b, ClientRectangle);
-            RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
-            Theme.FillRound(g, r, Theme.S(8), _hover ? Theme.Mix(Theme.PanelAlt, Theme.Hover, 0.6f) : Theme.PanelAlt);
-            Theme.DrawRound(g, r, Theme.S(8), _open ? Theme.Accent : Theme.Border, _open ? 1.6f : 1f);
+            // בוחר הוא כפתור שפותח רשימה: משטח מורם כמו כפתור, וכשהרשימה פתוחה -
+            // טבעת בצבע ההדגשה והחץ מתהפך למעלה
+            RectangleF r = new RectangleF(0, 0, Width, Height);
+            Surface.Raised(g, r, Theme.S(8), Theme.PanelAlt, Enabled ? Hot.Eased : 0f, 0f, 1f);
+            if (_open) Surface.FocusRing(g, r, Theme.S(8), Theme.Accent);
             Theme.Str(g, Text, Font, Enabled ? Theme.Text : Theme.TextFaint,
                 new RectangleF(Theme.S(34), 0, Width - Theme.S(46), Height), Theme.SfRtl);
-            Icons.Draw(g, Ico.ChevronDown, new RectangleF(Theme.S(10), (Height - Theme.S(16)) / 2f, Theme.S(16), Theme.S(16)),
-                Theme.TextDim, 2f);
+            Icons.Draw(g, _open ? Ico.ChevronUp : Ico.ChevronDown, new RectangleF(Theme.S(10), (Height - Theme.S(16)) / 2f, Theme.S(16), Theme.S(16)),
+                _open ? Theme.Accent : Theme.TextDim, 2f);
         }
     }
 
@@ -932,8 +985,13 @@ namespace SubtitleStudio
             _colW = Theme.S(width);
             Arrange(int.MaxValue);
             Deactivate += delegate { Close(); };
-            Load += delegate { Native.SetRoundedCorners(Handle); };
+            // בווינדוס 11 הפינות והקו המתאר של DWM, בצבע שלנו. עד 0.8.1 גם DWM וגם
+            // אנחנו ציירנו מסגרת - בפינות היו שתיים, ברדיוסים שונים.
+            Load += delegate { _framed = Native.SetPopupFrame(Handle, MenuRim, false); };
         }
+
+        private bool _framed;
+        private static Color MenuRim { get { return Theme.Dark ? Theme.Mix(Theme.Panel, Color.White, 0.13f) : Theme.Mix(Color.White, Color.Black, 0.17f); } }
 
         private static int HeightOf(MenuItem m) { return m.Separator ? SepH : (m.Header ? HeadRowH : RowH); }
 
@@ -1076,12 +1134,8 @@ namespace SubtitleStudio
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
             if (_cols > 1)
-                using (Pen p = new Pen(Theme.BorderSoft, 1))
-                    for (int c = 1; c < _cols; c++)
-                    {
-                        int x = Width - c * _colW;
-                        g.DrawLine(p, x, PadY + Theme.S(6), x, Height - PadY - Theme.S(6));
-                    }
+                for (int c = 1; c < _cols; c++)
+                    Theme.VLine(g, Theme.BorderSoft, Width - c * _colW, PadY + Theme.S(6), Height - PadY - Theme.S(6));
             for (int i = 0; i < _items.Count; i++)
             {
                 MenuItem m = _items[i];
@@ -1099,7 +1153,11 @@ namespace SubtitleStudio
                     continue;
                 }
                 if (i == _hover && m.Enabled)
-                    Theme.FillRound(g, new RectangleF(r.Left + Theme.S(6), y + 1, r.Width - Theme.S(12), RowH - 2), Theme.S(8), Theme.Hover);
+                {
+                    RectangleF hr = new RectangleF(r.Left + Theme.S(6), y + 1, r.Width - Theme.S(12), RowH - 2);
+                    Theme.FillRound(g, hr, Theme.S(8), Theme.Mix(Theme.Hover, Theme.Accent, 0.10f));
+                    Surface.Rim(g, hr, Theme.S(8), Color.FromArgb(Theme.Dark ? 22 : 0, 255, 255, 255), Color.FromArgb(0, 0, 0, 0));
+                }
                 Color fg = m.Enabled ? Theme.Text : Theme.TextFaint;
                 if (m.Icon != Ico.None)
                     Icons.Draw(g, m.Icon, new RectangleF(r.Right - Theme.S(42), y + (RowH - Theme.S(20)) / 2f, Theme.S(20), Theme.S(20)),
@@ -1113,7 +1171,7 @@ namespace SubtitleStudio
                     Theme.Str(g, m.Desc, Theme.Small, Theme.TextDim, new RectangleF(tx, y + Theme.S(27), tw, Theme.S(17)), Theme.SfRtl);
                 }
             }
-            Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 10, Theme.Border, 1f);
+            if (!_framed) Theme.DrawRound(g, new RectangleF(0, 0, Width, Height), 0, MenuRim, 1f);
         }
 
         /// <summary>פתיחה במיקום עכבר (קליק ימני), בתוך גבולות המסך.</summary>

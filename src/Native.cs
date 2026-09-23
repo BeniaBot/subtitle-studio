@@ -35,12 +35,15 @@ namespace SubtitleStudio
 
         /// <summary>חלון קופץ קטן (רמז): פינות מעוגלות קטנות וקו מתאר בצבע שלנו.
         /// מחזיר false בווינדוס 10, שאין בו את שתי התכונות - ואז מציירים קו לבד.</summary>
-        public static bool SetPopupFrame(IntPtr hwnd, System.Drawing.Color border)
+        public static bool SetPopupFrame(IntPtr hwnd, System.Drawing.Color border) { return SetPopupFrame(hwnd, border, true); }
+
+        /// <summary>כמו למעלה; `small=false` לתפריט או חלון קופץ גדול (פינה רגילה).</summary>
+        public static bool SetPopupFrame(IntPtr hwnd, System.Drawing.Color border, bool small)
         {
             if (Environment.OSVersion.Version.Build < 22000) return false;
             try
             {
-                int corner = 3;   // DWMWCP_ROUNDSMALL
+                int corner = small ? 3 : 2;   // DWMWCP_ROUNDSMALL / DWMWCP_ROUND
                 if (DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, 4) != 0) return false;
                 int v = border.R | (border.G << 8) | (border.B << 16);
                 DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref v, 4);
