@@ -27,7 +27,7 @@ namespace SubtitleStudio
         private readonly SyncState _state;
         private readonly long _delta;
 
-        public SyncDlg(Doc doc, long position, SyncState state) : base("סנכרון לפי הסרט", Ico.Sync, 580)
+        public SyncDlg(Doc doc, long position, SyncState state) : base(Lang.T("סנכרון לפי הסרט"), Ico.Sync, 580)
         {
             _doc = doc;
             _pos = position;
@@ -38,17 +38,17 @@ namespace SubtitleStudio
 
             if (_cue == null)
             {
-                Subtitle = "כדי לסנכרן צריך לבחור כתובית אחת";
+                Subtitle = Lang.T("כדי לסנכרן צריך לבחור כתובית אחת");
                 Lbl how = Hint(
-                    "1. בחרו ברשימה כתובית שאתם מזהים בסרט." + Environment.NewLine +
-                    "2. נגנו את הסרט ועצרו בדיוק ברגע שהמשפט נשמע." + Environment.NewLine +
-                    "3. פתחו שוב את החלון הזה - אני אחשב את ההפרש ואציע לתקן.");
+                    Lang.T("1. בחרו ברשימה כתובית שאתם מזהים בסרט.") + Environment.NewLine +
+                    Lang.T("2. נגנו את הסרט ועצרו בדיוק ברגע שהמשפט נשמע.") + Environment.NewLine +
+                    Lang.T("3. פתחו שוב את החלון הזה - אני אחשב את ההפרש ואציע לתקן."));
                 Row(how, 72, 10);
-                Buttons("הבנתי", Ico.Check, null);
+                Buttons(Lang.T("הבנתי"), Ico.Check, null);
                 return;
             }
 
-            Subtitle = "משווים בין הכתובית שבחרתם למקום שבו הסרט נמצא עכשיו";
+            Subtitle = Lang.T("משווים בין הכתובית שבחרתם למקום שבו הסרט נמצא עכשיו");
 
             GapView gap = new GapView();
             gap.CueStart = _cue.Start;
@@ -57,10 +57,10 @@ namespace SubtitleStudio
             gap.CueNumber = doc.Cues.IndexOf(_cue) + 1;
             Row(gap, 152, 14);
 
-            Section("מה לעשות?");
+            Section(Lang.T("מה לעשות?"));
 
             Btn all = new Btn();
-            all.Text = "להזיז את כל הכתוביות";
+            all.Text = Lang.T("להזיז את כל הכתוביות");
             all.Sub = DeltaText() + " · מתאים כשכל הקובץ מוסט באותה מידה";
             all.Icon = Ico.ShiftLR;
             all.Kind = BtnKind.Primary;
@@ -68,8 +68,8 @@ namespace SubtitleStudio
             Row(all, 54, 8);
 
             Btn fromHere = new Btn();
-            fromHere.Text = "רק מהכתובית הזאת והלאה";
-            fromHere.Sub = "כשהתקלה מתחילה באמצע הסרט";
+            fromHere.Text = Lang.T("רק מהכתובית הזאת והלאה");
+            fromHere.Sub = Lang.T("כשהתקלה מתחילה באמצע הסרט");
             fromHere.Icon = Ico.ChevronLeft;
             fromHere.Kind = BtnKind.Subtle;
             fromHere.Click += delegate
@@ -81,8 +81,8 @@ namespace SubtitleStudio
             Row(fromHere, 54, 8);
 
             Btn one = new Btn();
-            one.Text = "רק את הכתובית הזאת";
-            one.Sub = "תיקון נקודתי";
+            one.Text = Lang.T("רק את הכתובית הזאת");
+            one.Sub = Lang.T("תיקון נקודתי");
             one.Icon = Ico.TextIcon;
             one.Kind = BtnKind.Subtle;
             one.Click += delegate
@@ -93,16 +93,16 @@ namespace SubtitleStudio
             };
             Row(one, 54, 16);
 
-            Section("הפער גדל לאורך הסרט?");
+            Section(Lang.T("הפער גדל לאורך הסרט?"));
             Lbl explain = Hint(_state.HasA
                 ? "נקודה ראשונה שמורה:  " + Theme.Ltr(_state.LabelA) + Environment.NewLine +
-                  "עכשיו לחצו ״מתיחה״ ואתקן את כל הסרט לפי שתי הנקודות."
-                : "לפעמים הכתוביות מדויקות בהתחלה ובורחות בהמשך." + Environment.NewLine +
-                  "שמרו נקודה כאן, עברו לכתובית בסוף הסרט, וחזרו לחלון הזה.");
+                  Lang.T("עכשיו לחצו ״מתיחה״ ואתקן את כל הסרט לפי שתי הנקודות.")
+                : Lang.T("לפעמים הכתוביות מדויקות בהתחלה ובורחות בהמשך.") + Environment.NewLine +
+                  Lang.T("שמרו נקודה כאן, עברו לכתובית בסוף הסרט, וחזרו לחלון הזה."));
             Row(explain, 46, 8);
 
             Btn save = new Btn();
-            save.Text = _state.HasA ? "החלפת הנקודה הראשונה בנוכחית" : "שמירת הנקודה הזאת כנקודה ראשונה";
+            save.Text = _state.HasA ? Lang.T("החלפת הנקודה הראשונה בנוכחית") : Lang.T("שמירת הנקודה הזאת כנקודה ראשונה");
             save.Icon = Ico.Plus;
             save.Kind = BtnKind.Subtle;
             save.Font = Theme.Small;
@@ -111,15 +111,15 @@ namespace SubtitleStudio
                 _state.OldA = _cue.Start;
                 _state.NewA = _pos;
                 _state.LabelA = Tc.Short(_cue.Start) + " ← " + Tc.Short(_pos);
-                Ui.Info(this, "הנקודה נשמרה",
-                    "עכשיו נגנו עד כתובית אחרת בסוף הסרט, עצרו במקום הנכון, ופתחו שוב את החלון.");
+                Ui.Info(this, Lang.T("הנקודה נשמרה"),
+                    Lang.T("עכשיו נגנו עד כתובית אחרת בסוף הסרט, עצרו במקום הנכון, ופתחו שוב את החלון."));
                 Ok = false;
                 Close();
             };
             Row(save, 36, 8);
 
             Btn stretch = new Btn();
-            stretch.Text = "מתיחה לפי שתי הנקודות";
+            stretch.Text = Lang.T("מתיחה לפי שתי הנקודות");
             stretch.Icon = Ico.Sync;
             stretch.Kind = BtnKind.Subtle;
             stretch.Font = Theme.Small;
@@ -128,22 +128,22 @@ namespace SubtitleStudio
             Row(stretch, 36, 10);
 
             Btn fps = new Btn();
-            fps.Text = "המרת קצב פריימים (למי שיודע מה זה)";
+            fps.Text = Lang.T("המרת קצב פריימים (למי שיודע מה זה)");
             fps.Icon = Ico.Film;
             fps.Kind = BtnKind.Tool;
             fps.Font = Theme.Small;
             fps.Click += delegate { ShowFps(); };
             Row(fps, 30, 6);
 
-            Btn done = Buttons("סגירה", Ico.Close, null);
+            Btn done = Buttons(Lang.T("סגירה"), Ico.Close, null);
             // הפעולות האמיתיות למעלה - כפתור הסגירה לא צריך למשוך את העין
             done.Kind = BtnKind.Ghost;
         }
 
         private string DeltaText()
         {
-            if (_delta == 0) return "הכתובית כבר בדיוק במקום";
-            string dir = _delta > 0 ? "מאוחר יותר" : "מוקדם יותר";
+            if (_delta == 0) return Lang.T("הכתובית כבר בדיוק במקום");
+            string dir = _delta > 0 ? Lang.T("מאוחר יותר") : Lang.T("מוקדם יותר");
             return "הזזה של " + Theme.Ltr((Math.Abs(_delta) / 1000.0).ToString("0.00")) + " שניות " + dir;
         }
 
@@ -151,10 +151,10 @@ namespace SubtitleStudio
         {
             if (_delta == 0)
             {
-                Ui.Info(this, "אין מה לתקן", "הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.");
+                Ui.Info(this, Lang.T("אין מה לתקן"), Lang.T("הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא."));
                 return;
             }
-            _doc.Push("סנכרון");
+            _doc.Push(Lang.T("סנכרון"));
             _doc.Shift(cues, _delta);
             _doc.Sort();
             _doc.RaiseChanged();
@@ -167,10 +167,10 @@ namespace SubtitleStudio
             long oldB = _cue.Start, newB = _pos;
             if (Math.Abs(oldB - _state.OldA) < 1000)
             {
-                Ui.Error(this, "הנקודות קרובות מדי", "בחרו כתובית רחוקה יותר מהנקודה הראשונה.");
+                Ui.Error(this, Lang.T("הנקודות קרובות מדי"), Lang.T("בחרו כתובית רחוקה יותר מהנקודה הראשונה."));
                 return;
             }
-            _doc.Push("מתיחת תזמון");
+            _doc.Push(Lang.T("מתיחת תזמון"));
             _doc.LinearSync(_doc.Cues, _state.OldA, _state.NewA, oldB, newB);
             _doc.Sort();
             _doc.RaiseChanged();
@@ -224,12 +224,12 @@ namespace SubtitleStudio
 
                 // הפרש גדול באמצע
                 string big = delta == 0
-                    ? "אין הפרש"
+                    ? Lang.T("אין הפרש")
                     : Theme.Ltr((delta > 0 ? "+" : "−") + (Math.Abs(delta) / 1000.0).ToString("0.00")) + " שניות";
                 Color dc = delta == 0 ? Theme.Good : (Math.Abs(delta) > 3000 ? Theme.Warn : Theme.Accent);
                 Theme.Str(g, big, Theme.F(16f, FontStyle.Bold), dc,
                     new RectangleF(pad, Theme.S(34), Width - pad * 2, Theme.S(30)), Theme.SfCenter);
-                Theme.Str(g, delta == 0 ? "הכתובית מדויקת" : (delta > 0 ? "הכתובית מופיעה מוקדם מדי" : "הכתובית מופיעה מאוחר מדי"),
+                Theme.Str(g, delta == 0 ? Lang.T("הכתובית מדויקת") : (delta > 0 ? Lang.T("הכתובית מופיעה מוקדם מדי") : Lang.T("הכתובית מופיעה מאוחר מדי")),
                     Theme.Small, Theme.TextDim,
                     new RectangleF(pad, Theme.S(62), Width - pad * 2, Theme.S(18)), Theme.SfCenter);
 
@@ -242,8 +242,8 @@ namespace SubtitleStudio
                 float cx = MapX(CueStart, mid, span, left, right);
                 float px = MapX(Playhead, mid, span, left, right);
 
-                DrawMarker(g, cx, lineY, Theme.Purple, "הכתובית", Tc.Short(CueStart), true);
-                DrawMarker(g, px, lineY, Theme.Bad, "הסרט", Tc.Short(Playhead), false);
+                DrawMarker(g, cx, lineY, Theme.Purple, Lang.T("הכתובית"), Tc.Short(CueStart), true);
+                DrawMarker(g, px, lineY, Theme.Bad, Lang.T("הסרט"), Tc.Short(Playhead), false);
             }
 
             private static float MapX(long t, long mid, long span, float left, float right)
@@ -279,34 +279,34 @@ namespace SubtitleStudio
         private Combo _from, _to;
         private static readonly string[] List = { "23.976", "24", "25", "29.97", "30", "50", "59.94", "60" };
 
-        public FpsDlg(Doc doc) : base("המרת קצב פריימים", Ico.Film, 460)
+        public FpsDlg(Doc doc) : base(Lang.T("המרת קצב פריימים"), Ico.Film, 460)
         {
             _doc = doc;
-            Subtitle = "כשהכתוביות נעשו לגרסה בקצב אחר";
+            Subtitle = Lang.T("כשהכתוביות נעשו לגרסה בקצב אחר");
 
-            Section("הכתוביות נעשו בקצב");
+            Section(Lang.T("הכתוביות נעשו בקצב"));
             _from = new Combo();
             _from.Items.AddRange(List);
             _from.SelectedIndex = 2;
             Row(_from, 32, 12);
 
-            Section("הסרט שלכם בקצב");
+            Section(Lang.T("הסרט שלכם בקצב"));
             _to = new Combo();
             _to.Items.AddRange(List);
             _to.SelectedIndex = 0;
             Row(_to, 32, 12);
 
-            Row(Hint("אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הסרט."), 34, 6);
-            Buttons("להמיר", Ico.Sync, "ביטול");
+            Row(Hint(Lang.T("אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הסרט.")), 34, 6);
+            Buttons(Lang.T("להמיר"), Ico.Sync, Lang.T("ביטול"));
         }
 
         protected override bool OnOk()
         {
             double from = double.Parse((string)_from.SelectedItem, CultureInfo.InvariantCulture);
             double to = double.Parse((string)_to.SelectedItem, CultureInfo.InvariantCulture);
-            if (Math.Abs(from - to) < 0.001) { Ui.Error(this, "אותו קצב", "בחרו שני קצבים שונים."); return false; }
+            if (Math.Abs(from - to) < 0.001) { Ui.Error(this, Lang.T("אותו קצב"), Lang.T("בחרו שני קצבים שונים.")); return false; }
             double ratio = from / to;
-            _doc.Push("המרת קצב");
+            _doc.Push(Lang.T("המרת קצב"));
             foreach (Cue c in _doc.Cues)
             {
                 c.Start = (long)Math.Round(c.Start * ratio);

@@ -46,19 +46,19 @@ namespace SubtitleStudio
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("#").Append(Index).Append("  ");
-            if (Type == "video") sb.Append("וידאו");
-            else if (Type == "audio") sb.Append("אודיו");
-            else if (Type == "subtitle") sb.Append("כתוביות");
+            if (Type == "video") sb.Append(Lang.T("וידאו"));
+            else if (Type == "audio") sb.Append(Lang.T("אודיו"));
+            else if (Type == "subtitle") sb.Append(Lang.T("כתוביות"));
             else sb.Append(Type);
             sb.Append(" · ").Append(Codec);
             if (Width > 0) sb.Append(" · ").Append(Width).Append("×").Append(Height);
-            if (Channels == 1) sb.Append(" · מונו");
-            else if (Channels == 2) sb.Append(" · סטריאו");
-            else if (Channels > 2) sb.Append(" · ").Append(Channels).Append(" ערוצים");
+            if (Channels == 1) sb.Append(Lang.T(" · מונו"));
+            else if (Channels == 2) sb.Append(Lang.T(" · סטריאו"));
+            else if (Channels > 2) sb.Append(" · ").Append(Channels).Append(Lang.T(" ערוצים"));
             string lang = (Language ?? "").ToLowerInvariant();
             if (lang.Length > 0 && lang != "und") sb.Append(" · ").Append(LangName(Language));
             if (!string.IsNullOrEmpty(Title)) sb.Append(" · ").Append(Title);
-            if (Default) sb.Append(" · ברירת מחדל");
+            if (Default) sb.Append(Lang.T(" · ברירת מחדל"));
             return sb.ToString();
         }
 
@@ -136,7 +136,7 @@ namespace SubtitleStudio
         public string[] StepNames;
         public string WorkDir;
         public long TotalMs;
-        public string Title = "מעבד...";
+        public string Title = Lang.T("מעבד...");
         public volatile bool Cancelled;
         public Process Proc;
         public StringBuilder Log = new StringBuilder();
@@ -527,7 +527,7 @@ namespace SubtitleStudio
                 }
                 job.Succeeded = ok && !job.Cancelled;
                 job.Done = true;
-                if (job.OnDone != null) job.OnDone(ok && !job.Cancelled, job.Cancelled ? "בוטל" : msg);
+                if (job.OnDone != null) job.OnDone(ok && !job.Cancelled, job.Cancelled ? Lang.T("בוטל") : msg);
             });
             t.IsBackground = true;
             t.Start();
@@ -576,7 +576,7 @@ namespace SubtitleStudio
                         ok = p.ExitCode == 0 && !job.Cancelled;
                         if (!ok)
                         {
-                            msg = job.Cancelled ? "בוטל" : LastLines(job.Log.ToString(), 6);
+                            msg = job.Cancelled ? Lang.T("בוטל") : LastLines(job.Log.ToString(), 6);
                         }
                     }
                 }

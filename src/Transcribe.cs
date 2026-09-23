@@ -60,9 +60,9 @@ namespace SubtitleStudio
         {
             Result res = new Result();
             res.ProviderName = provider.Name;
-            if (!provider.HasKey) { res.Error = Theme.Pfx("לא הוגדר מפתח ל", provider.Name) + "."; return res; }
-            if (!Ff.Available) { res.Error = "מנוע הווידאו לא זמין."; return res; }
-            if (durationMs <= 0) { res.Error = "לא הצלחתי לקרוא את אורך הקובץ."; return res; }
+            if (!provider.HasKey) { res.Error = Theme.Pfx(Lang.T("לא הוגדר מפתח ל"), provider.Name) + "."; return res; }
+            if (!Ff.Available) { res.Error = Lang.T("מנוע הווידאו לא זמין."); return res; }
+            if (durationMs <= 0) { res.Error = Lang.T("לא הצלחתי לקרוא את אורך הקובץ."); return res; }
 
             string dir = Ff.TempDir();
             double totalSec = durationMs / 1000.0;
@@ -181,7 +181,7 @@ namespace SubtitleStudio
 
             all.Sort(delegate (Cue x, Cue y) { return x.Start.CompareTo(y.Start); });
             res.Cues = Dedupe(CollapseRepeats(all));
-            if (progress != null) progress(1, "מסיים…");
+            if (progress != null) progress(1, Lang.T("מסיים…"));
             if (res.QuotaOut && res.Error == null)
                 res.Error = provider.QuotaMessage;
             // ״לא זוהה דיבור״ רק כשבאמת לא היה כישלון. אחרת ההודעה משקרת:
@@ -189,7 +189,7 @@ namespace SubtitleStudio
             if (res.Error == null && res.Cues.Count == 0 && !res.Canceled)
                 res.Error = res.Failed > 0 && lastErr != null
                     ? lastErr
-                    : "לא זוהה דיבור בקובץ.";
+                    : Lang.T("לא זוהה דיבור בקובץ.");
             return res;
         }
 

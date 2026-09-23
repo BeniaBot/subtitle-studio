@@ -100,16 +100,16 @@ namespace SubtitleStudio
         private long _inMs, _outMs;
 
         public ExportVideoDlg(MainForm main, Doc doc, MediaInfo mi, SubStyle style, long inMs, long outMs)
-            : base("הטמעת הכתוביות בסרט", Ico.Flame, 560)
+            : base(Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
         {
             _main = main; _doc = doc; _mi = mi; _style = style;
             _inMs = inMs; _outMs = outMs;
             Subtitle = doc.Cues.Count + " כתוביות · " + (mi != null ? mi.Summary() : "");
 
-            Section("איך להטמיע?");
+            Section(Lang.T("איך להטמיע?"));
             _modeBurn = new Btn();
-            _modeBurn.Text = "צריבה בתמונה";
-            _modeBurn.Sub = "הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון";
+            _modeBurn.Text = Lang.T("צריבה בתמונה");
+            _modeBurn.Sub = Lang.T("הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון");
             _modeBurn.Icon = Ico.Flame;
             _modeBurn.Kind = BtnKind.Subtle;
             _modeBurn.Radio = true;
@@ -119,31 +119,31 @@ namespace SubtitleStudio
             Row(_modeBurn, 56, 8);
 
             _modeSoft = new Btn();
-            _modeSoft.Text = "ערוץ כתוביות נפרד";
-            _modeSoft.Sub = "אפשר לכבות/להחליף בנגן · הקידוד נשמר, מהיר מאוד";
+            _modeSoft.Text = Lang.T("ערוץ כתוביות נפרד");
+            _modeSoft.Sub = Lang.T("אפשר לכבות/להחליף בנגן · הקידוד נשמר, מהיר מאוד");
             _modeSoft.Icon = Ico.Layers;
             _modeSoft.Kind = BtnKind.Subtle;
             _modeSoft.Radio = true;
             _modeSoft.Click += delegate { SetMode(false); };
             Row(_modeSoft, 56, 16);
 
-            Section("קובץ היעד");
+            Section(Lang.T("קובץ היעד"));
             string sug = SuggestPath(true);
-            _out = FilePicker("נתיב קובץ היעד", sug, "וידאו MP4|*.mp4|Matroska MKV|*.mkv|כל הקבצים|*.*", true);
+            _out = FilePicker(Lang.T("נתיב קובץ היעד"), sug, Lang.T("וידאו MP4|*.mp4|Matroska MKV|*.mkv|כל הקבצים|*.*"), true);
 
-            _qualityLabel = Section("איכות");
+            _qualityLabel = Section(Lang.T("איכות"));
             _quality = new Combo();
             _quality.Items.AddRange(new object[]
             {
-                "איכות מקסימלית - מומלץ",
-                "מאוזן (קובץ קטן יותר)",
-                "הכי קטן (איכות סבירה)"
+                Lang.T("איכות מקסימלית - מומלץ"),
+                Lang.T("מאוזן (קובץ קטן יותר)"),
+                Lang.T("הכי קטן (איכות סבירה)")
             });
             _quality.SelectedIndex = 0;
             Row(_quality, 32, 12);
 
             _lang = new Combo();
-            _lang.Items.AddRange(new object[] { "עברית", "אנגלית", "ערבית", "רוסית", "לא מוגדר" });
+            _lang.Items.AddRange(new object[] { Lang.T("עברית"), Lang.T("אנגלית"), Lang.T("ערבית"), Lang.T("רוסית"), Lang.T("לא מוגדר") });
             _lang.SelectedIndex = 0;
             _lang.Visible = false;
             Row(_lang, 32, 8);
@@ -154,12 +154,12 @@ namespace SubtitleStudio
             if (_rangeOnly.Visible) Row(_rangeOnly, 26, 8);
 
             _keepExisting = new Toggle();
-            _keepExisting.Text = "לשמור גם ערוצי כתוביות שכבר קיימים בקובץ";
+            _keepExisting.Text = Lang.T("לשמור גם ערוצי כתוביות שכבר קיימים בקובץ");
             _keepExisting.Visible = false;
             Row(_keepExisting, 26, 8);
 
             _defaultTrack = new Toggle();
-            _defaultTrack.Text = "לסמן כערוץ ברירת המחדל";
+            _defaultTrack.Text = Lang.T("לסמן כערוץ ברירת המחדל");
             _defaultTrack.Checked = true;
             _defaultTrack.Visible = false;
             Row(_defaultTrack, 26, 10);
@@ -168,7 +168,7 @@ namespace SubtitleStudio
             Row(_note, 34, 4);
             UpdateNote();
 
-            Buttons("התחלת ההטמעה", Ico.Flame, "ביטול");
+            Buttons(Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
             SetMode(true);
         }
 
@@ -180,7 +180,7 @@ namespace SubtitleStudio
                 string name = Path.GetFileNameWithoutExtension(_mi.Path);
                 string ext = burn ? ".mp4" : Path.GetExtension(_mi.Path);
                 if (!burn && ext.ToLowerInvariant() != ".mp4" && ext.ToLowerInvariant() != ".mkv") ext = ".mkv";
-                return Path.Combine(dir, name + (burn ? " - עם כתוביות צרובות" : " - עם כתוביות") + ext);
+                return Path.Combine(dir, name + (burn ? Lang.T(" - עם כתוביות צרובות") : Lang.T(" - עם כתוביות")) + ext);
             }
             catch { return ""; }
         }
@@ -194,7 +194,7 @@ namespace SubtitleStudio
             _modeSoft.Tint = Theme.Accent;
             _quality.Visible = burn;
             _lang.Visible = !burn;
-            _qualityLabel.Text = burn ? "איכות" : "שפת הכתוביות";
+            _qualityLabel.Text = burn ? Lang.T("איכות") : Lang.T("שפת הכתוביות");
             _qualityLabel.Invalidate();
             _keepExisting.Visible = !burn;
             _defaultTrack.Visible = !burn;
@@ -208,25 +208,25 @@ namespace SubtitleStudio
         {
             if (_burn)
                 _note.Text = _quality.SelectedIndex == 0
-                    ? "הווידאו יקודד מחדש באיכות מקסימלית - לוקח זמן, והתוצאה עובדת בכל מקום כולל וואטסאפ ויוטיוב."
-                    : "הווידאו יקודד מחדש - זה לוקח זמן (בערך כאורך הסרט), אבל התוצאה עובדת בכל מקום.";
+                    ? Lang.T("הווידאו יקודד מחדש באיכות מקסימלית - לוקח זמן, והתוצאה עובדת בכל מקום כולל וואטסאפ ויוטיוב.")
+                    : Lang.T("הווידאו יקודד מחדש - זה לוקח זמן (בערך כאורך הסרט), אבל התוצאה עובדת בכל מקום.");
             else
-                _note.Text = "מהיר מאוד (שניות): הקובץ נשאר באותה איכות והכתוביות נוספות כערוץ. שימו לב שלא כל נגן מציג ערוץ כתוביות.";
+                _note.Text = Lang.T("מהיר מאוד (שניות): הקובץ נשאר באותה איכות והכתוביות נוספות כערוץ. שימו לב שלא כל נגן מציג ערוץ כתוביות.");
             _note.Invalidate();
         }
 
         protected override bool OnOk()
         {
-            if (_doc.Cues.Count == 0) { Ui.Error(this, "אין כתוביות", "אין מה להטמיע - הרשימה ריקה."); return false; }
-            if (_out.Text.Trim().Length == 0) { Ui.Error(this, "חסר קובץ יעד", "בחרו לאן לשמור את הקובץ."); return false; }
+            if (_doc.Cues.Count == 0) { Ui.Error(this, Lang.T("אין כתוביות"), Lang.T("אין מה להטמיע - הרשימה ריקה.")); return false; }
+            if (_out.Text.Trim().Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור את הקובץ.")); return false; }
             string outPath = _out.Text.Trim();
             try
             {
                 if (string.Equals(Path.GetFullPath(outPath), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))
-                { Ui.Error(this, "אותו קובץ", "אי אפשר לכתוב על קובץ המקור. בחרו שם אחר."); return false; }
+                { Ui.Error(this, Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור. בחרו שם אחר.")); return false; }
             }
             catch { }
-            if (File.Exists(outPath) && !Ui.Confirm(this, "הקובץ קיים", "כבר קיים קובץ בשם הזה. להחליף אותו?", "להחליף", "ביטול"))
+            if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("כבר קיים קובץ בשם הזה. להחליף אותו?"), Lang.T("להחליף"), Lang.T("ביטול")))
                 return false;
 
             bool ranged = _rangeOnly.Visible && _rangeOnly.Checked;
@@ -247,14 +247,14 @@ namespace SubtitleStudio
                 // לחכות חצי שעה לקידוד ולגלות ג'יבריש.
                 if (!Ff.CanBurnHebrew)
                 {
-                    Ui.Error(this, "המנוע במחשב לא תומך בצריבה",
+                    Ui.Error(this, Lang.T("המנוע במחשב לא תומך בצריבה"),
                         "התוכנה משתמשת כרגע במנוע ffmpeg שמותקן במחשב, והוא נבנה בלי התמיכה" +
                         Environment.NewLine +
-                        "בכתוביות ובעברית - הצריבה תצא הפוכה או ריקה." + Environment.NewLine +
+                        Lang.T("בכתוביות ובעברית - הצריבה תצא הפוכה או ריקה.") + Environment.NewLine +
                         Environment.NewLine +
                         "אפשר לבחור \"ערוץ כתוביות נפרד\" במקום, או לפתוח את התוכנה מחדש" +
                         Environment.NewLine +
-                        "כדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל).");
+                        Lang.T("כדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל)."));
                     return false;
                 }
                 string dir;
@@ -276,7 +276,7 @@ namespace SubtitleStudio
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                ProgressDlg.Run(_main, "צורב כתוביות בווידאו", job);
+                ProgressDlg.Run(_main, Lang.T("צורב כתוביות בווידאו"), job);
             }
             else
             {
@@ -311,7 +311,7 @@ namespace SubtitleStudio
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                ProgressDlg.Run(_main, "מוסיף ערוץ כתוביות", job);
+                ProgressDlg.Run(_main, Lang.T("מוסיף ערוץ כתוביות"), job);
             }
             return true;
         }
@@ -331,16 +331,16 @@ namespace SubtitleStudio
         private Lbl _note;
 
         public TrimDlg(MainForm main, MediaInfo mi, Doc doc, long a, long b)
-            : base("חיתוך הסרט", Ico.Scissors, 560)
+            : base(Lang.T("חיתוך הסרט"), Ico.Scissors, 560)
         {
             _main = main; _mi = mi; _doc = doc; _a = a; _b = b;
             // מקף עברי ולא מינוס: ‏"מ-00:00:05" נקרא ב-RTL כמו זמן שלילי
             Subtitle = "מ־" + Theme.Ltr(Tc.Clock(a)) + " עד " + Theme.Ltr(Tc.Clock(b)) +
                        "  ·  אורך הקטע " + Theme.Ltr(Tc.Short(b - a));
 
-            Section("מה לעשות עם הקטע המסומן?");
+            Section(Lang.T("מה לעשות עם הקטע המסומן?"));
             _modeKeep = new Btn();
-            _modeKeep.Text = "לשמור רק את הקטע הזה";
+            _modeKeep.Text = Lang.T("לשמור רק את הקטע הזה");
             _modeKeep.Sub = "כל השאר נמחק · הסרט החדש יתחיל מ־" + Theme.Ltr(Tc.Short(a));
             _modeKeep.Icon = Ico.Check;
             _modeKeep.Checked = true;
@@ -349,24 +349,24 @@ namespace SubtitleStudio
             Row(_modeKeep, 56, 8);
 
             _modeCut = new Btn();
-            _modeCut.Text = "להסיר את הקטע הזה";
-            _modeCut.Sub = "מה שלפניו ומה שאחריו יתחברו יחד";
+            _modeCut.Text = Lang.T("להסיר את הקטע הזה");
+            _modeCut.Sub = Lang.T("מה שלפניו ומה שאחריו יתחברו יחד");
             _modeCut.Icon = Ico.Cut;
             _modeCut.Radio = true;
             _modeCut.Click += delegate { SetMode(false); };
             Row(_modeCut, 56, 16);
 
-            Section("קובץ היעד");
-            _out = FilePicker("נתיב קובץ היעד", Suggest(), "וידאו|*.mp4;*.mkv|כל הקבצים|*.*", true);
+            Section(Lang.T("קובץ היעד"));
+            _out = FilePicker(Lang.T("נתיב קובץ היעד"), Suggest(), Lang.T("וידאו|*.mp4;*.mkv|כל הקבצים|*.*"), true);
 
             _fast = new Toggle();
-            _fast.Text = "חיתוך מהיר בלי קידוד מחדש (מדויק פחות בכמה עשיריות שנייה)";
+            _fast.Text = Lang.T("חיתוך מהיר בלי קידוד מחדש (מדויק פחות בכמה עשיריות שנייה)");
             _fast.Checked = true;
             Row(_fast, 26, 8);
             _fast.CheckedChanged += delegate { UpdateNote(); };
 
             _applySubs = new Toggle();
-            _applySubs.Text = "לעדכן גם את הכתוביות שבפרויקט לפי החיתוך";
+            _applySubs.Text = Lang.T("לעדכן גם את הכתוביות שבפרויקט לפי החיתוך");
             _applySubs.Checked = true;
             Row(_applySubs, 26, 10);
 
@@ -374,7 +374,7 @@ namespace SubtitleStudio
             Row(_note, 50, 4);
             UpdateNote();
 
-            Buttons("לחתוך", Ico.Scissors, "ביטול");
+            Buttons(Lang.T("לחתוך"), Ico.Scissors, Lang.T("ביטול"));
             SetMode(true);
         }
 
@@ -386,7 +386,7 @@ namespace SubtitleStudio
                 string name = Path.GetFileNameWithoutExtension(_mi.Path);
                 string ext = Path.GetExtension(_mi.Path);
                 if (ext.Length < 2) ext = ".mp4";
-                return Path.Combine(dir, name + (_keep ? " - קטע" : " - חתוך") + ext);
+                return Path.Combine(dir, name + (_keep ? Lang.T(" - קטע") : Lang.T(" - חתוך")) + ext);
             }
             catch { return ""; }
         }
@@ -417,26 +417,26 @@ namespace SubtitleStudio
                                  " (הפרש של " + (off / 1000.0).ToString("0.0") +
                                  " שניות), כי אי אפשר לחתוך באמצע בלי לקודד מחדש.\r\nלדיוק מלא - כבו את החיתוך המהיר.";
                 else
-                    _note.Text = "החיתוך המהיר מעתיק את הזרם כמו שהוא - שניות בודדות, בלי איבוד איכות ובדיוק טוב בקובץ הזה.";
+                    _note.Text = Lang.T("החיתוך המהיר מעתיק את הזרם כמו שהוא - שניות בודדות, בלי איבוד איכות ובדיוק טוב בקובץ הזה.");
             }
             else
-                _note.Text = "קידוד מחדש: מדויק בדיוק לנקודה שסימנתם, אבל לוקח זמן בהתאם לאורך הסרט.";
+                _note.Text = Lang.T("קידוד מחדש: מדויק בדיוק לנקודה שסימנתם, אבל לוקח זמן בהתאם לאורך הסרט.");
             _note.Invalidate();
         }
 
         protected override bool OnOk()
         {
             string outPath = _out.Text.Trim();
-            if (outPath.Length == 0) { Ui.Error(this, "חסר קובץ יעד", "בחרו לאן לשמור."); return false; }
+            if (outPath.Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור.")); return false; }
             // כמו בהטמעה ובכלים. עד 0.8.0 החיתוך לבדו לא בדק, ו״להחליף את הקובץ הקיים?״
             // על הסרט עצמו נענה ב״כן״ - והמנוע כתב על הקובץ שהוא קורא ממנו.
             try
             {
                 if (string.Equals(Path.GetFullPath(outPath), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))
-                { Ui.Error(this, "אותו קובץ", "אי אפשר לכתוב על קובץ המקור. בחרו שם אחר."); return false; }
+                { Ui.Error(this, Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור. בחרו שם אחר.")); return false; }
             }
             catch { }
-            if (File.Exists(outPath) && !Ui.Confirm(this, "הקובץ קיים", "להחליף את הקובץ הקיים?", "להחליף", "ביטול")) return false;
+            if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("להחליף את הקובץ הקיים?"), Lang.T("להחליף"), Lang.T("ביטול"))) return false;
 
             FfJob job = new FfJob();
             job.OutputPath = outPath;
@@ -470,10 +470,10 @@ namespace SubtitleStudio
             }
 
             job.Args = sb.ToString();
-            bool ok = ProgressDlg.Run(_main, _keep ? "חותך את הקטע" : "מסיר את הקטע", job);
+            bool ok = ProgressDlg.Run(_main, _keep ? Lang.T("חותך את הקטע") : Lang.T("מסיר את הקטע"), job);
             if (ok && _applySubs.Checked)
             {
-                _doc.Push("חיתוך");
+                _doc.Push(Lang.T("חיתוך"));
                 _doc.ApplyRangeEdit(_a, _b, _keep);
                 _doc.RaiseChanged();
             }

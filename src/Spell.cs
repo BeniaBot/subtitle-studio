@@ -290,11 +290,11 @@ namespace SubtitleStudio
                 for (int i = 0; i < Files.Length; i++)
                 {
                     byte[] gz = Fetch(BaseUrl + Files[i] + ".gz", ref done, progress, canceled);
-                    if (gz == null) { error = "ההורדה בוטלה."; return false; }
+                    if (gz == null) { error = Lang.T("ההורדה בוטלה."); return false; }
                     // לא קובץ דחוס: דף חסימה של סינון (הכי נפוץ אצלנו), או סתם שבור
                     if (gz.Length < 2 || gz[0] != 0x1F || gz[1] != 0x8B)
                     {
-                        error = ErrorText.IsWebPage(null, gz, gz.Length) ? ErrorText.Filtered : "המילון שירד פגום. נסו שוב.";
+                        error = ErrorText.IsWebPage(null, gz, gz.Length) ? ErrorText.Filtered : Lang.T("המילון שירד פגום. נסו שוב.");
                         return false;
                     }
                     byte[] raw;
@@ -308,10 +308,10 @@ namespace SubtitleStudio
                             raw = dst.ToArray();
                         }
                     }
-                    catch (InvalidDataException) { error = "המילון שירד פגום. נסו שוב."; return false; }
+                    catch (InvalidDataException) { error = Lang.T("המילון שירד פגום. נסו שוב."); return false; }
                     if (!string.Equals(Hash(raw), Sha256[i], StringComparison.OrdinalIgnoreCase))
                     {
-                        error = "המילון שירד פגום, או שהוחלף בשרת. נסו שוב.";
+                        error = Lang.T("המילון שירד פגום, או שהוחלף בשרת. נסו שוב.");
                         return false;
                     }
                     staged[i] = Path.Combine(dir, Files[i] + ".download");
@@ -329,7 +329,7 @@ namespace SubtitleStudio
             }
             catch (WebException wex)
             {
-                error = ErrorText.Web(wex, "המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.");
+                error = ErrorText.Web(wex, Lang.T("המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב."));
                 Ai.Log("הורדת המילון נכשלה: " + wex.Status + " " + wex.Message);
                 return false;
             }

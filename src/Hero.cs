@@ -30,9 +30,9 @@ namespace SubtitleStudio
 
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { "פותחים סרט", "גרירה לחלון או ״עיון בקבצים״" },
-            new string[] { "כותבים כתוביות", "או טוענים קובץ כתוביות קיים" },
-            new string[] { "שומרים סרט חדש", "עם הכתוביות בפנים, מוכן לשליחה" }
+            new string[] { Lang.T("פותחים סרט"), Lang.T("גרירה לחלון או ״עיון בקבצים״") },
+            new string[] { Lang.T("כותבים כתוביות"), Lang.T("או טוענים קובץ כתוביות קיים") },
+            new string[] { Lang.T("שומרים סרט חדש"), Lang.T("עם הכתוביות בפנים, מוכן לשליחה") }
         };
 
         public HeroPanel()
@@ -170,7 +170,7 @@ namespace SubtitleStudio
                 // בלי תוויות - ההסבר מגיע בריחוף
                 string tip = "";
                 if (l == 0) tip = Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)");
-                else if (l == 1) tip = Lang.T(Theme.Dark ? "מעבר למצב בהיר" : "מעבר למצב כהה");
+                else if (l == 1) tip = Lang.T(Theme.Dark ? Lang.T("מעבר למצב בהיר") : Lang.T("מעבר למצב כהה"));
                 else if (l == 2) tip = Lang.T("על התוכנה, מנוע הווידאו ועדכונים");
                 Ui.Tip.SetToolTip(this, tip);
                 Invalidate();

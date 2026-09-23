@@ -259,7 +259,7 @@ namespace SubtitleStudio
             if (to < 0) to = 0;
             if (to > Doc.Cues.Count - 1) to = Doc.Cues.Count - 1;
 
-            Doc.Push("הזזת כתובית");           // כדי ש-Ctrl+Z יחזיר את הזמן הקודם
+            Doc.Push(Lang.T("הזזת כתובית"));           // כדי ש-Ctrl+Z יחזיר את הזמן הקודם
             long dur = c.End - c.Start;
 
             // בונים את הרשימה בלי הכתובית, כדי לדעת בין מי למי היא נוחתת
@@ -360,9 +360,9 @@ namespace SubtitleStudio
         {
             string[] steps = new string[]
             {
-                "נגנו את הסרט ועצרו במקום שבו מתחיל הדיבור",
-                "לחצו על הכפתור הכחול שלמטה",
-                "הקלידו את מה שנאמר. ושוב."
+                Lang.T("נגנו את הסרט ועצרו במקום שבו מתחיל הדיבור"),
+                Lang.T("לחצו על הכפתור הכחול שלמטה"),
+                Lang.T("הקלידו את מה שנאמר. ושוב.")
             };
 
             int m = Theme.S(18);
@@ -371,7 +371,7 @@ namespace SubtitleStudio
             int total = Theme.S(30) + steps.Length * rowH;
             int y = Math.Max(Theme.S(16), (Height - total) / 2);
 
-            Theme.Str(g, "איך כותבים כתוביות", Theme.Semi(11.5f), Theme.Text,
+            Theme.Str(g, Lang.T("איך כותבים כתוביות"), Theme.Semi(11.5f), Theme.Text,
                 new RectangleF(m, y, w, Theme.S(26)), Theme.SfRtl);
             y += Theme.S(34);
 
@@ -455,9 +455,9 @@ namespace SubtitleStudio
             // ונראה כמו חלק מהמילה - וזה בולט מאז שהסימן מופיע על כל בעיה, לא רק חפיפה.
             int textW = numX - textX - Theme.S(28);
             Theme.Str(g, "#", Theme.SmallBold, Theme.TextDim, new RectangleF(numX, 0, NumW, HeaderH), Theme.SfCenter);
-            Theme.Str(g, "טקסט", Theme.SmallBold, Theme.TextDim, new RectangleF(textX, 0, textW, HeaderH), Theme.SfRtl);
-            Theme.Str(g, "התחלה", Theme.SmallBold, Theme.TextDim, new RectangleF(startX, 0, StartW, HeaderH), Theme.SfCenter);
-            Theme.Str(g, "שניות", Theme.SmallBold, Theme.TextDim, new RectangleF(pad, 0, DurW, HeaderH), Theme.SfCenter);
+            Theme.Str(g, Lang.T("טקסט"), Theme.SmallBold, Theme.TextDim, new RectangleF(textX, 0, textW, HeaderH), Theme.SfRtl);
+            Theme.Str(g, Lang.T("התחלה"), Theme.SmallBold, Theme.TextDim, new RectangleF(startX, 0, StartW, HeaderH), Theme.SfCenter);
+            Theme.Str(g, Lang.T("שניות"), Theme.SmallBold, Theme.TextDim, new RectangleF(pad, 0, DurW, HeaderH), Theme.SfCenter);
 
             Rectangle clip = new Rectangle(0, HeaderH, Width, ViewH);
             g.SetClip(clip);
@@ -506,7 +506,7 @@ namespace SubtitleStudio
 
                 // טקסט
                 string txt = c.Text.Replace("\r\n", "  ·  ").Replace("\n", "  ·  ");
-                if (txt.Trim().Length == 0) txt = "(ריק - לחצו כדי לכתוב)";
+                if (txt.Trim().Length == 0) txt = Lang.T("(ריק - לחצו כדי לכתוב)");
                 RectangleF tr = new RectangleF(textX, y + Theme.S(4), textW, _rowH - Theme.S(8));
                 Theme.Str(g, txt, Theme.Ui, txt.StartsWith("(ריק") ? Theme.TextFaint : Theme.Text, tr, Theme.SfRtl);
 

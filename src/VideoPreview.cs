@@ -14,8 +14,8 @@ namespace SubtitleStudio
         public bool ShowSafeArea = false;
         public bool HasMedia = false;
         public bool AudioOnly = false;
-        public string Placeholder = "גררו לכאן סרט";
-        public string Placeholder2 = "או לחצו למעלה על ״פתיחת סרט״";
+        public string Placeholder = Lang.T("גררו לכאן סרט");
+        public string Placeholder2 = Lang.T("או לחצו למעלה על ״פתיחת סרט״");
         public double AspectW = 16, AspectH = 9;
         public event EventHandler Clicked;
 
@@ -80,7 +80,7 @@ namespace SubtitleStudio
                 Theme.Smooth(g);
                 using (SolidBrush b = new SolidBrush(Color.FromArgb(18, 20, 26))) g.FillRectangle(b, vr);
                 Icons.Draw(g, Ico.Speaker, new RectangleF(Width / 2f - 28, Height / 2f - 46, 56, 56), Color.FromArgb(90, 255, 255, 255), 1.6f);
-                Theme.Str(g, "קובץ אודיו בלבד", Theme.Ui, Color.FromArgb(150, 255, 255, 255),
+                Theme.Str(g, Lang.T("קובץ אודיו בלבד"), Theme.Ui, Color.FromArgb(150, 255, 255, 255),
                     new RectangleF(0, Height / 2f + 16, Width, 22), Theme.SfCenter);
             }
             else if (!HasMedia)

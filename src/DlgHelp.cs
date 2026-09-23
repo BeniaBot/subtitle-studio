@@ -9,49 +9,49 @@ namespace SubtitleStudio
     {
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { "פותחים סרט", "כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון" },
-            new string[] { "עוצרים איפה שהדיבור מתחיל", "מקש הרווח מנגן ועוצר. אפשר להאט את ההשמעה כדי לדייק" },
-            new string[] { "לוחצים ״כתובית חדשה כאן״ וכותבים", "הכפתור הכחול הגדול. ואז שוב, ושוב" },
-            new string[] { "יוצרים את הסרט", "הכפתור הירוק - הסרט המקורי שלכם לא משתנה" }
+            new string[] { Lang.T("פותחים סרט"), Lang.T("כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון") },
+            new string[] { Lang.T("עוצרים איפה שהדיבור מתחיל"), Lang.T("מקש הרווח מנגן ועוצר. אפשר להאט את ההשמעה כדי לדייק") },
+            new string[] { Lang.T("לוחצים ״כתובית חדשה כאן״ וכותבים"), Lang.T("הכפתור הכחול הגדול. ואז שוב, ושוב") },
+            new string[] { Lang.T("יוצרים את הסרט"), Lang.T("הכפתור הירוק - הסרט המקורי שלכם לא משתנה") }
         };
 
         private static readonly string[][] Keys = new string[][]
         {
-            new string[] { "רווח", "ניגון ועצירה" },
-            new string[] { "← →", "קפיצה של שתי שניות" },
-            new string[] { "Ctrl+← →", "אותו דבר, גם באמצע כתיבה" },
-            new string[] { "Ctrl+רווח", "ניגון ועצירה באמצע כתיבה" },
-            new string[] { "Ctrl+↑ ↓", "מהירות ההשמעה" },
-            new string[] { "Insert", "כתובית חדשה כאן" },
-            new string[] { "Enter", "בתזמון בלחיצה: כאן מתחיל" },
-            new string[] { "קליק ימני ברשימה", "תיקון איות, חלוקה, איחוד" },
-            new string[] { "Q / W", "התחלה / סיום כאן" },
-            new string[] { "Tab", "לכתובית הבאה" },
-            new string[] { "Delete", "מחיקת המסומנות" },
-            new string[] { "I / O", "סימון קטע לחיתוך" },
-            new string[] { "Ctrl+גלגלת", "זום בציר הזמן" },
-            new string[] { "גרירה על הציר", "יצירת כתובית חדשה" },
-            new string[] { "Ctrl+N", "פרויקט חדש" },
-            new string[] { "Ctrl+O", "פתיחת קובץ" },
-            new string[] { "Ctrl+S", "שמירת הכתוביות" },
-            new string[] { "Ctrl+Z", "ביטול פעולה" },
-            new string[] { "Ctrl+K", "העוזר החכם" },
-            new string[] { "F5", "יצירת הסרט עם הכתוביות" }
+            new string[] { Lang.T("רווח"), Lang.T("ניגון ועצירה") },
+            new string[] { "← →", Lang.T("קפיצה של שתי שניות") },
+            new string[] { "Ctrl+← →", Lang.T("אותו דבר, גם באמצע כתיבה") },
+            new string[] { Lang.T("Ctrl+רווח"), Lang.T("ניגון ועצירה באמצע כתיבה") },
+            new string[] { "Ctrl+↑ ↓", Lang.T("מהירות ההשמעה") },
+            new string[] { "Insert", Lang.T("כתובית חדשה כאן") },
+            new string[] { "Enter", Lang.T("בתזמון בלחיצה: כאן מתחיל") },
+            new string[] { Lang.T("קליק ימני ברשימה"), Lang.T("תיקון איות, חלוקה, איחוד") },
+            new string[] { "Q / W", Lang.T("התחלה / סיום כאן") },
+            new string[] { "Tab", Lang.T("לכתובית הבאה") },
+            new string[] { "Delete", Lang.T("מחיקת המסומנות") },
+            new string[] { "I / O", Lang.T("סימון קטע לחיתוך") },
+            new string[] { Lang.T("Ctrl+גלגלת"), Lang.T("זום בציר הזמן") },
+            new string[] { Lang.T("גרירה על הציר"), Lang.T("יצירת כתובית חדשה") },
+            new string[] { "Ctrl+N", Lang.T("פרויקט חדש") },
+            new string[] { "Ctrl+O", Lang.T("פתיחת קובץ") },
+            new string[] { "Ctrl+S", Lang.T("שמירת הכתוביות") },
+            new string[] { "Ctrl+Z", Lang.T("ביטול פעולה") },
+            new string[] { "Ctrl+K", Lang.T("העוזר החכם") },
+            new string[] { "F5", Lang.T("יצירת הסרט עם הכתוביות") }
         };
 
-        public HelpDlg() : base("איך עובדים כאן", Ico.Question, 620)
+        public HelpDlg() : base(Lang.T("איך עובדים כאן"), Ico.Question, 620)
         {
-            Subtitle = "ארבעה שלבים, וכל הקיצורים במקום אחד";
+            Subtitle = Lang.T("ארבעה שלבים, וכל הקיצורים במקום אחד");
 
             StepsPanel steps = new StepsPanel();
             Row(steps, Steps.Length * 42 + 6, 14);
 
             // לא רק מקלדת: שלוש מהשורות הן פעולות עכבר (גלגלת, גרירה, קליק ימני)
-            Section("קיצורים ופעולות מהירות");
+            Section(Lang.T("קיצורים ופעולות מהירות"));
             KeysPanel keys = new KeysPanel();
             Row(keys, ((Keys.Length + 1) / 2) * 30 + 6, 8);
 
-            Buttons("סגירה", Ico.Check, null);
+            Buttons(Lang.T("סגירה"), Ico.Check, null);
         }
 
         // ---------- ארבעת השלבים ----------

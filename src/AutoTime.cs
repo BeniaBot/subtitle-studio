@@ -135,8 +135,8 @@ namespace SubtitleStudio
         {
             Result r = new Result();
             rms = PickChannel(rms, peak, durationMs);
-            if (rms == null || rms.Length < 20) { r.Error = "פס הקול עוד לא מוכן."; return r; }
-            if (cues == null || cues.Count == 0) { r.Error = "אין כתוביות לתזמן."; return r; }
+            if (rms == null || rms.Length < 20) { r.Error = Lang.T("פס הקול עוד לא מוכן."); return r; }
+            if (cues == null || cues.Count == 0) { r.Error = Lang.T("אין כתוביות לתזמן."); return r; }
 
             // סף אחד לכל הקובץ: רצף קצר מדי לא מספיק כדי למדוד רצפת רעש
             r.Threshold = Threshold(rms, 0, (int)Math.Min(rms.Length, durationMs / Waveform.PeriodMs));
@@ -161,7 +161,7 @@ namespace SubtitleStudio
                 i = j + 1;
             }
             if (r.Timed == 0 && r.Error == null)
-                r.Error = "לא נמצא דיבור ברור בקטע הזה. אולי הקול שקט מדי, או שהכתוביות מכסות את כל מה שיש.";
+                r.Error = Lang.T("לא נמצא דיבור ברור בקטע הזה. אולי הקול שקט מדי, או שהכתוביות מכסות את כל מה שיש.");
             return r;
         }
 

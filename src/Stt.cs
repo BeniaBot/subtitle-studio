@@ -43,7 +43,7 @@ namespace SubtitleStudio
     internal class GeminiStt : ISttProvider
     {
         public string Id { get { return "gemini"; } }
-        public string Name { get { return "גוגל"; } }
+        public string Name { get { return Lang.T("גוגל"); } }
         public bool HasKey { get { return Ai.HasKey; } }
         public bool SendsAudioOut { get { return true; } }
         public int ChunkSec { get { return 60; } }
@@ -51,7 +51,7 @@ namespace SubtitleStudio
         public int MinGapMs { get { return 12000; } }
         public int LastRetrySec { get { return Ai.LastRetrySec; } }
         public bool LastQuotaIsDaily { get { return Ai.LastQuotaIsDaily; } }
-        public string QuotaMessage { get { return "המכסה החינמית של גוגל נגמרה להיום."; } }
+        public string QuotaMessage { get { return Lang.T("המכסה החינמית של גוגל נגמרה להיום."); } }
 
         public List<Ai.TrLine> TranscribeChunk(byte[] audio, string mime, string context, out string error)
         {
@@ -102,12 +102,12 @@ namespace SubtitleStudio
                 DateTime first = DateTime.MaxValue;
                 lock (_outUntil)
                     foreach (DateTime u in _outUntil.Values) if (u < first) first = u;
-                if (first == DateTime.MaxValue) return "אפשר לנסות שוב בעוד כמה דקות.";
+                if (first == DateTime.MaxValue) return Lang.T("אפשר לנסות שוב בעוד כמה דקות.");
                 double min = (first - DateTime.UtcNow).TotalMinutes;
-                if (min <= 1) return "אפשר לנסות שוב עכשיו.";
+                if (min <= 1) return Lang.T("אפשר לנסות שוב עכשיו.");
                 if (min < 90) return "אפשר להמשיך בעוד כ-" + Math.Ceiling(min).ToString(CultureInfo.InvariantCulture) + " דקות.";
                 if (min < 20 * 60) return "אפשר להמשיך בעוד כ-" + Math.Ceiling(min / 60).ToString(CultureInfo.InvariantCulture) + " שעות.";
-                return "אפשר להמשיך מחר.";
+                return Lang.T("אפשר להמשיך מחר.");
             }
         }
         public string CurrentModel { get { return Models[_model]; } }
@@ -129,8 +129,8 @@ namespace SubtitleStudio
             error = null;
             _retry = 0;
             _daily = false;
-            if (audio == null || audio.Length == 0) { error = "אין שמע לתמלל."; return null; }
-            if (!HasKey) { error = Theme.Pfx("לא הוגדר מפתח ל", DisplayName) + "."; return null; }
+            if (audio == null || audio.Length == 0) { error = Lang.T("אין שמע לתמלל."); return null; }
+            if (!HasKey) { error = Theme.Pfx(Lang.T("לא הוגדר מפתח ל"), DisplayName) + "."; return null; }
 
             string boundary = "----SubStudio" + Guid.NewGuid().ToString("N");
             byte[] body = Multipart(boundary, audio, mime, context);
@@ -232,10 +232,10 @@ namespace SubtitleStudio
         {
             if (code == 401 || code == 403) return "המפתח של " + DisplayName + " לא תקין, או שפג תוקפו.";
             if (code == 429) return "המכסה של " + DisplayName + " נגמרה לעכשיו.";
-            if (code == 413) return "קטע השמע גדול מדי לשירות.";
+            if (code == 413) return Lang.T("קטע השמע גדול מדי לשירות.");
             if (code >= 500) return "השרת של " + DisplayName + " לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.";
             // הפרטים הטכניים (באנגלית) כבר ביומן - בהודעה הם רק שוברים את הכיוון
-            if (code == 0) return "אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת.";
+            if (code == 0) return Lang.T("אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת.");
             string msg = null;
             try
             {
@@ -268,7 +268,7 @@ namespace SubtitleStudio
                 root = js.DeserializeObject(json) as Dictionary<string, object>;
             }
             catch { }
-            if (root == null) { error = "התמלול חזר בפורמט לא צפוי."; return null; }
+            if (root == null) { error = Lang.T("התמלול חזר בפורמט לא צפוי."); return null; }
 
             List<Ai.TrLine> outp = new List<Ai.TrLine>();
             object segs;
@@ -279,7 +279,7 @@ namespace SubtitleStudio
                 object t;
                 if (root.TryGetValue("text", out t) && t is string && ((string)t).Trim().Length > 0)
                 {
-                    error = "התשובה חזרה בלי זמנים.";
+                    error = Lang.T("התשובה חזרה בלי זמנים.");
                     return null;
                 }
                 return outp;

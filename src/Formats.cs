@@ -86,7 +86,7 @@ namespace SubtitleStudio
             try
             {
                 if (heb > 0 && heb >= ansi)
-                { encodingName = "Windows-1255 (עברית)"; return Encoding.GetEncoding(1255).GetString(data); }
+                { encodingName = Lang.T("Windows-1255 (עברית)"); return Encoding.GetEncoding(1255).GetString(data); }
                 encodingName = "Windows-1252";
                 return Encoding.GetEncoding(1252).GetString(data);
             }
@@ -431,7 +431,7 @@ namespace SubtitleStudio
             if (videoH <= 0) videoH = 1080;
             StringBuilder sb = new StringBuilder();
             sb.Append("[Script Info]\r\n");
-            sb.Append("; נוצר ב-Subtext\r\n");
+            sb.Append(Lang.T("; נוצר ב-Subtext\r\n"));
             sb.Append("ScriptType: v4.00+\r\n");
             sb.Append("WrapStyle: 0\r\n");
             sb.Append("ScaledBorderAndShadow: yes\r\n");

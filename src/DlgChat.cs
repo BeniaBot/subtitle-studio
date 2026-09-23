@@ -33,17 +33,17 @@ namespace SubtitleStudio
         private const int MaxRounds = 8;
         private static readonly string[] Chips = new string[]
         {
-            "תרגם את הכתוביות לאנגלית",
-            "תקן חפיפות וכתוביות קצרות מדי",
-            "כל הכתוביות מאחרות בחצי שנייה",
-            "תגדיל את הכתוביות ותשים למעלה",
-            "תכין גרסה שנכנסת ב-200 מגה"
+            Lang.T("תרגם את הכתוביות לאנגלית"),
+            Lang.T("תקן חפיפות וכתוביות קצרות מדי"),
+            Lang.T("כל הכתוביות מאחרות בחצי שנייה"),
+            Lang.T("תגדיל את הכתוביות ותשים למעלה"),
+            Lang.T("תכין גרסה שנכנסת ב-200 מגה")
         };
 
         public AiChatForm(IAiHost host)
         {
             _host = host;
-            Text = "עוזר AI";
+            Text = Lang.T("עוזר AI");
             AutoScaleMode = AutoScaleMode.None;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
@@ -88,7 +88,7 @@ namespace SubtitleStudio
             _send.Radius = Theme.S(19);
             _send.Size = new Size(Theme.S(38), Theme.S(38));
             _send.Click += delegate { Send(); };
-            Ui.Tip.SetToolTip(_send, "שליחה (Enter)");
+            Ui.Tip.SetToolTip(_send, Lang.T("שליחה (Enter)"));
             Controls.Add(_send);
 
             _reset = new Btn();
@@ -99,7 +99,7 @@ namespace SubtitleStudio
             _reset.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
             _reset.Size = new Size(Theme.S(32), Theme.S(32));
             _reset.Click += delegate { _history.Clear(); _view.Clear(); Greet(); };
-            Ui.Tip.SetToolTip(_reset, "שיחה חדשה");
+            Ui.Tip.SetToolTip(_reset, Lang.T("שיחה חדשה"));
             Controls.Add(_reset);
 
             _close = new Btn();
@@ -132,7 +132,7 @@ namespace SubtitleStudio
             _keyBtn.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
             _keyBtn.Size = new Size(Theme.S(32), Theme.S(32));
             _keyBtn.Click += delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); };
-            Ui.Tip.SetToolTip(_keyBtn, "המפתח של גוגל, שהעוזר עובד איתו");
+            Ui.Tip.SetToolTip(_keyBtn, Lang.T("המפתח של גוגל, שהעוזר עובד איתו"));
             Controls.Add(_keyBtn);
 
             KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) Close(); };
@@ -175,7 +175,7 @@ namespace SubtitleStudio
 
         private void Greet()
         {
-            _view.AddBot("שלום. אפשר לבקש ממני דברים במילים רגילות - ואני אעשה אותם בתוכנה.");
+            _view.AddBot(Lang.T("שלום. אפשר לבקש ממני דברים במילים רגילות - ואני אעשה אותם בתוכנה."));
             _view.AddChips(Chips);
         }
 
@@ -216,9 +216,9 @@ namespace SubtitleStudio
 
             float tx = badge.X - Theme.S(10);
             float tleft = _keyBtn.Right + Theme.S(8);
-            Theme.Str(g, "עוזר AI", Theme.Big, Theme.Text,
+            Theme.Str(g, Lang.T("עוזר AI"), Theme.Big, Theme.Text,
                 new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22)), Theme.SfRtl);
-            Theme.Str(g, "מבקשים במילים רגילות - והוא מבצע", Theme.Small, Theme.TextDim,
+            Theme.Str(g, Lang.T("מבקשים במילים רגילות - והוא מבצע"), Theme.Small, Theme.TextDim,
                 new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18)), Theme.SfRtl);
 
             // תיבת הכתיבה
@@ -284,7 +284,7 @@ namespace SubtitleStudio
         {
             if (round >= MaxRounds)
             {
-                _view.AddBot("עצרתי אחרי כמה שלבים ברצף. אפשר לבקש שוב בצורה ממוקדת יותר.");
+                _view.AddBot(Lang.T("עצרתי אחרי כמה שלבים ברצף. אפשר לבקש שוב בצורה ממוקדת יותר."));
                 Done();
                 return;
             }
@@ -320,7 +320,7 @@ namespace SubtitleStudio
             _view.Thinking = false;
             if (r == null || !r.Ok)
             {
-                _view.AddError(r != null ? r.Error : "לא התקבלה תשובה מהשרת.");
+                _view.AddError(r != null ? r.Error : Lang.T("לא התקבלה תשובה מהשרת."));
                 _lastRound = round;
                 Done();
                 return;
@@ -363,7 +363,7 @@ namespace SubtitleStudio
             if (res != null && res.TryGetValue("done", out done) && Convert.ToString(done).Length > 0)
                 _view.AddAction(Convert.ToString(done), true);
             else if (refused)
-                _view.AddAction("הפעולה בוטלה", false);
+                _view.AddAction(Lang.T("הפעולה בוטלה"), false);
             else if (res != null && res.ContainsKey("error"))
                 _view.AddAction(Convert.ToString(res["error"]), false);
 
@@ -391,48 +391,48 @@ namespace SubtitleStudio
         private string SystemPrompt()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת עריכת כתוביות בעברית. ");
-            sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון.\n");
+            sb.Append(Lang.T("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת עריכת כתוביות בעברית. "));
+            sb.Append(Lang.T("המשתמש הוא לרוב לא טכני. ענה קצר, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון.\n"));
 
-            sb.Append("אתה לא צ׳אט של עצות - אתה מפעיל את התוכנה בפועל. ");
-            sb.Append("התוכנה יודעת לעשות כמעט הכול, ולכל יכולת יש פונקציה. ");
-            sb.Append("לפני שאתה אומר ״אני לא יכול״ - עבור על רשימת הפונקציות שברשותך ומצא את המתאימה. ");
-            sb.Append("אם עדיין נראה שאין - קרא ל-list_media_tools, שם יש עשרות פעולות על קובץ הווידאו.\n");
+            sb.Append(Lang.T("אתה לא צ׳אט של עצות - אתה מפעיל את התוכנה בפועל. "));
+            sb.Append(Lang.T("התוכנה יודעת לעשות כמעט הכול, ולכל יכולת יש פונקציה. "));
+            sb.Append(Lang.T("לפני שאתה אומר ״אני לא יכול״ - עבור על רשימת הפונקציות שברשותך ומצא את המתאימה. "));
+            sb.Append(Lang.T("אם עדיין נראה שאין - קרא ל-list_media_tools, שם יש עשרות פעולות על קובץ הווידאו.\n"));
 
-            sb.Append("**איך מתחילים כתוביות מאפס** - זו השאלה הנפוצה ביותר, ויש בדיוק ארבע תשובות:\n");
-            sb.Append("0. **יש סרט ואין טקסט בכלל - transcribe_media.** התוכנה מקשיבה וכותבת לבד, עם תזמונים. ");
-            sb.Append("זו התשובה הראשונה שצריך לשקול כשיש סרט פתוח. היא פותחת חלון אישור כי הקול נשלח ");
-            sb.Append("החוצה, והמשתמש מאשר בעצמו - אל תבטיח לו שזה נשאר במחשב, ואל תנסה שוב אם הוא סגר.\n");
-            sb.Append("1. הטקסט כבר כתוב אצל המשתמש (תמליל, מסמך) - open_text_import פותח לו את החלון להדביק בו. ");
-            sb.Append("**אל תבקש ממנו להדביק את הטקסט לצ'אט** - זה מיותר ומעצבן. ");
-            sb.Append("אחר כך auto_time_by_speech מתזמן את השורות לבד לפי השתיקות בסרט. ");
-            sb.Append("start_tap_timing (לחיצה בכל משפט) הוא הגיבוי, אם התוצאה לא טובה.\n");
-            sb.Append("2. המשתמש רוצה לכתוב תוך כדי צפייה - new_subtitle_here יוצר כתובית במקום שבו הסרט עומד, והוא מקליד.\n");
-            sb.Append("3. הטקסט נמצא אצלך בשיחה (למשל תרגמת אותו) - create_subtitles_from_text, ועדיף עם tap_later=true.\n");
-            sb.Append("אם לא ברור לך באיזה מצב המשתמש - שאל שאלה אחת קצרה, ואל תסביר את כל הארבע.\n\n");
+            sb.Append(Lang.T("**איך מתחילים כתוביות מאפס** - זו השאלה הנפוצה ביותר, ויש בדיוק ארבע תשובות:\n"));
+            sb.Append(Lang.T("0. **יש סרט ואין טקסט בכלל - transcribe_media.** התוכנה מקשיבה וכותבת לבד, עם תזמונים. "));
+            sb.Append(Lang.T("זו התשובה הראשונה שצריך לשקול כשיש סרט פתוח. היא פותחת חלון אישור כי הקול נשלח "));
+            sb.Append(Lang.T("החוצה, והמשתמש מאשר בעצמו - אל תבטיח לו שזה נשאר במחשב, ואל תנסה שוב אם הוא סגר.\n"));
+            sb.Append(Lang.T("1. הטקסט כבר כתוב אצל המשתמש (תמליל, מסמך) - open_text_import פותח לו את החלון להדביק בו. "));
+            sb.Append(Lang.T("**אל תבקש ממנו להדביק את הטקסט לצ'אט** - זה מיותר ומעצבן. "));
+            sb.Append(Lang.T("אחר כך auto_time_by_speech מתזמן את השורות לבד לפי השתיקות בסרט. "));
+            sb.Append(Lang.T("start_tap_timing (לחיצה בכל משפט) הוא הגיבוי, אם התוצאה לא טובה.\n"));
+            sb.Append(Lang.T("2. המשתמש רוצה לכתוב תוך כדי צפייה - new_subtitle_here יוצר כתובית במקום שבו הסרט עומד, והוא מקליד.\n"));
+            sb.Append(Lang.T("3. הטקסט נמצא אצלך בשיחה (למשל תרגמת אותו) - create_subtitles_from_text, ועדיף עם tap_later=true.\n"));
+            sb.Append(Lang.T("אם לא ברור לך באיזה מצב המשתמש - שאל שאלה אחת קצרה, ואל תסביר את כל הארבע.\n\n"));
 
-            sb.Append("דוגמאות נוספות למה שכן אפשר:\n");
-            sb.Append("· לשלוף ערוץ כתוביות שמוטמע בתוך MKV/MP4 - extract_subtitles_from_video\n");
-            sb.Append("· לתרגם את כל הכתוביות ולהחליף אותן - translate_subtitles\n");
-            sb.Append("· לתקן תזמון שמחליק לאורך הסרט - stretch_timing; הזזה קבועה - shift_cues\n");
-            sb.Append("· שכתוביות לא יתחילו רגע אחרי שהתמונה מתחלפת - snap_to_scene_cuts\n");
-            sb.Append("· ״מה לא בסדר בכתוביות?״ או ״תבדוק שהכול תקין״ - find_problems, ואז fix_timings למה שאפשר לתקן לבד. ");
-            sb.Append("מה ש-fix_timings לא תיקן (למשל כתובית ארוכה מכדי להיכנס בשתי שורות) - הסבר בקצרה מה צריך לעשות בה ביד\n");
-            sb.Append("· חיפוש והחלפה, פיצול, איחוד, סידור שורות - replace_text / split_cue / merge_cues / wrap_lines\n");
-            sb.Append("· ״יש שגיאות כתיב?״ - check_spelling. **לא לתקן לבד:** הצג את המילים החשודות עם ההצעות, ותקן ");
-            sb.Append("עם fix_spelling רק מה שהמשתמש אישר. מילה שהוא אומר שהיא תקינה (שם, מונח) - add_word_to_dictionary\n");
-            sb.Append("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n");
-            sb.Append("· לחתוך קטע, לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");
+            sb.Append(Lang.T("דוגמאות נוספות למה שכן אפשר:\n"));
+            sb.Append(Lang.T("· לשלוף ערוץ כתוביות שמוטמע בתוך MKV/MP4 - extract_subtitles_from_video\n"));
+            sb.Append(Lang.T("· לתרגם את כל הכתוביות ולהחליף אותן - translate_subtitles\n"));
+            sb.Append(Lang.T("· לתקן תזמון שמחליק לאורך הסרט - stretch_timing; הזזה קבועה - shift_cues\n"));
+            sb.Append(Lang.T("· שכתוביות לא יתחילו רגע אחרי שהתמונה מתחלפת - snap_to_scene_cuts\n"));
+            sb.Append(Lang.T("· ״מה לא בסדר בכתוביות?״ או ״תבדוק שהכול תקין״ - find_problems, ואז fix_timings למה שאפשר לתקן לבד. "));
+            sb.Append(Lang.T("מה ש-fix_timings לא תיקן (למשל כתובית ארוכה מכדי להיכנס בשתי שורות) - הסבר בקצרה מה צריך לעשות בה ביד\n"));
+            sb.Append(Lang.T("· חיפוש והחלפה, פיצול, איחוד, סידור שורות - replace_text / split_cue / merge_cues / wrap_lines\n"));
+            sb.Append(Lang.T("· ״יש שגיאות כתיב?״ - check_spelling. **לא לתקן לבד:** הצג את המילים החשודות עם ההצעות, ותקן "));
+            sb.Append(Lang.T("עם fix_spelling רק מה שהמשתמש אישר. מילה שהוא אומר שהיא תקינה (שם, מונח) - add_word_to_dictionary\n"));
+            sb.Append(Lang.T("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n"));
+            sb.Append(Lang.T("· לחתוך קטע, לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n"));
 
-            sb.Append("כללי עבודה: אל תסביר איך לעשות ידנית - פשוט תעשה. ");
-            sb.Append("אם יש פונקציה שמתאימה, קרא לה במקום לתאר אותה במילים. ");
-            sb.Append("תשובה שמסתיימת ב״תגיד לי מה לעשות״ בלי שקראת לשום פונקציה היא כמעט תמיד טעות. ");
-            sb.Append("אל תמציא נתונים: אם חסר לך מידע, קרא ל-get_state או list_cues. ");
-            sb.Append("אפשר לשרשר כמה פעולות בתור אחד כדי להשלים בקשה שלמה. ");
-            sb.Append("פעולות הרסניות מבקשות אישור מהמשתמש בעצמן - אל תשאל אישור פעמיים. ");
-            sb.Append("פונקציה שפותחת חלון מחזירה ״נפתח״ - זה הצלחה, לא כישלון. ");
-            sb.Append("אחרי שביצעת, אמור במשפט אחד מה קרה.\n");
-            sb.Append("מצב נוכחי: ");
+            sb.Append(Lang.T("כללי עבודה: אל תסביר איך לעשות ידנית - פשוט תעשה. "));
+            sb.Append(Lang.T("אם יש פונקציה שמתאימה, קרא לה במקום לתאר אותה במילים. "));
+            sb.Append(Lang.T("תשובה שמסתיימת ב״תגיד לי מה לעשות״ בלי שקראת לשום פונקציה היא כמעט תמיד טעות. "));
+            sb.Append(Lang.T("אל תמציא נתונים: אם חסר לך מידע, קרא ל-get_state או list_cues. "));
+            sb.Append(Lang.T("אפשר לשרשר כמה פעולות בתור אחד כדי להשלים בקשה שלמה. "));
+            sb.Append(Lang.T("פעולות הרסניות מבקשות אישור מהמשתמש בעצמן - אל תשאל אישור פעמיים. "));
+            sb.Append(Lang.T("פונקציה שפותחת חלון מחזירה ״נפתח״ - זה הצלחה, לא כישלון. "));
+            sb.Append(Lang.T("אחרי שביצעת, אמור במשפט אחד מה קרה.\n"));
+            sb.Append(Lang.T("מצב נוכחי: "));
             sb.Append(_host.AiStateLine());
             return sb.ToString();
         }
@@ -717,7 +717,7 @@ namespace SubtitleStudio
                                 it.RetryRect = new RectangleF(r.Right - Theme.S(13) - rw, r.Bottom - Theme.S(32), rw, rh);
                                 Theme.FillRound(g, it.RetryRect, rh / 2f, Theme.AccentSoft);
                                 Theme.DrawRound(g, it.RetryRect, rh / 2f, Theme.Accent, 1f);
-                                Theme.Str(g, "לנסות שוב", Theme.Small, Theme.Accent, it.RetryRect, Theme.SfCenter);
+                                Theme.Str(g, Lang.T("לנסות שוב"), Theme.Small, Theme.Accent, it.RetryRect, Theme.SfCenter);
                             }
                             if (!user) Avatar(g, new RectangleF(0, y + it.H - AvatarD, AvatarD, AvatarD));
                         }

@@ -196,7 +196,7 @@ namespace SubtitleStudio
 
         public string Describe()
         {
-            return FontName + " · " + FontPct.ToString("0.#") + "%" + (Bold ? " · מודגש" : "") + (OpaqueBox ? " · רקע מלא" : "");
+            return FontName + " · " + FontPct.ToString("0.#") + "%" + (Bold ? Lang.T(" · מודגש") : "") + (OpaqueBox ? Lang.T(" · רקע מלא") : "");
         }
     }
 }

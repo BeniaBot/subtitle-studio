@@ -17,44 +17,44 @@ namespace SubtitleStudio
 
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { "נכנסים לדף של גוגל", "הכפתור למטה פותח אותו בדפדפן. צריך חשבון גוגל רגיל." },
-            new string[] { "לוחצים ״Create API key״", "גוגל מייצרת מחרוזת ארוכה. אין צורך בכרטיס אשראי." },
-            new string[] { "מעתיקים ומדביקים כאן", "המפתח נשמר מוצפן במחשב שלכם בלבד." }
+            new string[] { Lang.T("נכנסים לדף של גוגל"), Lang.T("הכפתור למטה פותח אותו בדפדפן. צריך חשבון גוגל רגיל.") },
+            new string[] { Lang.T("לוחצים ״Create API key״"), Lang.T("גוגל מייצרת מחרוזת ארוכה. אין צורך בכרטיס אשראי.") },
+            new string[] { Lang.T("מעתיקים ומדביקים כאן"), Lang.T("המפתח נשמר מוצפן במחשב שלכם בלבד.") }
         };
 
-        public AiSetupDlg() : base("חיבור ל-AI", Ico.Sparkles, 600)
+        public AiSetupDlg() : base(Lang.T("חיבור ל-AI"), Ico.Sparkles, 600)
         {
-            Subtitle = "מפתח חינמי מגוגל - שלוש דקות, פעם אחת";
+            Subtitle = Lang.T("מפתח חינמי מגוגל - שלוש דקות, פעם אחת");
 
             StepsView steps = new StepsView(Steps);
             Row(steps, Steps.Length * 44 + 4, 12);
 
             Btn open = new Btn();
-            open.Text = "פתיחת הדף של גוגל להפקת מפתח";
+            open.Text = Lang.T("פתיחת הדף של גוגל להפקת מפתח");
             open.Icon = Ico.Key;
             open.Kind = BtnKind.Subtle;
             open.Click += delegate
             {
                 try { System.Diagnostics.Process.Start(Ai.KeyPage); }
-                catch { Ui.Error(this, "לא הצלחתי לפתוח את הדפדפן", Ai.KeyPage); }
+                catch { Ui.Error(this, Lang.T("לא הצלחתי לפתוח את הדפדפן"), Ai.KeyPage); }
             };
             Row(open, 42, 14);
 
-            Section("המפתח שקיבלתם");
+            Section(Lang.T("המפתח שקיבלתם"));
             _key = new Field();
-            _key.Placeholder = "מדביקים כאן את המפתח";
+            _key.Placeholder = Lang.T("מדביקים כאן את המפתח");
             _key.Box.Text = Ai.Key;
             Row(_key, 40, 8);
 
             _test = new Btn();
-            _test.Text = "בדיקת חיבור";
+            _test.Text = Lang.T("בדיקת חיבור");
             _test.Icon = Ico.Check;
             _test.Kind = BtnKind.Subtle;
             _test.Click += delegate { TestKey(); };
             Row(_test, 38, 6);
 
             Btn diag = new Btn();
-            diag.Text = "בדיקה מפורטת - מה לא עובד?";
+            diag.Text = Lang.T("בדיקה מפורטת - מה לא עובד?");
             diag.Icon = Ico.Info;
             diag.Kind = BtnKind.Ghost;
             diag.Font = Theme.Small;
@@ -65,19 +65,19 @@ namespace SubtitleStudio
             Row(_status, 40, 4);
 
             Row(Hint("השימוש חינמי במסגרת המכסה של גוגל. הכתוביות נשלחות לשרת של גוגל לצורך התרגום - " +
-                     "אל תשתמשו בזה על תוכן רגיש."), 40, 0);
+                     Lang.T("אל תשתמשו בזה על תוכן רגיש.")), 40, 0);
 
-            Buttons("שמירה", Ico.Save, "ביטול");
+            Buttons(Lang.T("שמירה"), Ico.Save, Lang.T("ביטול"));
         }
 
         private void TestKey()
         {
             if (_busy) return;
             string k = _key.Text.Trim();
-            if (k.Length < 10) { Say("צריך להדביק קודם את המפתח.", Theme.Warn); return; }
+            if (k.Length < 10) { Say(Lang.T("צריך להדביק קודם את המפתח."), Theme.Warn); return; }
             _busy = true;
             _test.Enabled = false;
-            Say("בודק...", Theme.TextDim);
+            Say(Lang.T("בודק..."), Theme.TextDim);
             string old = Ai.Key;
             Ai.Key = k;
             AiReply r = null;
@@ -85,9 +85,9 @@ namespace SubtitleStudio
             {
                 List<AiMsg> h = new List<AiMsg>();
                 AiMsg m = new AiMsg();
-                m.Text = "ענה במילה אחת: שלום";
+                m.Text = Lang.T("ענה במילה אחת: שלום");
                 h.Add(m);
-                r = Ai.Send("אתה עוזר בתוכנת כתוביות. ענה קצר בעברית.", h, null, false);
+                r = Ai.Send(Lang.T("אתה עוזר בתוכנת כתוביות. ענה קצר בעברית."), h, null, false);
                 try
                 {
                     BeginInvoke((MethodInvoker)delegate
@@ -101,10 +101,10 @@ namespace SubtitleStudio
                         {
                             Settings.AiKeyTouched = true;
                             Settings.SaveAll();
-                            if (Settings.KeyOnDisk("aikey")) Say("החיבור עובד, והמפתח נשמר.", Theme.Good);
+                            if (Settings.KeyOnDisk("aikey")) Say(Lang.T("החיבור עובד, והמפתח נשמר."), Theme.Good);
                             else Say("החיבור עובד, אבל המפתח לא נשמר בקובץ. " + Settings.LastError, Theme.Warn);
                         }
-                        else { Ai.Key = old; Say(r != null ? r.Error : "לא התקבלה תשובה.", Theme.Bad); }
+                        else { Ai.Key = old; Say(r != null ? r.Error : Lang.T("לא התקבלה תשובה."), Theme.Bad); }
                     });
                 }
                 catch { }
@@ -119,7 +119,7 @@ namespace SubtitleStudio
             if (_busy) return;
             _busy = true;
             b.Enabled = false;
-            Say("בודק...", Theme.TextDim);
+            Say(Lang.T("בודק..."), Theme.TextDim);
             // הבדיקה מריצה את המפתח שבתיבה, אבל אסור שהוא יישאר פעיל אחריה:
             // מי שמריץ בדיקה עם מפתח שגוי ואז מבטל נשאר עם המפתח השגוי לכל
             // אורך הסשן.
@@ -138,10 +138,10 @@ namespace SubtitleStudio
                         b.Enabled = true;
                         Ai.Key = oldKey;          // הבדיקה נגמרה - חוזרים למפתח השמור
                         Say("", Theme.TextDim);
-                        Ui.Msg(this, "מה נמצא",
+                        Ui.Msg(this, Lang.T("מה נמצא"),
                             report + Environment.NewLine +
-                            "הפרטים נשמרו גם בקובץ ai-log.txt בתיקיית ההגדרות.",
-                            Ico.Info, "סגירה", "פתיחת התיקייה");
+                            Lang.T("הפרטים נשמרו גם בקובץ ai-log.txt בתיקיית ההגדרות."),
+                            Ico.Info, Lang.T("סגירה"), Lang.T("פתיחת התיקייה"));
                     });
                 }
                 catch { }
@@ -165,8 +165,8 @@ namespace SubtitleStudio
             // **לוודא שזה באמת בקובץ.** ״שמירה״ שלא נשמרה היא הבאג הכי מתסכל שיש:
             // הכול עובד עד ההפעלה הבאה, ואז המפתח נעלם.
             if (Ai.Key.Length > 0 && !Settings.KeyOnDisk("aikey"))
-                Ui.Error(this, "המפתח לא נשמר",
-                    "המפתח פעיל עד שתסגרו את התוכנה, אבל הוא לא נכתב לקובץ ההגדרות, ובהפעלה הבאה הוא לא יהיה." +
+                Ui.Error(this, Lang.T("המפתח לא נשמר"),
+                    Lang.T("המפתח פעיל עד שתסגרו את התוכנה, אבל הוא לא נכתב לקובץ ההגדרות, ובהפעלה הבאה הוא לא יהיה.") +
                     Environment.NewLine + Settings.LastError);
             return true;
         }
@@ -222,29 +222,29 @@ namespace SubtitleStudio
 
         private static readonly string[] Langs = new string[]
         {
-            "עברית", "אנגלית", "ערבית", "רוסית", "צרפתית", "ספרדית", "יידיש", "גרמנית", "פורטוגזית", "אמהרית"
+            Lang.T("עברית"), Lang.T("אנגלית"), Lang.T("ערבית"), Lang.T("רוסית"), Lang.T("צרפתית"), Lang.T("ספרדית"), Lang.T("יידיש"), Lang.T("גרמנית"), Lang.T("פורטוגזית"), Lang.T("אמהרית")
         };
 
-        public AiTranslateDlg(Doc doc) : base("תרגום הכתוביות", Ico.Translate, 560)
+        public AiTranslateDlg(Doc doc) : base(Lang.T("תרגום הכתוביות"), Ico.Translate, 560)
         {
             _doc = doc;
-            Subtitle = "התזמונים נשארים בדיוק כמו שהם";
+            Subtitle = Lang.T("התזמונים נשארים בדיוק כמו שהם");
 
-            Section("לאיזו שפה לתרגם");
+            Section(Lang.T("לאיזו שפה לתרגם"));
             _lang = new Combo();
             _lang.Items.AddRange(Langs);
             _lang.SelectedIndex = 1;
             Row(_lang, 40, 12);
 
-            Section("מה לעשות עם התוצאה");
+            Section(Lang.T("מה לעשות עם התוצאה"));
             _mode = new Combo();
-            _mode.Items.AddRange(new string[] { "להחליף את הכתוביות הקיימות", "לשמור לקובץ חדש בלי לגעת בקיימות" });
+            _mode.Items.AddRange(new string[] { Lang.T("להחליף את הכתוביות הקיימות"), Lang.T("לשמור לקובץ חדש בלי לגעת בקיימות") });
             _mode.SelectedIndex = 0;
             Row(_mode, 40, 12);
 
-            Section("רקע על התוכן (לא חובה)");
+            Section(Lang.T("רקע על התוכן (לא חובה)"));
             _context = new Field();
-            _context.Placeholder = "למשל: שיעור בהלכה · הרצאה טכנית · סרטון שיווקי";
+            _context.Placeholder = Lang.T("למשל: שיעור בהלכה · הרצאה טכנית · סרטון שיווקי");
             Row(_context, 40, 10);
 
             _info = Hint(doc != null
@@ -252,10 +252,10 @@ namespace SubtitleStudio
                 : "");
             Row(_info, 36, 2);
 
-            Buttons("תרגמו", Ico.Sparkles, "ביטול");
+            Buttons(Lang.T("תרגמו"), Ico.Sparkles, Lang.T("ביטול"));
         }
 
-        public string Lang { get { return Langs[Math.Max(0, _lang.SelectedIndex)]; } }
+        public string Target { get { return Langs[Math.Max(0, _lang.SelectedIndex)]; } }
         public string Context { get { return _context.Text.Trim(); } }
 
         protected override bool OnOk()
@@ -278,18 +278,18 @@ namespace SubtitleStudio
 
         private const int BatchSize = 40;
 
-        public AiRunDlg(List<Cue> cues, string lang, string context) : base("מתרגם...", Ico.Sparkles, 520)
+        public AiRunDlg(List<Cue> cues, string lang, string context) : base(Lang.T("מתרגם..."), Ico.Sparkles, 520)
         {
             _cues = cues; _lang = lang; _context = context;
-            Subtitle = "השאירו את החלון פתוח";
+            Subtitle = Lang.T("השאירו את החלון פתוח");
 
-            _stat = Label("מתחבר...", false, Theme.Text);
+            _stat = Label(Lang.T("מתחבר..."), false, Theme.Text);
             Row(_stat, 24, 10);
             _bar = new ProgressBarLite();
             Row(_bar, 10, 14);
 
             Btn cancel = new Btn();
-            cancel.Text = "ביטול";
+            cancel.Text = Lang.T("ביטול");
             cancel.Kind = BtnKind.Ghost;
             cancel.Click += delegate { _cancel = true; Ok = false; Close(); };
             Row(cancel, 40, 0);

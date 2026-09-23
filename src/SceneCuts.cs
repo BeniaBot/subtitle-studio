@@ -130,7 +130,7 @@ namespace SubtitleStudio
             job.Args = Args(path);
             job.TotalMs = durationMs;
             job.WorkDir = Ff.TempDir();
-            job.Title = "מאתר מעברי סצנה";
+            job.Title = Lang.T("מאתר מעברי סצנה");
             job.OnLine = delegate (string line)
             {
                 long t = ParseLine(line);

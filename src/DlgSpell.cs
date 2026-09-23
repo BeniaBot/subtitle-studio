@@ -17,17 +17,17 @@ namespace SubtitleStudio
         private readonly Btn _ok;
         private volatile bool _busy, _cancel;
 
-        public SpellSetupDlg() : base("בדיקת איות", Ico.Check, 560)
+        public SpellSetupDlg() : base(Lang.T("בדיקת איות"), Ico.Check, 560)
         {
-            Subtitle = "מסמנת מילים שאולי כתובות לא נכון";
+            Subtitle = Lang.T("מסמנת מילים שאולי כתובות לא נכון");
 
-            Section("מה צריך");
+            Section(Lang.T("מה צריך"));
             Row(Hint("בשביל זה צריך מילון עברי. הוא חינמי, שוקל " + Theme.Ltr("1.2 MB") +
                      ", ויורד פעם אחת. אחרי זה הבדיקה עובדת בלי אינטרנט."), 22, 10);
 
-            Section("איך זה עובד");
-            Row(Hint("מילה חשודה מסומנת ברשימת הכתוביות. קליק ימני על השורה מציע תיקון, או להוסיף את המילה למילון."), 22, 4);
-            Row(Hint("המילון מכיר גם ארמית של הגמרא, ראשי תיבות, שמות חכמים ומספרים באותיות."), 22, 12);
+            Section(Lang.T("איך זה עובד"));
+            Row(Hint(Lang.T("מילה חשודה מסומנת ברשימת הכתוביות. קליק ימני על השורה מציע תיקון, או להוסיף את המילה למילון.")), 22, 4);
+            Row(Hint(Lang.T("המילון מכיר גם ארמית של הגמרא, ראשי תיבות, שמות חכמים ומספרים באותיות.")), 22, 12);
 
             // שורת המצב והפס מופיעים רק כשמתחילים להוריד. לפני זה הם רק חור מעל הכפתורים.
             _status = Hint("");
@@ -35,7 +35,7 @@ namespace SubtitleStudio
             _bar = new ProgressBarLite();
             Row(_bar, 10, 8);
 
-            _ok = Buttons("להוריד את המילון", Ico.Download, "ביטול");
+            _ok = Buttons(Lang.T("להוריד את המילון"), Ico.Download, Lang.T("ביטול"));
             _status.Visible = false;
             _bar.Visible = false;
             Restack();
@@ -53,7 +53,7 @@ namespace SubtitleStudio
             _bar.Visible = true;
             _status.Visible = true;
             Restack();
-            Say("מוריד…", Theme.TextDim);
+            Say(Lang.T("מוריד…"), Theme.TextDim);
 
             Thread t = new Thread(delegate ()
             {
@@ -89,7 +89,7 @@ namespace SubtitleStudio
                     {
                         _bar.Visible = false;
                         Restack();
-                        Say(err ?? "ההורדה לא הצליחה.", Theme.Bad);
+                        Say(err ?? Lang.T("ההורדה לא הצליחה."), Theme.Bad);
                     }
                 });
             });

@@ -220,12 +220,12 @@ namespace SubtitleStudio
                 root = js.DeserializeObject(json) as Dictionary<string, object>;
             }
             catch { root = null; }
-            if (root == null) { error = "הקובץ פגום, או שהוא לא פרויקט של התוכנה."; return null; }
-            if (S(root, "type") != TypeTag) { error = "זה לא קובץ פרויקט של התוכנה."; return null; }
+            if (root == null) { error = Lang.T("הקובץ פגום, או שהוא לא פרויקט של התוכנה."); return null; }
+            if (S(root, "type") != TypeTag) { error = Lang.T("זה לא קובץ פרויקט של התוכנה."); return null; }
             int ver = (int)L(root, "version", 1);
             if (ver > FormatVersion)
             {
-                error = "הפרויקט נשמר בגרסה חדשה יותר של התוכנה, והגרסה הזאת לא יודעת לקרוא אותו. כדאי לעדכן.";
+                error = Lang.T("הפרויקט נשמר בגרסה חדשה יותר של התוכנה, והגרסה הזאת לא יודעת לקרוא אותו. כדאי לעדכן.");
                 return null;
             }
 

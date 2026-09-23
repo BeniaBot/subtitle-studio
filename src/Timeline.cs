@@ -377,7 +377,7 @@ namespace SubtitleStudio
                 if (Doc != null)
                     foreach (Cue c in Doc.Cues)
                         if (c.Selected || c == h.Cue) _dragOrig[c] = new long[] { c.Start, c.End };
-                if (Doc != null) Doc.Push("עריכת תזמון");
+                if (Doc != null) Doc.Push(Lang.T("עריכת תזמון"));
                 Invalidate();
                 return;
             }
@@ -545,7 +545,7 @@ namespace SubtitleStudio
             {
                 long a = Math.Min(_newA, _newB), b = Math.Max(_newA, _newB);
                 if (b - a < 300) b = a + 2000;
-                Doc.Push("הוספת כתובית");
+                Doc.Push(Lang.T("הוספת כתובית"));
                 Cue c = new Cue(a, b, "");
                 Doc.SelectNone();
                 c.Selected = true;
@@ -577,7 +577,7 @@ namespace SubtitleStudio
             else if (h.Part == HitPart.Empty && Doc != null)
             {
                 long a = XToMs(e.X);
-                Doc.Push("הוספת כתובית");
+                Doc.Push(Lang.T("הוספת כתובית"));
                 Cue c = new Cue(a, a + 2000, "");
                 Doc.SelectNone();
                 c.Selected = true;
@@ -642,16 +642,16 @@ namespace SubtitleStudio
             }
             if (DurationMs <= 1)
             {
-                Theme.Str(g, "כאן יופיע ציר הזמן של הסרט", Theme.Big, Theme.TextDim,
+                Theme.Str(g, Lang.T("כאן יופיע ציר הזמן של הסרט"), Theme.Big, Theme.TextDim,
                     new RectangleF(0, Height / 2f - 26, Width, 24), Theme.SfCenter);
-                Theme.Str(g, "פתחו קובץ וידאו או אודיו כדי להתחיל", Theme.Ui, Theme.TextFaint,
+                Theme.Str(g, Lang.T("פתחו קובץ וידאו או אודיו כדי להתחיל"), Theme.Ui, Theme.TextFaint,
                     new RectangleF(0, Height / 2f + 2, Width, 22), Theme.SfCenter);
             }
             else if (Doc != null && Doc.Cues.Count == 0)
             {
                 // רמז שקט בלבד - הדרך הראשית היא הכפתור הכחול, לא שתי הוראות מתחרות.
                 float hy = TrackTop + (Height - ScrollH - TrackTop) / 2f;
-                Theme.Str(g, "אפשר גם לגרור כאן", Theme.Small, Theme.TextFaint,
+                Theme.Str(g, Lang.T("אפשר גם לגרור כאן"), Theme.Small, Theme.TextFaint,
                     new RectangleF(0, hy - Theme.S(9), Width, Theme.S(18)), Theme.SfCenter);
             }
         }
@@ -808,7 +808,7 @@ namespace SubtitleStudio
                 using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.WaveBack, Theme.PanelAlt, Theme.Dark ? 0.55f : 0.75f)))
                     g.FillRectangle(b, 0, laneTop, Width, laneBottom - laneTop);
                 Theme.HLine(g, Theme.BorderSoft, 0, Width, laneTop);
-                Theme.Str(g, "כתוביות", Theme.Small, Theme.TextFaint,
+                Theme.Str(g, Lang.T("כתוביות"), Theme.Small, Theme.TextFaint,
                     new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfRtl);
             }
         }
@@ -893,7 +893,7 @@ namespace SubtitleStudio
                 if (rr.Width > Theme.S(26))
                 {
                     string t = c.PlainText;
-                    if (t.Length == 0) t = "(ריק)";
+                    if (t.Length == 0) t = Lang.T("(ריק)");
                     float numW = 0;
                     if (rr.Width > Theme.S(70))
                     {
@@ -937,8 +937,8 @@ namespace SubtitleStudio
 
         private void DrawRangeMarks(Graphics g)
         {
-            DrawMark(g, InPoint, Theme.Good, "כניסה", true);
-            DrawMark(g, OutPoint, Theme.Warn, "יציאה", false);
+            DrawMark(g, InPoint, Theme.Good, Lang.T("כניסה"), true);
+            DrawMark(g, OutPoint, Theme.Warn, Lang.T("יציאה"), false);
         }
 
         private void DrawMark(Graphics g, long ms, Color c, string label, bool left)

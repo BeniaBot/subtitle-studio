@@ -18,13 +18,13 @@ namespace SubtitleStudio
         private Lbl _preview;
         private double _seconds = 0.5;
 
-        public ShiftDlg(Doc doc, long position) : base("הזזת תזמון", Ico.ShiftLR, 540)
+        public ShiftDlg(Doc doc, long position) : base(Lang.T("הזזת תזמון"), Ico.ShiftLR, 540)
         {
             _doc = doc;
             _pos = position;
-            Subtitle = "מזיזים קבוצת כתוביות קדימה או אחורה";
+            Subtitle = Lang.T("מזיזים קבוצת כתוביות קדימה או אחורה");
 
-            Section("על אילו כתוביות להחיל?");
+            Section(Lang.T("על אילו כתוביות להחיל?"));
             _scope = new Combo();
             int sel = doc.SelectedCues().Count;
             _scope.Items.AddRange(new object[]
@@ -32,13 +32,13 @@ namespace SubtitleStudio
                 "כל הכתוביות (" + doc.Cues.Count + ")",
                 "המסומנות בלבד (" + sel + ")",
                 "מהסמן והלאה (" + Tc.Short(position) + ")",
-                "עד הסמן"
+                Lang.T("עד הסמן")
             });
             _scope.SelectedIndex = sel > 0 ? 1 : 0;
             _scope.SelectedIndexChanged += delegate { UpdatePreview(); };
             Row(_scope, 32, 14);
 
-            Section("בכמה להזיז?");
+            Section(Lang.T("בכמה להזיז?"));
             Panel chips = new Panel();
             chips.BackColor = Theme.Panel;
             chips.SetBounds(Pad, Y, ContentW, Theme.S(38));
@@ -67,7 +67,7 @@ namespace SubtitleStudio
             Y += Theme.S(48);
 
             _amount = new Field();
-            _amount.Placeholder = "שניות (אפשר גם 00:00:01,250)";
+            _amount.Placeholder = Lang.T("שניות (אפשר גם 00:00:01,250)");
             _amount.Text = "0.5";
             _amount.Box.TextChanged += delegate { UpdatePreview(); };
             Row(_amount, 34, 8);
@@ -76,7 +76,7 @@ namespace SubtitleStudio
             Row(_preview, 40, 4);
             UpdatePreview();
 
-            Buttons("להזיז", Ico.ShiftLR, "ביטול");
+            Buttons(Lang.T("להזיז"), Ico.ShiftLR, Lang.T("ביטול"));
         }
 
         private long AmountMs()
@@ -107,7 +107,7 @@ namespace SubtitleStudio
         {
             long ms = AmountMs();
             List<Cue> t = Target();
-            string dir = ms == 0 ? "" : (ms > 0 ? "מאוחר יותר" : "מוקדם יותר");
+            string dir = ms == 0 ? "" : (ms > 0 ? Lang.T("מאוחר יותר") : Lang.T("מוקדם יותר"));
             string s = t.Count + " כתוביות יזוזו " + Tc.Short(Math.Abs(ms)) + " " + dir + ".";
             if (t.Count > 0)
             {
@@ -121,10 +121,10 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             long ms = AmountMs();
-            if (ms == 0) { Ui.Error(this, "לא הוזן זמן", "כתבו בכמה שניות להזיז."); return false; }
+            if (ms == 0) { Ui.Error(this, Lang.T("לא הוזן זמן"), Lang.T("כתבו בכמה שניות להזיז.")); return false; }
             List<Cue> t = Target();
-            if (t.Count == 0) { Ui.Error(this, "אין כתוביות", "לא נבחרו כתוביות להזזה."); return false; }
-            _doc.Push("הזזת תזמון");
+            if (t.Count == 0) { Ui.Error(this, Lang.T("אין כתוביות"), Lang.T("לא נבחרו כתוביות להזזה.")); return false; }
+            _doc.Push(Lang.T("הזזת תזמון"));
             _doc.Shift(t, ms);
             _doc.Sort();
             _doc.RaiseChanged();
@@ -149,24 +149,24 @@ namespace SubtitleStudio
         public ImportTextDlg(long startAt) : this(startAt, false) { }
 
         /// <param name="hasVideo">אם יש סרט פתוח, ברירת המחדל היא לתזמן לפיו בלחיצות.</param>
-        public ImportTextDlg(long startAt, bool hasVideo) : base("טקסט לכתוביות", Ico.Import, 620)
+        public ImportTextDlg(long startAt, bool hasVideo) : base(Lang.T("טקסט לכתוביות"), Ico.Import, 620)
         {
-            Subtitle = "מדביקים טקסט חופשי - התוכנה מחלקת אותו לכתוביות";
+            Subtitle = Lang.T("מדביקים טקסט חופשי - התוכנה מחלקת אותו לכתוביות");
 
             _text = new Field(true);
-            _text.Placeholder = "הדביקו כאן את הטקסט. שורה ריקה בין קטעים = כתובית נפרדת.";
+            _text.Placeholder = Lang.T("הדביקו כאן את הטקסט. שורה ריקה בין קטעים = כתובית נפרדת.");
             _text.Box.TextChanged += delegate { UpdatePreview(); };
             Row(_text, 150, 8);
 
             Btn load = new Btn();
-            load.Text = "טעינה מקובץ";
+            load.Text = Lang.T("טעינה מקובץ");
             load.Icon = Ico.Folder;
             load.Kind = BtnKind.Ghost;
             load.SetBounds(Pad, Y, Theme.S(164), Theme.S(34));
             load.Click += delegate
             {
                 OpenFileDialog d = new OpenFileDialog();
-                d.Filter = "קבצי טקסט|*.txt;*.text;*.md|כל הקבצים|*.*";
+                d.Filter = Lang.T("קבצי טקסט|*.txt;*.text;*.md|כל הקבצים|*.*");
                 if (d.ShowDialog(this) == DialogResult.OK)
                 {
                     try
@@ -176,7 +176,7 @@ namespace SubtitleStudio
                         Subtitle = "נטען: " + Theme.FileName(Path.GetFileName(d.FileName)) + " (" + enc + ")";
                         Invalidate();
                     }
-                    catch (Exception ex) { Ui.Error(this, "לא הצלחתי לקרוא", ErrorText.Of(ex)); }
+                    catch (Exception ex) { Ui.Error(this, Lang.T("לא הצלחתי לקרוא"), ErrorText.Of(ex)); }
                 }
             };
             Controls.Add(load);
@@ -186,19 +186,19 @@ namespace SubtitleStudio
             Row(_preview, 40, 6);
 
             _tapLater = new Toggle();
-            _tapLater.Text = "לתזמן אותן לפי הסרט, בלחיצה על כל משפט";
+            _tapLater.Text = Lang.T("לתזמן אותן לפי הסרט, בלחיצה על כל משפט");
             _tapLater.Checked = hasVideo;
             _tapLater.Enabled = hasVideo;
             Row(_tapLater, 28, 2);
 
             Lbl why = Hint(hasVideo
-                ? "אחרי היצירה יופיע כפתור גדול: מנגנים, ולוחצים עליו בכל פעם שמשפט מתחיל."
-                : "אין סרט פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד.");
+                ? Lang.T("אחרי היצירה יופיע כפתור גדול: מנגנים, ולוחצים עליו בכל פעם שמשפט מתחיל.")
+                : Lang.T("אין סרט פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד."));
             Row(why, 34, 10);
 
             // ---------- מכאן ומטה: מוסתר עד שמבקשים ----------
             _advBtn = new Btn();
-            _advBtn.Text = "הגדרות מתקדמות";
+            _advBtn.Text = Lang.T("הגדרות מתקדמות");
             _advBtn.Icon = Ico.ChevronDown;
             _advBtn.Kind = BtnKind.Tool;
             _advBtn.Font = Theme.Small;
@@ -207,32 +207,32 @@ namespace SubtitleStudio
             Controls.Add(_advBtn);
             Y += Theme.S(38);
 
-            _advHint = Hint("חלוקה, זיהוי חותמות זמן, קצב קריאה ונקודת התחלה");
+            _advHint = Hint(Lang.T("חלוקה, זיהוי חותמות זמן, קצב קריאה ונקודת התחלה"));
             Row(_advHint, 24, 8);
             _adv.Add(_advHint);
 
             _split = new Combo();
-            _split.Items.AddRange(new object[] { "אוטומטי", "שורה = כתובית", "פסקה (שורה ריקה) = כתובית" });
+            _split.Items.AddRange(new object[] { Lang.T("אוטומטי"), Lang.T("שורה = כתובית"), Lang.T("פסקה (שורה ריקה) = כתובית") });
             _split.SelectedIndex = 0;
             _split.SelectedIndexChanged += delegate { UpdatePreview(); };
             Row(_split, 32, 8);
             _adv.Add(_split);
 
             _stamps = new Toggle();
-            _stamps.Text = "לזהות חותמות זמן בתחילת שורה (למשל 01:23 שלום)";
+            _stamps.Text = Lang.T("לזהות חותמות זמן בתחילת שורה (למשל 01:23 שלום)");
             _stamps.Checked = true;
             _stamps.CheckedChanged += delegate { UpdatePreview(); };
             Row(_stamps, 26, 6);
             _adv.Add(_stamps);
 
             _wrap = new Toggle();
-            _wrap.Text = "שבירת שורות ארוכות אוטומטית";
+            _wrap.Text = Lang.T("שבירת שורות ארוכות אוטומטית");
             _wrap.Checked = true;
             _wrap.CheckedChanged += delegate { UpdatePreview(); };
             Row(_wrap, 26, 10);
             _adv.Add(_wrap);
 
-            Lbl cpsL = Hint("קצב קריאה (תווים בשנייה) - קובע את משך הכתובית");
+            Lbl cpsL = Hint(Lang.T("קצב קריאה (תווים בשנייה) - קובע את משך הכתובית"));
             Row(cpsL, 22, 2);
             _adv.Add(cpsL);
             _cps = new Slider();
@@ -241,7 +241,7 @@ namespace SubtitleStudio
             Row(_cps, 28, 8);
             _adv.Add(_cps);
 
-            Lbl minL = Hint("משך מינימלי לכתובית (שניות)");
+            Lbl minL = Hint(Lang.T("משך מינימלי לכתובית (שניות)"));
             Row(minL, 22, 2);
             _adv.Add(minL);
             _minDur = new Slider();
@@ -250,7 +250,7 @@ namespace SubtitleStudio
             Row(_minDur, 28, 8);
             _adv.Add(_minDur);
 
-            Lbl startL = Hint("להתחיל מהזמן");
+            Lbl startL = Hint(Lang.T("להתחיל מהזמן"));
             Row(startL, 22, 2);
             _adv.Add(startL);
             _startAt = new Field();
@@ -261,7 +261,7 @@ namespace SubtitleStudio
 
             foreach (Control c in _adv) c.Visible = false;
 
-            Buttons("ליצור כתוביות", Ico.Check, "ביטול");
+            Buttons(Lang.T("ליצור כתוביות"), Ico.Check, Lang.T("ביטול"));
             Restack();
             UpdatePreview();
         }
@@ -336,11 +336,11 @@ namespace SubtitleStudio
             List<Cue> cues = Formats.ImportPlainText(_text.Text, Opts());
             if (cues.Count == 0)
             {
-                _preview.Text = "אין עדיין טקסט. הדביקו למעלה, או טענו קובץ.";
+                _preview.Text = Lang.T("אין עדיין טקסט. הדביקו למעלה, או טענו קובץ.");
                 _preview.Invalidate();
                 return;
             }
-            string how = SplitByBlank() ? "כל שורה ריקה מפרידה בין כתוביות" : "כל שורה היא כתובית";
+            string how = SplitByBlank() ? Lang.T("כל שורה ריקה מפרידה בין כתוביות") : Lang.T("כל שורה היא כתובית");
             string first = cues[0].PlainText;
             if (first.Length > 44) first = first.Substring(0, 42) + "…";
             _preview.Text = "ייווצרו " + cues.Count + " כתוביות  ·  " + how + Environment.NewLine +
@@ -351,7 +351,7 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             Result = Formats.ImportPlainText(_text.Text, Opts());
-            if (Result.Count == 0) { Ui.Error(this, "אין טקסט", "הדביקו טקסט כדי ליצור כתוביות."); return false; }
+            if (Result.Count == 0) { Ui.Error(this, Lang.T("אין טקסט"), Lang.T("הדביקו טקסט כדי ליצור כתוביות.")); return false; }
             return true;
         }
     }
@@ -366,34 +366,34 @@ namespace SubtitleStudio
         public List<Cue> Loaded;
         public string LoadedName;
 
-        public ExtractSubsDlg(MainForm main, MediaInfo mi) : base("כתוביות מתוך הסרט", Ico.Layers, 560)
+        public ExtractSubsDlg(MainForm main, MediaInfo mi) : base(Lang.T("כתוביות מתוך הסרט"), Ico.Layers, 560)
         {
             _main = main; _mi = mi;
             _subs = mi.Subtitles();
             Subtitle = _subs.Count == 0
-                ? "לא נמצאו ערוצי כתוביות בקובץ הזה"
-                : (_subs.Count == 1 ? "נמצא ערוץ כתוביות אחד" : "נמצאו " + _subs.Count + " ערוצי כתוביות");
+                ? Lang.T("לא נמצאו ערוצי כתוביות בקובץ הזה")
+                : (_subs.Count == 1 ? Lang.T("נמצא ערוץ כתוביות אחד") : "נמצאו " + _subs.Count + " ערוצי כתוביות");
 
             if (_subs.Count == 0)
             {
-                Lbl l = Hint("אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש." +
-                    Environment.NewLine + "אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחת קובץ״.");
+                Lbl l = Hint(Lang.T("אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש.") +
+                    Environment.NewLine + Lang.T("אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחת קובץ״."));
                 Row(l, 60, 8);
-                Buttons("סגירה", Ico.Close, null);
+                Buttons(Lang.T("סגירה"), Ico.Close, null);
                 return;
             }
 
-            Section("איזה ערוץ?");
+            Section(Lang.T("איזה ערוץ?"));
             _streams = new Combo();
             foreach (MediaStream s in _subs) _streams.Items.Add(s.Describe());
             _streams.SelectedIndex = 0;
             Row(_streams, 32, 14);
 
-            Lbl hint = Hint("״פתיחה לעריכה״ מביאה את הכתוביות לתוך התוכנה - אפשר לתרגם, לתקן תזמון ולהטמיע מחדש.");
+            Lbl hint = Hint(Lang.T("״פתיחה לעריכה״ מביאה את הכתוביות לתוך התוכנה - אפשר לתרגם, לתקן תזמון ולהטמיע מחדש."));
             Row(hint, 40, 10);
 
-            Buttons("פתיחה לעריכה", Ico.Import, null);
-            BottomButton("שמירה כקובץ SRT", Ico.Save, delegate { SaveToFile(); });
+            Buttons(Lang.T("פתיחה לעריכה"), Ico.Import, null);
+            BottomButton(Lang.T("שמירה כקובץ SRT"), Ico.Save, delegate { SaveToFile(); });
         }
 
         private MediaStream Selected()
@@ -410,7 +410,7 @@ namespace SubtitleStudio
             int code = Ff.RunSync(Ff.Exe, args, out so, out se, null);
             if (code != 0)
             {
-                Ui.Error(this, "החילוץ לא הצליח", ErrorText.FfmpegWithDetail(se));
+                Ui.Error(this, Lang.T("החילוץ לא הצליח"), ErrorText.FfmpegWithDetail(se));
                 return false;
             }
             return true;
@@ -422,8 +422,8 @@ namespace SubtitleStudio
             if (s == null) return;
             if (s.IsImageSubtitle)
             {
-                Ui.Info(this, "כתוביות תמונה",
-                    "הערוץ הזה מכיל תמונות ולא טקסט (PGS/VobSub). אפשר לשמור אותו כקובץ, אבל אי אפשר לערוך את הטקסט בלי תוכנת זיהוי תווים.");
+                Ui.Info(this, Lang.T("כתוביות תמונה"),
+                    Lang.T("הערוץ הזה מכיל תמונות ולא טקסט (PGS/VobSub). אפשר לשמור אותו כקובץ, אבל אי אפשר לערוך את הטקסט בלי תוכנת זיהוי תווים."));
             }
             SaveFileDialog d = new SaveFileDialog();
             string ext = s.IsImageSubtitle ? ".sup" : (s.Codec.ToLowerInvariant() == "ass" ? ".ass" : ".srt");
@@ -432,7 +432,7 @@ namespace SubtitleStudio
             catch { }
             if (d.ShowDialog(this) != DialogResult.OK) return;
             if (ExtractTo(d.FileName, s))
-                Ui.Info(this, "נשמר", "הכתוביות נשמרו אל:\n" + d.FileName);
+                Ui.Info(this, Lang.T("נשמר"), "הכתוביות נשמרו אל:\n" + d.FileName);
         }
 
         protected override bool OnOk()
@@ -441,8 +441,8 @@ namespace SubtitleStudio
             if (s == null) return true;
             if (s.IsImageSubtitle)
             {
-                Ui.Error(this, "לא ניתן לעריכה",
-                    "הערוץ מכיל תמונות ולא טקסט, ולכן אי אפשר לפתוח אותו לעריכה. אפשר לשמור אותו כקובץ בלבד.");
+                Ui.Error(this, Lang.T("לא ניתן לעריכה"),
+                    Lang.T("הערוץ מכיל תמונות ולא טקסט, ולכן אי אפשר לפתוח אותו לעריכה. אפשר לשמור אותו כקובץ בלבד."));
                 return false;
             }
             string tmp = Path.Combine(Ff.TempDir(), "extract_" + DateTime.Now.Ticks + (s.Codec.ToLowerInvariant() == "ass" ? ".ass" : ".srt"));
@@ -450,12 +450,12 @@ namespace SubtitleStudio
             try
             {
                 ParseResult r = Formats.Load(tmp);
-                if (r.Cues.Count == 0) { Ui.Error(this, "ריק", "לא נמצאו כתוביות בערוץ הזה."); return false; }
+                if (r.Cues.Count == 0) { Ui.Error(this, Lang.T("ריק"), Lang.T("לא נמצאו כתוביות בערוץ הזה.")); return false; }
                 Loaded = r.Cues;
                 LoadedName = MediaStream.LangName(s.Language);
                 return true;
             }
-            catch (Exception ex) { Ui.Error(this, "לא הצליח", ErrorText.Of(ex)); return false; }
+            catch (Exception ex) { Ui.Error(this, Lang.T("לא הצליח"), ErrorText.Of(ex)); return false; }
         }
     }
 
@@ -471,11 +471,11 @@ namespace SubtitleStudio
         private Btn _colText, _colOutline;
         public SubStyle Result;
 
-        public StyleDlg(SubStyle style, Bitmap frame) : base("עיצוב הכתוביות", Ico.TextIcon, 620)
+        public StyleDlg(SubStyle style, Bitmap frame) : base(Lang.T("עיצוב הכתוביות"), Ico.TextIcon, 620)
         {
             _style = style.Clone();
             _frame = frame;
-            Subtitle = "כך ייראו הכתוביות בסרט הסופי";
+            Subtitle = Lang.T("כך ייראו הכתוביות בסרט הסופי");
 
             // **זוגות בשורה אחת, לא שורה לכל פקד.** בפריסה הקודמת החלון היה 769
             // פיקסלים לוגיים: גבוה ממסך 1080p ב-150% וממחשב נייד 1366x768, ושם
@@ -492,7 +492,7 @@ namespace SubtitleStudio
             Controls.Add(_preview);
             Y += Theme.S(182);
 
-            Section("גופן וגודל");
+            Section(Lang.T("גופן וגודל"));
             _font = new Combo();
             List<string> names = new List<string>();
             foreach (FontFamily ff in FontFamily.Families) names.Add(ff.Name);
@@ -512,30 +512,30 @@ namespace SubtitleStudio
             Y += Theme.S(42);
 
             _bold = new Toggle();
-            _bold.Text = "מודגש";
+            _bold.Text = Lang.T("מודגש");
             _bold.Checked = _style.Bold;
             _bold.CheckedChanged += delegate { _style.Bold = _bold.Checked; _preview.Invalidate(); };
             _bold.SetBounds(right, Y, half, Theme.S(26));
             Controls.Add(_bold);
 
             _box = new Toggle();
-            _box.Text = "רקע מלא במקום מתאר";
+            _box.Text = Lang.T("רקע מלא במקום מתאר");
             _box.Checked = _style.OpaqueBox;
             _box.CheckedChanged += delegate { _style.OpaqueBox = _box.Checked; _preview.Invalidate(); };
             _box.SetBounds(left, Y, half, Theme.S(26));
             Controls.Add(_box);
             Y += Theme.S(38);
 
-            Section("צבעים");
+            Section(Lang.T("צבעים"));
             _colText = new Btn();
-            _colText.Text = "צבע הטקסט";
+            _colText.Text = Lang.T("צבע הטקסט");
             _colText.Kind = BtnKind.Ghost;
             _colText.Swatch = _style.Primary;
             _colText.SetBounds(right, Y, half, Theme.S(36));
             _colText.Click += delegate { PickColor(true); };
             Controls.Add(_colText);
             _colOutline = new Btn();
-            _colOutline.Text = "צבע המתאר";
+            _colOutline.Text = Lang.T("צבע המתאר");
             _colOutline.Kind = BtnKind.Ghost;
             _colOutline.Swatch = _style.Outline;
             _colOutline.SetBounds(left, Y, half, Theme.S(36));
@@ -543,11 +543,11 @@ namespace SubtitleStudio
             Controls.Add(_colOutline);
             Y += Theme.S(48);
 
-            Lbl outlineLbl = Label("עובי המתאר", true, Theme.TextDim);
+            Lbl outlineLbl = Label(Lang.T("עובי המתאר"), true, Theme.TextDim);
             outlineLbl.Font = Theme.SmallBold;
             outlineLbl.SetBounds(right, Y, half, Theme.S(18));
             Controls.Add(outlineLbl);
-            Lbl marginLbl = Label("מרחק מהקצה", true, Theme.TextDim);
+            Lbl marginLbl = Label(Lang.T("מרחק מהקצה"), true, Theme.TextDim);
             marginLbl.Font = Theme.SmallBold;
             marginLbl.SetBounds(left, Y, half, Theme.S(18));
             Controls.Add(marginLbl);
@@ -566,9 +566,9 @@ namespace SubtitleStudio
             Controls.Add(_marginV);
             Y += Theme.S(38);
 
-            Section("מיקום");
+            Section(Lang.T("מיקום"));
             _align = new Combo();
-            _align.Items.AddRange(new object[] { "למטה במרכז", "למטה מימין", "למטה משמאל", "למעלה במרכז", "באמצע המסך" });
+            _align.Items.AddRange(new object[] { Lang.T("למטה במרכז"), Lang.T("למטה מימין"), Lang.T("למטה משמאל"), Lang.T("למעלה במרכז"), Lang.T("באמצע המסך") });
             _align.SelectedIndex = _style.Alignment == 8 ? 3 : (_style.Alignment == 5 ? 4 : (_style.Alignment == 3 ? 1 : (_style.Alignment == 1 ? 2 : 0)));
             _align.SelectedIndexChanged += delegate
             {
@@ -580,7 +580,7 @@ namespace SubtitleStudio
             Controls.Add(_align);
             Y += Theme.S(42);
 
-            Buttons("שמירת העיצוב", Ico.Check, "ביטול");
+            Buttons(Lang.T("שמירת העיצוב"), Ico.Check, Lang.T("ביטול"));
         }
 
         private void PickColor(bool text)
@@ -626,7 +626,7 @@ namespace SubtitleStudio
                     Rectangle.Round(r), Color.FromArgb(52, 58, 72), Color.FromArgb(18, 20, 26), 60f))
                     g.FillRectangle(b, r);
             }
-            _style.Render(g, r, "זו דוגמה לכתובית\nבשתי שורות");
+            _style.Render(g, r, Lang.T("זו דוגמה לכתובית\nבשתי שורות"));
         }
 
         protected override bool OnOk()
@@ -644,36 +644,36 @@ namespace SubtitleStudio
         private Toggle _whole, _matchCase;
         private Lbl _count;
 
-        public ReplaceDlg(Doc doc) : base("חיפוש והחלפה", Ico.Search, 560)
+        public ReplaceDlg(Doc doc) : base(Lang.T("חיפוש והחלפה"), Ico.Search, 560)
         {
             _doc = doc;
             Subtitle = "מחליף בכל " + doc.Cues.Count + " הכתוביות בבת אחת";
 
-            Section("לחפש");
+            Section(Lang.T("לחפש"));
             _find = new Field();
-            _find.Placeholder = "המילה או הביטוי שרוצים להחליף";
+            _find.Placeholder = Lang.T("המילה או הביטוי שרוצים להחליף");
             _find.Box.TextChanged += delegate { UpdateCount(); };
             Row(_find, 34, 12);
 
-            Section("להחליף ב־");
+            Section(Lang.T("להחליף ב־"));
             _with = new Field();
-            _with.Placeholder = "אפשר להשאיר ריק כדי למחוק";
+            _with.Placeholder = Lang.T("אפשר להשאיר ריק כדי למחוק");
             Row(_with, 34, 12);
 
             _whole = new Toggle();
-            _whole.Text = "מילים שלמות בלבד";
+            _whole.Text = Lang.T("מילים שלמות בלבד");
             _whole.CheckedChanged += delegate { UpdateCount(); };
             Row(_whole, 28, 4);
 
             _matchCase = new Toggle();
-            _matchCase.Text = "להבחין בין אותיות גדולות לקטנות (באנגלית)";
+            _matchCase.Text = Lang.T("להבחין בין אותיות גדולות לקטנות (באנגלית)");
             _matchCase.CheckedChanged += delegate { UpdateCount(); };
             Row(_matchCase, 28, 10);
 
             _count = Hint("");
             Row(_count, 26, 4);
 
-            Buttons("להחליף", Ico.Check, "ביטול");
+            Buttons(Lang.T("להחליף"), Ico.Check, Lang.T("ביטול"));
             UpdateCount();
         }
 
@@ -722,7 +722,7 @@ namespace SubtitleStudio
         {
             if (_count == null) return;
             string find = _find.Text;
-            if (find.Length == 0) { _count.Text = "כתבו למעלה מה לחפש."; _count.Invalidate(); return; }
+            if (find.Length == 0) { _count.Text = Lang.T("כתבו למעלה מה לחפש."); _count.Invalidate(); return; }
             int hits = 0, rows = 0;
             foreach (Cue c in _doc.Cues)
             {
@@ -731,7 +731,7 @@ namespace SubtitleStudio
                 if (n > 0) { hits += n; rows++; }
             }
             _count.Text = hits == 0
-                ? "לא נמצאו התאמות."
+                ? Lang.T("לא נמצאו התאמות.")
                 : "נמצאו " + hits + " מופעים ב־" + rows + " כתוביות.";
             _count.Invalidate();
         }
@@ -739,7 +739,7 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             string find = _find.Text;
-            if (find.Length == 0) { Ui.Info(this, "מה לחפש?", "כתבו מה רוצים להחליף."); return false; }
+            if (find.Length == 0) { Ui.Info(this, Lang.T("מה לחפש?"), Lang.T("כתבו מה רוצים להחליף.")); return false; }
             string with = _with.Text;
             int hits = 0, rows = 0;
             foreach (Cue c in _doc.Cues)
@@ -748,7 +748,7 @@ namespace SubtitleStudio
                 int n = ReplaceIn(c.Text, find, with, out res);
                 if (n > 0) { c.Text = res; hits += n; rows++; }
             }
-            if (hits == 0) { Ui.Info(this, "לא נמצא", "הביטוי הזה לא מופיע באף כתובית."); return false; }
+            if (hits == 0) { Ui.Info(this, Lang.T("לא נמצא"), Lang.T("הביטוי הזה לא מופיע באף כתובית.")); return false; }
             Replaced = hits;
             ReplacedRows = rows;
             return true;

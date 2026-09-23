@@ -93,7 +93,7 @@ namespace SubtitleStudio
             }
             catch (WebException wex)
             {
-                error = ErrorText.Web(wex, "לא נמצאה אף גרסה במאגר.");
+                error = ErrorText.Web(wex, Lang.T("לא נמצאה אף גרסה במאגר."));
                 return null;
             }
             catch (Exception ex)
@@ -118,13 +118,13 @@ namespace SubtitleStudio
                 root = js.DeserializeObject(json) as Dictionary<string, object>;
             }
             catch (Exception ex) { error = "תשובה לא מובנת מהמאגר: " + ex.Message; return null; }
-            if (root == null) { error = "תשובה לא מובנת מהמאגר."; return null; }
+            if (root == null) { error = Lang.T("תשובה לא מובנת מהמאגר."); return null; }
 
             Release r = new Release();
             // התגית בגיטהאב היא "v0.5.1"; מציגים למשתמש "0.5.1" כמו שכתוב
             // בחלון "על התוכנה". ההשוואה עצמה מתעלמת מה-v ממילא.
             r.Version = Str(root, "tag_name").Trim().TrimStart('v', 'V');
-            if (r.Version.Length == 0) { error = "לא נמצאה גרסה במאגר."; return null; }
+            if (r.Version.Length == 0) { error = Lang.T("לא נמצאה גרסה במאגר."); return null; }
             r.Notes = Str(root, "body");          // המפענח כבר פורק את התווים המוברחים
 
             object[] assets = Get(root, "assets") as object[];
@@ -214,15 +214,15 @@ namespace SubtitleStudio
             bool useSetup = installed && rel.SetupUrl.Length > 0;
             if (installed && rel.SetupUrl.Length == 0 && rel.Url.Length == 0)
             {
-                Ui.Error((Form)owner, "אין קובץ להורדה", "בשחרור הזה לא צורף קובץ.");
+                Ui.Error((Form)owner, Lang.T("אין קובץ להורדה"), Lang.T("בשחרור הזה לא צורף קובץ."));
                 return;
             }
             if (!installed && rel.Url.Length == 0)
             {
                 // יש רק מתקין, והעותק הזה נייד - לא מתקינים בשקט מאחורי הגב
-                if (Ui.Confirm((Form)owner, "העדכון מגיע כמתקין",
-                    "בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט.",
-                    "לפתוח את הדף", "אחר כך"))
+                if (Ui.Confirm((Form)owner, Lang.T("העדכון מגיע כמתקין"),
+                    Lang.T("בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט."),
+                    Lang.T("לפתוח את הדף"), Lang.T("אחר כך")))
                 {
                     try { Process.Start("https://github.com/" + App.Repo + "/releases/latest"); }
                     catch { }
@@ -271,7 +271,7 @@ namespace SubtitleStudio
             }
             if (error != null)
             {
-                Ui.Error((Form)owner, "העדכון נכשל", error);
+                Ui.Error((Form)owner, Lang.T("העדכון נכשל"), error);
                 try { if (File.Exists(tmp)) File.Delete(tmp); }
                 catch { }
                 return;
@@ -297,7 +297,7 @@ namespace SubtitleStudio
                 try { Process.Start(si); }
                 catch (Exception ex)
                 {
-                    Ui.Error((Form)owner, "העדכון לא הצליח", ErrorText.Of(ex));
+                    Ui.Error((Form)owner, Lang.T("העדכון לא הצליח"), ErrorText.Of(ex));
                     return;
                 }
                 Application.Exit();
@@ -371,25 +371,25 @@ namespace SubtitleStudio
                         }
                     }
                     if (ErrorText.IsWebPage(res.ContentType, head, headLen)) return ErrorText.Filtered;
-                    if (res.ContentLength > 0 && got != res.ContentLength) return "ההורדה נקטעה באמצע. אפשר לנסות שוב.";
+                    if (res.ContentLength > 0 && got != res.ContentLength) return Lang.T("ההורדה נקטעה באמצע. אפשר לנסות שוב.");
                 }
                 long len = new FileInfo(tmp).Length;
-                if (len < 1000000) return "הקובץ שהתקבל קטן מדי - ההורדה נכשלה.";
-                if (expectSize > 0 && len != expectSize) return "ההורדה נקטעה באמצע. אפשר לנסות שוב.";
+                if (len < 1000000) return Lang.T("הקובץ שהתקבל קטן מדי - ההורדה נכשלה.");
+                if (expectSize > 0 && len != expectSize) return Lang.T("ההורדה נקטעה באמצע. אפשר לנסות שוב.");
                 if (!string.IsNullOrEmpty(expectSha) &&
                     !string.Equals(Sha256Of(tmp), expectSha, StringComparison.OrdinalIgnoreCase))
-                    return "הקובץ שירד לא זהה לגרסה שפורסמה. אפשר לנסות שוב.";
+                    return Lang.T("הקובץ שירד לא זהה לגרסה שפורסמה. אפשר לנסות שוב.");
                 return null;
             }
             catch (WebException wex)
             {
-                return ErrorText.Web(wex, "הקובץ לא נמצא בשרת. אפשר לנסות שוב מאוחר יותר.");
+                return ErrorText.Web(wex, Lang.T("הקובץ לא נמצא בשרת. אפשר לנסות שוב מאוחר יותר."));
             }
             catch (IOException ioex)
             {
                 // כונן מלא נשאר כונן מלא; כל השאר כאן הוא חיבור שנפל באמצע הקריאה
                 string m = ErrorText.Of(ioex);
-                return m.StartsWith("הפעולה לא הצליחה") ? "החיבור נותק באמצע. אפשר לנסות שוב." : m;
+                return m.StartsWith("הפעולה לא הצליחה") ? Lang.T("החיבור נותק באמצע. אפשר לנסות שוב.") : m;
             }
         }
 
@@ -405,11 +405,11 @@ namespace SubtitleStudio
         /// התיקייה, והעותק הישן ממשיך לעבוד.</summary>
         private static void ManualUpdate(Form owner, string tmp, string why)
         {
-            int r = Ui.Msg(owner, "לא הצלחתי להחליף את הקובץ",
-                "הגרסה החדשה ירדה, אבל לא הצלחתי להחליף את הקובץ הקיים." +
+            int r = Ui.Msg(owner, Lang.T("לא הצלחתי להחליף את הקובץ"),
+                Lang.T("הגרסה החדשה ירדה, אבל לא הצלחתי להחליף את הקובץ הקיים.") +
                 Environment.NewLine + Theme.Ltr(why) + Environment.NewLine + Environment.NewLine +
-                "אפשר לסגור את התוכנה ולהעתיק את הקובץ החדש במקום הישן.",
-                Ico.Info, "לפתוח את התיקייה", "אחר כך");
+                Lang.T("אפשר לסגור את התוכנה ולהעתיק את הקובץ החדש במקום הישן."),
+                Ico.Info, Lang.T("לפתוח את התיקייה"), Lang.T("אחר כך"));
             if (r != 0) return;
             try { Process.Start("explorer.exe", "/select,\"" + tmp + "\""); }
             catch { }
@@ -534,57 +534,57 @@ namespace SubtitleStudio
     {
         private Lbl _status;
 
-        public AboutDlg() : base("על התוכנה", Ico.Info, 540)
+        public AboutDlg() : base(Lang.T("על התוכנה"), Ico.Info, 540)
         {
             Subtitle = "Subtext · אולפן הכתוביות · גרסה " + App.Version;
 
-            Lbl what = Hint("תוכנה חופשית ליצירה, לתיקון ולהטמעה של כתוביות בעברית." + Environment.NewLine +
-                            "רצה בלי התקנה ובלי אינטרנט - הכול נמצא בתוך הקובץ הזה." + Environment.NewLine +
-                            "הפעולות היחידות שיוצאות החוצה הן התרגום, התמלול והעוזר.");
+            Lbl what = Hint(Lang.T("תוכנה חופשית ליצירה, לתיקון ולהטמעה של כתוביות בעברית.") + Environment.NewLine +
+                            Lang.T("רצה בלי התקנה ובלי אינטרנט - הכול נמצא בתוך הקובץ הזה.") + Environment.NewLine +
+                            Lang.T("הפעולות היחידות שיוצאות החוצה הן התרגום, התמלול והעוזר."));
             Row(what, 60, 14);
 
-            Section("גרסה");
+            Section(Lang.T("גרסה"));
             Lbl ver = Hint("גרסה " + Theme.Ltr(App.Version) + "   ·   " +
-                           (Install.IsInstalled() ? "עותק מותקן" : "עותק נייד") + "   ·   " +
+                           (Install.IsInstalled() ? Lang.T("עותק מותקן") : Lang.T("עותק נייד")) + "   ·   " +
                            Theme.Ltr(IntPtr.Size == 8 ? "64 bit" : "32 bit"));
             Row(ver, 20, 6);
 
             _status = Hint(string.IsNullOrEmpty(Settings.LastCheck)
-                ? "לחצו ״בדיקת עדכון״ כדי לראות אם יצאה גרסה חדשה."
+                ? Lang.T("לחצו ״בדיקת עדכון״ כדי לראות אם יצאה גרסה חדשה.")
                 : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck));
             Row(_status, 32, 6);
 
-            Btn copy = Small("העתקת פרטי הגרסה", Ico.Copy);
+            Btn copy = Small(Lang.T("העתקת פרטי הגרסה"), Ico.Copy);
             copy.Click += delegate { CopyDiagnostics(); };
             Row(copy, 30, 16);
 
-            Section("רישיון");
+            Section(Lang.T("רישיון"));
             Lbl lic = Hint("הקוד של התוכנה חופשי (רישיון " + Theme.Ltr("MIT") + ") - מותר לקחת אותו," + Environment.NewLine +
                            "לשנות ולבנות ממנו מה שרוצים. מנוע הווידאו " + Theme.Ltr("FFmpeg") +
                            " מגיע ברישיון " + Theme.Ltr("GPLv3") + "," + Environment.NewLine +
                            "הגופן " + Theme.Ltr("IBM Plex Sans Hebrew") + " ברישיון " + Theme.Ltr("OFL") +
                            ", ומילון האיות (יורד בנפרד) ברישיון " + Theme.Ltr("AGPLv3") + "." + Environment.NewLine +
-                           "הנוסח המלא של כולם נמצא בתוך הקובץ.");
+                           Lang.T("הנוסח המלא של כולם נמצא בתוך הקובץ."));
             Row(lic, 84, 6);
 
-            Btn save = Small("שמירת נוסח הרישיונות לתיקייה", Ico.Save);
+            Btn save = Small(Lang.T("שמירת נוסח הרישיונות לתיקייה"), Ico.Save);
             save.Click += delegate { SaveLicenses(); };
             Row(save, 30, 16);
 
-            Section("קוד ותמיכה");
-            Btn src = Small("קוד המקור באינטרנט", Ico.Export);
+            Section(Lang.T("קוד ותמיכה"));
+            Btn src = Small(Lang.T("קוד המקור באינטרנט"), Ico.Export);
             src.Click += delegate { Open("https://github.com/" + App.Repo); };
             Row(src, 30, 6);
 
-            Btn iss = Small("דיווח על תקלה או בקשה", Ico.Chat);
+            Btn iss = Small(Lang.T("דיווח על תקלה או בקשה"), Ico.Chat);
             iss.Click += delegate { Open("https://github.com/" + App.Repo + "/issues"); };
             Row(iss, 30, 6);
 
-            Btn log = Small("יומן השינויים המלא", Ico.List);
+            Btn log = Small(Lang.T("יומן השינויים המלא"), Ico.List);
             log.Click += delegate { Open("https://github.com/" + App.Repo + "/blob/main/CHANGELOG.md"); };
             Row(log, 30, 6);
 
-            Buttons("בדיקת עדכון עכשיו", Ico.Refresh, "סגירה");
+            Buttons(Lang.T("בדיקת עדכון עכשיו"), Ico.Refresh, Lang.T("סגירה"));
         }
 
         private Btn Small(string text, Ico icon)
@@ -614,8 +614,8 @@ namespace SubtitleStudio
                        " | Windows " + Environment.OSVersion.Version +
                        " | .NET " + Environment.Version +
                        " | engine " + (Ff.IsOwnEngine ? "embedded" : "system");
-            try { Clipboard.SetText(s); Ui.Info(this, "הועתק", s); }
-            catch { Ui.Error(this, "לא הועתק", s); }
+            try { Clipboard.SetText(s); Ui.Info(this, Lang.T("הועתק"), s); }
+            catch { Ui.Error(this, Lang.T("לא הועתק"), s); }
         }
 
         /// <summary>כותב את שלושת נוסחי הרישיון מהמשאבים לתיקייה שהמשתמש בוחר.
@@ -623,7 +623,7 @@ namespace SubtitleStudio
         private void SaveLicenses()
         {
             FolderBrowserDialog fb = new FolderBrowserDialog();
-            fb.Description = "לאן לשמור את נוסחי הרישיון?";
+            fb.Description = Lang.T("לאן לשמור את נוסחי הרישיון?");
             if (fb.ShowDialog(this) != DialogResult.OK) { fb.Dispose(); return; }
             string dir = fb.SelectedPath;
             fb.Dispose();
@@ -652,20 +652,20 @@ namespace SubtitleStudio
                 }
                 catch (Exception ex) { err = ex.Message; }
             }
-            if (n > 0) Ui.Info(this, "נשמר", "נכתבו " + n + " קבצים אל" + Environment.NewLine + Theme.Ltr(dir));
-            else Ui.Error(this, "לא נשמר", err != null ? err : "לא נמצאו נוסחי רישיון בקובץ.");
+            if (n > 0) Ui.Info(this, Lang.T("נשמר"), "נכתבו " + n + " קבצים אל" + Environment.NewLine + Theme.Ltr(dir));
+            else Ui.Error(this, Lang.T("לא נשמר"), err != null ? err : Lang.T("לא נמצאו נוסחי רישיון בקובץ."));
         }
 
         /// <summary>מוחק את המנוע שהתוכנה פרסה. סטטי כי גם חלון ההגדרות
         /// מציע את זה, ואין סיבה לשתי הודעות שונות לאותה פעולה.</summary>
         public static void RemoveEngine(Form owner)
         {
-            if (!Ui.Confirm(owner, "למחוק את מנוע הווידאו?",
-                "התוכנה תפרוס אותו מחדש בהפעלה הבאה (כמה שניות).", "למחוק", "ביטול")) return;
+            if (!Ui.Confirm(owner, Lang.T("למחוק את מנוע הווידאו?"),
+                Lang.T("התוכנה תפרוס אותו מחדש בהפעלה הבאה (כמה שניות)."), Lang.T("למחוק"), Lang.T("ביטול"))) return;
             string msg;
             bool ok = Runtime.Remove(out msg);
-            if (ok) Ui.Info(owner, "נמחק", msg);
-            else Ui.Error(owner, "לא נמחק", msg);
+            if (ok) Ui.Info(owner, Lang.T("נמחק"), msg);
+            else Ui.Error(owner, Lang.T("לא נמחק"), msg);
         }
 
         private void SetStatus(string text, Color color)
@@ -683,7 +683,7 @@ namespace SubtitleStudio
             // זה נראה למשתמש כמו תוכנה תקועה, אז היא רצה ברקע.
             if (_checking) return false;
             _checking = true;
-            SetStatus("בודק...", Theme.TextDim);
+            SetStatus(Lang.T("בודק..."), Theme.TextDim);
             Refresh();
 
             Thread th = new Thread(delegate ()
@@ -699,9 +699,9 @@ namespace SubtitleStudio
                         _checking = false;
                         if (IsDisposed) return;
                         if (rel == null)
-                            SetStatus(err == null ? "לא הצלחתי לבדוק כרגע." : err, Theme.Warn);
+                            SetStatus(err == null ? Lang.T("לא הצלחתי לבדוק כרגע.") : err, Theme.Warn);
                         else if (!App.IsNewer(rel.Version))
-                            SetStatus("הגרסה שלכם היא העדכנית ביותר.", Theme.Good);
+                            SetStatus(Lang.T("הגרסה שלכם היא העדכנית ביותר."), Theme.Good);
                         else
                         {
                             SetStatus("יש גרסה חדשה: " + rel.Version, Theme.Accent);
@@ -845,9 +845,9 @@ namespace SubtitleStudio
             if (sum.Jump == 1)
             {
                 // גרסה אחת: הכול, מקובץ לפי סוג
-                Add(sum, "חשוב לדעת", majors, int.MaxValue);
-                Add(sum, "מה חדש", feats, int.MaxValue);
-                Add(sum, "תיקונים", fixes, int.MaxValue);
+                Add(sum, Lang.T("חשוב לדעת"), majors, int.MaxValue);
+                Add(sum, Lang.T("מה חדש"), feats, int.MaxValue);
+                Add(sum, Lang.T("תיקונים"), fixes, int.MaxValue);
             }
             else if (sum.Jump <= 3)
             {
@@ -855,12 +855,12 @@ namespace SubtitleStudio
                 // תקרה לתוספות - בלעדיה קפיצה של שלוש גרסאות עמוסות יוצאת
                 // **ארוכה** מקפיצה של שש, שכן מוגבלת. התקרה חייבת לרדת עם
                 // גודל הקפיצה, אחרת ה״קיצור״ הוא רק הבטחה.
-                Add(sum, "חשוב לדעת", majors, int.MaxValue);
-                Add(sum, "מה חדש", feats, 6);
+                Add(sum, Lang.T("חשוב לדעת"), majors, int.MaxValue);
+                Add(sum, Lang.T("מה חדש"), feats, 6);
                 List<string> tail = new List<string>();
                 int rest = Math.Max(0, feats.Count - 6);
-                if (rest > 0) tail.Add("ועוד " + Count(rest, "תוספת אחת", "תוספות"));
-                if (fixes.Count > 0) tail.Add(Count(fixes.Count, "תיקון אחד", "תיקונים") + " ושיפורים");
+                if (rest > 0) tail.Add("ועוד " + Count(rest, Lang.T("תוספת אחת"), Lang.T("תוספות")));
+                if (fixes.Count > 0) tail.Add(Count(fixes.Count, Lang.T("תיקון אחד"), Lang.T("תיקונים")) + " ושיפורים");
                 if (tail.Count > 0) Tail(sum, string.Join(" · ", tail.ToArray()));
             }
             else
@@ -871,12 +871,12 @@ namespace SubtitleStudio
                 // ״לעדכן״ - לא שיֵדע הכול.
                 int nm = sum.Jump <= 6 ? 3 : 2;
                 int nf = sum.Jump <= 6 ? 4 : 3;
-                Add(sum, "חשוב לדעת", majors, nm);
-                Add(sum, "העיקר שנוסף", feats, nf);
+                Add(sum, Lang.T("חשוב לדעת"), majors, nm);
+                Add(sum, Lang.T("העיקר שנוסף"), feats, nf);
                 List<string> tail = new List<string>();
                 int rest = Math.Max(0, majors.Count - nm) + Math.Max(0, feats.Count - nf);
-                if (rest > 0) tail.Add("ועוד " + Count(rest, "תוספת אחת", "תוספות"));
-                if (fixes.Count > 0) tail.Add(Count(fixes.Count, "תיקון אחד", "תיקונים"));
+                if (rest > 0) tail.Add("ועוד " + Count(rest, Lang.T("תוספת אחת"), Lang.T("תוספות")));
+                if (fixes.Count > 0) tail.Add(Count(fixes.Count, Lang.T("תיקון אחד"), Lang.T("תיקונים")));
                 if (tail.Count > 0) Tail(sum, string.Join(" · ", tail.ToArray()));
             }
 
@@ -888,7 +888,7 @@ namespace SubtitleStudio
             }
             sum.Headline = sum.Jump == 1
                 ? "מה השתנה בגרסה " + newest
-                : "דילגתם על " + Count(sum.Jump, "גרסה אחת", "גרסאות") +
+                : "דילגתם על " + Count(sum.Jump, Lang.T("גרסה אחת"), Lang.T("גרסאות")) +
                   " (" + oldest + " ← " + newest + ") — הנה העיקר";
             return sum;
         }
@@ -911,7 +911,7 @@ namespace SubtitleStudio
         private static void Tail(ChangeSummary sum, string line)
         {
             ChangeGroup g = new ChangeGroup();
-            g.Title = "ובנוסף";
+            g.Title = Lang.T("ובנוסף");
             g.Items.Add(line);
             sum.Groups.Add(g);
         }

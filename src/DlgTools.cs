@@ -34,9 +34,9 @@ namespace SubtitleStudio
         public string[] Options;
         public Func<MediaInfo, string[]> OptionsFor;
         public int DefOption;
-        public string FileFilter = "כל הקבצים|*.*";
+        public string FileFilter = Lang.T("כל הקבצים|*.*");
         public string Group = "";
-        public string OutSuffix = " - חדש";
+        public string OutSuffix = Lang.T(" - חדש");
         public string OutExt;              // null = כמו המקור
         public Func<int, string> ExtFor;
         public bool UseRange;
@@ -128,13 +128,13 @@ namespace SubtitleStudio
             List<MediaTool> t = new List<MediaTool>();
 
             MediaTool vol = new MediaTool();
-            vol.Group = "קול";
-            vol.Name = "שינוי עוצמת השמע";
-            vol.Desc = "להגביר סרט חלש או להנמיך סרט צורם - בלי לפגוע בווידאו";
+            vol.Group = Lang.T("קול");
+            vol.Name = Lang.T("שינוי עוצמת השמע");
+            vol.Desc = Lang.T("להגביר סרט חלש או להנמיך סרט צורם - בלי לפגוע בווידאו");
             vol.Icon = Ico.Speaker;
             vol.ParamKind = 1; vol.Min = -20; vol.Max = 20; vol.Def = 6; vol.Step = 0.5; vol.Suffix = " dB";
-            vol.ParamLabel = "כמה להגביר? (מינוס = להנמיך)";
-            vol.OutSuffix = " - עוצמה";
+            vol.ParamLabel = Lang.T("כמה להגביר? (מינוס = להנמיך)");
+            vol.OutSuffix = Lang.T(" - עוצמה");
             vol.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af volume=" + c.Val.ToString("0.##", CultureInfo.InvariantCulture) + "dB " +
@@ -143,11 +143,11 @@ namespace SubtitleStudio
             t.Add(vol);
 
             MediaTool norm = new MediaTool();
-            norm.Group = "קול";
-            norm.Name = "איזון עוצמה אוטומטי";
-            norm.Desc = "מיישר את ההבדלים בין קטעים חלשים לחזקים (נרמול שידור)";
+            norm.Group = Lang.T("קול");
+            norm.Name = Lang.T("איזון עוצמה אוטומטי");
+            norm.Desc = Lang.T("מיישר את ההבדלים בין קטעים חלשים לחזקים (נרמול שידור)");
             norm.Icon = Ico.Sliders;
-            norm.OutSuffix = " - מאוזן";
+            norm.OutSuffix = Lang.T(" - מאוזן");
             norm.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af loudnorm=I=-16:TP=-1.5:LRA=11 " +
@@ -156,15 +156,15 @@ namespace SubtitleStudio
             t.Add(norm);
 
             MediaTool ext = new MediaTool();
-            ext.Group = "קול";
-            ext.Name = "חילוץ הפסקול לקובץ אודיו";
-            ext.Desc = "שומר את הקול בלבד - נוח לתמלול או להאזנה";
+            ext.Group = Lang.T("קול");
+            ext.Name = Lang.T("חילוץ הפסקול לקובץ אודיו");
+            ext.Desc = Lang.T("שומר את הקול בלבד - נוח לתמלול או להאזנה");
             ext.Icon = Ico.Mic;
             ext.ParamKind = 2;
-            ext.Options = new string[] { "MP3 באיכות מרבית (נפוץ)", "WAV - ללא דחיסה כלל", "M4A (AAC) באיכות מרבית" };
-            ext.ParamLabel = "סוג הקובץ";
+            ext.Options = new string[] { Lang.T("MP3 באיכות מרבית (נפוץ)"), Lang.T("WAV - ללא דחיסה כלל"), Lang.T("M4A (AAC) באיכות מרבית") };
+            ext.ParamLabel = Lang.T("סוג הקובץ");
             ext.ExtFor = delegate (int i) { return i == 0 ? ".mp3" : (i == 1 ? ".wav" : ".m4a"); };
-            ext.OutSuffix = " - אודיו";
+            ext.OutSuffix = Lang.T(" - אודיו");
             ext.UseRange = true;
             ext.Build = delegate (ToolCtx c)
             {
@@ -174,25 +174,25 @@ namespace SubtitleStudio
             t.Add(ext);
 
             MediaTool mute = new MediaTool();
-            mute.Group = "קול";
-            mute.Name = "הסרת הקול מהסרט";
-            mute.Desc = "משאיר את הווידאו בלי פסקול, בלי לקודד מחדש";
+            mute.Group = Lang.T("קול");
+            mute.Name = Lang.T("הסרת הקול מהסרט");
+            mute.Desc = Lang.T("משאיר את הווידאו בלי פסקול, בלי לקודד מחדש");
             mute.Icon = Ico.SpeakerOff;
             mute.NeedsVideo = true;
-            mute.OutSuffix = " - בלי קול";
+            mute.OutSuffix = Lang.T(" - בלי קול");
             mute.Build = delegate (ToolCtx c) { return "-i " + Ff.Q(c.In) + " -c copy -an " + Ff.Q(c.Out); };
             t.Add(mute);
 
             MediaTool swap = new MediaTool();
-            swap.Group = "קול";
-            swap.Name = "החלפת הפסקול";
-            swap.Desc = "מדביק קובץ קול אחר (הקלטה, מוזיקה, דיבוב) על הווידאו";
+            swap.Group = Lang.T("קול");
+            swap.Name = Lang.T("החלפת הפסקול");
+            swap.Desc = Lang.T("מדביק קובץ קול אחר (הקלטה, מוזיקה, דיבוב) על הווידאו");
             swap.Icon = Ico.Sync;
             swap.ParamKind = 3;
-            swap.ParamLabel = "קובץ הקול החדש";
-            swap.FileFilter = "קבצי אודיו|*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg|כל הקבצים|*.*";
+            swap.ParamLabel = Lang.T("קובץ הקול החדש");
+            swap.FileFilter = Lang.T("קבצי אודיו|*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg|כל הקבצים|*.*");
             swap.NeedsVideo = true;
-            swap.OutSuffix = " - פסקול חדש";
+            swap.OutSuffix = Lang.T(" - פסקול חדש");
             swap.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) +
@@ -201,20 +201,20 @@ namespace SubtitleStudio
             t.Add(swap);
 
             MediaTool conv = new MediaTool();
-            conv.Group = "וידאו";
-            conv.Name = "המרת פורמט";
-            conv.Desc = "MP4 לתאימות מרבית, או MKV מהיר בלי קידוד מחדש";
+            conv.Group = Lang.T("וידאו");
+            conv.Name = Lang.T("המרת פורמט");
+            conv.Desc = Lang.T("MP4 לתאימות מרבית, או MKV מהיר בלי קידוד מחדש");
             conv.Icon = Ico.Refresh;
             conv.ParamKind = 2;
             conv.Options = new string[]
             {
-                "MP4 - תאימות מרבית, איכות מקסימלית",
-                "MKV - מהיר, בלי קידוד מחדש כלל",
-                "MP4 מהיר - העתקת זרם בלי קידוד"
+                Lang.T("MP4 - תאימות מרבית, איכות מקסימלית"),
+                Lang.T("MKV - מהיר, בלי קידוד מחדש כלל"),
+                Lang.T("MP4 מהיר - העתקת זרם בלי קידוד")
             };
-            conv.ParamLabel = "פורמט היעד";
+            conv.ParamLabel = Lang.T("פורמט היעד");
             conv.ExtFor = delegate (int i) { return i == 1 ? ".mkv" : ".mp4"; };
-            conv.OutSuffix = " - מומר";
+            conv.OutSuffix = Lang.T(" - מומר");
             conv.Build = delegate (ToolCtx c)
             {
                 if (c.Opt == 0)
@@ -224,16 +224,16 @@ namespace SubtitleStudio
             t.Add(conv);
 
             MediaTool res = new MediaTool();
-            res.Group = "וידאו";
-            res.Name = "שינוי רזולוציה";
-            res.Desc = "מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה";
+            res.Group = Lang.T("וידאו");
+            res.Name = Lang.T("שינוי רזולוציה");
+            res.Desc = Lang.T("מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה");
             res.Icon = Ico.Image;
             res.ParamKind = 2;
             res.Options = new string[] { "1080p", "720p", "480p", "360p" };
             res.DefOption = 1;
-            res.ParamLabel = "גובה התמונה";
+            res.ParamLabel = Lang.T("גובה התמונה");
             res.NeedsVideo = true;
-            res.OutSuffix = " - מוקטן";
+            res.OutSuffix = Lang.T(" - מוקטן");
             res.Build = delegate (ToolCtx c)
             {
                 int h = c.Opt == 0 ? 1080 : c.Opt == 1 ? 720 : c.Opt == 2 ? 480 : 360;
@@ -243,14 +243,14 @@ namespace SubtitleStudio
             t.Add(res);
 
             MediaTool comp = new MediaTool();
-            comp.Group = "וידאו";
-            comp.Name = "דחיסה - הקטנת נפח הקובץ";
-            comp.Desc = "ערך גבוה = קובץ קטן יותר ואיכות נמוכה יותר";
+            comp.Group = Lang.T("וידאו");
+            comp.Name = Lang.T("דחיסה - הקטנת נפח הקובץ");
+            comp.Desc = Lang.T("ערך גבוה = קובץ קטן יותר ואיכות נמוכה יותר");
             comp.Icon = Ico.Download;
             comp.ParamKind = 1; comp.Min = 18; comp.Max = 32; comp.Def = 24; comp.Step = 1;
-            comp.ParamLabel = "רמת דחיסה";
+            comp.ParamLabel = Lang.T("רמת דחיסה");
             comp.NeedsVideo = true;
-            comp.OutSuffix = " - דחוס";
+            comp.OutSuffix = Lang.T(" - דחוס");
             comp.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -c:v libx264 -crf " + ((int)c.Val) + " -preset medium -pix_fmt yuv420p " +
@@ -259,13 +259,13 @@ namespace SubtitleStudio
             t.Add(comp);
 
             MediaTool speed = new MediaTool();
-            speed.Group = "וידאו";
-            speed.Name = "שינוי מהירות";
-            speed.Desc = "להאיץ הרצאה או להאט קטע מהיר (הקול נשאר תקין)";
+            speed.Group = Lang.T("וידאו");
+            speed.Name = Lang.T("שינוי מהירות");
+            speed.Desc = Lang.T("להאיץ הרצאה או להאט קטע מהיר (הקול נשאר תקין)");
             speed.Icon = Ico.Next;
             speed.ParamKind = 1; speed.Min = 0.5; speed.Max = 2.0; speed.Def = 1.25; speed.Step = 0.05; speed.Suffix = "×";
-            speed.ParamLabel = "מהירות";
-            speed.OutSuffix = " - מהירות";
+            speed.ParamLabel = Lang.T("מהירות");
+            speed.OutSuffix = Lang.T(" - מהירות");
             speed.Build = delegate (ToolCtx c)
             {
                 double v = c.Val < 0.5 ? 0.5 : (c.Val > 2 ? 2 : c.Val);
@@ -281,15 +281,15 @@ namespace SubtitleStudio
             t.Add(speed);
 
             MediaTool rot = new MediaTool();
-            rot.Group = "וידאו";
-            rot.Name = "סיבוב הווידאו";
-            rot.Desc = "לתיקון סרטון שצולם בטלפון והתהפך";
+            rot.Group = Lang.T("וידאו");
+            rot.Name = Lang.T("סיבוב הווידאו");
+            rot.Desc = Lang.T("לתיקון סרטון שצולם בטלפון והתהפך");
             rot.Icon = Ico.Redo;
             rot.ParamKind = 2;
-            rot.Options = new string[] { "90° עם כיוון השעון", "90° נגד כיוון השעון", "180°", "היפוך מראה" };
-            rot.ParamLabel = "כיוון";
+            rot.Options = new string[] { Lang.T("90° עם כיוון השעון"), Lang.T("90° נגד כיוון השעון"), "180°", Lang.T("היפוך מראה") };
+            rot.ParamLabel = Lang.T("כיוון");
             rot.NeedsVideo = true;
-            rot.OutSuffix = " - מסובב";
+            rot.OutSuffix = Lang.T(" - מסובב");
             rot.Build = delegate (ToolCtx c)
             {
                 string f = c.Opt == 0 ? "transpose=1" : c.Opt == 1 ? "transpose=2" : c.Opt == 2 ? "transpose=1,transpose=1" : "hflip";
@@ -299,13 +299,13 @@ namespace SubtitleStudio
             t.Add(rot);
 
             MediaTool snap = new MediaTool();
-            snap.Group = "לשיתוף";
-            snap.Name = "שמירת התמונה שעל המסך";
-            snap.Desc = "לוכד את הפריים שבו נמצא הסמן כרגע כקובץ תמונה";
+            snap.Group = Lang.T("לשיתוף");
+            snap.Name = Lang.T("שמירת התמונה שעל המסך");
+            snap.Desc = Lang.T("לוכד את הפריים שבו נמצא הסמן כרגע כקובץ תמונה");
             snap.Icon = Ico.Image;
             snap.NeedsVideo = true;
             snap.OutExt = ".png";
-            snap.OutSuffix = " - תמונה";
+            snap.OutSuffix = Lang.T(" - תמונה");
             snap.Build = delegate (ToolCtx c)
             {
                 return "-ss " + Tc.Ff(c.Pos) + " -i " + Ff.Q(c.In) + " -frames:v 1 " + Ff.Q(c.Out);
@@ -313,14 +313,14 @@ namespace SubtitleStudio
             t.Add(snap);
 
             MediaTool fade = new MediaTool();
-            fade.Group = "וידאו";
-            fade.Name = "דהייה בהתחלה ובסוף";
-            fade.Desc = "פתיחה וסגירה רכות מתוך שחור - נראה הרבה יותר מקצועי";
+            fade.Group = Lang.T("וידאו");
+            fade.Name = Lang.T("דהייה בהתחלה ובסוף");
+            fade.Desc = Lang.T("פתיחה וסגירה רכות מתוך שחור - נראה הרבה יותר מקצועי");
             fade.Icon = Ico.Sun;
-            fade.ParamKind = 1; fade.Min = 0.3; fade.Max = 4; fade.Def = 1; fade.Step = 0.1; fade.Suffix = " שנ׳";
-            fade.ParamLabel = "אורך הדהייה";
+            fade.ParamKind = 1; fade.Min = 0.3; fade.Max = 4; fade.Def = 1; fade.Step = 0.1; fade.Suffix = Lang.T(" שנ׳");
+            fade.ParamLabel = Lang.T("אורך הדהייה");
             fade.NeedsVideo = true;
-            fade.OutSuffix = " - עם דהייה";
+            fade.OutSuffix = Lang.T(" - עם דהייה");
             fade.Build = delegate (ToolCtx c)
             {
                 double d = c.Val;
@@ -338,13 +338,13 @@ namespace SubtitleStudio
             t.Add(fade);
 
             MediaTool phone = new MediaTool();
-            phone.Group = "לשיתוף";
-            phone.Name = "הכנה לשליחה בוואטסאפ";
-            phone.Desc = "מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום";
+            phone.Group = Lang.T("לשיתוף");
+            phone.Name = Lang.T("הכנה לשליחה בוואטסאפ");
+            phone.Desc = Lang.T("מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום");
             phone.Icon = Ico.Upload;
             phone.NeedsVideo = true;
             phone.OutExt = ".mp4";
-            phone.OutSuffix = " - לוואטסאפ";
+            phone.OutSuffix = Lang.T(" - לוואטסאפ");
             phone.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) +
@@ -355,14 +355,14 @@ namespace SubtitleStudio
             t.Add(phone);
 
             MediaTool track = new MediaTool();
-            track.Group = "קול";
-            track.Name = "בחירת ערוץ שמע";
-            track.Desc = "לסרטים עם כמה שפות - משאיר רק את הערוץ שבחרתם";
+            track.Group = Lang.T("קול");
+            track.Name = Lang.T("בחירת ערוץ שמע");
+            track.Desc = Lang.T("לסרטים עם כמה שפות - משאיר רק את הערוץ שבחרתם");
             track.Icon = Ico.Layers;
             track.ParamKind = 2;
-            track.ParamLabel = "איזה ערוץ שמע להשאיר";
+            track.ParamLabel = Lang.T("איזה ערוץ שמע להשאיר");
             track.NeedsVideo = true;
-            track.OutSuffix = " - ערוץ נבחר";
+            track.OutSuffix = Lang.T(" - ערוץ נבחר");
             track.OptionsFor = delegate (MediaInfo mi)
             {
                 List<string> names = new List<string>();
@@ -374,12 +374,12 @@ namespace SubtitleStudio
                         if (st.Type != "audio") continue;
                         string lang = string.IsNullOrEmpty(st.Language) || st.Language == "und"
                             ? "" : " · " + MediaStream.LangName(st.Language);
-                        string ch = st.Channels == 1 ? " · מונו" : (st.Channels == 2 ? " · סטריאו" : "");
+                        string ch = st.Channels == 1 ? Lang.T(" · מונו") : (st.Channels == 2 ? Lang.T(" · סטריאו") : "");
                         names.Add("ערוץ " + n + " · " + st.Codec + ch + lang);
                         n++;
                     }
                 }
-                if (names.Count == 0) names.Add("אין ערוצי שמע בקובץ");
+                if (names.Count == 0) names.Add(Lang.T("אין ערוצי שמע בקובץ"));
                 return names.ToArray();
             };
             track.Build = delegate (ToolCtx c)
@@ -389,15 +389,15 @@ namespace SubtitleStudio
             t.Add(track);
 
             MediaTool join = new MediaTool();
-            join.Group = "וידאו";
-            join.Name = "חיבור שני סרטים";
-            join.Desc = "מדביק סרט נוסף בסוף הסרט הנוכחי";
+            join.Group = Lang.T("וידאו");
+            join.Name = Lang.T("חיבור שני סרטים");
+            join.Desc = Lang.T("מדביק סרט נוסף בסוף הסרט הנוכחי");
             join.Icon = Ico.Merge;
             join.ParamKind = 3;
-            join.ParamLabel = "הסרט שיתחבר בסוף";
-            join.FileFilter = "קובצי וידאו|*.mp4;*.mkv;*.avi;*.mov;*.webm;*.m4v|כל הקבצים|*.*";
+            join.ParamLabel = Lang.T("הסרט שיתחבר בסוף");
+            join.FileFilter = Lang.T("קובצי וידאו|*.mp4;*.mkv;*.avi;*.mov;*.webm;*.m4v|כל הקבצים|*.*");
             join.NeedsVideo = true;
-            join.OutSuffix = " - מחובר";
+            join.OutSuffix = Lang.T(" - מחובר");
             join.Build = delegate (ToolCtx c)
             {
                 bool audio = c.Mi != null && c.Mi.HasAudio;
@@ -412,13 +412,13 @@ namespace SubtitleStudio
             t.Add(join);
 
             MediaTool denoise = new MediaTool();
-            denoise.Group = "קול";
-            denoise.Name = "ניקוי רעש רקע מהקול";
-            denoise.Desc = "מוריד רחש קבוע מהקלטות - שימושי בהקלטות מהטלפון";
+            denoise.Group = Lang.T("קול");
+            denoise.Name = Lang.T("ניקוי רעש רקע מהקול");
+            denoise.Desc = Lang.T("מוריד רחש קבוע מהקלטות - שימושי בהקלטות מהטלפון");
             denoise.Icon = Ico.Mic;
             denoise.ParamKind = 1; denoise.Min = 6; denoise.Max = 30; denoise.Def = 12; denoise.Step = 1;
-            denoise.ParamLabel = "עוצמת הניקוי";
-            denoise.OutSuffix = " - נקי";
+            denoise.ParamLabel = Lang.T("עוצמת הניקוי");
+            denoise.OutSuffix = Lang.T(" - נקי");
             denoise.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af afftdn=nr=" + ((int)c.Val) + ":nf=-25 " +
@@ -427,20 +427,20 @@ namespace SubtitleStudio
             t.Add(denoise);
 
             MediaTool reverse = new MediaTool();
-            reverse.Group = "וידאו";
-            reverse.Name = "היפוך לאחור (ריוורס)";
-            reverse.Desc = "מריץ את הסרט מהסוף להתחלה";
+            reverse.Group = Lang.T("וידאו");
+            reverse.Name = Lang.T("היפוך לאחור (ריוורס)");
+            reverse.Desc = Lang.T("מריץ את הסרט מהסוף להתחלה");
             reverse.Icon = Ico.Undo;
             reverse.ParamKind = 2;
-            reverse.ParamLabel = "מה להפוך";
-            reverse.Options = new string[] { "את התמונה ואת הקול", "רק את התמונה (הקול נשאר רגיל)", "רק את הקול" };
+            reverse.ParamLabel = Lang.T("מה להפוך");
+            reverse.Options = new string[] { Lang.T("את התמונה ואת הקול"), Lang.T("רק את התמונה (הקול נשאר רגיל)"), Lang.T("רק את הקול") };
             reverse.UseRange = true;
-            reverse.OutSuffix = " - הפוך";
+            reverse.OutSuffix = Lang.T(" - הפוך");
             reverse.Hint = delegate (ToolCtx c)
             {
                 double sec = c.Mi != null ? c.Mi.DurationSec : 0;
                 if (c.HasRange) sec = (c.B - c.A) / 1000.0;
-                string s2 = "ההיפוך טוען את כל הקטע לזיכרון, אז עדיף על קטעים קצרים.";
+                string s2 = Lang.T("ההיפוך טוען את כל הקטע לזיכרון, אז עדיף על קטעים קצרים.");
                 if (sec > 120)
                     s2 = "שימו לב: קטע של " + Tc.Short((long)(sec * 1000)) +
                          " ידרוש הרבה זיכרון. כדאי לסמן קטע על הציר ולהפוך רק אותו.";
@@ -468,16 +468,16 @@ namespace SubtitleStudio
             t.Add(reverse);
 
             MediaTool fit = new MediaTool();
-            fit.Group = "לשיתוף";
-            fit.Name = "התאמה לגודל קובץ מבוקש";
-            fit.Desc = "\"שייכנס ל-200MB\" - התוכנה מחשבת את האיכות הכי טובה שנכנסת בגודל הזה";
+            fit.Group = Lang.T("לשיתוף");
+            fit.Name = Lang.T("התאמה לגודל קובץ מבוקש");
+            fit.Desc = Lang.T("\"שייכנס ל-200MB\" - התוכנה מחשבת את האיכות הכי טובה שנכנסת בגודל הזה");
             fit.Icon = Ico.Download;
             fit.ParamKind = 1; fit.Min = 5; fit.Max = 500; fit.Def = 200; fit.Step = 5; fit.Suffix = " MB";
-            fit.ParamLabel = "לאיזה גודל להגיע";
+            fit.ParamLabel = Lang.T("לאיזה גודל להגיע");
             fit.NeedsVideo = true;
             fit.OutExt = ".mp4";
-            fit.OutSuffix = " - מוקטן";
-            fit.StepNames = new string[] { "מעבר ראשון - ניתוח", "מעבר שני - קידוד" };
+            fit.OutSuffix = Lang.T(" - מוקטן");
+            fit.StepNames = new string[] { Lang.T("מעבר ראשון - ניתוח"), Lang.T("מעבר שני - קידוד") };
             fit.Hint = delegate (ToolCtx c) { return FitPlan(c).Describe(); };
             fit.BuildSteps = delegate (ToolCtx c)
             {
@@ -495,9 +495,9 @@ namespace SubtitleStudio
             t.Add(fit);
 
             MediaTool gif = new MediaTool();
-            gif.Group = "לשיתוף";
-            gif.Name = "יצירת GIF מהקטע המסומן";
-            gif.Desc = "ממיר את הטווח שסימנתם על הציר לאנימציה קצרה";
+            gif.Group = Lang.T("לשיתוף");
+            gif.Name = Lang.T("יצירת GIF מהקטע המסומן");
+            gif.Desc = Lang.T("ממיר את הטווח שסימנתם על הציר לאנימציה קצרה");
             gif.Icon = Ico.Sparkles;
             gif.NeedsVideo = true;
             gif.UseRange = true;
@@ -535,7 +535,7 @@ namespace SubtitleStudio
         private readonly long _a, _b, _pos;
 
         public ToolsDlg(MainForm main, MediaInfo mi, long a, long b, long pos)
-            : base("כלים לסרט ולקול", Ico.Sliders, 600)
+            : base(Lang.T("כלים לסרט ולקול"), Ico.Sliders, 600)
         {
             _main = main; _mi = mi; _a = a; _b = b; _pos = pos;
             Subtitle = mi != null ? Theme.FileName(Path.GetFileName(mi.Path)) : "";
@@ -565,7 +565,7 @@ namespace SubtitleStudio
                 bool ok = !(tool.NeedsVideo && (mi == null || !mi.HasVideo));
                 Btn btn = new Btn();
                 btn.Text = tool.Name;
-                btn.Sub = ok ? tool.Desc : "לא זמין - אין ערוץ וידאו בקובץ";
+                btn.Sub = ok ? tool.Desc : Lang.T("לא זמין - אין ערוץ וידאו בקובץ");
                 btn.Icon = tool.Icon;
                 btn.Kind = BtnKind.Subtle;
                 btn.Enabled = ok;
@@ -578,7 +578,7 @@ namespace SubtitleStudio
 
             Y = HeadH + Theme.S(14) + Theme.S(400) + Theme.S(12);
             Btn close = new Btn();
-            close.Text = "סגירה";
+            close.Text = Lang.T("סגירה");
             close.Kind = BtnKind.Ghost;
             close.SetBounds(Pad, Y, Theme.S(126), Theme.S(40));
             close.Click += delegate { Close(); };
@@ -633,7 +633,7 @@ namespace SubtitleStudio
                 bool has = a >= 0 && b > a;
                 Lbl l = Hint(has
                     ? "יעבוד על הטווח המסומן: " + Tc.Short(a) + " – " + Tc.Short(b)
-                    : "לא סומן טווח על הציר - הפעולה תרוץ על כל הקובץ.");
+                    : Lang.T("לא סומן טווח על הציר - הפעולה תרוץ על כל הקובץ."));
                 Row(l, 32, 6);
             }
 
@@ -658,7 +658,7 @@ namespace SubtitleStudio
             else if (tool.ParamKind == 3)
             {
                 Section(tool.ParamLabel);
-                _fileField = FilePicker("בחרו קובץ", "", tool.FileFilter, false);
+                _fileField = FilePicker(Lang.T("בחרו קובץ"), "", tool.FileFilter, false);
             }
 
             if (tool.Hint != null)
@@ -667,10 +667,10 @@ namespace SubtitleStudio
                 Row(_hintLbl, 38, 10);
             }
 
-            Section("קובץ היעד");
-            _out = FilePicker("נתיב קובץ היעד", Suggest(tool.DefOption), "כל הקבצים|*.*", true);
+            Section(Lang.T("קובץ היעד"));
+            _out = FilePicker(Lang.T("נתיב קובץ היעד"), Suggest(tool.DefOption), Lang.T("כל הקבצים|*.*"), true);
 
-            Buttons("הפעלה", Ico.Play, "ביטול");
+            Buttons(Lang.T("הפעלה"), Ico.Play, Lang.T("ביטול"));
             UpdateHint();
         }
 
@@ -724,16 +724,16 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             string outPath = _out.Text.Trim();
-            if (outPath.Length == 0) { Ui.Error(this, "חסר קובץ יעד", "בחרו לאן לשמור."); return false; }
+            if (outPath.Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור.")); return false; }
             if (_tool.ParamKind == 3 && (_fileField == null || _fileField.Text.Trim().Length == 0))
-            { Ui.Error(this, "חסר קובץ", "בחרו את הקובץ הנדרש לפעולה."); return false; }
+            { Ui.Error(this, Lang.T("חסר קובץ"), Lang.T("בחרו את הקובץ הנדרש לפעולה.")); return false; }
             try
             {
                 if (string.Equals(Path.GetFullPath(outPath), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))
-                { Ui.Error(this, "אותו קובץ", "אי אפשר לכתוב על קובץ המקור."); return false; }
+                { Ui.Error(this, Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור.")); return false; }
             }
             catch { }
-            if (File.Exists(outPath) && !Ui.Confirm(this, "הקובץ קיים", "להחליף את הקובץ הקיים?", "להחליף", "ביטול")) return false;
+            if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("להחליף את הקובץ הקיים?"), Lang.T("להחליף"), Lang.T("ביטול"))) return false;
 
             ToolCtx c = Ctx();
             c.Out = outPath;

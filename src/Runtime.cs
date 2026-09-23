@@ -229,7 +229,7 @@ namespace SubtitleStudio
             try
             {
                 string dir = TargetDir;
-                if (!Directory.Exists(dir)) { message = "אין מה למחוק - המנוע לא נפרס."; return false; }
+                if (!Directory.Exists(dir)) { message = Lang.T("אין מה למחוק - המנוע לא נפרס."); return false; }
                 Directory.Delete(dir, true);
                 message = "המנוע נמחק מ:\n" + dir + "\nהוא ייפרס מחדש בהפעלה הבאה.";
                 return true;
@@ -309,16 +309,16 @@ namespace SubtitleStudio
             float wy = logo.Y - Theme.S(3);
             Theme.Str(g, "text", wf, Theme.Accent, new RectangleF(right - wbw - Theme.S(10), wy, wbw + Theme.S(20), Theme.S(30)), Theme.SfCenter);
             Theme.Str(g, "Sub", wf, Theme.Text, new RectangleF(right - wbw - wa - Theme.S(10), wy, wa + Theme.S(20), Theme.S(30)), Theme.SfCenter);
-            Theme.Str(g, "אולפן הכתוביות", Theme.Small, Theme.TextDim,
+            Theme.Str(g, Lang.T("אולפן הכתוביות"), Theme.Small, Theme.TextDim,
                 new RectangleF(pad, logo.Y + Theme.S(26), right - pad, Theme.S(18)), Theme.SfRtl);
 
-            Theme.Str(g, "מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות", Theme.Ui, Theme.Text,
+            Theme.Str(g, Lang.T("מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות"), Theme.Ui, Theme.Text,
                 new RectangleF(pad, Theme.S(96), Width - pad * 2, Theme.S(22)), Theme.SfRtl);
 
             RectangleF bar = new RectangleF(pad, Theme.S(126), Width - pad * 2, Theme.S(8));
             Surface.ProgressBar(g, bar, Math.Max(0.02, _shown), Theme.Accent, _phase, true);
 
-            Theme.Str(g, Runtime.PortableMode ? "נפרס ליד התוכנה (מצב נייד)" : "נפרס אל תיקיית המשתמש",
+            Theme.Str(g, Runtime.PortableMode ? Lang.T("נפרס ליד התוכנה (מצב נייד)") : Lang.T("נפרס אל תיקיית המשתמש"),
                 Theme.Small, Theme.TextFaint, new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), Theme.SfRtl);
             Theme.Num(g, ((int)Math.Round(_shown * 100)) + "%", Theme.SmallBold, Theme.TextDim,
                 new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), StringAlignment.Near);

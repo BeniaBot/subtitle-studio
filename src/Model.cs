@@ -421,12 +421,12 @@ namespace SubtitleStudio
         /// והצבעים ברשימה סתרו זה את זה.</summary>
         public string Stats()
         {
-            if (Cues.Count == 0) return "אין כתוביות";
+            if (Cues.Count == 0) return Lang.T("אין כתוביות");
             long total = 0;
             for (int i = 0; i < Cues.Count; i++) total += Cues[i].Duration;
             StringBuilder sb = new StringBuilder();
-            sb.Append(Cues.Count == 1 ? "כתובית אחת" : Theme.Ltr(Cues.Count.ToString()) + " כתוביות");
-            sb.Append("  ·  משך כולל ").Append(Theme.Ltr(Tc.Short(total)));
+            sb.Append(Cues.Count == 1 ? Lang.T("כתובית אחת") : Theme.Ltr(Cues.Count.ToString()) + " כתוביות");
+            sb.Append(Lang.T("  ·  משך כולל ")).Append(Theme.Ltr(Tc.Short(total)));
             return sb.ToString();
         }
     }

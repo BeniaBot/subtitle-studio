@@ -24,20 +24,20 @@ namespace SubtitleStudio
         private readonly Field _term;
         private readonly Lbl _state;
 
-        public FindDlg(string initial, int total) : base("חיפוש בכתוביות", Ico.Search, 460)
+        public FindDlg(string initial, int total) : base(Lang.T("חיפוש בכתוביות"), Ico.Search, 460)
         {
             Subtitle = total + " כתוביות";
 
             _term = new Field();
-            _term.Placeholder = "מה לחפש?";
+            _term.Placeholder = Lang.T("מה לחפש?");
             _term.Text = initial ?? "";
             Row(_term, 40, 8);
 
-            _state = Hint("‏Enter מוצא את הבא, ‏Shift+Enter את הקודם.");
+            _state = Hint(Lang.T("‏Enter מוצא את הבא, ‏Shift+Enter את הקודם."));
             Row(_state, 20, 10);
 
             Btn prev = new Btn();
-            prev.Text = "הקודם";
+            prev.Text = Lang.T("הקודם");
             prev.Kind = BtnKind.Ghost;
             prev.Icon = Ico.ChevronRight;
             prev.IconSize = Theme.S(14);
@@ -47,7 +47,7 @@ namespace SubtitleStudio
             Y += Theme.S(36) + Theme.S(4);
 
             Btn next = new Btn();
-            next.Text = "הבא";
+            next.Text = Lang.T("הבא");
             next.Kind = BtnKind.Primary;
             next.Icon = Ico.ChevronLeft;
             next.IconSize = Theme.S(14);
@@ -55,7 +55,7 @@ namespace SubtitleStudio
             next.SetBounds(Pad + Theme.S(128), prev.Top, Theme.S(120), Theme.S(36));
             Controls.Add(next);
 
-            Buttons("סגירה", Ico.Check, null);
+            Buttons(Lang.T("סגירה"), Ico.Check, null);
 
             // המקלדת חייבת לעבוד מתוך תיבת הטקסט - שם היד של המשתמש.
             _term.KeyDown += delegate (object s, KeyEventArgs e)
@@ -70,13 +70,13 @@ namespace SubtitleStudio
         private void Go(bool forward)
         {
             string t = (_term.Text ?? "").Trim();
-            if (t.Length == 0) { Say("צריך להקליד מה לחפש.", Theme.Warn); return; }
+            if (t.Length == 0) { Say(Lang.T("צריך להקליד מה לחפש."), Theme.Warn); return; }
             if (FindNext == null) return;
             FindArgs a = new FindArgs();
             a.Term = t;
             a.Forward = forward;
             FindNext(this, a);
-            if (a.Found) Say("נמצא - הכתובית מסומנת מאחורי החלון.", Theme.Good);
+            if (a.Found) Say(Lang.T("נמצא - הכתובית מסומנת מאחורי החלון."), Theme.Good);
             else Say("לא נמצא ״" + t + "״ בשום כתובית.", Theme.Warn);
         }
 

@@ -25,7 +25,7 @@ namespace SubtitleStudio
                 : "הגרסה שלכם היא " + App.Version;
 
             Lbl intro = Label("אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה " +
-                              "תיסגר ותיפתח מחדש לבד.", false, Theme.TextDim);
+                              Lang.T("תיסגר ותיפתח מחדש לבד."), false, Theme.TextDim);
             intro.Wrap = true;
             Row(intro, 36, 10);
 
@@ -54,14 +54,14 @@ namespace SubtitleStudio
             Controls.Add(host);
             Y += viewH + Theme.S(10);
 
-            Btn ok = Buttons("לעדכן עכשיו", Ico.Download, "אחר כך");
+            Btn ok = Buttons(Lang.T("לעדכן עכשיו"), Ico.Download, Lang.T("אחר כך"));
 
             // ״היומן המלא״ מופיע רק כשבאמת קוצר משהו. כפתור שמבטיח ״עוד״
             // ומוביל לאותו תוכן בדיוק הוא הבטחה ריקה.
             if (sum != null && Shortened(sum))
             {
                 Btn more = new Btn();
-                more.Text = "היומן המלא";
+                more.Text = Lang.T("היומן המלא");
                 more.Kind = BtnKind.Subtle;
                 more.SetBounds(ClientSize.Width - Pad - Theme.S(120), ok.Top, Theme.S(120), ok.Height);
                 more.Click += delegate
@@ -145,7 +145,7 @@ namespace SubtitleStudio
                     else
                     {
                         // אין יומן: הטקסט של ה-Release, שורה-שורה ובלי חיתוך
-                        string[] raw = (_fallback.Length > 0 ? _fallback : "אין פרטים על השחרור הזה.")
+                        string[] raw = (_fallback.Length > 0 ? _fallback : Lang.T("אין פרטים על השחרור הזה."))
                             .Replace("\r\n", "\n").Split('\n');
                         for (int i = 0; i < raw.Length; i++)
                         {

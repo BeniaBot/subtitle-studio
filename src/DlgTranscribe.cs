@@ -24,20 +24,20 @@ namespace SubtitleStudio
         public bool ReplaceExisting { get { return _replace.Visible && _replace.Checked; } }
         public ISttProvider Provider { get { return _choice == "groq" ? (ISttProvider)Stt.Groq : Stt.Gemini; } }
 
-        public TranscribeDlg(MediaInfo mi, int existingCues) : base("תמלול אוטומטי", Ico.Sparkles, 620)
+        public TranscribeDlg(MediaInfo mi, int existingCues) : base(Lang.T("תמלול אוטומטי"), Ico.Sparkles, 620)
         {
             _mi = mi;
-            Subtitle = "התוכנה מקשיבה לסרט וכותבת את הכתוביות";
+            Subtitle = Lang.T("התוכנה מקשיבה לסרט וכותבת את הכתוביות");
             _choice = Stt.Current.Id;
 
             // **הבחירה כאן ולא בהגדרות.** חלון ההגדרות כבר על גבול הגובה, והמקום
             // שבו מחליטים איפה לתמלל הוא הרגע שבו מתמללים.
-            Section("איפה לתמלל");
+            Section(Lang.T("איפה לתמלל"));
             int gapX = Theme.S(12);
             int half = (ContentW - gapX) / 2;
             _optGoogle = new Btn();
-            _optGoogle.Text = "גוגל";
-            _optGoogle.Sub = "המפתח שכבר יש לכם · מכסה קטנה";
+            _optGoogle.Text = Lang.T("גוגל");
+            _optGoogle.Sub = Lang.T("המפתח שכבר יש לכם · מכסה קטנה");
             _optGoogle.Icon = Ico.Sparkles;
             _optGoogle.Kind = BtnKind.Subtle;
             _optGoogle.Radio = true;
@@ -46,7 +46,7 @@ namespace SubtitleStudio
             Controls.Add(_optGoogle);
             _optGroq = new Btn();
             _optGroq.Text = "Groq";
-            _optGroq.Sub = "עד 8 שעות ביום · מפתח חינמי נפרד";
+            _optGroq.Sub = Lang.T("עד 8 שעות ביום · מפתח חינמי נפרד");
             _optGroq.Icon = Ico.Mic;
             _optGroq.Kind = BtnKind.Subtle;
             _optGroq.Radio = true;
@@ -62,41 +62,41 @@ namespace SubtitleStudio
             Row(_connect, 38, 12);
 
             // האזהרה היא העיקר כאן, ולכן היא בולטת ולא הערת שוליים
-            Section("לפני שמתחילים");
+            Section(Lang.T("לפני שמתחילים"));
             _warn = Label("", true, Theme.Warn);
             Row(_warn, 24, 2);
             Lbl warn2 = Hint(
                 "זו הפעולה היחידה בתוכנה ששולחת את התוכן עצמו החוצה. אם ההקלטה רגישה, " +
-                "עדיף לתמלל ידנית - זה עובד בלי אינטרנט." + Environment.NewLine +
-                "התוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.");
+                Lang.T("עדיף לתמלל ידנית - זה עובד בלי אינטרנט.") + Environment.NewLine +
+                Lang.T("התוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."));
             Row(warn2, 44, 12);
 
             _info = Hint("");
             if (mi != null)
             {
-                Section("הקובץ");
+                Section(Lang.T("הקובץ"));
                 Row(_info, 44, 12);
             }
 
             _replace = new Toggle();
-            _replace.Text = "למחוק את הכתוביות הקיימות ולהתחיל מחדש";
+            _replace.Text = Lang.T("למחוק את הכתוביות הקיימות ולהתחיל מחדש");
             _replace.Checked = true;
             _replace.Visible = existingCues > 0;
             if (_replace.Visible)
             {
                 Row(_replace, 28, 6);
-                Lbl rh = Hint("אם לא - הכתוביות החדשות יתווספו לקיימות.");
+                Lbl rh = Hint(Lang.T("אם לא - הכתוביות החדשות יתווספו לקיימות."));
                 Row(rh, 22, 10);
             }
 
-            Section("רקע על התוכן (לא חובה)");
+            Section(Lang.T("רקע על התוכן (לא חובה)"));
             _context = new Field();
-            _context.Placeholder = "למשל: שיעור בגמרא · הרצאה רפואית · ראיון";
+            _context.Placeholder = Lang.T("למשל: שיעור בגמרא · הרצאה רפואית · ראיון");
             Row(_context, 40, 4);
-            Lbl ch = Hint("עוזר לזהות שמות ומונחים נכון.");
+            Lbl ch = Hint(Lang.T("עוזר לזהות שמות ומונחים נכון."));
             Row(ch, 22, 8);
 
-            Buttons("להתחיל בתמלול", Ico.Sparkles, "ביטול");
+            Buttons(Lang.T("להתחיל בתמלול"), Ico.Sparkles, Lang.T("ביטול"));
             Refresh_();
         }
 
@@ -118,11 +118,11 @@ namespace SubtitleStudio
 
             _connect.Text = p.HasKey
                 ? "החלפת המפתח של " + p.Name
-                : Theme.Pfx("חיבור ל", p.Name) + " - מפתח חינמי, פעם אחת";
+                : Theme.Pfx(Lang.T("חיבור ל"), p.Name) + " - מפתח חינמי, פעם אחת";
             _connect.Kind = p.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
             _connect.Invalidate();
 
-            _warn.Text = Theme.Pfx("הקול מהסרט יישלח ל", p.Name) + ".";
+            _warn.Text = Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
             _warn.Invalidate();
 
             if (_mi != null)
@@ -138,7 +138,7 @@ namespace SubtitleStudio
                 // המספר בסוף המשפט ולא באמצעו: ‏Ltr באמצע טקסט עברי הפך את
                 // "40 שניות · 1 קטעים" ל-"1 · 40 שניות קטעים"
                 _info.Text = "אורך: " + Theme.Ltr(Tc.Length(dur)) + Environment.NewLine +
-                             (mins == 1 ? "לוקח בערך דקה. " : "לוקח בערך " + Theme.Ltr(mins.ToString()) + " דקות. ") +
+                             (mins == 1 ? Lang.T("לוקח בערך דקה. ") : "לוקח בערך " + Theme.Ltr(mins.ToString()) + " דקות. ") +
                              "אפשר לעצור באמצע, ומה שכבר תומלל יישמר.";
                 _info.Invalidate();
             }
@@ -165,7 +165,7 @@ namespace SubtitleStudio
         {
             if (_mi == null || _mi.DurationMs <= 0)
             {
-                Ui.Error(this, "אין סרט", "צריך לפתוח קודם סרט או קובץ קול.");
+                Ui.Error(this, Lang.T("אין סרט"), Lang.T("צריך לפתוח קודם סרט או קובץ קול."));
                 return false;
             }
             if (!Provider.HasKey)
@@ -191,38 +191,38 @@ namespace SubtitleStudio
 
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { "נכנסים לאתר של Groq", "הכפתור למטה פותח אותו. אפשר להירשם עם חשבון גוגל." },
-            new string[] { "לוחצים ״Create API Key״", "מקבלים מחרוזת ארוכה שמתחילה ב-gsk_. בלי כרטיס אשראי." },
-            new string[] { "מעתיקים ומדביקים כאן", "המפתח נשמר מוצפן במחשב שלכם בלבד." }
+            new string[] { Lang.T("נכנסים לאתר של Groq"), Lang.T("הכפתור למטה פותח אותו. אפשר להירשם עם חשבון גוגל.") },
+            new string[] { Lang.T("לוחצים ״Create API Key״"), Lang.T("מקבלים מחרוזת ארוכה שמתחילה ב-gsk_. בלי כרטיס אשראי.") },
+            new string[] { Lang.T("מעתיקים ומדביקים כאן"), Lang.T("המפתח נשמר מוצפן במחשב שלכם בלבד.") }
         };
 
-        public GroqSetupDlg() : base("חיבור ל-Groq", Ico.Mic, 600)
+        public GroqSetupDlg() : base(Lang.T("חיבור ל-Groq"), Ico.Mic, 600)
         {
-            Subtitle = "תמלול של עד 8 שעות הקלטה ביום, בחינם";
+            Subtitle = Lang.T("תמלול של עד 8 שעות הקלטה ביום, בחינם");
 
             AiSetupDlg.StepsView steps = new AiSetupDlg.StepsView(Steps);
             Row(steps, Steps.Length * 44 + 4, 12);
 
             Btn open = new Btn();
-            open.Text = "פתיחת האתר של Groq";
+            open.Text = Lang.T("פתיחת האתר של Groq");
             open.Icon = Ico.Key;
             open.Kind = BtnKind.Subtle;
             open.Click += delegate
             {
                 try { System.Diagnostics.Process.Start(Stt.GroqKeyPage); }
-                catch { Ui.Error(this, "לא הצלחתי לפתוח את הדפדפן", Stt.GroqKeyPage); }
+                catch { Ui.Error(this, Lang.T("לא הצלחתי לפתוח את הדפדפן"), Stt.GroqKeyPage); }
             };
             Row(open, 42, 14);
 
-            Section("המפתח שקיבלתם");
+            Section(Lang.T("המפתח שקיבלתם"));
             _key = new Field();
-            _key.Placeholder = "מדביקים כאן את המפתח";
+            _key.Placeholder = Lang.T("מדביקים כאן את המפתח");
             _key.Ltr = true;
             _key.Box.Text = Stt.GroqKey;
             Row(_key, 40, 8);
 
             _test = new Btn();
-            _test.Text = "בדיקת חיבור";
+            _test.Text = Lang.T("בדיקת חיבור");
             _test.Icon = Ico.Check;
             _test.Kind = BtnKind.Subtle;
             _test.Click += delegate { TestKey(); };
@@ -231,19 +231,19 @@ namespace SubtitleStudio
             _status = Hint("");
             Row(_status, 40, 4);
 
-            Row(Hint("הקול נשלח לשרתים של Groq לצורך התמלול בלבד. אל תשתמשו בזה על הקלטות רגישות."), 40, 0);
+            Row(Hint(Lang.T("הקול נשלח לשרתים של Groq לצורך התמלול בלבד. אל תשתמשו בזה על הקלטות רגישות.")), 40, 0);
 
-            Buttons("שמירה", Ico.Save, "ביטול");
+            Buttons(Lang.T("שמירה"), Ico.Save, Lang.T("ביטול"));
         }
 
         private void TestKey()
         {
             if (_busy) return;
             string k = _key.Text.Trim();
-            if (k.Length < 10) { Say("צריך להדביק קודם את המפתח.", Theme.Warn); return; }
+            if (k.Length < 10) { Say(Lang.T("צריך להדביק קודם את המפתח."), Theme.Warn); return; }
             _busy = true;
             _test.Enabled = false;
-            Say("בודק...", Theme.TextDim);
+            Say(Lang.T("בודק..."), Theme.TextDim);
             Thread t = new Thread(delegate ()
             {
                 string err;
@@ -260,10 +260,10 @@ namespace SubtitleStudio
                             Stt.GroqKey = k;
                             Settings.GroqKeyTouched = true;
                             Settings.SaveAll();
-                            if (Settings.KeyOnDisk("groqkey")) Say("החיבור עובד, והמפתח נשמר.", Theme.Good);
+                            if (Settings.KeyOnDisk("groqkey")) Say(Lang.T("החיבור עובד, והמפתח נשמר."), Theme.Good);
                             else Say("החיבור עובד, אבל המפתח לא נשמר בקובץ. " + Settings.LastError, Theme.Warn);
                         }
-                        else Say(err ?? "לא התקבלה תשובה.", Theme.Bad);
+                        else Say(err ?? Lang.T("לא התקבלה תשובה."), Theme.Bad);
                     });
                 }
                 catch { }
@@ -285,8 +285,8 @@ namespace SubtitleStudio
             Settings.GroqKeyTouched = true;
             Settings.SaveAll();
             if (Stt.GroqKey.Length > 0 && !Settings.KeyOnDisk("groqkey"))
-                Ui.Error(this, "המפתח לא נשמר",
-                    "המפתח פעיל עד שתסגרו את התוכנה, אבל הוא לא נכתב לקובץ ההגדרות, ובהפעלה הבאה הוא לא יהיה." +
+                Ui.Error(this, Lang.T("המפתח לא נשמר"),
+                    Lang.T("המפתח פעיל עד שתסגרו את התוכנה, אבל הוא לא נכתב לקובץ ההגדרות, ובהפעלה הבאה הוא לא יהיה.") +
                     Environment.NewLine + Settings.LastError);
             return true;
         }
@@ -309,24 +309,24 @@ namespace SubtitleStudio
             : this(Stt.Current, path, durationMs, context) { }
 
         public TranscribeRunDlg(ISttProvider provider, string path, long durationMs, string context)
-            : base("מתמלל...", Ico.Sparkles, 540)
+            : base(Lang.T("מתמלל..."), Ico.Sparkles, 540)
         {
             _provider = provider;
             _path = path; _dur = durationMs; _context = context;
-            Subtitle = "השאירו את החלון פתוח";
+            Subtitle = Lang.T("השאירו את החלון פתוח");
 
-            _stat = Label("מתחיל…", false, Theme.Text);
+            _stat = Label(Lang.T("מתחיל…"), false, Theme.Text);
             Row(_stat, 24, 10);
             _bar = new ProgressBarLite();
             Row(_bar, 10, 12);
 
-            Lbl note = Hint("אפשר לעצור בכל רגע - מה שכבר תומלל יישאר.");
+            Lbl note = Hint(Lang.T("אפשר לעצור בכל רגע - מה שכבר תומלל יישאר."));
             Row(note, 22, 10);
 
             Btn cancel = new Btn();
-            cancel.Text = "עצירה";
+            cancel.Text = Lang.T("עצירה");
             cancel.Kind = BtnKind.Ghost;
-            cancel.Click += delegate { _cancel = true; _stat.Text = "עוצר…"; _stat.Invalidate(); };
+            cancel.Click += delegate { _cancel = true; _stat.Text = Lang.T("עוצר…"); _stat.Invalidate(); };
             Row(cancel, 40, 0);
             Y += Theme.S(6);
             ClientSize = new Size(ClientSize.Width, Y);

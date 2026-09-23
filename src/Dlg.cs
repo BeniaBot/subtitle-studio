@@ -344,7 +344,7 @@ namespace SubtitleStudio
     {
         private FfJob _job;
         private double _prog;
-        private string _status = "מתחיל...";
+        private string _status = Lang.T("מתחיל...");
         private string _title;
         private bool _done, _success, _cancelled;
         /// <summary>ההודעה האנושית (ErrorText). היומן הגולמי נשאר מאחורי ״יומן״.</summary>
@@ -372,15 +372,15 @@ namespace SubtitleStudio
             ClientSize = new Size(Theme.S(520), Theme.S(210));
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
 
-            _cancel = new Btn(); _cancel.Text = "ביטול"; _cancel.Kind = BtnKind.Ghost; _cancel.SetBounds(Theme.S(22), Theme.S(150), Theme.S(116), Theme.S(40));
+            _cancel = new Btn(); _cancel.Text = Lang.T("ביטול"); _cancel.Kind = BtnKind.Ghost; _cancel.SetBounds(Theme.S(22), Theme.S(150), Theme.S(116), Theme.S(40));
             _cancel.Click += delegate { job.Cancel(); };
             Controls.Add(_cancel);
 
-            _close = new Btn(); _close.Text = "סגירה"; _close.Kind = BtnKind.Primary; _close.SetBounds(Theme.S(22), Theme.S(150), Theme.S(136), Theme.S(40)); _close.Visible = false;
+            _close = new Btn(); _close.Text = Lang.T("סגירה"); _close.Kind = BtnKind.Primary; _close.SetBounds(Theme.S(22), Theme.S(150), Theme.S(136), Theme.S(40)); _close.Visible = false;
             _close.Click += delegate { Close(); };
             Controls.Add(_close);
 
-            _openFolder = new Btn(); _openFolder.Text = "פתיחת התיקייה"; _openFolder.Icon = Ico.Folder; _openFolder.Kind = BtnKind.Ghost;
+            _openFolder = new Btn(); _openFolder.Text = Lang.T("פתיחת התיקייה"); _openFolder.Icon = Ico.Folder; _openFolder.Kind = BtnKind.Ghost;
             _openFolder.SetBounds(Theme.S(172), Theme.S(150), Theme.S(176), Theme.S(40)); _openFolder.Visible = false;
             _openFolder.Click += delegate
             {
@@ -389,7 +389,7 @@ namespace SubtitleStudio
             };
             Controls.Add(_openFolder);
 
-            _log = new Btn(); _log.Text = "יומן"; _log.Kind = BtnKind.Tool; _log.SetBounds(Theme.S(428), Theme.S(150), Theme.S(74), Theme.S(40));
+            _log = new Btn(); _log.Text = Lang.T("יומן"); _log.Kind = BtnKind.Tool; _log.SetBounds(Theme.S(428), Theme.S(150), Theme.S(74), Theme.S(40));
             _log.Click += delegate { ToggleLog(); };
             Controls.Add(_log);
 
@@ -459,9 +459,9 @@ namespace SubtitleStudio
         private string SubText()
         {
             if (!_done) return _status;
-            if (_success) return "הפעולה הושלמה בהצלחה";
+            if (_success) return Lang.T("הפעולה הושלמה בהצלחה");
             // עד 0.7.2 ביטול הוצג כ״לא הצליח: בוטל״, באדום - כאילו משהו נשבר
-            if (_cancelled || _error.Length == 0) return "הפעולה בוטלה";
+            if (_cancelled || _error.Length == 0) return Lang.T("הפעולה בוטלה");
             return _error;
         }
 

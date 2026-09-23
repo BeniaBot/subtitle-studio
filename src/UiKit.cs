@@ -813,7 +813,7 @@ namespace SubtitleStudio
         /// <summary>תיבת הודעה מעוצבת. buttons: כפתורים מימין לשמאל. מחזיר אינדקס.</summary>
         public static int Msg(IWin32Window owner, string title, string body, Ico icon, params string[] buttons)
         {
-            if (buttons == null || buttons.Length == 0) buttons = new string[] { "אישור" };
+            if (buttons == null || buttons.Length == 0) buttons = new string[] { Lang.T("אישור") };
             Form f = new Form();
             f.FormBorderStyle = FormBorderStyle.None;
             f.StartPosition = FormStartPosition.CenterParent;
@@ -880,8 +880,8 @@ namespace SubtitleStudio
             return result;
         }
 
-        public static void Info(IWin32Window owner, string title, string body) { Msg(owner, title, body, Ico.Info, "הבנתי"); }
-        public static void Error(IWin32Window owner, string title, string body) { Msg(owner, title, body, Ico.Warning, "סגור"); }
+        public static void Info(IWin32Window owner, string title, string body) { Msg(owner, title, body, Ico.Info, Lang.T("הבנתי")); }
+        public static void Error(IWin32Window owner, string title, string body) { Msg(owner, title, body, Ico.Warning, Lang.T("סגור")); }
         public static bool Confirm(IWin32Window owner, string title, string body, string yes, string no)
         {
             return Msg(owner, title, body, Ico.Question, yes, no) == 0;
@@ -911,10 +911,10 @@ namespace SubtitleStudio
             Lbl l = Label(label, Theme.Small, Theme.TextDim); l.SetBounds(Theme.S(20), Theme.S(48), pw, Theme.S(18));
             Field fld = new Field(); fld.SetBounds(Theme.S(20), Theme.S(70), pw, Theme.S(36)); fld.Text = initial == null ? "" : initial;
             string res = null;
-            Btn ok = new Btn(); ok.Text = "אישור"; ok.Kind = BtnKind.Primary;
+            Btn ok = new Btn(); ok.Text = Lang.T("אישור"); ok.Kind = BtnKind.Primary;
             ok.SetBounds(Theme.S(430) - Theme.S(20) - Theme.S(100), Theme.S(124), Theme.S(100), Theme.S(36));
             ok.Click += delegate { res = fld.Text; f.Close(); };
-            Btn cancel = new Btn(); cancel.Text = "ביטול"; cancel.Kind = BtnKind.Ghost;
+            Btn cancel = new Btn(); cancel.Text = Lang.T("ביטול"); cancel.Kind = BtnKind.Ghost;
             cancel.SetBounds(Theme.S(430) - Theme.S(28) - Theme.S(200), Theme.S(124), Theme.S(100), Theme.S(36));
             cancel.Click += delegate { f.Close(); };
             f.Controls.AddRange(new Control[] { t, l, fld, ok, cancel });

@@ -36,15 +36,15 @@ namespace SubtitleStudio
         private Btn _google, _groq, _getDict, _delEngine, _delDict;
         private Lbl _spellLine, _engineLine, _dictLine;
 
-        public SettingsDlg(MainForm main) : base("הגדרות", Ico.Gear, 580)
+        public SettingsDlg(MainForm main) : base(Lang.T("הגדרות"), Ico.Gear, 580)
         {
             _main = main;
-            Subtitle = "נשמר מיד, ונזכר בפעם הבאה";
+            Subtitle = Lang.T("נשמר מיד, ונזכר בפעם הבאה");
 
             // ---------- מראה ----------
-            Section("מראה");
+            Section(Lang.T("מראה"));
             _dark = new Toggle();
-            _dark.Text = "מצב כהה";
+            _dark.Text = Lang.T("מצב כהה");
             _dark.Checked = Theme.Dark;
             _dark.CheckedChanged += delegate
             {
@@ -55,8 +55,8 @@ namespace SubtitleStudio
             Row(_dark, 30, 16);
 
             // ---------- שירותים באינטרנט ----------
-            Section("שירותים באינטרנט");
-            _google = Card("המפתח של גוגל", Ico.Key);
+            Section(Lang.T("שירותים באינטרנט"));
+            _google = Card(Lang.T("המפתח של גוגל"), Ico.Key);
             _google.Click += delegate
             {
                 AiSetupDlg d = new AiSetupDlg();
@@ -77,9 +77,9 @@ namespace SubtitleStudio
             Row(_groq, 52, 14);
 
             // ---------- בדיקת איות ----------
-            Section("בדיקת איות");
+            Section(Lang.T("בדיקת איות"));
             _spellOn = new Toggle();
-            _spellOn.Text = "לסמן מילים שאולי כתובות לא נכון";
+            _spellOn.Text = Lang.T("לסמן מילים שאולי כתובות לא נכון");
             _spellOn.Checked = Spell.Enabled;
             _spellOn.CheckedChanged += delegate { SpellSwitch(); };
             Row(_spellOn, 30, 4);
@@ -99,16 +99,16 @@ namespace SubtitleStudio
             Row(_getDict, 30, 14);
 
             // ---------- עדכונים ----------
-            Section("עדכונים");
+            Section(Lang.T("עדכונים"));
             _auto = new Toggle();
-            _auto.Text = "לבדוק עדכונים בכל הפעלה";
+            _auto.Text = Lang.T("לבדוק עדכונים בכל הפעלה");
             _auto.Checked = Settings.AutoUpdate;
             _auto.CheckedChanged += delegate { Settings.AutoUpdate = _auto.Checked; Settings.SaveAll(); };
             Row(_auto, 30, 4);
 
-            Btn check = Card("בדיקת עדכונים עכשיו", Ico.Download);
+            Btn check = Card(Lang.T("בדיקת עדכונים עכשיו"), Ico.Download);
             check.Sub = string.IsNullOrEmpty(Settings.LastCheck)
-                ? "הבדיקה לא שולחת שום מידע - רק שואלת אם יש גרסה חדשה"
+                ? Lang.T("הבדיקה לא שולחת שום מידע - רק שואלת אם יש גרסה חדשה")
                 : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck) + " · לא נשלח שום מידע";
             check.Click += delegate
             {
@@ -119,18 +119,18 @@ namespace SubtitleStudio
             Row(check, 46, 14);
 
             // ---------- אחסון ----------
-            Section("אחסון");
-            _engineLine = StorageRow(out _delEngine, "מחיקת המנוע", 6);
+            Section(Lang.T("אחסון"));
+            _engineLine = StorageRow(out _delEngine, Lang.T("מחיקת המנוע"), 6);
             _delEngine.Click += delegate
             {
                 AboutDlg.RemoveEngine(this);
                 Refresh2();
             };
-            _dictLine = StorageRow(out _delDict, "מחיקת המילון", 12);
+            _dictLine = StorageRow(out _delDict, Lang.T("מחיקת המילון"), 12);
             _delDict.Click += delegate { RemoveDict(); };
 
-            Buttons("סגירה", Ico.Check, null);
-            BottomButton("איפוס הגדרות", Ico.Refresh, delegate { ResetAll(); });
+            Buttons(Lang.T("סגירה"), Ico.Check, null);
+            BottomButton(Lang.T("איפוס הגדרות"), Ico.Refresh, delegate { ResetAll(); });
             Refresh2();
         }
 
@@ -184,12 +184,12 @@ namespace SubtitleStudio
 
         private void RemoveDict()
         {
-            if (Ui.Msg(this, "למחוק את המילון?",
+            if (Ui.Msg(this, Lang.T("למחוק את המילון?"),
                     "בדיקת האיות תפסיק לעבוד עד שהמילון יורד שוב (" + Theme.Ltr("1.2 MB") + "). " +
-                    "המילים שהוספתם למילון האישי נשמרות.",
-                    Ico.Warning, "למחוק", "ביטול") != 0) return;
+                    Lang.T("המילים שהוספתם למילון האישי נשמרות."),
+                    Ico.Warning, Lang.T("למחוק"), Lang.T("ביטול")) != 0) return;
             string err;
-            if (!Spell.Remove(out err)) Ui.Error(this, "לא נמחק", err);
+            if (!Spell.Remove(out err)) Ui.Error(this, Lang.T("לא נמחק"), err);
             Refresh2();
         }
 
@@ -198,19 +198,19 @@ namespace SubtitleStudio
         {
             _google.Sub = Ai.HasKey
                 ? "מוגדר · הדגם שבשימוש: " + Theme.Ltr(Ai.Model)
-                : "לא מוגדר · בלעדיו אין תרגום ואין עוזר";
+                : Lang.T("לא מוגדר · בלעדיו אין תרגום ואין עוזר");
             _groq.Sub = string.IsNullOrEmpty(Stt.GroqKey)
-                ? "לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם"
-                : "מוגדר · עד 8 שעות תמלול ביום";
+                ? Lang.T("לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם")
+                : Lang.T("מוגדר · עד 8 שעות תמלול ביום");
             _google.Invalidate();
             _groq.Invalidate();
 
             bool has = Spell.Installed;
             _spellLine.Text = !has
-                ? "המילון עוד לא הורד. הוא חינמי, ואחרי ההורדה הבדיקה עובדת בלי אינטרנט."
+                ? Lang.T("המילון עוד לא הורד. הוא חינמי, ואחרי ההורדה הבדיקה עובדת בלי אינטרנט.")
                 : Spell.Enabled
-                    ? "המילון מוכן. הוא מכיר גם ארמית, ראשי תיבות ומספרים באותיות."
-                    : "המילון מותקן, והבדיקה כבויה.";
+                    ? Lang.T("המילון מוכן. הוא מכיר גם ארמית, ראשי תיבות ומספרים באותיות.")
+                    : Lang.T("המילון מותקן, והבדיקה כבויה.");
             _spellLine.Color = has ? Theme.TextFaint : Theme.Warn;
             _spellLine.Invalidate();
             _getDict.Visible = !has;
@@ -230,7 +230,7 @@ namespace SubtitleStudio
         private static string EngineLine()
         {
             string ff = Ff.Exe;
-            if (string.IsNullOrEmpty(ff)) return "מנוע הווידאו · ייפרס בהפעלה הבאה";
+            if (string.IsNullOrEmpty(ff)) return Lang.T("מנוע הווידאו · ייפרס בהפעלה הבאה");
             if (!Ff.IsOwnEngine) return "מנוע הווידאו · מותקן במחשב: " + Theme.Ltr(ff);
             long size = 0;
             try { size = new FileInfo(ff).Length; }
@@ -243,10 +243,10 @@ namespace SubtitleStudio
         /// להנפיק מפתח חדש.</summary>
         private void ResetAll()
         {
-            if (Ui.Msg(this, "להחזיר את ההגדרות לברירת המחדל?",
+            if (Ui.Msg(this, Lang.T("להחזיר את ההגדרות לברירת המחדל?"),
                     "הערכה, עוצמת הקול, מהירות ההשמעה, עיצוב הכתוביות ורשימת הקבצים " +
-                    "האחרונים יחזרו למצב ההתחלתי. הכתוביות הפתוחות, המפתחות והמילון לא ייגעו.",
-                    Ico.Warning, "להחזיר", "ביטול") != 0) return;
+                    Lang.T("האחרונים יחזרו למצב ההתחלתי. הכתוביות הפתוחות, המפתחות והמילון לא ייגעו."),
+                    Ico.Warning, Lang.T("להחזיר"), Lang.T("ביטול")) != 0) return;
 
             Settings.Volume = 80;
             Settings.Speed = 1.0;
@@ -260,7 +260,7 @@ namespace SubtitleStudio
             _spellOn.Checked = Spell.Enabled;
             if (Spell.Installed) Spell.EnsureLoaded();
             Refresh2();
-            Ui.Msg(this, "ההגדרות אופסו", "הכול חזר לברירת המחדל.", Ico.Info, "אישור");
+            Ui.Msg(this, Lang.T("ההגדרות אופסו"), Lang.T("הכול חזר לברירת המחדל."), Ico.Info, Lang.T("אישור"));
         }
     }
 }

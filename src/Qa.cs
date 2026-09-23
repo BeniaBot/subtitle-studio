@@ -203,12 +203,12 @@ namespace SubtitleStudio
             switch (x.Kind)
             {
                 case IssueKind.Overlap:
-                    return "נגמרת אחרי שהכתובית הבאה כבר התחילה, ושתיהן על המסך יחד.";
+                    return Lang.T("נגמרת אחרי שהכתובית הבאה כבר התחילה, ושתיהן על המסך יחד.");
                 case IssueKind.TooFast:
                     return Theme.Ltr(Math.Round(c.Cps).ToString(CultureInfo.InvariantCulture)) +
                            " תווים בשנייה - אי אפשר לקרוא בזמן. כדאי להאריך אותה, או לקצר את הטקסט.";
                 case IssueKind.TooShort:
-                    return "מופיעה פחות משנייה, ונעלמת לפני שמספיקים לקרוא.";
+                    return Lang.T("מופיעה פחות משנייה, ונעלמת לפני שמספיקים לקרוא.");
                 case IssueKind.TooLong:
                     return "נשארת " + Theme.Ltr(Math.Round(c.Duration / 1000.0).ToString(CultureInfo.InvariantCulture)) +
                            " שניות. כתובית שנשארת אחרי שהדיבור נגמר מבלבלת; כדאי לפצל או לקצר.";
@@ -216,22 +216,22 @@ namespace SubtitleStudio
                     return "שורה ארוכה מ-" + Theme.Ltr(MaxLineChars.ToString(CultureInfo.InvariantCulture)) +
                            " תווים יוצאת מהמסך בטלפון ובטלוויזיה קטנה.";
                 case IssueKind.ManyLines:
-                    return "שלוש שורות ומעלה מכסות את התמונה. כדאי לפצל לשתי כתוביות.";
+                    return Lang.T("שלוש שורות ומעלה מכסות את התמונה. כדאי לפצל לשתי כתוביות.");
                 case IssueKind.Spelling:
                     {
                         List<string> w = x.Words ?? new List<string>();
-                        if (w.Count == 0) return "אולי יש בה שגיאת כתיב.";
+                        if (w.Count == 0) return Lang.T("אולי יש בה שגיאת כתיב.");
                         if (w.Count == 1)
                         {
                             List<string> sug = Spell.Suggest(w[0], 1);
                             return "״" + w[0] + "״ אולי כתובה לא נכון" + (sug.Count > 0 ? " - אולי ״" + sug[0] + "״?" : ".") +
                                    " קליק ימני על השורה מציע תיקון.";
                         }
-                        return "״" + w[0] + "״ ו-״" + w[1] + "״" + (w.Count > 2 ? " ועוד" : "") +
+                        return "״" + w[0] + "״ ו-״" + w[1] + "״" + (w.Count > 2 ? Lang.T(" ועוד") : "") +
                                " אולי כתובות לא נכון. קליק ימני על השורה מציע תיקון.";
                     }
                 default:
-                    return "אין בה טקסט. אפשר לכתוב, או למחוק אותה.";
+                    return Lang.T("אין בה טקסט. אפשר לכתוב, או למחוק אותה.");
             }
         }
 
@@ -340,14 +340,14 @@ namespace SubtitleStudio
         public static string Summary(QaFixResult r)
         {
             List<string> done = new List<string>();
-            if (r.Overlaps > 0) done.Add(Count(r.Overlaps, "חפיפה אחת נפתרה", "חפיפות נפתרו"));
-            if (r.Extended > 0) done.Add(Count(r.Extended, "כתובית אחת הוארכה", "כתוביות הוארכו"));
-            if (r.Shortened > 0) done.Add(Count(r.Shortened, "כתובית אחת קוצרה", "כתוביות קוצרו"));
-            if (r.Rewrapped > 0) done.Add(Count(r.Rewrapped, "כתובית אחת סודרה בשתי שורות", "כתוביות סודרו בשתי שורות"));
-            if (r.Removed > 0) done.Add(Count(r.Removed, "כתובית ריקה אחת נמחקה", "כתוביות ריקות נמחקו"));
-            string s = done.Count == 0 ? "לא היה מה לתקן אוטומטית." : string.Join("  ·  ", done.ToArray()) + ".";
+            if (r.Overlaps > 0) done.Add(Count(r.Overlaps, Lang.T("חפיפה אחת נפתרה"), Lang.T("חפיפות נפתרו")));
+            if (r.Extended > 0) done.Add(Count(r.Extended, Lang.T("כתובית אחת הוארכה"), Lang.T("כתוביות הוארכו")));
+            if (r.Shortened > 0) done.Add(Count(r.Shortened, Lang.T("כתובית אחת קוצרה"), Lang.T("כתוביות קוצרו")));
+            if (r.Rewrapped > 0) done.Add(Count(r.Rewrapped, Lang.T("כתובית אחת סודרה בשתי שורות"), Lang.T("כתוביות סודרו בשתי שורות")));
+            if (r.Removed > 0) done.Add(Count(r.Removed, Lang.T("כתובית ריקה אחת נמחקה"), Lang.T("כתוביות ריקות נמחקו")));
+            string s = done.Count == 0 ? Lang.T("לא היה מה לתקן אוטומטית.") : string.Join("  ·  ", done.ToArray()) + ".";
             if (r.Left.Count > 0)
-                s += " " + (r.Left.Count == 1 ? "נשארה בעיה אחת" : "נשארו " + Theme.Ltr(r.Left.Count.ToString(CultureInfo.InvariantCulture)) + " בעיות") +
+                s += " " + (r.Left.Count == 1 ? Lang.T("נשארה בעיה אחת") : "נשארו " + Theme.Ltr(r.Left.Count.ToString(CultureInfo.InvariantCulture)) + " בעיות") +
                      " שצריך לתקן ביד.";
             return s + "  לביטול - Ctrl+Z.";
         }
