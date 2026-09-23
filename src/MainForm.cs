@@ -750,6 +750,8 @@ namespace SubtitleStudio
             _textEmptyHint.Text = "בחרו כתובית, או צרו חדשה";
             _textEmptyHint.Font = Theme.Ui;
             _textEmptyHint.Color = Theme.TextFaint;
+            // יושב בתוך השדה השקוע - אותו צבע כמו השדה, אחרת הוא טלאי בצבע הכרטיס
+            _textEmptyHint.BackColor = Theme.PanelAlt;
             _editCard.Controls.Add(_textEmptyHint);
             _text.TextChanged += delegate
             {
@@ -767,7 +769,8 @@ namespace SubtitleStudio
                 UpdateCps();
                 _video.Invalidate();
             };
-            _text.Leave += delegate { _textDirty = false; };
+            _text.Leave += delegate { _textDirty = false; _listCard.FieldFocused = false; _listCard.Invalidate(_listCard.FieldRect); };
+            _text.Enter += delegate { _listCard.FieldFocused = true; _listCard.Invalidate(_listCard.FieldRect); };
             _editCard.Controls.Add(_text);
 
             _timesLbl = new Lbl();
@@ -1461,8 +1464,11 @@ namespace SubtitleStudio
             _textLbl.Visible = false;
             _timesLbl.Visible = false;
 
-            _text.SetBounds(ex, ey, ew, S(54));
-            _textEmptyHint.SetBounds(ex + S(8), ey + S(4), ew - S(16), S(22));
+            // התיבה עצמה חשופה (בלי מסגרת של ווינדוס); הכרטיס מצייר סביבה שדה שקוע,
+            // והתיבה יושבת בתוכו עם ריווח - לא נוגעת בקו
+            _listCard.FieldRect = new Rectangle(ex, ey, ew, S(54));
+            _text.SetBounds(ex + S(10), ey + S(7), ew - S(20), S(54) - S(12));
+            _textEmptyHint.SetBounds(ex + S(10), ey + S(7), ew - S(20), S(22));
 
             // ---------- שורת הזמנים ----------
             // סדר הנשירה כשאין מקום: קודם כפתורי הכוונון, אחר כך התוויות,

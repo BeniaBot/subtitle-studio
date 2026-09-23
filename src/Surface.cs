@@ -198,6 +198,25 @@ namespace SubtitleStudio
             Rim(g, r, radius, A(Theme.Mix(c, Color.White, 0.35f), 0.9f), A(Theme.Mix(c, Color.Black, 0.35f), 0.95f));
         }
 
+        /// <summary>שדה קלט: משטח **שקוע** - ההפך ממורם. קו כהה למעלה ובהיר למטה,
+        /// כאילו השדה חקוק בכרטיס. בזמן כתיבה: טבעת כחולה חדה של שני פיקסלים.
+        ///
+        /// ‏**המילוי אחיד**, כי תיבת הטקסט של ווינדוס שיושבת בפנים צובעת את הרקע
+        /// שלה בצבע אחד; על מילוי מדורג היא הייתה נראית כטלאי.</summary>
+        public static void Inset(Graphics g, RectangleF r, float radius, Color fill, bool focused, float hot)
+        {
+            Theme.FillRound(g, r, radius, fill);
+            if (focused)
+            {
+                FocusRing(g, r, radius, Theme.Accent);
+                return;
+            }
+            if (Theme.Dark)
+                Rim(g, r, radius, Theme.Mix(fill, Color.Black, 0.42f - 0.1f * hot), Theme.Mix(fill, Color.White, 0.09f + 0.06f * hot));
+            else
+                Rim(g, r, radius, A(Color.Black, 0.20f + 0.06f * hot), A(Color.Black, 0.10f + 0.06f * hot));
+        }
+
         /// <summary>טבעת מיקוד - מופיעה רק כשמגיעים במקלדת, כמו בכל תוכנה מקצועית.</summary>
         public static void FocusRing(Graphics g, RectangleF r, float radius, Color accent)
         {

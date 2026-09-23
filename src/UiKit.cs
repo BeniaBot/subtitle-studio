@@ -190,6 +190,10 @@ namespace SubtitleStudio
         public int HeaderH = 0;
         /// <summary>קו מפריד בתוך הכרטיס (לשני חלקים באותו אזור). 0 = אין.</summary>
         public int SepY = 0;
+        /// <summary>מסגרת של שדה קלט שהכרטיס מצייר מאחורי תיבת טקסט חשופה
+        /// (טקסט הכתובית בעורך). ריק = אין.</summary>
+        public Rectangle FieldRect = Rectangle.Empty;
+        public bool FieldFocused = false;
 
         public Card()
         {
@@ -238,6 +242,9 @@ namespace SubtitleStudio
             else if (!string.IsNullOrEmpty(Caption))
                 Theme.Str(g, Caption, Theme.SmallBold, Theme.TextDim,
                     new RectangleF(Theme.S(13), Theme.S(6), Width - Theme.S(26), Theme.S(20)), Theme.SfRtl);
+
+            if (!FieldRect.IsEmpty)
+                Surface.Inset(g, FieldRect, Theme.S(8), Theme.PanelAlt, FieldFocused, 0f);
 
             if (SepY > 0 && SepY < Height - pad)
                 Theme.HLine(g, Theme.BorderSoft, Theme.S(14), Width - Theme.S(14), SepY);
@@ -453,9 +460,9 @@ namespace SubtitleStudio
             Theme.Smooth(g);
             Box.BackColor = Theme.PanelAlt;
             Box.ForeColor = Theme.Text;
-            RectangleF r = new RectangleF(0, 0, Width - 1, Height - 1);
-            Theme.FillRound(g, r, 8, Theme.PanelAlt);
-            Theme.DrawRound(g, r, 8, Box.Focused ? Theme.Accent : Theme.Border, Box.Focused ? 1.6f : 1f);
+            // שדה שקוע עם טבעת כחולה בזמן כתיבה (Surface.Inset). עד 0.8.1: קו Border
+            // כמעט בצבע השדה, וקו כחול של 1.6 פיקסל שנמרח על שלושה.
+            Surface.Inset(g, new RectangleF(0, 0, Width, Height), Theme.S(7), Theme.PanelAlt, Box.Focused, 0f);
             if (Box.Multiline && Box.Text.Length == 0 && !string.IsNullOrEmpty(_placeholder) && !Box.Focused)
                 Theme.Str(g, _placeholder, Theme.Ui, Theme.TextFaint,
                     new RectangleF(Theme.S(11), Theme.S(4), Width - Theme.S(22), Theme.S(26)), Theme.SfRtl);
