@@ -7,10 +7,16 @@
 #
 # **מה לא מופק:** כונן מלא, וקובץ גדול מדי לדיסק-און-קי. בשביל אלה צריך
 # כונן אמיתי מלא, והם נבדקים מול הניסוח המתועד של ffmpeg בלבד.
-# צפוי: 35 בדיקות.
+# צפוי: 36 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+# חריגה בתוך ציור חלון: בלי זה WinForms מציג חלון ״Unhandled exception״ ומחכה
+# ללחיצה, והבדיקה נראית תקועה (קרה - build\hang-report.ps1). ThrowException לא עדיף:
+# החריגה עוברת דרך קוד native והתהליך מת בלי שורת כישלון (נוסה). לוכדים ורושמים.
+$script:uiErr = ''
+[Windows.Forms.Application]::SetUnhandledExceptionMode([Windows.Forms.UnhandledExceptionMode]::CatchException)
+[Windows.Forms.Application]::add_ThreadException([Threading.ThreadExceptionEventHandler]{ param($s, $e) $script:uiErr = $e.Exception.GetType().Name + ': ' + $e.Exception.Message })
 Add-Type @'
 using System.Runtime.InteropServices;
 public static class DpiE { [DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); }
@@ -158,6 +164,25 @@ function RunDlg([string]$args2, [bool]$cancel) {
     $head = [string]$pdT.GetProperty('Headline', $IF).GetValue($dlg, $null)
     return @{ Dlg = $dlg; Head = $head; Job = $job }
 }
+# **באמצע עבודה, לא רק בסופה.** הברק שנע לאורך הפס מצויר רק כל עוד העבודה רצה.
+# בגרסת הפיתוח של 0.8.1 הוא קרס (WrapMode.Clamp במברשת מדורגת) - החלון היה נופל
+# בכל יצוא, וכל הבדיקות כאן עברו, כי הן ציירו אותו רק אחרי שהעבודה נגמרה.
+$live = [Activator]::CreateInstance($pdT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @('בדיקה', ([Activator]::CreateInstance($jobT))), $null)
+foreach ($f in @('_prog', '_shown')) { $pdT.GetField($f, $IF).SetValue($live, [double]0.6) }
+$drawErr = ''
+foreach ($ph in @(0.0, 0.3, 0.7, 0.99)) {
+    $pdT.GetField('_phase', $IF).SetValue($live, [float]$ph)
+    try {
+        [void]$live.Handle
+        $lb = New-Object Drawing.Bitmap $live.Width, $live.Height
+        $live.DrawToBitmap($lb, (New-Object Drawing.Rectangle 0, 0, $live.Width, $live.Height))
+        $lb.Dispose()
+    } catch { $drawErr = $_.Exception.InnerException.Message; if (-not $drawErr) { $drawErr = $_.Exception.Message } }
+    if ($script:uiErr) { $drawErr = $script:uiErr; $script:uiErr = '' }
+}
+$live.Dispose()
+Check 'חלון ההתקדמות מצטייר באמצע עבודה (עם הברק)' ($drawErr -eq '') $drawErr
+
 $fs = [IO.File]::Open($locked, 'Open', 'ReadWrite', 'None')
 try { $r = RunDlg "-i `"$media`" -t 2 `"$locked`"" $false } finally { $fs.Close() }
 Check 'קובץ נעול: ההודעה בחלון אנושית' ($r.Head.Contains('פתוח בתוכנה אחרת')) $r.Head
