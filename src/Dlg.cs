@@ -63,7 +63,7 @@ namespace SubtitleStudio
             int oy = AutoScroll ? AutoScrollPosition.Y : 0;
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.PanelAlt, 0.7f)))
                 g.FillRectangle(b, 0, oy, Width, HeadH);
-            using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, HeadH + oy, Width, HeadH + oy);
+            Theme.HLine(g, Theme.BorderSoft, 0, Width, HeadH + oy);
             int tx = _baseW - Pad;
             if (_icon != Ico.None)
             {

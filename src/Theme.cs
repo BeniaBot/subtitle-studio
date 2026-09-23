@@ -286,6 +286,108 @@ namespace SubtitleStudio
         /// <summary>פסקת ממשק עם גלישת שורות.</summary>
         public static StringFormat SfUiWrap { get { return Lang.Rtl ? _sfRtlWrap : _sfWrap; } }
 
+        /// <summary>קו אופקי של פיקסל אחד, **חד**.
+        ///
+        /// ‏`Smooth` מפעיל `PixelOffsetMode.HighQuality`: מרכז הפיקסל ב-x.5. קו של
+        /// פיקסל אחד שמצויר על מספר שלם יושב בדיוק בין שתי שורות, וכל אחת מקבלת
+        /// חצי עוצמה - קו מרוח ועמום. נמדד ב-0.8.0 על המפריד שבין שורות הרשימה:
+        /// שתי שורות ב-#1F232A במקום אחת ב-#242831. מילוי של מלבן בגובה פיקסל
+        /// יושב בדיוק על השורה.</summary>
+        public static void HLine(Graphics g, Color c, float x1, float x2, float y)
+        {
+            if (x2 < x1) { float t = x1; x1 = x2; x2 = t; }
+            using (SolidBrush b = new SolidBrush(c))
+                g.FillRectangle(b, (float)Math.Round(x1), (float)Math.Floor(y), (float)Math.Round(x2 - x1), 1f);
+        }
+
+        /// <summary>קו אנכי של פיקסל אחד (או יותר), חד - כמו `HLine`.</summary>
+        public static void VLine(Graphics g, Color c, float x, float y1, float y2, int width)
+        {
+            if (y2 < y1) { float t = y1; y1 = y2; y2 = t; }
+            using (SolidBrush b = new SolidBrush(c))
+                g.FillRectangle(b, (float)Math.Floor(x - (width - 1) / 2f), (float)Math.Round(y1), width, (float)Math.Round(y2 - y1));
+        }
+
+        public static void VLine(Graphics g, Color c, float x, float y1, float y2) { VLine(g, c, x, y1, y2, 1); }
+
+        private static readonly Dictionary<Font, float> _digitW = new Dictionary<Font, float>();
+
+        /// <summary>רוחב הספרה הרחבה ביותר בגופן - תא אחיד לכל ספרה.</summary>
+        private static float DigitWidth(Font f)
+        {
+            float w;
+            if (_digitW.TryGetValue(f, out w)) return w;
+            w = 0;
+            for (char d = '0'; d <= '9'; d++)
+            {
+                Size s = TextRenderer.MeasureText(new string(d, 10), f, new Size(int.MaxValue, int.MaxValue),
+                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                w = Math.Max(w, s.Width / 10f);
+            }
+            _digitW[f] = w;
+            return w;
+        }
+
+        private static readonly Dictionary<string, float> _charW = new Dictionary<string, float>();
+
+        /// <summary>רוחב תו בודד. נקרא בכל ציור של שעון, ולכן שמור.</summary>
+        private static float CharWidth(Font f, char ch)
+        {
+            string key = f.Name + "|" + f.SizeInPoints + "|" + (int)f.Style + "|" + ch;
+            float w;
+            if (_charW.TryGetValue(key, out w)) return w;
+            // עשרה עותקים לחלק לעשר: מדידה של תו בודד מוסיפה ריווח, והשעון יצא
+            // ״00 : 02 . 1״ (נוסה)
+            w = TextRenderer.MeasureText(new string(ch, 10), f, new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width / 10f;
+            _charW[key] = w;
+            return w;
+        }
+
+        /// <summary>זמנים ומספרים **בגופן של הממשק**, בספרות ברוחב אחיד.
+        ///
+        /// עד 0.8.1 הזמנים היו ב-Consolas, גופן מכונת כתיבה, ליד Assistant - שני
+        /// עולמות באותה שורה. ב-Assistant כל הספרות ברוחב 7.8 חוץ מה-1 (6.8), ולכן
+        /// כל ספרה מצוירת במרכז תא ברוחב אחיד: שעון רץ לא ״רוקד״ כשמתחלפת ספרה.
+        /// תמיד משמאל לימין, גם בממשק עברי. מ-`dimFrom` והלאה - בצבע `dim`
+        /// (״00:02.1 / 00:40.0״: עכשיו בהיר, האורך הכולל מעומעם).</summary>
+        public static void Num(Graphics g, string s, Font f, Color c, RectangleF r, StringAlignment align, int dimFrom, Color dim)
+        {
+            if (string.IsNullOrEmpty(s)) return;
+            float dw = DigitWidth(f);
+            float[] w = new float[s.Length];
+            float total = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (char.IsDigit(s[i])) w[i] = dw;
+                else w[i] = CharWidth(f, s[i]);
+                if (s[i] == ' ') w[i] = dw * 0.45f;
+                total += w[i];
+            }
+            float x = align == StringAlignment.Near ? r.X : align == StringAlignment.Far ? r.Right - total : r.X + (r.Width - total) / 2f;
+            int top = (int)Math.Round(r.Y), h = (int)Math.Round(r.Height);
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] != ' ')
+                {
+                    Color col = (dimFrom >= 0 && i >= dimFrom) ? dim : c;
+                    Rectangle cell = new Rectangle((int)Math.Round(x) - 2, top, (int)Math.Round(w[i]) + 4, h);
+                    if (col.A == 255)
+                        TextRenderer.DrawText(g, s[i].ToString(), f, cell, col,
+                            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine |
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    else
+                        Str(g, s[i].ToString(), f, col, cell, SfCenter);
+                }
+                x += w[i];
+            }
+        }
+
+        public static void Num(Graphics g, string s, Font f, Color c, RectangleF r, StringAlignment align)
+        {
+            Num(g, s, f, c, r, align, -1, c);
+        }
+
         /// <summary>מלבן במראה.
         ///
         /// הממשק מצויר ביד, ולכן אין מי שיהפוך אותו: כל מלבן מחושב לפי

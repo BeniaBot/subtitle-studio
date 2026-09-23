@@ -440,7 +440,7 @@ namespace SubtitleStudio
             // כותרת
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.PanelAlt, 0.8f)))
                 g.FillRectangle(b, 0, 0, Width, HeaderH);
-            using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, HeaderH - 1, Width, HeaderH - 1);
+            Theme.HLine(g, Theme.BorderSoft, 0, Width, HeaderH - 1);
 
             int pad = Theme.S(8);
             int numX = Width - pad - NumW;
@@ -473,8 +473,7 @@ namespace SubtitleStudio
                     using (SolidBrush b = new SolidBrush(Theme.Good))
                         g.FillRectangle(b, 0, y + Theme.S(2), Theme.S(3), _rowH - Theme.S(4));
                 }
-                using (Pen p = new Pen(Theme.Mix(Theme.Panel, Theme.Border, 0.5f), 1))
-                    g.DrawLine(p, 6, y + _rowH - 1, Width - 6, y + _rowH - 1);
+                Theme.HLine(g, Theme.Mix(Theme.Panel, Theme.Border, 0.5f), 6, Width - 6, y + _rowH - 1);
                 if (sel)
                     using (SolidBrush b = new SolidBrush(Theme.Accent)) g.FillRectangle(b, Width - Theme.S(3), y + 2, Theme.S(3), _rowH - 4);
 
@@ -490,14 +489,15 @@ namespace SubtitleStudio
 
                 // זמנים
                 // ״≈״ מסמן שהזמן הוא הערכה מיבוא טקסט ועוד לא נקבע מול הסרט
-                Theme.Str(g, (c.Untimed ? "≈" : "") + Tc.Short(c.Start), Theme.MonoFont(8f),
+                // בגופן הממשק בספרות אחידות (Theme.Num), לא ב-Consolas
+                Theme.Num(g, (c.Untimed ? "≈" : "") + Tc.Short(c.Start), Theme.Small,
                     c.Untimed ? Theme.TextFaint : Theme.TextDim,
-                    new RectangleF(startX, y, StartW, _rowH), Theme.SfCenter);
+                    new RectangleF(startX, y, StartW, _rowH), StringAlignment.Center);
                 Color durCol = Theme.TextDim;
                 if (c.Cps > Qa.SevereCps) durCol = Theme.Bad;
                 else if (c.Cps > Qa.FastCps) durCol = Theme.Warn;
-                Theme.Str(g, (c.Duration / 1000.0).ToString("0.0"), Theme.MonoFont(8.5f), durCol,
-                    new RectangleF(pad, y, DurW, _rowH), Theme.SfCenter);
+                Theme.Num(g, (c.Duration / 1000.0).ToString("0.0"), Theme.Small, durCol,
+                    new RectangleF(pad, y, DurW, _rowH), StringAlignment.Center);
 
                 // סימן לכל בעיה (Qa), לא רק לחפיפה. אדום לחמורה. ריחוף מסביר.
                 bool severe;

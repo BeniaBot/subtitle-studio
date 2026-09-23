@@ -210,8 +210,18 @@ namespace SubtitleStudio
             int pad = Theme.S(3);
             RectangleF r = new RectangleF(pad, pad, Width - 1 - pad * 2, Height - 1 - pad * 2);
             Theme.Shadow(g, r, Radius, Theme.S(3), Theme.Dark ? 46 : 26);
+            // קו מתאר מואר מלמעלה. עד 0.8.1 הקו היה BorderSoft - כמעט בצבע הכרטיס,
+            // והכרטיס כמעט לא נבדל מהרקע. **המילוי נשאר אחיד בכוונה:** תוויות
+            // וכפתורים בתוך הכרטיס צובעים את הרקע שלהם בצבע אחד, ועל מילוי מדורג
+            // כל אחד מהם בלט כטלאי (נוסה ונראה בצילום).
             Theme.FillRound(g, r, Radius, Fill == Color.Empty ? Theme.Panel : Fill);
-            if (Outlined) Theme.DrawRound(g, r, Radius, Theme.BorderSoft, 1f);
+            if (Outlined)
+            {
+                if (Theme.Dark)
+                    Surface.Rim(g, r, Radius, Color.FromArgb(24, 255, 255, 255), Color.FromArgb(9, 255, 255, 255));
+                else
+                    Surface.Rim(g, r, Radius, Color.FromArgb(20, 0, 0, 0), Color.FromArgb(34, 0, 0, 0));
+            }
             if (HeaderH > 0)
             {
                 int m = Theme.S(15), ic = Theme.S(18);
@@ -223,16 +233,14 @@ namespace SubtitleStudio
                 }
                 if (!string.IsNullOrEmpty(Caption))
                     Theme.Str(g, Caption, Theme.UiBold, Theme.Text, new RectangleF(m, 0, tx - m, HeaderH), Theme.SfRtl);
-                using (Pen p = new Pen(Theme.BorderSoft, 1))
-                    g.DrawLine(p, m, HeaderH - 1, Width - m, HeaderH - 1);
+                Theme.HLine(g, Theme.BorderSoft, m, Width - m, HeaderH - 1);
             }
             else if (!string.IsNullOrEmpty(Caption))
                 Theme.Str(g, Caption, Theme.SmallBold, Theme.TextDim,
                     new RectangleF(Theme.S(13), Theme.S(6), Width - Theme.S(26), Theme.S(20)), Theme.SfRtl);
 
             if (SepY > 0 && SepY < Height - pad)
-                using (Pen p = new Pen(Theme.BorderSoft, 1))
-                    g.DrawLine(p, Theme.S(14), SepY, Width - Theme.S(14), SepY);
+                Theme.HLine(g, Theme.BorderSoft, Theme.S(14), Width - Theme.S(14), SepY);
         }
     }
 
@@ -566,6 +574,9 @@ namespace SubtitleStudio
         public Color Color = System.Drawing.Color.Empty;
         public StringAlignment Align = StringAlignment.Near;
         public bool Wrap = false;
+        /// <summary>שעון או מספר: ספרות ברוחב אחיד בגופן הממשק (`Theme.Num`),
+        /// ומה שאחרי ״/״ מעומעם.</summary>
+        public bool Numeric = false;
 
         public Lbl()
         {
@@ -582,6 +593,13 @@ namespace SubtitleStudio
         protected override void OnPaint(PaintEventArgs e)
         {
             Theme.Smooth(e.Graphics);
+            if (Numeric)
+            {
+                Color c = Color == System.Drawing.Color.Empty ? Theme.Text : Color;
+                int slash = Text == null ? -1 : Text.IndexOf('/');
+                Theme.Num(e.Graphics, Text, Font, c, new RectangleF(0, 0, Width, Height), Align, slash, Theme.TextDim);
+                return;
+            }
             StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
             sf.Alignment = Align;
             sf.LineAlignment = Wrap ? StringAlignment.Near : StringAlignment.Center;
@@ -1064,7 +1082,7 @@ namespace SubtitleStudio
                 int y = r.Y;
                 if (m.Separator)
                 {
-                    using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, r.Left + 12, y + SepH / 2, r.Right - 12, y + SepH / 2);
+                    Theme.HLine(g, Theme.BorderSoft, r.Left + 12, r.Right - 12, y + SepH / 2);
                     continue;
                 }
                 if (m.Header)

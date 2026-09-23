@@ -614,7 +614,7 @@ namespace SubtitleStudio
             else
             {
                 using (SolidBrush b = new SolidBrush(Theme.Ruler)) g.FillRectangle(b, 0, 0, Width, RulerH);
-                using (Pen p = new Pen(Theme.Border, 1)) g.DrawLine(p, 0, RulerH - 1, Width, RulerH - 1);
+                Theme.HLine(g, Theme.Border, 0, Width, RulerH - 1);
             }
             DrawLaneBg(g);
             DrawCuts(g);
@@ -714,15 +714,16 @@ namespace SubtitleStudio
             int h = bottom - top;
             if (h < 8) return;
             float mid = top + h / 2f;
-            using (Pen p = new Pen(Theme.Mix(Theme.WaveBack, Theme.Border, 0.8f), 1))
-                g.DrawLine(p, 0, mid, Width, mid);
+            Theme.HLine(g, Theme.Mix(Theme.WaveBack, Theme.Border, 0.8f), 0, Width, mid);
 
             if (Wave == null || Wave.Peak == null) return;
             float half = h / 2f - 2;
             Color deep = Theme.Mix(Theme.Wave, Theme.WaveBack, 0.35f);
-            using (Pen pPeak = new Pen(deep, 1))
-            using (Pen pRms = new Pen(Theme.WaveTop, 1))
-            using (Pen pCore = new Pen(Theme.Mix(Theme.WaveTop, Color.White, 0.35f), 1))
+            // עמודה ממולאת לכל פיקסל. עד 0.8.1 כל עמודה הייתה קו של פיקסל על מספר
+            // שלם - בין שתי עמודות, בחצי עוצמה - וכל הגל נמרח לרוחב ונראה כפס חלק.
+            using (SolidBrush pPeak = new SolidBrush(deep))
+            using (SolidBrush pRms = new SolidBrush(Theme.WaveTop))
+            using (SolidBrush pCore = new SolidBrush(Theme.Mix(Theme.WaveTop, Color.White, 0.35f)))
             {
                 for (int x = 0; x < Width; x++)
                 {
@@ -732,11 +733,11 @@ namespace SubtitleStudio
                     int pk = Wave.PeakAt(a, b);
                     if (pk <= 0) continue;
                     float ph = pk / 255f * half;
-                    g.DrawLine(pPeak, x, mid - ph, x, mid + ph);
+                    g.FillRectangle(pPeak, x, mid - ph, 1, ph * 2);
                     int rm = Wave.RmsAt(a, b);
                     float rh = rm / 255f * half;
-                    if (rh > 0.6f) g.DrawLine(pRms, x, mid - rh, x, mid + rh);
-                    if (rh > 2f) g.DrawLine(pCore, x, mid - rh * 0.45f, x, mid + rh * 0.45f);
+                    if (rh > 0.6f) g.FillRectangle(pRms, x, mid - rh, 1, rh * 2);
+                    if (rh > 2f) g.FillRectangle(pCore, x, mid - rh * 0.45f, 1, rh * 0.9f);
                 }
             }
         }
@@ -746,13 +747,13 @@ namespace SubtitleStudio
             int y = TrackTop;
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.WaveBack, Theme.Panel, 0.55f)))
                 g.FillRectangle(b, 0, y, Width, Height - ScrollH - y);
-            using (Pen p = new Pen(Theme.Border, 1)) g.DrawLine(p, 0, y, Width, y);
+            Theme.HLine(g, Theme.Border, 0, Width, y);
         }
 
         private void DrawRuler(Graphics g)
         {
             using (SolidBrush b = new SolidBrush(Theme.Ruler)) g.FillRectangle(b, 0, 0, Width, RulerH);
-            using (Pen p = new Pen(Theme.Border, 1)) g.DrawLine(p, 0, RulerH - 1, Width, RulerH - 1);
+            Theme.HLine(g, Theme.Border, 0, Width, RulerH - 1);
 
             double[] steps = { 0.04, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600 };
             double target = 90 / PxPerSec;      // שניות בין תוויות
@@ -771,7 +772,7 @@ namespace SubtitleStudio
                     if (x > Width) break;
                     if (x >= -60 && x < Width - Theme.S(44))
                     {
-                        g.DrawLine(p, x, RulerH - 8, x, RulerH - 1);
+                        Theme.VLine(g, p.Color, x, RulerH - 8, RulerH);
                         string lbl = step >= 1 ? Tc.Clock(t).Substring(t >= 3600000 ? 0 : 3, t >= 3600000 ? 8 : 5) : Tc.Short(t);
                         Theme.Str(g, lbl, Theme.Small, Theme.TextDim, new RectangleF(x + 3, 2, 80, 14), Theme.SfNear);
                     }
@@ -779,7 +780,7 @@ namespace SubtitleStudio
                     for (int k = 1; k < 5; k++)
                     {
                         float xm = MsToX(t + stepMs * k / 5);
-                        if (xm >= 0 && xm <= Width) g.DrawLine(pm, xm, RulerH - 4, xm, RulerH - 1);
+                        if (xm >= 0 && xm <= Width) Theme.VLine(g, pm.Color, xm, RulerH - 4, RulerH);
                     }
                 }
             }
@@ -797,7 +798,7 @@ namespace SubtitleStudio
             {
                 using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.WaveBack, Theme.PanelAlt, Theme.Dark ? 0.55f : 0.75f)))
                     g.FillRectangle(b, 0, laneTop, Width, laneBottom - laneTop);
-                using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, laneTop, Width, laneTop);
+                Theme.HLine(g, Theme.BorderSoft, 0, Width, laneTop);
                 Theme.Str(g, "כתוביות", Theme.Small, Theme.TextFaint,
                     new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfRtl);
             }
@@ -923,7 +924,9 @@ namespace SubtitleStudio
             if (ms < 0) return;
             float x = MsToX(ms);
             if (x < -30 || x > Width + 30) return;
-            using (Pen p = new Pen(c, 1.6f)) g.DrawLine(p, x, 0, x, Height - ScrollH);
+            // שני פיקסלים שלמים, חדים, והילה עדינה - במקום קו של 1.6 שנמרח על שלוש עמודות
+            Theme.VLine(g, Color.FromArgb(55, c), x, 0, Height - ScrollH, 4);
+            Theme.VLine(g, c, x, 0, Height - ScrollH, 2);
             PointF[] tri = left
                 ? new PointF[] { new PointF(x, 0), new PointF(x + 11, 0), new PointF(x, 11) }
                 : new PointF[] { new PointF(x, 0), new PointF(x - 11, 0), new PointF(x, 11) };
@@ -934,7 +937,8 @@ namespace SubtitleStudio
         {
             float x = MsToX(Position);
             if (x < -10 || x > Width + 10) return;
-            using (Pen p = new Pen(Theme.Bad, 1.6f)) g.DrawLine(p, x, 0, x, Height - ScrollH);
+            Theme.VLine(g, Color.FromArgb(55, Theme.Bad), x, 0, Height - ScrollH, 4);
+            Theme.VLine(g, Theme.Bad, x, 0, Height - ScrollH, 2);
             using (SolidBrush b = new SolidBrush(Theme.Bad))
                 g.FillPolygon(b, new PointF[] { new PointF(x - 6, RulerH - 14), new PointF(x + 6, RulerH - 14), new PointF(x, RulerH - 4) });
             if (_snapLine >= 0 && _mode != Mode.None)

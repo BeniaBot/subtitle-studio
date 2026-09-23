@@ -536,7 +536,8 @@ namespace SubtitleStudio
                 delegate { Seek(_engine.Position + 2000); });
 
             _timeLbl = new Lbl();
-            _timeLbl.Font = Theme.MonoFont(10.5f);
+            _timeLbl.Font = Theme.Semi(11f);
+            _timeLbl.Numeric = true;
             _timeLbl.Color = Theme.Text;
             _timeLbl.Align = StringAlignment.Near;
             _timeLbl.Rtl = false;
@@ -1653,8 +1654,7 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             using (SolidBrush b = new SolidBrush(Theme.Bg)) g.FillRectangle(b, ClientRectangle);
             if (_toolbar != null && _toolbar.Visible)
-                using (Pen p = new Pen(Theme.BorderSoft, 1))
-                    g.DrawLine(p, 0, _toolbar.Bottom, ClientSize.Width, _toolbar.Bottom);
+                Theme.HLine(g, Theme.BorderSoft, 0, ClientSize.Width, _toolbar.Bottom);
         }
 
         // ================= לוגיקה =================

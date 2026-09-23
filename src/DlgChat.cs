@@ -203,7 +203,7 @@ namespace SubtitleStudio
 
             // כותרת
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, 0, 0, Width, HeadH);
-            using (Pen p = new Pen(Theme.BorderSoft, 1)) g.DrawLine(p, 0, HeadH - 1, Width, HeadH - 1);
+            Theme.HLine(g, Theme.BorderSoft, 0, Width, HeadH - 1);
 
             float d = Theme.S(30);
             RectangleF badge = new RectangleF(Width - Theme.S(14) - d, (HeadH - d) / 2f, d, d);
