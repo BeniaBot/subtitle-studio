@@ -26,6 +26,9 @@ namespace SubtitleStudio
         public bool IconOnly = false;
         /// <summary>להצמיד את התוכן לימין גם כשהכפתור רחב ממנו. ברירת המחדל: ממורכז.</summary>
         public bool AlignRight = false;
+        /// <summary>שוליים פנימיים מכל צד. ‎-1 = ברירת המחדל (12). לשבבים צרים
+        /// בשורה (כמו ״‎-0.25״ בחלון ההזזה) שבהם 12 מכל צד לא משאירים מקום לכיתוב.</summary>
+        public int PadX = -1;
         // ריחוף ולחיצה נעים בהדרגה (Surface.cs). עד 0.8.1 הם התחלפו בבת אחת.
         private readonly Tween _hot, _press;
 
@@ -104,7 +107,7 @@ namespace SubtitleStudio
             if (!Enabled) fg = Theme.TextFaint;
 
             bool hasText = !IconOnly && !string.IsNullOrEmpty(Text);
-            float pad = hasText ? Theme.S(12) : 0;
+            float pad = hasText ? (PadX >= 0 ? PadX : Theme.S(12)) : 0;
             float menuW = Menu && hasText ? Theme.S(16) : 0;
             if (Swatch != Color.Empty)
             {

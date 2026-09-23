@@ -1282,7 +1282,7 @@ namespace SubtitleStudio
             AddTl("תחילת קטע", Ico.ChevronRight,
                 "מסמן כאן את תחילת הקטע לחיתוך (I)" + Environment.NewLine +
                 "אחר כך: ״הסרט ← חיתוך קטע״",
-                delegate { MarkIn(); }, Theme.Good, 112);
+                delegate { MarkIn(); }, Theme.Good, 118);
             AddTl("סוף קטע", Ico.ChevronLeft, "מסמן כאן את סוף הקטע לחיתוך (O)",
                 delegate { MarkOut(); }, Theme.Warn, 100);
             _clearMark = AddTl("", Ico.Close, "ניקוי הסימון שעל הציר", delegate

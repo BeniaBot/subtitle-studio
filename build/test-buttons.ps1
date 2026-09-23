@@ -137,7 +137,7 @@ foreach ($f in $forms) {
         $hasText = (-not $c.IconOnly) -and $c.Text
         $label = if ($c.Text) { $c.Text } else { '(' + $c.Icon + ')' }
         # כמה מקום יש לטקסט, באותו חשבון ש-Btn מצייר
-        $avail = $c.Width - 2 * (S 12)
+        $avail = $c.Width - 2 * $(if ($c.PadX -ge 0) { $c.PadX } else { S 12 })
         if ($c.Icon -ne 'None') { $avail -= $c.IconSize + (S 8) }
         if ($c.Menu) { $avail -= S 16 }
         if (-not $c.Swatch.IsEmpty) { $avail -= (S 22) + (S 8) }

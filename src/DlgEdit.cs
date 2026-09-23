@@ -55,6 +55,7 @@ namespace SubtitleStudio
                 b.Text = Theme.Ltr((v > 0 ? "+" : "") + v.ToString("0.##", CultureInfo.InvariantCulture));
                 b.Kind = BtnKind.Subtle;
                 b.Font = Theme.Small;
+                b.PadX = Theme.S(6);
                 b.Size = new Size(bw, Theme.S(34));
                 x -= bw;
                 b.Location = new Point(x, 2);
