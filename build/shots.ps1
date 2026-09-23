@@ -119,7 +119,8 @@ $forms = @(
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
     @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
     @{ n = 'Menu';        make = { MenuSample } },
-    @{ n = 'Progress';    make = { ProgressSample } }
+    @{ n = 'Progress';    make = { ProgressSample } },
+    @{ n = 'Splash';      make = { $sp = NewOf 'SplashForm' @(); foreach ($f in @('_p', '_shown')) { (TY 'SplashForm').GetField($f, $IN).SetValue($sp, [double]0.63) }; (TY 'SplashForm').GetField('_phase', $IN).SetValue($sp, [float]0.4); $sp } }
 )
 
 $createCtl = [Windows.Forms.Control].GetMethod('CreateControl', $IN, $null, [Type[]]@([bool]), $null)

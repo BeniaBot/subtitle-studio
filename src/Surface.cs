@@ -217,6 +217,44 @@ namespace SubtitleStudio
                 Rim(g, r, radius, A(Color.Black, 0.20f + 0.06f * hot), A(Color.Black, 0.10f + 0.06f * hot));
         }
 
+        /// <summary>פס התקדמות: מסילה שקועה, מילוי מדורג מתחילת השורה (מימין בעברית),
+        /// וכל עוד `running` - ברק שנע לאורך המילוי לפי `phase` (0..1), כדי שאחוז
+        /// שעומד לא ייראה כמו תקיעה. משותף לחלון ההתקדמות ולמסך הטעינה.</summary>
+        public static void ProgressBar(Graphics g, RectangleF bar, double value, Color fill, float phase, bool running)
+        {
+            float br = bar.Height / 2f;
+            Color rail = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f);
+            Theme.FillRound(g, bar, br, rail);
+            Rim(g, bar, br, Theme.Mix(rail, Color.Black, 0.30f), Theme.Mix(rail, Color.White, 0.06f));
+            float w = (float)(bar.Width * Math.Max(0, Math.Min(1, value)));
+            if (w <= 2) return;
+            RectangleF fr = Theme.Mir(bar, new RectangleF(bar.Right - w, bar.Y, w, bar.Height));
+            Fill(g, fr, br, Theme.Mix(fill, Color.White, 0.18f), fill);
+            if (!running || fr.Width <= Theme.S(30)) return;
+
+            float bandW = Math.Max(Theme.S(60), fr.Width * 0.35f);
+            float t = Lang.Rtl ? 1f - phase : phase;
+            float bx = fr.X - bandW + (fr.Width + bandW) * t;
+            using (GraphicsPath gp = Theme.RoundRect(fr, br))
+            using (LinearGradientBrush lb = new LinearGradientBrush(
+                new RectangleF(bx, fr.Y, bandW, fr.Height), Color.FromArgb(0, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 0f))
+            {
+                ColorBlend cb = new ColorBlend(3);
+                cb.Colors = new Color[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(70, 255, 255, 255), Color.FromArgb(0, 255, 255, 255) };
+                cb.Positions = new float[] { 0f, 0.5f, 1f };
+                lb.InterpolationColors = cb;
+                // בלי WrapMode.Clamp: מברשת מדורגת לא תומכת בו וזורקת ArgumentException -
+                // חלון ההתקדמות קרס בכל יצוא (נתפס בצילום, ונבדק ב-test-errors).
+                // Clip מחזיר עותק שחייב להשתחרר, אחרת 30 אזורים בשנייה דולפים.
+                using (Region old = g.Clip)
+                {
+                    g.SetClip(gp, CombineMode.Intersect);
+                    g.FillRectangle(lb, bx, fr.Y, bandW, fr.Height);
+                    g.Clip = old;
+                }
+            }
+        }
+
         /// <summary>טבעת מיקוד - מופיעה רק כשמגיעים במקלדת, כמו בכל תוכנה מקצועית.</summary>
         public static void FocusRing(Graphics g, RectangleF r, float radius, Color accent)
         {

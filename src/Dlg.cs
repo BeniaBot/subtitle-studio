@@ -494,46 +494,9 @@ namespace SubtitleStudio
                     new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(34)), Theme.SfRtl);
 
             // המסילה שקועה; המילוי מתחיל מתחילת השורה - מימין בעברית, משמאל באנגלית.
-            // עד 0.8.1 הוא התמלא משמאל גם בממשק עברי.
+            // עד 0.8.1 הוא התמלא משמאל גם בממשק עברי. הברק רץ כל עוד העבודה נמשכת.
             RectangleF bar = new RectangleF(Theme.S(22), Theme.S(100), Theme.S(476), Theme.S(10));
-            float br = bar.Height / 2f;
-            Color rail = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f);
-            Theme.FillRound(g, bar, br, rail);
-            Surface.Rim(g, bar, br, Theme.Mix(rail, Color.Black, 0.30f), Theme.Mix(rail, Color.White, 0.06f));
-            float w = (float)(bar.Width * Math.Max(0, Math.Min(1, _shown)));
-            if (w > 2)
-            {
-                RectangleF fr = Theme.Mir(bar, new RectangleF(bar.Right - w, bar.Y, w, bar.Height));
-                Color fc = _done ? (_success ? Theme.Good : Theme.Bad) : Theme.Accent;
-                Surface.Fill(g, fr, br, Theme.Mix(fc, Color.White, 0.18f), fc);
-                // ברק שנע לאורך המילוי כל עוד העבודה רצה: סימן שהתוכנה חיה, גם כשהאחוז
-                // עומד (ffmpeg מדווח בקפיצות)
-                if (!_done && fr.Width > Theme.S(30))
-                {
-                    float bandW = Math.Max(Theme.S(60), fr.Width * 0.35f);
-                    float t = Lang.Rtl ? 1f - _phase : _phase;
-                    float bx = fr.X - bandW + (fr.Width + bandW) * t;
-                    using (System.Drawing.Drawing2D.GraphicsPath gp = Theme.RoundRect(fr, br))
-                    using (System.Drawing.Drawing2D.LinearGradientBrush lb = new System.Drawing.Drawing2D.LinearGradientBrush(
-                        new RectangleF(bx, fr.Y, bandW, fr.Height), Color.FromArgb(0, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 0f))
-                    {
-                        System.Drawing.Drawing2D.ColorBlend cb = new System.Drawing.Drawing2D.ColorBlend(3);
-                        cb.Colors = new Color[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(70, 255, 255, 255), Color.FromArgb(0, 255, 255, 255) };
-                        cb.Positions = new float[] { 0f, 0.5f, 1f };
-                        lb.InterpolationColors = cb;
-                        // בלי WrapMode.Clamp: מברשת מדורגת לא תומכת בו וזורקת ArgumentException
-                        // - החלון היה קורס בכל יצוא (נתפס בצילום). המלבן שממולא זהה למברשת,
-                        // אז החזרה של ברירת המחדל לא נראית.
-                        // Clip מחזיר עותק - חייב להשתחרר, אחרת 30 אזורים בשנייה דולפים ביצוא ארוך
-                        using (Region old = g.Clip)
-                        {
-                            g.SetClip(gp, System.Drawing.Drawing2D.CombineMode.Intersect);
-                            g.FillRectangle(lb, bx, fr.Y, bandW, fr.Height);
-                            g.Clip = old;
-                        }
-                    }
-                }
-            }
+            Surface.ProgressBar(g, bar, _shown, _done ? (_success ? Theme.Good : Theme.Bad) : Theme.Accent, _phase, !_done);
             Theme.Num(g, ((int)Math.Round(_shown * 100)) + "%", Theme.SmallBold, Theme.TextDim,
                 new RectangleF(Theme.S(22), Theme.S(116), Theme.S(476), Theme.S(18)), Lang.Rtl ? StringAlignment.Near : StringAlignment.Far);
         }

@@ -199,7 +199,7 @@ namespace SubtitleStudio
             SplashForm splash = new SplashForm();
             splash.Shown += delegate { worker.Start(); };
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
-            t.Interval = 80;
+            t.Interval = 33;   // בשביל התנועה של הפס; ההתקדמות עצמה מגיעה מהפריסה
             t.Tick += delegate
             {
                 splash.SetProgress(progress);
@@ -241,7 +241,9 @@ namespace SubtitleStudio
     /// <summary>חלון ההכנה של ההפעלה הראשונה.</summary>
     internal class SplashForm : Form
     {
-        private double _p;
+        private double _p, _shown;
+        private float _phase;
+        private bool _framed;
 
         public SplashForm()
         {
@@ -255,12 +257,19 @@ namespace SubtitleStudio
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             try { Icon = AppIcon.Build(); }
             catch { }
-            Load += delegate { Native.SetRoundedCorners(Handle); };
+            Load += delegate
+            {
+                _framed = Native.SetPopupFrame(Handle, Theme.Dark ? Theme.Mix(Theme.Panel, Color.White, 0.13f) : Theme.Mix(Color.White, Color.Black, 0.17f), false);
+            };
         }
 
+        /// <summary>נקרא מהשעון 30 פעמים בשנייה: הפס נע בעדינות אל ההתקדמות האמיתית,
+        /// והברק רץ לאורכו.</summary>
         public void SetProgress(double p)
         {
             _p = p;
+            _shown += (_p - _shown) * 0.25;
+            _phase = (_phase + 0.033f / 1.6f) % 1f;
             Invalidate();
         }
 
@@ -269,14 +278,18 @@ namespace SubtitleStudio
             Graphics g = e.Graphics;
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
-            Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 12, Theme.Border, 1f);
+            // בווינדוס 11 DWM מצייר פינות וקו מתאר; שלנו רק כשאין (ווינדוס 10)
+            if (!_framed) Theme.DrawRound(g, new RectangleF(0, 0, Width, Height), 0, Theme.Border, 1f);
 
+            // **זה הדבר הראשון שמשתמש חדש רואה**, ולכן השם בראש: הלוגו, ״Subtext״ בשני
+            // צבעים כמו במסך הפתיחה, ו״אולפן הכתוביות״ מתחתיו. עד 0.8.1 המסך אמר רק
+            // ״מתקין את מנוע הווידאו״, ולא היה ברור של איזו תוכנה.
             int pad = Theme.S(26);
-            int ls = Theme.S(40);
+            int ls = Theme.S(44);
             RectangleF logo = new RectangleF(Width - pad - ls, Theme.S(26), ls, ls);
             using (System.Drawing.Drawing2D.LinearGradientBrush lg = new System.Drawing.Drawing2D.LinearGradientBrush(
                 new RectangleF(logo.X, logo.Y, logo.Width + 1, logo.Height + 1), Theme.Accent, Theme.Purple, 45f))
-            using (System.Drawing.Drawing2D.GraphicsPath gp = Theme.RoundRect(logo, Theme.S(10)))
+            using (System.Drawing.Drawing2D.GraphicsPath gp = Theme.RoundRect(logo, Theme.S(11)))
                 g.FillPath(lg, gp);
             float k = ls / 34f;
             using (SolidBrush wb = new SolidBrush(Color.White))
@@ -289,20 +302,26 @@ namespace SubtitleStudio
                     new PointF(logo.X + 13 * k, logo.Y + 18 * k) });
             }
 
-            float tx = pad, tw = Width - pad * 2 - ls - Theme.S(14);
-            Theme.Str(g, "מתקין את מנוע הווידאו", Theme.F(13f, FontStyle.Bold), Theme.Text,
-                new RectangleF(tx, Theme.S(28), tw, Theme.S(26)), Theme.SfRtl);
-            Theme.Str(g, "פעם אחת בלבד, לוקח כמה שניות", Theme.Ui, Theme.TextDim,
-                new RectangleF(tx, Theme.S(54), tw, Theme.S(20)), Theme.SfRtl);
+            // ״Sub״ לבן ו״text״ בצבע ההדגשה, צמודים משמאל ללוגו
+            Font wf = Theme.F(19f, FontStyle.Bold);
+            float wa = Theme.Measure(g, "Sub", wf).Width, wbw = Theme.Measure(g, "text", wf).Width;
+            float right = logo.X - Theme.S(14);
+            float wy = logo.Y - Theme.S(3);
+            Theme.Str(g, "text", wf, Theme.Accent, new RectangleF(right - wbw - Theme.S(10), wy, wbw + Theme.S(20), Theme.S(30)), Theme.SfCenter);
+            Theme.Str(g, "Sub", wf, Theme.Text, new RectangleF(right - wbw - wa - Theme.S(10), wy, wa + Theme.S(20), Theme.S(30)), Theme.SfCenter);
+            Theme.Str(g, "אולפן הכתוביות", Theme.Small, Theme.TextDim,
+                new RectangleF(pad, logo.Y + Theme.S(26), right - pad, Theme.S(18)), Theme.SfRtl);
 
-            RectangleF bar = new RectangleF(pad, Theme.S(112), Width - pad * 2, Theme.S(12));
-            Theme.FillRound(g, bar, bar.Height / 2, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
-            float w = (float)(bar.Width * Math.Max(0.02, Math.Min(1, _p)));
-            Theme.FillRound(g, new RectangleF(bar.X, bar.Y, w, bar.Height), bar.Height / 2, Theme.Accent);
-            string status = ((int)(_p * 100)) + "%   ·   " +
-                (Runtime.PortableMode ? "נפרס ליד התוכנה (מצב נייד)" : "נפרס אל תיקיית המשתמש");
-            Theme.Str(g, status, Theme.Small, Theme.TextFaint,
-                new RectangleF(pad, Theme.S(132), Width - pad * 2, Theme.S(18)), Theme.SfRtl);
+            Theme.Str(g, "מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות", Theme.Ui, Theme.Text,
+                new RectangleF(pad, Theme.S(96), Width - pad * 2, Theme.S(22)), Theme.SfRtl);
+
+            RectangleF bar = new RectangleF(pad, Theme.S(126), Width - pad * 2, Theme.S(8));
+            Surface.ProgressBar(g, bar, Math.Max(0.02, _shown), Theme.Accent, _phase, true);
+
+            Theme.Str(g, Runtime.PortableMode ? "נפרס ליד התוכנה (מצב נייד)" : "נפרס אל תיקיית המשתמש",
+                Theme.Small, Theme.TextFaint, new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), Theme.SfRtl);
+            Theme.Num(g, ((int)Math.Round(_shown * 100)) + "%", Theme.SmallBold, Theme.TextDim,
+                new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), StringAlignment.Near);
         }
     }
 }
