@@ -251,7 +251,7 @@ namespace SubtitleStudio
             BackColor = Theme.Panel;
             ClientSize = new Size(Theme.S(460), Theme.S(190));
             Text = "Subtext";
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             try { Icon = AppIcon.Build(); }
             catch { }
@@ -284,7 +284,8 @@ namespace SubtitleStudio
             // ״מתקין את מנוע הווידאו״, ולא היה ברור של איזו תוכנה.
             int pad = Theme.S(26);
             int ls = Theme.S(44);
-            RectangleF logo = new RectangleF(Width - pad - ls, Theme.S(26), ls, ls);
+            RectangleF all = new RectangleF(0, 0, Width, Height);
+            RectangleF logo = Theme.Mir(all, new RectangleF(Width - pad - ls, Theme.S(26), ls, ls));
             using (System.Drawing.Drawing2D.LinearGradientBrush lg = new System.Drawing.Drawing2D.LinearGradientBrush(
                 new RectangleF(logo.X, logo.Y, logo.Width + 1, logo.Height + 1), Theme.Accent, Theme.Purple, 45f))
             using (System.Drawing.Drawing2D.GraphicsPath gp = Theme.RoundRect(logo, Theme.S(11)))
@@ -300,26 +301,30 @@ namespace SubtitleStudio
                     new PointF(logo.X + 13 * k, logo.Y + 18 * k) });
             }
 
-            // ״Sub״ לבן ו״text״ בצבע ההדגשה, צמודים משמאל ללוגו
+            // ״Sub״ לבן ו״text״ בצבע ההדגשה, צמודים ללוגו מהצד של הקריאה: בעברית
+            // משמאל לו, באנגלית מימין. **השם לטיני, ולכן תמיד Sub ואחריו text** -
+            // שיקוף של המלבנים היה הופך אותו ל-textSub.
             Font wf = Theme.F(19f, FontStyle.Bold);
             float wa = Theme.Measure(g, "Sub", wf).Width, wbw = Theme.Measure(g, "text", wf).Width;
-            float right = logo.X - Theme.S(14);
             float wy = logo.Y - Theme.S(3);
-            Theme.Str(g, "text", wf, Theme.Accent, new RectangleF(right - wbw - Theme.S(10), wy, wbw + Theme.S(20), Theme.S(30)), Theme.SfCenter);
-            Theme.Str(g, "Sub", wf, Theme.Text, new RectangleF(right - wbw - wa - Theme.S(10), wy, wa + Theme.S(20), Theme.S(30)), Theme.SfCenter);
+            float wordX = Lang.Rtl ? logo.X - Theme.S(14) - wbw - wa : logo.Right + Theme.S(14);
+            Theme.Str(g, "Sub", wf, Theme.Text, new RectangleF(wordX - Theme.S(10), wy, wa + Theme.S(20), Theme.S(30)), Theme.SfCenter);
+            Theme.Str(g, "text", wf, Theme.Accent, new RectangleF(wordX + wa - Theme.S(10), wy, wbw + Theme.S(20), Theme.S(30)), Theme.SfCenter);
+            // המלבן מחושב לפי מיקום הלוגו **בעברית**, ורק אז משתקף
+            float right = (Width - pad - ls) - Theme.S(14);
             Theme.Str(g, Lang.T("אולפן הכתוביות"), Theme.Small, Theme.TextDim,
-                new RectangleF(pad, logo.Y + Theme.S(26), right - pad, Theme.S(18)), Theme.SfRtl);
+                Theme.Mir(all, new RectangleF(pad, logo.Y + Theme.S(26), right - pad, Theme.S(18))), Theme.SfUi);
 
             Theme.Str(g, Lang.T("מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות"), Theme.Ui, Theme.Text,
-                new RectangleF(pad, Theme.S(96), Width - pad * 2, Theme.S(22)), Theme.SfRtl);
+                new RectangleF(pad, Theme.S(96), Width - pad * 2, Theme.S(22)), Theme.SfUi);
 
             RectangleF bar = new RectangleF(pad, Theme.S(126), Width - pad * 2, Theme.S(8));
             Surface.ProgressBar(g, bar, Math.Max(0.02, _shown), Theme.Accent, _phase, true);
 
             Theme.Str(g, Runtime.PortableMode ? Lang.T("נפרס ליד התוכנה (מצב נייד)") : Lang.T("נפרס אל תיקיית המשתמש"),
-                Theme.Small, Theme.TextFaint, new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), Theme.SfRtl);
+                Theme.Small, Theme.TextFaint, new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), Theme.SfUi);
             Theme.Num(g, ((int)Math.Round(_shown * 100)) + "%", Theme.SmallBold, Theme.TextDim,
-                new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), StringAlignment.Near);
+                new RectangleF(pad, Theme.S(144), Width - pad * 2, Theme.S(18)), Lang.Rtl ? StringAlignment.Near : StringAlignment.Far);
         }
     }
 }

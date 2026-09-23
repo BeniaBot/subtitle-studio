@@ -193,15 +193,16 @@ namespace SubtitleStudio
                 for (int i = 0; i < _steps.Length; i++)
                 {
                     float y = i * rowH;
-                    RectangleF circle = new RectangleF(Width - d, y + Theme.S(5), d, d);
+                    RectangleF all = new RectangleF(0, 0, Width, Height);
+                    RectangleF circle = Theme.Mir(all, new RectangleF(Width - d, y + Theme.S(5), d, d));
                     using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Accent, 0.28f)))
                         g.FillEllipse(b, circle);
                     Theme.Str(g, (i + 1).ToString(), Theme.SmallBold, Theme.Accent, circle, Theme.SfCenter);
                     float tw = Width - d - Theme.S(12);
                     Theme.Str(g, _steps[i][0], Theme.UiBold, Theme.Text,
-                        new RectangleF(0, y + Theme.S(3), tw, Theme.S(22)), Theme.SfRtl);
+                        Theme.Mir(all, new RectangleF(0, y + Theme.S(3), tw, Theme.S(22))), Theme.SfUi);
                     Theme.Str(g, _steps[i][1], Theme.Small, Theme.TextDim,
-                        new RectangleF(0, y + Theme.S(23), tw, Theme.S(20)), Theme.SfRtl);
+                        Theme.Mir(all, new RectangleF(0, y + Theme.S(23), tw, Theme.S(20))), Theme.SfUi);
                 }
             }
         }

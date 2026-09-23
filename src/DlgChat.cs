@@ -50,7 +50,7 @@ namespace SubtitleStudio
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
             Font = Theme.Ui;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             ShowInTaskbar = false;
             KeyPreview = true;
             MinimumSize = new Size(Theme.S(360), Theme.S(420));
@@ -68,7 +68,7 @@ namespace SubtitleStudio
             _input.BackColor = Theme.Panel;
             _input.ForeColor = Theme.Text;
             _input.Font = Theme.Ui;
-            _input.RightToLeft = RightToLeft.Yes;
+            _input.RightToLeft = Theme.UiRtl;
             _input.AcceptsReturn = true;
             _input.ScrollBars = ScrollBars.None;
             _input.KeyDown += delegate (object s, KeyEventArgs e)
@@ -217,9 +217,9 @@ namespace SubtitleStudio
             float tx = badge.X - Theme.S(10);
             float tleft = _keyBtn.Right + Theme.S(8);
             Theme.Str(g, Lang.T("עוזר AI"), Theme.Big, Theme.Text,
-                new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22)), Theme.SfRtl);
+                new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22)), Theme.SfUi);
             Theme.Str(g, Lang.T("מבקשים במילים רגילות - והוא מבצע"), Theme.Small, Theme.TextDim,
-                new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18)), Theme.SfRtl);
+                new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18)), Theme.SfUi);
 
             // תיבת הכתיבה
             int pad = Theme.S(12);

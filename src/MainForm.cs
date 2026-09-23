@@ -71,7 +71,7 @@ namespace SubtitleStudio
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
             Font = Theme.Ui;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             // מחשב נייד זול הוא 1366x768 - המינימום חייב להיכנס שם גם ב-125%
             MinimumSize = new Size(Theme.S(940), Theme.S(680));
             StartPosition = FormStartPosition.CenterScreen;
@@ -740,7 +740,7 @@ namespace SubtitleStudio
             _text.BackColor = Theme.PanelAlt;
             _text.ForeColor = Theme.Text;
             _text.Font = Theme.F(12.5f);
-            _text.RightToLeft = RightToLeft.Yes;
+            _text.RightToLeft = Theme.UiRtl;
             _text.AcceptsReturn = true;
             _text.ScrollBars = ScrollBars.None;
             _text.WordWrap = true;
@@ -826,9 +826,9 @@ namespace SubtitleStudio
             // הוספה = הכפתור הגדול הכחול. כאן מה שעושים על כתובית קיימת.
             AddEdit(Lang.T("מחיקה"), Ico.Trash, Lang.T("מוחק את הכתוביות המסומנות (Delete)"),
                 delegate { DeleteCues(); }, BtnKind.Ghost, 100);
-            AddEdit(Lang.T("הקודמת"), Ico.ChevronRight, Lang.T("מעבר לכתובית שלפני זו (Shift+Tab)"),
+            AddEdit(Lang.T("הקודמת"), Lang.Rtl ? Ico.ChevronRight : Ico.ChevronLeft, Lang.T("מעבר לכתובית שלפני זו (Shift+Tab)"),
                 delegate { StepCue(-1); }, BtnKind.Subtle, 96);
-            AddEdit(Lang.T("הבאה"), Ico.ChevronLeft, Lang.T("מעבר לכתובית שאחרי זו (Tab)"),
+            AddEdit(Lang.T("הבאה"), Lang.Rtl ? Ico.ChevronLeft : Ico.ChevronRight, Lang.T("מעבר לכתובית שאחרי זו (Tab)"),
                 delegate { StepCue(1); }, BtnKind.Subtle, 88);
             Btn more = AddEdit(Lang.T("עוד"), Ico.ChevronDown, Lang.T("חלוקה לשתיים, חיבור כתוביות"), null, BtnKind.Tool, 74);
             more.Click += delegate { ShowCueMenu(more); };
@@ -1322,7 +1322,7 @@ namespace SubtitleStudio
             b.IconOnly = string.IsNullOrEmpty(text);
             b.Kind = BtnKind.Tool;
             b.Font = Theme.Small;
-            b.Size = new Size(Theme.S(w), Theme.S(32));
+            b.Size = new Size(Math.Max(Theme.S(w), b.NeedWidth()), Theme.S(32));
             if (tint != Color.Empty) b.Tint = tint;
             b.Click += h;
             Ui.Tip.SetToolTip(b, tip);
@@ -1346,9 +1346,53 @@ namespace SubtitleStudio
         }
 
         // ================= פריסה =================
+        // ---------- שיקוף לממשק אנגלי ----------
+        // ‏DoLayout מחשב הכול לעברית. באנגלית: בתחילת כל פריסה מחזירים את כל
+        // הפקדים למקום העברי שלהם (לפי הרוחב שבו שוקפו), מחשבים כרגיל, ומשקפים
+        // שוב. כך גם פקד ש-DoLayout לא מזיז לא קופץ מצד לצד בכל שינוי גודל.
+        private readonly Dictionary<Control, int> _mirW = new Dictionary<Control, int>();
+
+        private void MirrorTree(Control parent, int width, bool undo)
+        {
+            int w;
+            if (undo)
+            {
+                if (!_mirW.TryGetValue(parent, out w)) return;
+                _mirW.Remove(parent);
+            }
+            else { w = width; _mirW[parent] = w; }
+            foreach (Control c in parent.Controls)
+            {
+                if (c == _qaBtn) continue;          // ממקם את עצמו במקום הסופי (LayoutQaBtn)
+                c.Left = w - c.Right;
+                if (c is Card || c.GetType() == typeof(Panel))
+                    MirrorTree(c, undo ? 0 : c.ClientSize.Width, undo);
+            }
+        }
+
         private void DoLayout()
         {
             if (_toolbar == null || _tlCard == null) return;
+            if (!Lang.Rtl) MirrorTree(this, 0, true);
+            try { LayoutRtl(); }
+            finally { if (!Lang.Rtl && WindowState != FormWindowState.Minimized) MirrorTree(this, ClientSize.Width, false); }
+        }
+
+        private int TextW(string s, Font f)
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+            return TextRenderer.MeasureText(s, f, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+        }
+
+        /// <summary>רוחב כפתור עם אייקון ותווית, באותה נוסחה של BottomButton.</summary>
+        private int BtnWidthFor(string text, Btn b)
+        {
+            return TextW(text, b.Font) + b.IconSize + S(46);
+        }
+
+        /// <summary>הפריסה עצמה, בקואורדינטות של עברית.</summary>
+        private void LayoutRtl()
+        {
             int W = ClientSize.Width, H = ClientSize.Height;
             int pad = S(12);
 
@@ -1371,7 +1415,9 @@ namespace SubtitleStudio
             menusPart = 0;
             foreach (Btn b in _toolbarBtns) menusPart += b.Width + S(8);
 
-            int wide = S(214), narrow = S(150);
+            // ברוחב שהתווית צריכה: ״Make a video with subtitles״ נחתך ב-214, שנמדד לעברית
+            int wide = Math.Max(S(214), BtnWidthFor(Lang.T("יצירת סרט עם כתוביות"), _exportBtn));
+            int narrow = Math.Max(S(150), BtnWidthFor(Lang.T("יצירת הסרט"), _exportBtn));
             bool shortLabel = fixedPart + menusPart + wide > W;
             _exportBtn.Text = shortLabel ? Lang.T("יצירת הסרט") : Lang.T("יצירת סרט עם כתוביות");
             _exportBtn.Width = shortLabel ? narrow : wide;
@@ -1472,8 +1518,15 @@ namespace SubtitleStudio
             // ורק בסוף מצמצמים את השדות. כל צד: תווית · − · שדה · + · ״מהסרט״
             int ry = ey + S(54) + S(7);
             int rh = S(30);
-            int lw = S(22), hw = S(28), nw = S(24), gapMid = S(8);
-            int fw = S(62);
+            // התוויות ברוחב הטקסט (״From״ לא נכנס ב-22 שנקבעו ל״מ־״), והשדות ברוחב
+            // של שעה: ״00:02.9״ בגופן הנוכחי צריך יותר מ-62, ובעברית ספרה נחתכה
+            int lw = Math.Max(S(22), Math.Max(TextW(_startLbl.Text, _startLbl.Font), TextW(_endLbl.Text, _endLbl.Font)) + S(4));
+            // השדה: הטקסט + הריווח של Field (9 מכל צד) + שוליים של תיבת ווינדוס.
+            // ‏״00:00.0״ בגופן של השדה הוא 77 פיקסלים ב-125%, והשדה הישן (62 לוגי)
+            // חתך ספרה. במסך של 1493 אין אז מקום ל-−/+, והם נושרים ראשונים - שעה
+            // קריאה חשובה יותר מכפתור כוונון (אפשר לכוונן בגרירה על הציר).
+            int hw = S(28), nw = S(24), gapMid = S(8);
+            int fw = Math.Max(S(62), TextW("00:00.0", _startF.Box.Font) + S(22));
             bool showNudge = true, showLbls = true;
 
             int side = (lw + S(2)) + (nw + S(2)) + fw + S(2) + (nw + S(2)) + hw;
@@ -1837,6 +1890,12 @@ namespace SubtitleStudio
                 // כתובית ריקה צריכה להגיד מה לעשות - אחרת זו רק תיבה לבנה
                 _textEmptyHint.Text = Lang.T("כתבו כאן מה נאמר בקטע הזה");
                 _textEmptyHint.Visible = c.Text.Length == 0;
+                // כיוון התיבה הולך אחרי **התוכן**, לא אחרי הממשק: כתובית עברית
+                // בממשק אנגלי נכתבת מימין. כתובית ריקה לוקחת את הכיוון של
+                // הכתוביות שכבר יש. מוחלט רק כאן ולא תוך כדי הקלדה - החלפת
+                // כיוון בונה את התיבה מחדש, והסמן היה קופץ באמצע מילה.
+                RightToLeft want = Lang.Rtl || Theme.RtlText(c.Text.Length > 0 ? c.Text : DocSample()) ? RightToLeft.Yes : RightToLeft.No;
+                if (_text.RightToLeft != want) _text.RightToLeft = want;
                 if (_text.Text != c.Text) _text.Text = c.Text;
                 _startF.Text = Tc.Short(c.Start);
                 _endF.Text = Tc.Short(c.End);
@@ -1845,6 +1904,15 @@ namespace SubtitleStudio
             UpdateCps();
             _editCard.Invalidate();
             _video.Invalidate();
+        }
+
+        /// <summary>טקסט של כתובית כלשהי במסמך - לקבוע כיוון לכתובית ריקה.</summary>
+        private string DocSample()
+        {
+            if (_doc != null)
+                foreach (Cue q in _doc.Cues)
+                    if (!string.IsNullOrEmpty(q.Text)) return q.Text;
+            return "";
         }
 
         private void UpdateCps()
@@ -2951,7 +3019,10 @@ namespace SubtitleStudio
                 w = TextRenderer.MeasureText(g, _qaBtn.Text ?? "", _qaBtn.Font, new Size(int.MaxValue, int.MaxValue),
                         TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
             w += Theme.S(12) * 2 + Theme.S(16) + _qaBtn.IconSize + Theme.S(8) + Theme.S(4);
-            _qaBtn.SetBounds(Theme.S(10), (_listCard.HeaderH - h) / 2, w, h);
+            // נקרא גם מחוץ ל-DoLayout (כשמספר הבעיות משתנה), ולכן ממוקם ישר
+            // במקום הסופי - בקצה של כותרת הכרטיס, משמאל בעברית ומימין באנגלית
+            int qx = Lang.Rtl ? Theme.S(10) : _listCard.ClientSize.Width - Theme.S(10) - w;
+            _qaBtn.SetBounds(qx, (_listCard.HeaderH - h) / 2, w, h);
         }
 
         /// <summary>נקרא מהטיימר. הבדיקה עצמה רצה פעם בחצי שנייה לכל היותר: 5,000

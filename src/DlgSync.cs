@@ -219,7 +219,7 @@ namespace SubtitleStudio
                 // הכתובית
                 string cueLabel = Lang.F("כתובית {0}{1}", Theme.Ltr(CueNumber.ToString()), (CueText.Length > 0 ? "   ·   " + Short(CueText, 28) : ""));
                 Theme.Str(g, cueLabel, Theme.UiBold, Theme.Text,
-                    new RectangleF(pad, Theme.S(10), Width - pad * 2, Theme.S(22)), Theme.SfRtl);
+                    new RectangleF(pad, Theme.S(10), Width - pad * 2, Theme.S(22)), Theme.SfUi);
 
                 // הפרש גדול באמצע
                 string big = delta == 0

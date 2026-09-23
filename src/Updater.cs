@@ -485,7 +485,7 @@ namespace SubtitleStudio
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
             BackColor = Theme.Panel;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             ShowInTaskbar = false;
             ClientSize = new Size(Theme.S(430), Theme.S(150));
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
@@ -510,9 +510,9 @@ namespace SubtitleStudio
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
             Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 12, Theme.Border, 1f);
             int pad = Theme.S(24);
-            Theme.Str(g, _title, Theme.Big, Theme.Text, new RectangleF(pad, Theme.S(22), Width - pad * 2, Theme.S(26)), Theme.SfRtl);
+            Theme.Str(g, _title, Theme.Big, Theme.Text, new RectangleF(pad, Theme.S(22), Width - pad * 2, Theme.S(26)), Theme.SfUi);
             Theme.Str(g, Theme.Ltr(_sub), Theme.Small, Theme.TextDim,
-                new RectangleF(pad, Theme.S(50), Width - pad * 2, Theme.S(20)), Theme.SfRtl);
+                new RectangleF(pad, Theme.S(50), Width - pad * 2, Theme.S(20)), Theme.SfUi);
             RectangleF bar = new RectangleF(pad, Theme.S(90), Width - pad * 2, Theme.S(12));
             Theme.FillRound(g, bar, bar.Height / 2, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
             float w = (float)(bar.Width * Math.Max(0.02, Math.Min(1, _p)));
@@ -895,7 +895,9 @@ namespace SubtitleStudio
         {
             if (src.Count == 0) return;
             ChangeGroup g = new ChangeGroup();
-            g.Title = title;
+            // ״תיקונים״ הוא גם כותרת (״Fixes״) וגם מילה במשפט (״23 fixes״): בעברית
+            // אין הבדל, באנגלית זו אות גדולה. התרגום באות קטנה, והכותרת מתוקנת כאן.
+            g.Title = Lang.Rtl || title.Length == 0 ? title : char.ToUpperInvariant(title[0]) + title.Substring(1);
             for (int i = 0; i < src.Count && i < max; i++) g.Items.Add(src[i]);
             sum.Groups.Add(g);
         }

@@ -299,6 +299,7 @@ namespace SubtitleStudio
         internal string IssueTip(int row, int x)
         {
             if (row < 0 || Doc == null) return "";
+            if (!Lang.Rtl) x = Width - x;        // העמודה משתקפת באנגלית, וכך גם הבדיקה
             int numX = Width - Theme.S(8) - NumW;
             if (x < numX - Theme.S(26) || x > Width) return "";
             List<Issue> l = Qa.For(Doc, row);
@@ -368,17 +369,18 @@ namespace SubtitleStudio
             int m = Theme.S(18);
             int w = Width - m * 2;
             int rowH = Theme.S(46);
+            RectangleF all = new RectangleF(0, 0, Width, Height);
             int total = Theme.S(30) + steps.Length * rowH;
             int y = Math.Max(Theme.S(16), (Height - total) / 2);
 
             Theme.Str(g, Lang.T("איך כותבים כתוביות"), Theme.Semi(11.5f), Theme.Text,
-                new RectangleF(m, y, w, Theme.S(26)), Theme.SfRtl);
+                new RectangleF(m, y, w, Theme.S(26)), Theme.SfUi);
             y += Theme.S(34);
 
             int d = Theme.S(26);
             for (int i = 0; i < steps.Length; i++)
             {
-                RectangleF circle = new RectangleF(Width - m - d, y + Theme.S(2), d, d);
+                RectangleF circle = Theme.Mir(all, new RectangleF(Width - m - d, y + Theme.S(2), d, d));
                 using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Accent, 0.16f)))
                     g.FillEllipse(b, circle);
                 Theme.Str(g, (i + 1).ToString(), Theme.Semi(8.75f), Theme.Accent, circle, Theme.SfCenter);
@@ -386,7 +388,7 @@ namespace SubtitleStudio
                 float tx = m;
                 float tw = Width - m - d - Theme.S(10) - tx;
                 Theme.Str(g, steps[i], Theme.Ui, Theme.TextDim,
-                    new RectangleF(tx, y, tw, rowH - Theme.S(6)), Theme.SfRtlWrap);
+                    Theme.Mir(all, new RectangleF(tx, y, tw, rowH - Theme.S(6))), Theme.SfUiWrap);
                 y += rowH;
             }
         }
@@ -454,10 +456,13 @@ namespace SubtitleStudio
             // מקום לסימן הבעיה (14) ומרווח משני צדיו. ב-20 הסימן נגע באות הראשונה
             // ונראה כמו חלק מהמילה - וזה בולט מאז שהסימן מופיע על כל בעיה, לא רק חפיפה.
             int textW = numX - textX - Theme.S(28);
-            Theme.Str(g, "#", Theme.SmallBold, Theme.TextDim, new RectangleF(numX, 0, NumW, HeaderH), Theme.SfCenter);
-            Theme.Str(g, Lang.T("טקסט"), Theme.SmallBold, Theme.TextDim, new RectangleF(textX, 0, textW, HeaderH), Theme.SfRtl);
-            Theme.Str(g, Lang.T("התחלה"), Theme.SmallBold, Theme.TextDim, new RectangleF(startX, 0, StartW, HeaderH), Theme.SfCenter);
-            Theme.Str(g, Lang.T("שניות"), Theme.SmallBold, Theme.TextDim, new RectangleF(pad, 0, DurW, HeaderH), Theme.SfCenter);
+            // העמודות מחושבות לעברית (המספר מימין, הזמנים משמאל) ומשתקפות
+            // באנגלית. פס הגלילה נשאר מימין בשתי השפות.
+            RectangleF all = new RectangleF(0, 0, Width, Height);
+            Theme.Str(g, "#", Theme.SmallBold, Theme.TextDim, Theme.Mir(all, new RectangleF(numX, 0, NumW, HeaderH)), Theme.SfCenter);
+            Theme.Str(g, Lang.T("טקסט"), Theme.SmallBold, Theme.TextDim, Theme.Mir(all, new RectangleF(textX, 0, textW, HeaderH)), Theme.SfUi);
+            Theme.Str(g, Lang.T("התחלה"), Theme.SmallBold, Theme.TextDim, Theme.Mir(all, new RectangleF(startX, 0, StartW, HeaderH)), Theme.SfCenter);
+            Theme.Str(g, Lang.T("שניות"), Theme.SmallBold, Theme.TextDim, Theme.Mir(all, new RectangleF(pad, 0, DurW, HeaderH)), Theme.SfCenter);
 
             Rectangle clip = new Rectangle(0, HeaderH, Width, ViewH);
             g.SetClip(clip);
@@ -488,7 +493,7 @@ namespace SubtitleStudio
                 // פס ירוק קטן ומעוגל בקצה: זו השורה שמתנגנת עכשיו. לנבחרת אין פס -
                 // הגלולה והקו שלה מספיקים, ופס בצד המספר נגע בו.
                 if (playing)
-                    Theme.FillRound(g, new RectangleF(pill.X + Theme.S(4), pill.Y + Theme.S(7), Theme.S(3), pill.Height - Theme.S(14)), Theme.S(2), Theme.Good);
+                    Theme.FillRound(g, Theme.Mir(all, new RectangleF(pill.X + Theme.S(4), pill.Y + Theme.S(7), Theme.S(3), pill.Height - Theme.S(14))), Theme.S(2), Theme.Good);
                 // קו מפריד רק בין שתי שורות רגילות - לא חותך גלולה
                 bool plain = !sel && !playing && !hover;
                 bool nextPlain = true;
@@ -502,7 +507,7 @@ namespace SubtitleStudio
 
                 // מספר
                 Theme.Str(g, (i + 1).ToString(), Theme.SmallBold, sel ? Theme.Accent : Theme.TextFaint,
-                    new RectangleF(numX, y, NumW, _rowH), Theme.SfCenter);
+                    Theme.Mir(all, new RectangleF(numX, y, NumW, _rowH)), Theme.SfCenter);
 
                 // טקסט
                 string txt = c.Text.Replace("\r\n", "  ·  ").Replace("\n", "  ·  ");
@@ -510,25 +515,25 @@ namespace SubtitleStudio
                 // נצבעה עד 0.8.1 כמו שורה ריקה, ובאנגלית ההשוואה לא הייתה נכונה אף פעם
                 bool blank = txt.Trim().Length == 0;
                 if (blank) txt = Lang.T("(ריק - לחצו כדי לכתוב)");
-                RectangleF tr = new RectangleF(textX, y + Theme.S(4), textW, _rowH - Theme.S(8));
-                Theme.Str(g, txt, Theme.Ui, blank ? Theme.TextFaint : Theme.Text, tr, Theme.SfRtl);
+                RectangleF tr = Theme.Mir(all, new RectangleF(textX, y + Theme.S(4), textW, _rowH - Theme.S(8)));
+                Theme.Str(g, txt, Theme.Ui, blank ? Theme.TextFaint : Theme.Text, tr, blank ? Theme.SfUi : Theme.SfText(txt));
 
                 // זמנים
                 // ״≈״ מסמן שהזמן הוא הערכה מיבוא טקסט ועוד לא נקבע מול הסרט
                 // בגופן הממשק בספרות אחידות (Theme.Num), לא ב-Consolas
                 Theme.Num(g, (c.Untimed ? "≈" : "") + Tc.Short(c.Start), Theme.Small,
                     c.Untimed ? Theme.TextFaint : Theme.TextDim,
-                    new RectangleF(startX, y, StartW, _rowH), StringAlignment.Center);
+                    Theme.Mir(all, new RectangleF(startX, y, StartW, _rowH)), StringAlignment.Center);
                 Color durCol = Theme.TextDim;
                 if (c.Cps > Qa.SevereCps) durCol = Theme.Bad;
                 else if (c.Cps > Qa.FastCps) durCol = Theme.Warn;
                 Theme.Num(g, (c.Duration / 1000.0).ToString("0.0"), Theme.Small, durCol,
-                    new RectangleF(pad, y, DurW, _rowH), StringAlignment.Center);
+                    Theme.Mir(all, new RectangleF(pad, y, DurW, _rowH)), StringAlignment.Center);
 
                 // סימן לכל בעיה (Qa), לא רק לחפיפה. אדום לחמורה. ריחוף מסביר.
                 bool severe;
                 if (Qa.Has(Doc, i, out severe))
-                    Icons.Draw(g, Ico.Warning, new RectangleF(numX - Theme.S(21), y + _rowH / 2f - Theme.S(7), Theme.S(14), Theme.S(14)),
+                    Icons.Draw(g, Ico.Warning, Theme.Mir(all, new RectangleF(numX - Theme.S(21), y + _rowH / 2f - Theme.S(7), Theme.S(14), Theme.S(14))),
                                severe ? Theme.Bad : Theme.Warn, 2f);
             }
 

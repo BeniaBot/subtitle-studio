@@ -49,6 +49,22 @@ namespace SubtitleStudio
         public Color Tint = Color.Empty;
         /// <summary>הרוחב המקורי, לפני שהפריסה מצמצמת לאייקון בלבד.</summary>
         public int PrefWidth;
+
+        /// <summary>הרוחב שהתוכן צריך - באותו חשבון שהציור עושה (ובדיקת test-buttons
+        /// בודקת): שוליים משני הצדדים, אייקון, חץ תפריט ודגימת צבע. רוחב קבוע שנמדד
+        /// לעברית חתך באנגלית חמישה כפתורים.</summary>
+        public int NeedWidth()
+        {
+            int pad = PadX >= 0 ? PadX : Theme.S(12);
+            int w = pad * 2 + Theme.S(2);
+            if (!IconOnly && !string.IsNullOrEmpty(Text))
+                w += TextRenderer.MeasureText(Text, Sub != null ? Theme.UiBold : Font, new Size(100000, 1000),
+                        TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+            if (Icon != Ico.None) w += IconSize + Theme.S(8);
+            if (Menu) w += Theme.S(16);
+            if (!Swatch.IsEmpty) w += Theme.S(30);
+            return w;
+        }
         public string Sub = null;          // שורת משנה קטנה
         public int IconSize = Theme.S(18);
         public Color Swatch = Color.Empty;
@@ -287,18 +303,19 @@ namespace SubtitleStudio
             {
                 int m = Theme.S(15), ic = Theme.S(18);
                 float tx = Width - m;
+                RectangleF all = new RectangleF(0, 0, Width, Height);
                 if (CaptionIcon != Ico.None)
                 {
-                    Icons.Draw(g, CaptionIcon, new RectangleF(tx - ic, HeaderH / 2f - ic / 2f, ic, ic), Theme.TextDim, 1.9f);
+                    Icons.Draw(g, CaptionIcon, Theme.Mir(all, new RectangleF(tx - ic, HeaderH / 2f - ic / 2f, ic, ic)), Theme.TextDim, 1.9f);
                     tx -= ic + Theme.S(8);
                 }
                 if (!string.IsNullOrEmpty(Caption))
-                    Theme.Str(g, Caption, Theme.UiBold, Theme.Text, new RectangleF(m, 0, tx - m, HeaderH), Theme.SfRtl);
+                    Theme.Str(g, Caption, Theme.UiBold, Theme.Text, Theme.Mir(all, new RectangleF(m, 0, tx - m, HeaderH)), Theme.SfUi);
                 Theme.HLine(g, Theme.BorderSoft, m, Width - m, HeaderH - 1);
             }
             else if (!string.IsNullOrEmpty(Caption))
                 Theme.Str(g, Caption, Theme.SmallBold, Theme.TextDim,
-                    new RectangleF(Theme.S(13), Theme.S(6), Width - Theme.S(26), Theme.S(20)), Theme.SfRtl);
+                    new RectangleF(Theme.S(13), Theme.S(6), Width - Theme.S(26), Theme.S(20)), Theme.SfUi);
 
             if (!FieldRect.IsEmpty)
                 Surface.Inset(g, FieldRect, Theme.S(8), Theme.PanelAlt, FieldFocused, 0f);
@@ -345,7 +362,9 @@ namespace SubtitleStudio
             float h = Theme.S(20), w = Theme.S(36);
             float x = Width - w, y = (float)Math.Round((Height - h) / 2);
             float t = _pos.Eased, hot = Enabled ? _hot.Eased : 0f;
-            RectangleF track = new RectangleF(x, y, w, h);
+            RectangleF all = new RectangleF(0, 0, Width, Height);
+            RectangleF track = Theme.Mir(all, new RectangleF(x, y, w, h));
+            x = track.X;
             // המסילה: כבויה - שקועה ואפורה; דלוקה - בצבע ההדגשה, עם מילוי מדורג
             Color off = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f);
             Color on = Theme.Accent;
@@ -362,7 +381,7 @@ namespace SubtitleStudio
                 g.FillEllipse(sh, kx - 0.5f, ky + 1f, kn + 1f, kn + 1f);
             using (SolidBrush b = new SolidBrush(Enabled ? Color.White : Theme.Mix(Color.White, Theme.Bg, 0.4f))) g.FillEllipse(b, kx, ky, kn, kn);
             Theme.Str(g, Text, Font, Enabled ? Theme.Text : Theme.TextFaint,
-                new RectangleF(0, 0, Width - w - Theme.S(10), Height), Theme.SfRtl);
+                Theme.Mir(all, new RectangleF(0, 0, Width - w - Theme.S(10), Height)), Theme.SfUi);
         }
     }
 
@@ -491,8 +510,8 @@ namespace SubtitleStudio
         {
             set
             {
-                Box.RightToLeft = value ? RightToLeft.No : RightToLeft.Yes;
-                Box.TextAlign = value ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+                Box.RightToLeft = value ? RightToLeft.No : Theme.UiRtl;
+                Box.TextAlign = value || !Lang.Rtl ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             }
         }
 
@@ -558,7 +577,7 @@ namespace SubtitleStudio
             Surface.Inset(g, new RectangleF(0, 0, Width, Height), Theme.S(7), Theme.PanelAlt, Box.Focused, 0f);
             if (Box.Multiline && Box.Text.Length == 0 && !string.IsNullOrEmpty(_placeholder) && !Box.Focused)
                 Theme.Str(g, _placeholder, Theme.Ui, Theme.TextFaint,
-                    new RectangleF(Theme.S(11), Theme.S(4), Width - Theme.S(22), Theme.S(26)), Theme.SfRtl);
+                    new RectangleF(Theme.S(11), Theme.S(4), Width - Theme.S(22), Theme.S(26)), Theme.SfUi);
         }
     }
 
@@ -663,8 +682,8 @@ namespace SubtitleStudio
             Surface.Raised(g, r, Theme.S(8), Theme.PanelAlt, Enabled ? Hot.Eased : 0f, 0f, 1f);
             if (_open) Surface.FocusRing(g, r, Theme.S(8), Theme.Accent);
             Theme.Str(g, Text, Font, Enabled ? Theme.Text : Theme.TextFaint,
-                new RectangleF(Theme.S(34), 0, Width - Theme.S(46), Height), Theme.SfRtl);
-            Icons.Draw(g, _open ? Ico.ChevronUp : Ico.ChevronDown, new RectangleF(Theme.S(10), (Height - Theme.S(16)) / 2f, Theme.S(16), Theme.S(16)),
+                Theme.Mir(r, new RectangleF(Theme.S(34), 0, Width - Theme.S(46), Height)), Theme.SfUi);
+            Icons.Draw(g, _open ? Ico.ChevronUp : Ico.ChevronDown, Theme.Mir(r, new RectangleF(Theme.S(10), (Height - Theme.S(16)) / 2f, Theme.S(16), Theme.S(16))),
                 _open ? Theme.Accent : Theme.TextDim, 2f);
         }
     }
@@ -672,7 +691,7 @@ namespace SubtitleStudio
     /// <summary>תווית פשוטה מצוירת (תומכת RTL).</summary>
     internal class Lbl : SurfaceControl
     {
-        public bool Rtl = true;
+        public bool Rtl = Lang.Rtl;
         public bool Bold = false;
         public Color Color = System.Drawing.Color.Empty;
         public StringAlignment Align = StringAlignment.Near;
@@ -818,7 +837,7 @@ namespace SubtitleStudio
             f.FormBorderStyle = FormBorderStyle.None;
             f.StartPosition = FormStartPosition.CenterParent;
             f.BackColor = Theme.Panel;
-            f.RightToLeft = RightToLeft.Yes;
+            f.RightToLeft = Theme.UiRtl;
             f.ShowInTaskbar = false;
             f.Font = Theme.Ui;
             f.KeyPreview = true;
@@ -864,9 +883,10 @@ namespace SubtitleStudio
                 Theme.DrawRound(e.Graphics, new RectangleF(0, 0, f.Width - 1, f.Height - 1), 12, Theme.Border, 1f);
                 if (icon != Ico.None)
                 {
-                    Theme.FillRound(e.Graphics, new RectangleF(w - Theme.S(54), Theme.S(20), Theme.S(34), Theme.S(34)), Theme.S(10),
+                    RectangleF all = new RectangleF(0, 0, w, f.ClientSize.Height);
+                    Theme.FillRound(e.Graphics, Theme.Mir(all, new RectangleF(w - Theme.S(54), Theme.S(20), Theme.S(34), Theme.S(34))), Theme.S(10),
                         Theme.Mix(ic, Theme.Panel, 0.82f));
-                    Icons.Draw(e.Graphics, icon, new RectangleF(w - Theme.S(47), Theme.S(27), Theme.S(20), Theme.S(20)), ic, 2f);
+                    Icons.Draw(e.Graphics, icon, Theme.Mir(all, new RectangleF(w - Theme.S(47), Theme.S(27), Theme.S(20), Theme.S(20))), ic, 2f);
                 }
             };
             f.KeyDown += delegate (object s, KeyEventArgs e)
@@ -875,6 +895,7 @@ namespace SubtitleStudio
                 if (e.KeyCode == Keys.Enter) { result = 0; f.Close(); }
             };
             f.Load += delegate { Native.SetRoundedCorners(f.Handle); };
+            Theme.MirrorLayout(f, w);
             f.ShowDialog(owner);
             f.Dispose();
             return result;
@@ -901,7 +922,7 @@ namespace SubtitleStudio
             f.FormBorderStyle = FormBorderStyle.None;
             f.StartPosition = FormStartPosition.CenterParent;
             f.BackColor = Theme.Panel;
-            f.RightToLeft = RightToLeft.Yes;
+            f.RightToLeft = Theme.UiRtl;
             f.ShowInTaskbar = false;
             f.ClientSize = new Size(Theme.S(430), Theme.S(176));
             f.KeyPreview = true;
@@ -928,6 +949,7 @@ namespace SubtitleStudio
                 Theme.DrawRound(e.Graphics, new RectangleF(0, 0, f.Width - 1, f.Height - 1), 12, Theme.Border, 1f);
             };
             f.Load += delegate { Native.SetRoundedCorners(f.Handle); fld.Box.Focus(); fld.Box.SelectAll(); };
+            Theme.MirrorLayout(f, Theme.S(430));
             f.ShowDialog(owner);
             f.Dispose();
             return res;
@@ -977,7 +999,7 @@ namespace SubtitleStudio
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
             BackColor = Theme.Panel;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             ClientSize = new Size(w, h);
             content.Location = new Point(Theme.S(12), Theme.S(12));
@@ -998,9 +1020,10 @@ namespace SubtitleStudio
         public void ShowUnder(Control anchor)
         {
             Point p = anchor.PointToScreen(new Point(anchor.Width, anchor.Height + 4));
-            int x = p.X - Width;
+            int x = Lang.Rtl ? p.X - Width : anchor.PointToScreen(Point.Empty).X;
             int y = p.Y;
             Screen sc = Screen.FromControl(anchor);
+            if (x + Width > sc.WorkingArea.Right - 4) x = sc.WorkingArea.Right - Width - 4;
             if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
             if (y + Height > sc.WorkingArea.Bottom - 4) y = anchor.PointToScreen(Point.Empty).Y - Height - 4;
             Location = new Point(x, y);
@@ -1032,7 +1055,7 @@ namespace SubtitleStudio
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
             BackColor = Theme.Panel;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
             _colW = Theme.S(width);
             Arrange(int.MaxValue);
@@ -1101,7 +1124,8 @@ namespace SubtitleStudio
             {
                 int col = groupCol[g];
                 int stop = g + 1 < groups ? starts[g + 1] : _items.Count;
-                int x = width - (col + 1) * _colW;
+                // העמודה הראשונה בתחילת הקריאה: מימין בעברית, משמאל באנגלית
+                int x = Lang.Rtl ? width - (col + 1) * _colW : col * _colW;
                 for (int i = starts[g]; i < stop; i++)
                 {
                     int h = HeightOf(_items[i]);
@@ -1201,7 +1225,7 @@ namespace SubtitleStudio
                 if (m.Header)
                 {
                     Theme.Str(g, m.Text, Theme.SmallBold, Theme.TextFaint,
-                        new RectangleF(r.Left + Theme.S(14), y + Theme.S(8), r.Width - Theme.S(28), Theme.S(18)), Theme.SfRtl);
+                        new RectangleF(r.Left + Theme.S(14), y + Theme.S(8), r.Width - Theme.S(28), Theme.S(18)), Theme.SfUi);
                     continue;
                 }
                 if (i == _hover && m.Enabled)
@@ -1212,15 +1236,16 @@ namespace SubtitleStudio
                 }
                 Color fg = m.Enabled ? Theme.Text : Theme.TextFaint;
                 if (m.Icon != Ico.None)
-                    Icons.Draw(g, m.Icon, new RectangleF(r.Right - Theme.S(42), y + (RowH - Theme.S(20)) / 2f, Theme.S(20), Theme.S(20)),
+                    Icons.Draw(g, m.Icon, Theme.Mir(r, new RectangleF(r.Right - Theme.S(42), y + (RowH - Theme.S(20)) / 2f, Theme.S(20), Theme.S(20))),
                         m.Enabled ? Theme.Accent : Theme.TextFaint, 1.9f);
-                float tx = r.Left + Theme.S(14), tw = r.Width - Theme.S(56);
+                float tw = r.Width - Theme.S(56);
+                float tx = Theme.Mir(r, new RectangleF(r.Left + Theme.S(14), 0, tw, 1)).X;
                 if (string.IsNullOrEmpty(m.Desc))
-                    Theme.Str(g, m.Text, Theme.Ui, fg, new RectangleF(tx, y, tw, RowH), Theme.SfRtl);
+                    Theme.Str(g, m.Text, Theme.Ui, fg, new RectangleF(tx, y, tw, RowH), Theme.SfUi);
                 else
                 {
-                    Theme.Str(g, m.Text, Theme.UiBold, fg, new RectangleF(tx, y + Theme.S(7), tw, Theme.S(19)), Theme.SfRtl);
-                    Theme.Str(g, m.Desc, Theme.Small, Theme.TextDim, new RectangleF(tx, y + Theme.S(27), tw, Theme.S(17)), Theme.SfRtl);
+                    Theme.Str(g, m.Text, Theme.UiBold, fg, new RectangleF(tx, y + Theme.S(7), tw, Theme.S(19)), Theme.SfUi);
+                    Theme.Str(g, m.Desc, Theme.Small, Theme.TextDim, new RectangleF(tx, y + Theme.S(27), tw, Theme.S(17)), Theme.SfUi);
                 }
             }
             if (!_framed) Theme.DrawRound(g, new RectangleF(0, 0, Width, Height), 0, MenuRim, 1f);
@@ -1231,8 +1256,9 @@ namespace SubtitleStudio
         {
             Screen sc = Screen.FromPoint(screen);
             Arrange(sc.WorkingArea.Height - 8);
-            int x = screen.X - Width;
+            int x = Lang.Rtl ? screen.X - Width : screen.X;
             int y = screen.Y;
+            if (x + Width > sc.WorkingArea.Right - 4) x = sc.WorkingArea.Right - Width - 4;
             if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
             if (y + Height > sc.WorkingArea.Bottom - 4) y = sc.WorkingArea.Bottom - Height - 4;
             if (y < sc.WorkingArea.Top + 4) y = sc.WorkingArea.Top + 4;
@@ -1253,7 +1279,8 @@ namespace SubtitleStudio
             Arrange(below);
             bool up = Height > below && above > below;
             if (up) Arrange(above);
-            int x = p.X - Width;
+            int x = Lang.Rtl ? p.X - Width : anchor.PointToScreen(Point.Empty).X;
+            if (x + Width > sc.WorkingArea.Right - 4) x = sc.WorkingArea.Right - Width - 4;
             if (x < sc.WorkingArea.Left + 4) x = sc.WorkingArea.Left + 4;
             int y = up ? top - Height - 4 : p.Y;
             if (y < sc.WorkingArea.Top + 4) y = sc.WorkingArea.Top + 4;
@@ -1329,7 +1356,7 @@ namespace SubtitleStudio
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
-            if (e.X <= BarW + Theme.S(4))
+            if (Lang.Rtl ? e.X <= BarW + Theme.S(4) : e.X >= Width - BarW - Theme.S(4))
             {
                 _drag = true;
                 _dragY = e.Y;
@@ -1360,7 +1387,7 @@ namespace SubtitleStudio
             Theme.Smooth(g);
             float th = Math.Max(Theme.S(40), Height * (float)Height / content);
             float ty = (Height - th) * (_offset / (float)Math.Max(1, content - Height));
-            Theme.FillRound(g, new RectangleF(Theme.S(2), ty, BarW - Theme.S(4), th), (BarW - Theme.S(4)) / 2f,
+            Theme.FillRound(g, Theme.Mir(new RectangleF(0, 0, Width, Height), new RectangleF(Theme.S(2), ty, BarW - Theme.S(4), th)), (BarW - Theme.S(4)) / 2f,
                 Theme.Mix(Theme.Border, Theme.Text, 0.25f));
         }
     }

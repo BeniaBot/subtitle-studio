@@ -280,11 +280,67 @@ namespace SubtitleStudio
         /// בממשק אנגלי, ושם היעד הוא `SfRtl` או `Theme.FileName`.</summary>
         public static StringFormat SfUi { get { return Lang.Rtl ? _sfRtl : _sfNear; } }
 
-        /// <summary>טקסט ממשק בקצה הנגדי (בעברית משמאל, באנגלית מימין).</summary>
-        public static StringFormat SfUiEnd { get { return Lang.Rtl ? _sfFar : _sfLtrEnd; } }
+        private static readonly StringFormat _sfRtlEnd = MakeFormat(StringAlignment.Far, StringAlignment.Center, true);
+
+        /// <summary>טקסט ממשק בקצה הנגדי (בעברית משמאל, באנגלית מימין).
+        /// עד 0.8.1 הגרסה העברית החזירה Far בלי דגל RTL - כלומר ימין.</summary>
+        public static StringFormat SfUiEnd { get { return Lang.Rtl ? _sfRtlEnd : _sfLtrEnd; } }
 
         /// <summary>פסקת ממשק עם גלישת שורות.</summary>
         public static StringFormat SfUiWrap { get { return Lang.Rtl ? _sfRtlWrap : _sfWrap; } }
+
+        /// <summary>**תוכן** של המשתמש (טקסט כתובית): הכיוון נקבע לפי הטקסט, לא
+        /// לפי הממשק. כתובית עברית בממשק אנגלי נשארת מימין לשמאל, וכתובית
+        /// אנגלית בו משמאל לימין. בממשק עברי - כמו תמיד, מימין.</summary>
+        public static StringFormat SfText(string s) { return Lang.Rtl || RtlText(s) ? _sfRtl : _sfNear; }
+
+        /// <summary>כמו `SfText`, עם גלישת שורות.</summary>
+        public static StringFormat SfTextWrap(string s) { return Lang.Rtl || RtlText(s) ? _sfRtlWrap : _sfWrap; }
+
+        /// <summary>האות החזקה הראשונה עברית או ערבית.</summary>
+        public static bool RtlText(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            foreach (char c in s)
+            {
+                if ((c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF)) return true;
+                if (char.IsLetter(c)) return false;
+            }
+            return false;
+        }
+
+        /// <summary>הגובה שפסקה צריכה ברוחב נתון - באותו מנוע שמצייר אותה
+        /// (TextRenderer עם גלישת מילים).</summary>
+        public static int TextHeight(string s, Font f, int width)
+        {
+            if (string.IsNullOrEmpty(s) || width <= 0) return 0;
+            TextFormatFlags fl = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak;
+            if (Lang.Rtl) fl |= TextFormatFlags.RightToLeft;
+            return TextRenderer.MeasureText(s, f, new Size(width, int.MaxValue), fl).Height;
+        }
+
+        /// <summary>כיוון הממשק לפקדי ווינדוס (תיבות טקסט, טפסים).</summary>
+        public static RightToLeft UiRtl { get { return Lang.Rtl ? RightToLeft.Yes : RightToLeft.No; } }
+
+        /// <summary>**שיקוף פריסה** לממשק אנגלי.
+        ///
+        /// החלונות נכתבו במיקומים קבועים לימין-לשמאל: הסמל מימין, הסגירה משמאל,
+        /// האישור משמאל למטה. במקום לכתוב כל חלון פעמיים, כל פקד מוזז למקום
+        /// הסימטרי שלו סביב מרכז ההורה, ובתוך מיכלים פשוטים (Panel, Card,
+        /// ScrollHost) - גם הילדים. פקד שמצייר את עצמו (Btn, Field...) לא נכנס
+        /// פנימה: הוא אחראי לכיוון שלו בעצמו, דרך `Mir` ו-`SfUi`.
+        ///
+        /// בעברית - כלום. לקרוא אחרי שכל הפקדים במקומם, לפני שהחלון מוצג.</summary>
+        public static void MirrorLayout(Control parent, int width)
+        {
+            if (Lang.Rtl || parent == null) return;
+            foreach (Control c in parent.Controls)
+            {
+                c.Left = width - c.Right;
+                if (c is Card || c is ScrollHost || c.GetType() == typeof(Panel))
+                    MirrorLayout(c, c.ClientSize.Width);
+            }
+        }
 
         /// <summary>קו אופקי של פיקסל אחד, **חד**.
         ///

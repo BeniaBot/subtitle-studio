@@ -39,7 +39,8 @@ namespace SubtitleStudio
             new string[] { "F5", Lang.T("יצירת הסרט עם הכתוביות") }
         };
 
-        public HelpDlg() : base(Lang.T("איך עובדים כאן"), Ico.Question, 620)
+        // באנגלית רחב יותר: שמות הפעולות ארוכים, ושתי עמודות של 620 חתכו אותם
+        public HelpDlg() : base(Lang.T("איך עובדים כאן"), Ico.Question, Lang.Rtl ? 620 : 700)
         {
             Subtitle = Lang.T("ארבעה שלבים, וכל הקיצורים במקום אחד");
 
@@ -77,16 +78,17 @@ namespace SubtitleStudio
                 for (int i = 0; i < Steps.Length; i++)
                 {
                     float y = i * rowH;
-                    RectangleF circle = new RectangleF(Width - d, y + Theme.S(5), d, d);
+                    RectangleF all = new RectangleF(0, 0, Width, Height);
+                    RectangleF circle = Theme.Mir(all, new RectangleF(Width - d, y + Theme.S(5), d, d));
                     using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Accent, 0.28f)))
                         g.FillEllipse(b, circle);
                     Theme.Str(g, (i + 1).ToString(), Theme.SmallBold, Theme.Accent, circle, Theme.SfCenter);
 
                     float tw = Width - d - Theme.S(12);
                     Theme.Str(g, Steps[i][0], Theme.UiBold, Theme.Text,
-                        new RectangleF(0, y + Theme.S(2), tw, Theme.S(22)), Theme.SfRtl);
+                        Theme.Mir(all, new RectangleF(0, y + Theme.S(2), tw, Theme.S(22))), Theme.SfUi);
                     Theme.Str(g, Steps[i][1], Theme.Small, Theme.TextDim,
-                        new RectangleF(0, y + Theme.S(21), tw, Theme.S(20)), Theme.SfRtl);
+                        Theme.Mir(all, new RectangleF(0, y + Theme.S(21), tw, Theme.S(20))), Theme.SfUi);
                 }
             }
         }
@@ -112,7 +114,13 @@ namespace SubtitleStudio
                 int rowH = Theme.S(30);
                 int rows = (Keys.Length + 1) / 2;
                 float colW = (Width - Theme.S(20)) / 2f;
+                // התא של המקש ברוחב המקש הארוך ביותר, לא קבוע: ״Drag on the timeline״
+                // נחתך ב-92. בעברית כולם נכנסים, והרוחב נשאר 92.
                 float chipW = Theme.S(92);
+                foreach (string[] k in Keys)
+                    chipW = Math.Max(chipW, TextRenderer.MeasureText(k[0], Theme.Small, new Size(int.MaxValue, int.MaxValue),
+                        TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width + Theme.S(18));
+                RectangleF all = new RectangleF(0, 0, Width, Height);
 
                 for (int i = 0; i < Keys.Length; i++)
                 {
@@ -121,13 +129,13 @@ namespace SubtitleStudio
                     float x = Width - (col + 1) * colW - col * Theme.S(20);
                     float y = row * rowH;
 
-                    RectangleF chip = new RectangleF(x + colW - chipW, y + Theme.S(4), chipW, rowH - Theme.S(9));
+                    RectangleF chip = Theme.Mir(all, new RectangleF(x + colW - chipW, y + Theme.S(4), chipW, rowH - Theme.S(9)));
                     Theme.FillRound(g, chip, Theme.S(6), Theme.PanelAlt);
                     Theme.DrawRound(g, chip, Theme.S(6), Theme.Border, 1f);
                     Theme.Str(g, Theme.Ltr(Keys[i][0]), Theme.Small, Theme.Text, chip, Theme.SfCenter);
 
                     Theme.Str(g, Keys[i][1], Theme.Ui, Theme.TextDim,
-                        new RectangleF(x, y, colW - chipW - Theme.S(10), rowH), Theme.SfRtl);
+                        Theme.Mir(all, new RectangleF(x, y, colW - chipW - Theme.S(10), rowH)), Theme.SfUi);
                 }
             }
         }

@@ -30,7 +30,7 @@ namespace SubtitleStudio
             BackColor = Theme.Panel;
             ForeColor = Theme.Text;
             Font = Theme.Ui;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             ShowInTaskbar = false;
             KeyPreview = true;
             ClientSize = new Size(Theme.S(width), Theme.S(300));
@@ -64,19 +64,33 @@ namespace SubtitleStudio
             using (SolidBrush b = new SolidBrush(HeadColor))
                 g.FillRectangle(b, 0, oy, Width, HeadH);
             Theme.HLine(g, Theme.BorderSoft, 0, Width, HeadH + oy);
+            // המידות כתובות לעברית (הסמל מימין, הסגירה משמאל); Mir הופך אותן לאנגלית
+            RectangleF head = new RectangleF(0, 0, _baseW, HeadH);
             int tx = _baseW - Pad;
             if (_icon != Ico.None)
             {
-                Icons.Draw(g, _icon, new RectangleF(tx - Theme.S(26), Theme.S(17) + oy, Theme.S(24), Theme.S(24)), Theme.Accent, 2f);
+                Icons.Draw(g, _icon, Theme.Mir(head, new RectangleF(tx - Theme.S(26), Theme.S(17) + oy, Theme.S(24), Theme.S(24))), Theme.Accent, 2f);
                 tx -= Theme.S(36);
             }
             int tleft = Theme.S(80);
             Theme.Str(g, _title, Theme.Big, Theme.Text,
-                new RectangleF(tleft, (string.IsNullOrEmpty(Subtitle) ? Theme.S(18) : Theme.S(9)) + oy, tx - tleft, Theme.S(24)), Theme.SfRtl);
+                Theme.Mir(head, new RectangleF(tleft, (string.IsNullOrEmpty(Subtitle) ? Theme.S(18) : Theme.S(9)) + oy, tx - tleft, Theme.S(24))), Theme.SfUi);
             if (!string.IsNullOrEmpty(Subtitle))
                 Theme.Str(g, Subtitle, Theme.Small, Theme.TextDim,
-                    new RectangleF(tleft, Theme.S(32) + oy, tx - tleft, Theme.S(18)), Theme.SfRtl);
+                    Theme.Mir(head, new RectangleF(tleft, Theme.S(32) + oy, tx - tleft, Theme.S(18))), Theme.SfUi);
             Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), 12, Theme.Border, 1f);
+        }
+
+        private bool _mirrored;
+
+        /// <summary>בממשק אנגלי: כל הפקדים עוברים למקום הסימטרי שלהם (ראו
+        /// `Theme.MirrorLayout`). **ביצירת החלון ולא ב-Load:** צילום מחוץ למסך
+        /// ובדיקות יוצרים את החלון בלי להציג אותו, ו-Load לא קורה בהם. פעם אחת
+        /// בלבד - שינוי RightToLeft בונה את החלון מחדש, ושיקוף שני היה מחזיר.</summary>
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            if (!_mirrored) { _mirrored = true; Theme.MirrorLayout(this, _baseW); }
+            base.OnHandleCreated(e);
         }
 
         // גלילה מזיזה ביטים, כולל המסגרת המעוגלת - בלי ציור מחדש היא נמרחת
@@ -139,6 +153,15 @@ namespace SubtitleStudio
         protected T Row<T>(T c, int h, int gap) where T : Control
         {
             int hh = Theme.S(h);
+            // פסקה שגולשת מקבלת את הגובה שהיא באמת צריכה. הגבהים נקבעו לעברית,
+            // והאנגלית ארוכה יותר: שורה שלישית פשוט נחתכה. טקסט שנכנס - בלי שינוי.
+            Lbl lb = c as Lbl;
+            if (lb != null && lb.Wrap && !string.IsNullOrEmpty(lb.Text))
+            {
+                Font lf = lb.Bold ? Theme.F(lb.Font.SizeInPoints, FontStyle.Bold) : lb.Font;
+                int need = Theme.TextHeight(lb.Text, lf, ContentW) + Theme.S(4);
+                if (need > hh) hh = need;
+            }
             c.SetBounds(Pad, Y, ContentW, hh);
             Controls.Add(c);
             Y += hh + Theme.S(gap);
@@ -181,7 +204,8 @@ namespace SubtitleStudio
             ok.Text = okText;
             ok.Icon = okIcon;
             ok.Kind = BtnKind.Primary;
-            ok.SetBounds(Pad, Y, Theme.S(180), bh);
+            int okW = Math.Max(Theme.S(180), ok.NeedWidth());
+            ok.SetBounds(Pad, Y, okW, bh);
             ok.Click += delegate { if (OnOk()) { Ok = true; Close(); } };
             Controls.Add(ok);
             _bottom.Add(ok);
@@ -190,7 +214,7 @@ namespace SubtitleStudio
                 Btn c = new Btn();
                 c.Text = cancelText;
                 c.Kind = BtnKind.Ghost;
-                c.SetBounds(Pad + Theme.S(190), Y, Theme.S(116), bh);
+                c.SetBounds(Pad + okW + Theme.S(10), Y, Math.Max(Theme.S(116), c.NeedWidth()), bh);
                 c.Click += delegate { Ok = false; Close(); };
                 Controls.Add(c);
                 _bottom.Add(c);
@@ -367,7 +391,7 @@ namespace SubtitleStudio
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
             BackColor = Theme.Panel;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = Theme.UiRtl;
             ShowInTaskbar = false;
             ClientSize = new Size(Theme.S(520), Theme.S(210));
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
@@ -480,7 +504,7 @@ namespace SubtitleStudio
             if (!_framed) Theme.DrawRound(g, new RectangleF(0, 0, Width, Height), 0, Theme.Border, 1f);
 
             Theme.Str(g, _title, Theme.Big, Theme.Text,
-                new RectangleF(Theme.S(22), Theme.S(24), Theme.S(476), Theme.S(26)), Theme.SfRtl);
+                new RectangleF(Theme.S(22), Theme.S(24), Theme.S(476), Theme.S(26)), Theme.SfUi);
 
             // הודעת כישלון היא משפט-שניים, וחייבת לגלוש. ‏SfRtl הוא שורה אחת עם
             // ״...״ - וכך ״סגרו אותו, או בחרו מקום אחר״ פשוט נחתך. הסטטוס הרגיל
@@ -488,10 +512,10 @@ namespace SubtitleStudio
             bool failed = _done && !_success && !_cancelled;
             if (failed)
                 Theme.Str(g, SubText(), Theme.Small, Theme.Bad,
-                    new RectangleF(Theme.S(22), Theme.S(54), Theme.S(476), Theme.S(44)), Theme.SfRtlWrap);
+                    new RectangleF(Theme.S(22), Theme.S(54), Theme.S(476), Theme.S(44)), Theme.SfUiWrap);
             else
                 Theme.Str(g, SubText(), Theme.Small, Theme.TextDim,
-                    new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(34)), Theme.SfRtl);
+                    new RectangleF(Theme.S(22), Theme.S(52), Theme.S(476), Theme.S(34)), Theme.SfUi);
 
             // המסילה שקועה; המילוי מתחיל מתחילת השורה - מימין בעברית, משמאל באנגלית.
             // עד 0.8.1 הוא התמלא משמאל גם בממשק עברי. הברק רץ כל עוד העבודה נמשכת.
@@ -502,6 +526,13 @@ namespace SubtitleStudio
         }
 
         public bool CloseOnSuccess;
+
+        private bool _mirrored;
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            if (!_mirrored) { _mirrored = true; Theme.MirrorLayout(this, ClientSize.Width); }
+            base.OnHandleCreated(e);
+        }
 
         public static bool Run(IWin32Window owner, string title, FfJob job)
         {

@@ -62,7 +62,8 @@ namespace SubtitleStudio
                 Btn more = new Btn();
                 more.Text = Lang.T("היומן המלא");
                 more.Kind = BtnKind.Subtle;
-                more.SetBounds(ClientSize.Width - Pad - Theme.S(120), ok.Top, Theme.S(120), ok.Height);
+                int mw = Math.Max(Theme.S(120), more.NeedWidth());
+            more.SetBounds(ClientSize.Width - Pad - mw, ok.Top, mw, ok.Height);
                 more.Click += delegate
                 {
                     try

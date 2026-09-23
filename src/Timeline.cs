@@ -638,7 +638,7 @@ namespace SubtitleStudio
             {
                 string s = Lang.F("מכין את פס הקול...  {0}%", (int)(Wave.Progress * 100));
                 Theme.FillRound(g, new RectangleF(8, waveTop + 6, 190, 22), 11, Color.FromArgb(190, Theme.Panel));
-                Theme.Str(g, s, Theme.Small, Theme.TextDim, new RectangleF(16, waveTop + 6, 176, 22), Theme.SfRtl);
+                Theme.Str(g, s, Theme.Small, Theme.TextDim, new RectangleF(16, waveTop + 6, 176, 22), Theme.SfUi);
             }
             if (DurationMs <= 1)
             {
@@ -809,7 +809,7 @@ namespace SubtitleStudio
                     g.FillRectangle(b, 0, laneTop, Width, laneBottom - laneTop);
                 Theme.HLine(g, Theme.BorderSoft, 0, Width, laneTop);
                 Theme.Str(g, Lang.T("כתוביות"), Theme.Small, Theme.TextFaint,
-                    new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfRtl);
+                    new RectangleF(Width - Theme.S(74), laneTop + Theme.S(2), Theme.S(68), Theme.S(16)), Theme.SfUi);
             }
         }
 
@@ -903,7 +903,7 @@ namespace SubtitleStudio
                     }
                     RectangleF tr = new RectangleF(rr.X + Theme.S(5) + numW, rr.Y,
                         rr.Width - Theme.S(10) - numW, rr.Height);
-                    Theme.Str(g, t, Theme.Small, Color.White, tr, Theme.SfRtl);
+                    Theme.Str(g, t, Theme.Small, Color.White, tr, Theme.SfText(t));
                 }
                 if (rr.Width > 60 && (sel || hover))
                 {
