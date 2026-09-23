@@ -279,7 +279,7 @@ namespace SubtitleStudio
                     case "auto_time_by_speech": return AiAutoTime(call);
                     case "snap_to_scene_cuts": return AiSnapCuts();
                 }
-                r["error"] = "פעולה לא מוכרת: " + call.Name;
+                r["error"] = Lang.F("פעולה לא מוכרת: {0}", call.Name);
             }
             catch (Exception ex) { r["error"] = ex.Message; }
             return r;
@@ -347,12 +347,12 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             int idx = (int)c.Num("index", 0);
             Cue q = AiCueAt(idx);
-            if (q == null) { r["error"] = "אין כתובית מספר " + idx; return r; }
-            _doc.Push("עריכה מהצ'אט");
+            if (q == null) { r["error"] = Lang.F("אין כתובית מספר {0}", idx); return r; }
+            _doc.Push(Lang.T("עריכה מהצ'אט"));
             q.Text = c.Str("text", q.Text);
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "כתובית " + idx + " עודכנה";
+            r["done"] = Lang.F("כתובית {0} עודכנה", idx);
             return r;
         }
 
@@ -362,13 +362,13 @@ namespace SubtitleStudio
             long a = (long)(c.Num("start_sec", 0) * 1000);
             long b = (long)(c.Num("end_sec", 0) * 1000);
             if (b <= a) b = a + 2000;
-            _doc.Push("הוספה מהצ'אט");
+            _doc.Push(Lang.T("הוספה מהצ'אט"));
             Cue q = new Cue(a, b, c.Str("text", ""));
             _doc.Cues.Add(q);
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "נוספה כתובית ב-" + Tc.Short(a);
+            r["done"] = Lang.F("נוספה כתובית ב-{0}", Tc.Short(a));
             r["index"] = _doc.Cues.IndexOf(q) + 1;
             return r;
         }
@@ -380,21 +380,21 @@ namespace SubtitleStudio
             int from = (int)c.Num("from_index", 0);
             int to = (int)c.Num("to_index", from);
             if (to < from) to = from;
-            if (_doc == null || from < 1 || from > _doc.Cues.Count) { r["error"] = "טווח לא תקין"; return r; }
+            if (_doc == null || from < 1 || from > _doc.Cues.Count) { r["error"] = Lang.T("טווח לא תקין"); return r; }
             if (to > _doc.Cues.Count) to = _doc.Cues.Count;
             int n = to - from + 1;
             if (n > 1)
             {
-                int ans = Ui.Msg(this, "למחוק " + n + " כתוביות?",
-                    "הצ'אט ביקש למחוק כתוביות " + Theme.Ltr(from + "-" + to) + ". אפשר לבטל אחר כך ב-Ctrl+Z.",
-                    Ico.Warning, "מחיקה", "ביטול");
+                int ans = Ui.Msg(this, Lang.F("למחוק {0} כתוביות?", n),
+                    Lang.F("הצ'אט ביקש למחוק כתוביות {0}. אפשר לבטל אחר כך ב-Ctrl+Z.", Theme.Ltr(from + "-" + to)),
+                    Ico.Warning, Lang.T("מחיקה"), Lang.T("ביטול"));
                 if (ans != 0) { refused = true; r["cancelled"] = true; return r; }
             }
-            _doc.Push("מחיקה מהצ'אט");
+            _doc.Push(Lang.T("מחיקה מהצ'אט"));
             _doc.Cues.RemoveRange(from - 1, n);
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "נמחקו " + n + " כתוביות";
+            r["done"] = Lang.F("נמחקו {0} כתוביות", n);
             return r;
         }
 
@@ -402,17 +402,16 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             double sec = c.Num("seconds", 0);
-            if (Math.Abs(sec) < 0.0001) { r["error"] = "לא צוין כמה להזיז"; return r; }
+            if (Math.Abs(sec) < 0.0001) { r["error"] = Lang.T("לא צוין כמה להזיז"); return r; }
             int from = (int)c.Num("from_index", 1);
             List<Cue> target = new List<Cue>();
             for (int i = Math.Max(1, from) - 1; i < _doc.Cues.Count; i++) target.Add(_doc.Cues[i]);
-            if (target.Count == 0) { r["error"] = "אין כתוביות בטווח"; return r; }
-            _doc.Push("הזזה מהצ'אט");
+            if (target.Count == 0) { r["error"] = Lang.T("אין כתוביות בטווח"); return r; }
+            _doc.Push(Lang.T("הזזה מהצ'אט"));
             _doc.Shift(target, (long)(sec * 1000));
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "הוזזו " + target.Count + " כתוביות ב-" +
-                        Theme.Ltr((sec > 0 ? "+" : "") + sec.ToString("0.##", CultureInfo.InvariantCulture)) + " שניות";
+            r["done"] = Lang.F("הוזזו {0} כתוביות ב-{1} שניות", target.Count, Theme.Ltr((sec > 0 ? "+" : "") + sec.ToString("0.##", CultureInfo.InvariantCulture)));
             return r;
         }
 
@@ -422,8 +421,8 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiFixTimings()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
-            _doc.Push("תיקון מהצ'אט");
+            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות"); return r; }
+            _doc.Push(Lang.T("תיקון מהצ'אט"));
             QaFixResult res = Qa.FixAll(_doc);
             if (res.Total == 0 && res.Cleaned == 0) _doc.DropLastUndo();
             else _doc.Dirty = true;
@@ -436,9 +435,9 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiCheckSpelling()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = "אין כתוביות"; return r; }
-            if (!Spell.Enabled) { r["done"] = "בדיקת האיות כבויה. אפשר להדליק אותה בהגדרות."; return r; }
-            if (!Spell.Installed) { r["done"] = "המילון עוד לא הורד. בהגדרות יש כפתור להורדה (1.2 MB, פעם אחת)."; return r; }
+            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = Lang.T("אין כתוביות"); return r; }
+            if (!Spell.Enabled) { r["done"] = Lang.T("בדיקת האיות כבויה. אפשר להדליק אותה בהגדרות."); return r; }
+            if (!Spell.Installed) { r["done"] = Lang.T("המילון עוד לא הורד. בהגדרות יש כפתור להורדה (1.2 MB, פעם אחת)."); return r; }
             if (!Spell.Ready) { Spell.LoadNow(); }
             List<object> found = new List<object>();
             int total = 0;
@@ -461,7 +460,7 @@ namespace SubtitleStudio
             }
             r["total"] = total;
             r["words"] = found;
-            if (total == 0) r["done"] = "לא נמצאו מילים חשודות";
+            if (total == 0) r["done"] = Lang.T("לא נמצאו מילים חשודות");
             return r;
         }
 
@@ -469,18 +468,18 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             int idx = (int)c.Num("index", 0) - 1;
-            if (_doc == null || idx < 0 || idx >= _doc.Cues.Count) { r["error"] = "אין כתובית במספר הזה"; return r; }
+            if (_doc == null || idx < 0 || idx >= _doc.Cues.Count) { r["error"] = Lang.T("אין כתובית במספר הזה"); return r; }
             string word = c.Str("word", "").Trim();
             string with = c.Str("replacement", "").Trim();
-            if (word.Length == 0 || with.Length == 0) { r["error"] = "חסרה המילה או התיקון"; return r; }
+            if (word.Length == 0 || with.Length == 0) { r["error"] = Lang.T("חסרה המילה או התיקון"); return r; }
             Cue q = _doc.Cues[idx];
             string after = Spell.ReplaceWord(q.Text, word, with);
-            if (after == q.Text) { r["error"] = "המילה ״" + word + "״ לא נמצאה בכתובית " + (idx + 1); return r; }
-            _doc.Push("תיקון כתיב");
+            if (after == q.Text) { r["error"] = Lang.F("המילה ״{0}״ לא נמצאה בכתובית {1}", word, (idx + 1)); return r; }
+            _doc.Push(Lang.T("תיקון כתיב"));
             q.Text = after;
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "״" + word + "״ הוחלפה ב״" + with + "״";
+            r["done"] = Lang.F("״{0}״ הוחלפה ב״{1}״", word, with);
             r["text"] = q.PlainText;
             return r;
         }
@@ -489,18 +488,18 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             string word = c.Str("word", "").Trim();
-            if (word.Length == 0) { r["error"] = "לא צוינה מילה"; return r; }
-            if (!Spell.Ready) { r["error"] = "המילון לא טעון"; return r; }
+            if (word.Length == 0) { r["error"] = Lang.T("לא צוינה מילה"); return r; }
+            if (!Spell.Ready) { r["error"] = Lang.T("המילון לא טעון"); return r; }
             Spell.AddWord(word);
             AiRefresh();
-            r["done"] = "״" + word + "״ נוספה למילון האישי, ולא תסומן יותר";
+            r["done"] = Lang.F("״{0}״ נוספה למילון האישי, ולא תסומן יותר", word);
             return r;
         }
 
         private Dictionary<string, object> AiFindProblems()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = "אין כתוביות"; return r; }
+            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = Lang.T("אין כתוביות"); return r; }
             List<Issue> all = Qa.Find(_doc);
             r["total"] = all.Count;
             Dictionary<string, object> counts = new Dictionary<string, object>();
@@ -529,8 +528,8 @@ namespace SubtitleStudio
         {
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות לתרגם"; return r; }
-            string lang = c.Str("target_language", "אנגלית");
+            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות לתרגם"); return r; }
+            string lang = c.Str("target_language", Lang.T("אנגלית"));
             List<Cue> cues = new List<Cue>(_doc.Cues);
             AiRunDlg run = new AiRunDlg(cues, lang, c.Str("context", ""));
             run.ShowDialog(this);
@@ -540,11 +539,11 @@ namespace SubtitleStudio
                 else { refused = true; r["cancelled"] = true; }
                 return r;
             }
-            _doc.Push("תרגום מהצ'אט");
+            _doc.Push(Lang.T("תרגום מהצ'אט"));
             for (int i = 0; i < cues.Count && i < run.Translated.Count; i++) cues[i].Text = run.Translated[i];
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "הכתוביות תורגמו ל" + lang;
+            r["done"] = Lang.F("הכתוביות תורגמו ל{0}", lang);
             return r;
         }
 
@@ -575,7 +574,7 @@ namespace SubtitleStudio
             if (c.Args.ContainsKey("box")) _style.OpaqueBox = c.Bool("box", _style.OpaqueBox);
             Settings.Save(_style);
             _video.Invalidate();
-            r["done"] = "העיצוב עודכן";
+            r["done"] = Lang.T("העיצוב עודכן");
             return r;
         }
 
@@ -584,7 +583,7 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             long ms = (long)(c.Num("seconds", 0) * 1000);
             Seek(ms);
-            r["done"] = "הנגן עבר ל-" + Tc.Short(ms);
+            r["done"] = Lang.F("הנגן עבר ל-{0}", Tc.Short(ms));
             return r;
         }
 
@@ -592,16 +591,16 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             bool ok = SaveSubtitles(false);
-            if (ok) r["done"] = "הכתוביות נשמרו";
-            else r["error"] = "השמירה לא בוצעה";
+            if (ok) r["done"] = Lang.T("הכתוביות נשמרו");
+            else r["error"] = Lang.T("השמירה לא בוצעה");
             return r;
         }
 
         private Dictionary<string, object> AiSaveProject()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (SaveProject(false)) r["done"] = "הפרויקט נשמר: " + Path.GetFileName(_projectPath) + ". בפעם הבאה הוא יופיע במסך הפתיחה";
-            else r["error"] = "הפרויקט לא נשמר (אולי המשתמש ביטל את בחירת המקום)";
+            if (SaveProject(false)) r["done"] = Lang.F("הפרויקט נשמר: {0}. בפעם הבאה הוא יופיע במסך הפתיחה", Path.GetFileName(_projectPath));
+            else r["error"] = Lang.T("הפרויקט לא נשמר (אולי המשתמש ביטל את בחירת המקום)");
             return r;
         }
 
@@ -610,43 +609,43 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             long a = (long)(c.Num("from_sec", 0) * 1000);
             long b = (long)(c.Num("to_sec", 0) * 1000);
-            if (b <= a) { r["error"] = "טווח לא תקין"; return r; }
+            if (b <= a) { r["error"] = Lang.T("טווח לא תקין"); return r; }
             _tl.InPoint = a;
             _tl.OutPoint = b;
             _tl.Invalidate();
             UpdateRangeChip();
-            r["done"] = "סומן קטע " + Theme.Ltr(Tc.Short(a) + " - " + Tc.Short(b));
+            r["done"] = Lang.F("סומן קטע {0}", Theme.Ltr(Tc.Short(a) + " - " + Tc.Short(b)));
             return r;
         }
 
         private Dictionary<string, object> AiExport(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = "אין סרט פתוח"; return r; }
-            if (_doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            if (_doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות"); return r; }
             ExportVideo();
-            r["done"] = "נפתח חלון יצירת הסרט";
+            r["done"] = Lang.T("נפתח חלון יצירת הסרט");
             return r;
         }
 
         private Dictionary<string, object> AiTrim()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = "אין סרט פתוח"; return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
             if (_tl.InPoint < 0 || _tl.OutPoint <= _tl.InPoint)
             {
-                r["error"] = "צריך קודם לסמן קטע. אפשר להשתמש ב-mark_range.";
+                r["error"] = Lang.T("צריך קודם לסמן קטע. אפשר להשתמש ב-mark_range.");
                 return r;
             }
             TrimMedia();
-            r["done"] = "נפתח חלון החיתוך";
+            r["done"] = Lang.T("נפתח חלון החיתוך");
             return r;
         }
 
         private Dictionary<string, object> AiTool_(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = "אין קובץ פתוח"; return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             string want = c.Str("tool", "").Trim();
             if (want.Length > 0)
             {
@@ -654,14 +653,14 @@ namespace SubtitleStudio
                 {
                     if (!string.Equals(t.Name, want, StringComparison.OrdinalIgnoreCase)) continue;
                     ToolsDlg.RunNamed(this, t.Name, _mi, _tl.InPoint, _tl.OutPoint, _engine.Position);
-                    r["done"] = "נפתח הכלי " + t.Name;
+                    r["done"] = Lang.F("נפתח הכלי {0}", t.Name);
                     return r;
                 }
-                r["error"] = "אין כלי בשם הזה. קרא ל-list_media_tools כדי לראות את השמות.";
+                r["error"] = Lang.T("אין כלי בשם הזה. קרא ל-list_media_tools כדי לראות את השמות.");
                 return r;
             }
             OpenTools();
-            r["done"] = "נפתח חלון הכלים";
+            r["done"] = Lang.T("נפתח חלון הכלים");
             return r;
         }
 
@@ -671,10 +670,10 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             string path = c.Str("path", "");
-            if (path.Length > 0 && !File.Exists(path)) { r["error"] = "לא נמצא קובץ בנתיב הזה"; return r; }
+            if (path.Length > 0 && !File.Exists(path)) { r["error"] = Lang.T("לא נמצא קובץ בנתיב הזה"); return r; }
             if (path.Length > 0) OpenAny(path);
             else OpenAnyDialog();
-            r["done"] = _mi != null ? "נפתח " + Path.GetFileName(_mi.Path) : "לא נפתח קובץ";
+            r["done"] = _mi != null ? Lang.F("נפתח {0}", Path.GetFileName(_mi.Path)) : Lang.T("לא נפתח קובץ");
             r["cue_count"] = _doc != null ? _doc.Cues.Count : 0;
             return r;
         }
@@ -684,7 +683,7 @@ namespace SubtitleStudio
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
             string text = c.Str("text", "");
-            if (text.Trim().Length == 0) { r["error"] = "לא התקבל טקסט"; return r; }
+            if (text.Trim().Length == 0) { r["error"] = Lang.T("לא התקבל טקסט"); return r; }
 
             Formats.TextImportOptions o = new Formats.TextImportOptions();
             o.StartAt = c.Args.ContainsKey("start_sec")
@@ -695,27 +694,26 @@ namespace SubtitleStudio
             o.SplitByBlankLine = c.Bool("split_by_blank_line", false);
             o.MarkUntimed = c.Bool("tap_later", false) && _mi != null;
             List<Cue> made = Formats.ImportPlainText(text, o);
-            if (made.Count == 0) { r["error"] = "לא נוצרו כתוביות מהטקסט"; return r; }
+            if (made.Count == 0) { r["error"] = Lang.T("לא נוצרו כתוביות מהטקסט"); return r; }
 
             bool replace = c.Bool("replace", false);
             if (_doc.Cues.Count > 0 && replace)
             {
-                int ans = Ui.Msg(this, "להחליף את הכתוביות הקיימות?",
-                    "הצ׳אט יצר " + made.Count + " כתוביות חדשות. אפשר לבטל אחר כך ב-Ctrl+Z.",
-                    Ico.Question, "להחליף", "לצרף", "ביטול");
+                int ans = Ui.Msg(this, Lang.T("להחליף את הכתוביות הקיימות?"),
+                    Lang.F("הצ׳אט יצר {0} כתוביות חדשות. אפשר לבטל אחר כך ב-Ctrl+Z.", made.Count),
+                    Ico.Question, Lang.T("להחליף"), Lang.T("לצרף"), Lang.T("ביטול"));
                 if (ans == 2) { refused = true; r["cancelled"] = true; return r; }
-                _doc.Push("יצירה מטקסט");
+                _doc.Push(Lang.T("יצירה מטקסט"));
                 if (ans == 0) _doc.Cues.Clear();
             }
-            else _doc.Push("יצירה מטקסט");
+            else _doc.Push(Lang.T("יצירה מטקסט"));
 
             _doc.Cues.AddRange(made);
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
             SyncAfterDocChange();
-            r["done"] = "נוצרו " + made.Count + " כתוביות" +
-                        (o.MarkUntimed ? ". התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן לפי הסרט״ ולסמן כל משפט" : "");
+            r["done"] = Lang.F("נוצרו {0} כתוביות{1}", made.Count, (o.MarkUntimed ? Lang.T(". התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן לפי הסרט״ ולסמן כל משפט") : ""));
             r["total"] = _doc.Cues.Count;
             return r;
         }
@@ -723,13 +721,13 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiExtract()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = "אין סרט פתוח"; return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
             int before = _doc.Cues.Count;
             ExtractSubs();
             int now = _doc.Cues.Count;
             r["done"] = now == before
-                ? "חלון השליפה נסגר בלי לטעון כתוביות"
-                : "נשלפו כתוביות מתוך הסרט. סך הכול " + now;
+                ? Lang.T("חלון השליפה נסגר בלי לטעון כתוביות")
+                : Lang.F("נשלפו כתוביות מתוך הסרט. סך הכול {0}", now);
             r["cue_count"] = now;
             return r;
         }
@@ -738,8 +736,8 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (SaveSubtitles(true))
-                r["done"] = "נשמר" + (_doc.FilePath != null ? ": " + Path.GetFileName(_doc.FilePath) : "");
-            else r["error"] = "השמירה לא בוצעה";
+                r["done"] = Lang.F("נשמר{0}", (_doc.FilePath != null ? ": " + Path.GetFileName(_doc.FilePath) : ""));
+            else r["error"] = Lang.T("השמירה לא בוצעה");
             return r;
         }
 
@@ -749,15 +747,15 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             Cue q = AiCueAt((int)c.Num("index", 0));
-            if (q == null) { r["error"] = "אין כתובית במספר הזה"; return r; }
-            _doc.Push("תזמון מהצ׳אט");
+            if (q == null) { r["error"] = Lang.T("אין כתובית במספר הזה"); return r; }
+            _doc.Push(Lang.T("תזמון מהצ׳אט"));
             if (c.Args.ContainsKey("start_sec")) q.Start = Math.Max(0, (long)(c.Num("start_sec", 0) * 1000));
             if (c.Args.ContainsKey("end_sec")) q.End = Math.Max(0, (long)(c.Num("end_sec", 0) * 1000));
             if (q.End <= q.Start) q.End = q.Start + 1000;
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "התזמון עודכן: " + Theme.Ltr(Tc.Short(q.Start) + " - " + Tc.Short(q.End));
+            r["done"] = Lang.F("התזמון עודכן: {0}", Theme.Ltr(Tc.Short(q.Start) + " - " + Tc.Short(q.End)));
             return r;
         }
 
@@ -765,11 +763,11 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             Cue a = AiCueAt((int)c.Num("index", 0));
-            if (a == null) { r["error"] = "אין כתובית במספר הזה"; return r; }
+            if (a == null) { r["error"] = Lang.T("אין כתובית במספר הזה"); return r; }
             long at = c.Args.ContainsKey("at_sec") ? (long)(c.Num("at_sec", 0) * 1000) : (a.Start + a.End) / 2;
             if (at <= a.Start + 80 || at >= a.End - 80)
-            { r["error"] = "נקודת הפיצול חייבת להיות בתוך הכתובית"; return r; }
-            _doc.Push("פיצול מהצ׳אט");
+            { r["error"] = Lang.T("נקודת הפיצול חייבת להיות בתוך הכתובית"); return r; }
+            _doc.Push(Lang.T("פיצול מהצ׳אט"));
             Cue b = a.Clone();
             b.Start = at;
             b.End = a.End;
@@ -785,7 +783,7 @@ namespace SubtitleStudio
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "הכתובית פוצלה ב-" + Theme.Ltr(Tc.Short(at));
+            r["done"] = Lang.F("הכתובית פוצלה ב-{0}", Theme.Ltr(Tc.Short(at)));
             return r;
         }
 
@@ -795,8 +793,8 @@ namespace SubtitleStudio
             int from = (int)c.Num("from_index", 0);
             int to = (int)c.Num("to_index", 0);
             if (_doc == null || from < 1 || to <= from || to > _doc.Cues.Count)
-            { r["error"] = "טווח לא תקין"; return r; }
-            _doc.Push("איחוד מהצ׳אט");
+            { r["error"] = Lang.T("טווח לא תקין"); return r; }
+            _doc.Push(Lang.T("איחוד מהצ׳אט"));
             Cue first = _doc.Cues[from - 1];
             System.Text.StringBuilder sb = new System.Text.StringBuilder(first.PlainText);
             for (int i = from; i < to; i++)
@@ -814,7 +812,7 @@ namespace SubtitleStudio
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "אוחדו " + (to - from + 1) + " כתוביות";
+            r["done"] = Lang.F("אוחדו {0} כתוביות", (to - from + 1));
             return r;
         }
 
@@ -822,12 +820,12 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             string find = c.Str("find", "");
-            if (find.Length == 0) { r["error"] = "לא צוין מה לחפש"; return r; }
+            if (find.Length == 0) { r["error"] = Lang.T("לא צוין מה לחפש"); return r; }
             string to = c.Str("replace", "");
             StringComparison cmp = c.Bool("match_case", false)
                 ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
             int hits = 0, touched = 0;
-            _doc.Push("החלפה מהצ׳אט");
+            _doc.Push(Lang.T("החלפה מהצ׳אט"));
             foreach (Cue q in _doc.Cues)
             {
                 string src = q.Text;
@@ -845,10 +843,10 @@ namespace SubtitleStudio
             }
             // כלום לא הוחלף, ולכן גם כלום לא השתנה - זורקים את הצילום במקום
             // לשחזר אותו (Undo כאן היה מחליף את הכתוביות בשכפולים).
-            if (hits == 0) { _doc.DropLastUndo(); r["done"] = "לא נמצאו התאמות"; return r; }
+            if (hits == 0) { _doc.DropLastUndo(); r["done"] = Lang.T("לא נמצאו התאמות"); return r; }
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "הוחלפו " + hits + " מופעים ב-" + touched + " כתוביות";
+            r["done"] = Lang.F("הוחלפו {0} מופעים ב-{1} כתוביות", hits, touched);
             return r;
         }
 
@@ -857,8 +855,8 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             int max = (int)c.Num("max_chars", 42);
             if (max < 16) max = 42;
-            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
-            _doc.Push("סידור שורות");
+            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות"); return r; }
+            _doc.Push(Lang.T("סידור שורות"));
             int n = 0;
             foreach (Cue q in _doc.Cues)
             {
@@ -867,7 +865,7 @@ namespace SubtitleStudio
             }
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "סודרו " + n + " כתוביות";
+            r["done"] = Lang.F("סודרו {0} כתוביות", n);
             return r;
         }
 
@@ -875,18 +873,18 @@ namespace SubtitleStudio
         {
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = "אין מה למחוק"; return r; }
+            if (_doc == null || _doc.Cues.Count == 0) { r["done"] = Lang.T("אין מה למחוק"); return r; }
             int n = _doc.Cues.Count;
-            if (!Ui.Confirm(this, "למחוק את כל הכתוביות?",
-                "הצ׳אט ביקש למחוק " + n + " כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.",
-                "מחיקה", "ביטול"))
+            if (!Ui.Confirm(this, Lang.T("למחוק את כל הכתוביות?"),
+                Lang.F("הצ׳אט ביקש למחוק {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", n),
+                Lang.T("מחיקה"), Lang.T("ביטול")))
             { refused = true; r["cancelled"] = true; return r; }
-            _doc.Push("ניקוי מהצ׳אט");
+            _doc.Push(Lang.T("ניקוי מהצ׳אט"));
             _doc.Cues.Clear();
             _doc.Dirty = true;
             AiRefresh();
             SyncAfterDocChange();
-            r["done"] = "נמחקו " + n + " כתוביות";
+            r["done"] = Lang.F("נמחקו {0} כתוביות", n);
             return r;
         }
 
@@ -896,14 +894,14 @@ namespace SubtitleStudio
             Cue a = AiCueAt((int)c.Num("first_index", 0));
             Cue b = AiCueAt((int)c.Num("last_index", 0));
             if (a == null || b == null || b.Start <= a.Start)
-            { r["error"] = "צריך שתי כתוביות שונות, השנייה אחרי הראשונה"; return r; }
+            { r["error"] = Lang.T("צריך שתי כתוביות שונות, השנייה אחרי הראשונה"); return r; }
             long na = (long)(c.Num("first_sec", 0) * 1000);
             long nb = (long)(c.Num("last_sec", 0) * 1000);
-            if (nb <= na) { r["error"] = "הזמן השני חייב להיות אחרי הראשון"; return r; }
+            if (nb <= na) { r["error"] = Lang.T("הזמן השני חייב להיות אחרי הראשון"); return r; }
             double scale = (nb - na) / (double)(b.Start - a.Start);
-            if (scale <= 0.05 || scale > 20) { r["error"] = "המתיחה יוצאת לא הגיונית"; return r; }
+            if (scale <= 0.05 || scale > 20) { r["error"] = Lang.T("המתיחה יוצאת לא הגיונית"); return r; }
             long anchor = a.Start;
-            _doc.Push("מתיחת תזמון");
+            _doc.Push(Lang.T("מתיחת תזמון"));
             foreach (Cue q in _doc.Cues)
             {
                 q.Start = na + (long)((q.Start - anchor) * scale);
@@ -914,7 +912,7 @@ namespace SubtitleStudio
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = "התזמון נמתח פי " + Theme.Ltr(scale.ToString("0.###", CultureInfo.InvariantCulture));
+            r["done"] = Lang.F("התזמון נמתח פי {0}", Theme.Ltr(scale.ToString("0.###", CultureInfo.InvariantCulture)));
             return r;
         }
 
@@ -923,10 +921,10 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiPlayPause(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = "אין קובץ פתוח"; return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             bool want = c.Args.ContainsKey("play") ? c.Bool("play", true) : !_engine.IsPlaying;
             if (want != _engine.IsPlaying) TogglePlay();
-            r["done"] = _engine.IsPlaying ? "מנגן" : "עצר";
+            r["done"] = _engine.IsPlaying ? Lang.T("מנגן") : Lang.T("עצר");
             return r;
         }
 
@@ -934,17 +932,17 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             SetSpeed(c.Num("speed", 1));
-            r["done"] = "מהירות ההשמעה: " + Theme.Ltr(SpeedText(_engine.Speed));
+            r["done"] = Lang.F("מהירות ההשמעה: {0}", Theme.Ltr(SpeedText(_engine.Speed)));
             return r;
         }
 
         private Dictionary<string, object> AiUndo()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_doc == null || !_doc.CanUndo) { r["error"] = "אין מה לבטל"; return r; }
+            if (_doc == null || !_doc.CanUndo) { r["error"] = Lang.T("אין מה לבטל"); return r; }
             _doc.Undo();
             SyncAfterDocChange();
-            r["done"] = "הפעולה האחרונה בוטלה";
+            r["done"] = Lang.T("הפעולה האחרונה בוטלה");
             return r;
         }
 
@@ -953,7 +951,7 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             bool dark = c.Bool("dark", false);
             if (Theme.Dark != dark) ToggleTheme();
-            r["done"] = Theme.Dark ? "עבר למצב כהה" : "עבר למצב בהיר";
+            r["done"] = Theme.Dark ? Lang.T("עבר למצב כהה") : Lang.T("עבר למצב בהיר");
             return r;
         }
 
@@ -969,7 +967,7 @@ namespace SubtitleStudio
                 _doc.Dirty = true;
                 AiRefresh();
             }
-            r["done"] = "נוצרה כתובית ב-" + Theme.Ltr(Tc.Short(_engine.Position));
+            r["done"] = Lang.F("נוצרה כתובית ב-{0}", Theme.Ltr(Tc.Short(_engine.Position)));
             r["index"] = _editing != null ? _doc.Cues.IndexOf(_editing) + 1 : 0;
             return r;
         }
@@ -981,8 +979,8 @@ namespace SubtitleStudio
             ImportText();
             int now = _doc.Cues.Count;
             r["done"] = now > before
-                ? "המשתמש הדביק טקסט ונוצרו " + (now - before) + " כתוביות"
-                : "החלון נפתח והמשתמש סגר אותו בלי ליצור כתוביות";
+                ? Lang.F("המשתמש הדביק טקסט ונוצרו {0} כתוביות", (now - before))
+                : Lang.T("החלון נפתח והמשתמש סגר אותו בלי ליצור כתוביות");
             r["cue_count"] = now;
             r["untimed"] = UntimedCount();
             return r;
@@ -992,9 +990,9 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null || string.IsNullOrEmpty(_mediaPath))
-            { r["error"] = "אין סרט פתוח - צריך לפתוח קודם קובץ"; return r; }
+            { r["error"] = Lang.T("אין סרט פתוח - צריך לפתוח קודם קובץ"); return r; }
             if (!_mi.HasAudio)
-            { r["error"] = "אין פס קול בקובץ הזה, אז אין מה לתמלל"; return r; }
+            { r["error"] = Lang.T("אין פס קול בקובץ הזה, אז אין מה לתמלל"); return r; }
 
             int before = _doc.Cues.Count;
             TranscribeMedia();
@@ -1002,8 +1000,8 @@ namespace SubtitleStudio
             // המשתמש הוא זה שמאשר בחלון, ולכן ״לא קרה כלום״ הוא תוצאה
             // לגיטימית ולא שגיאה - חשוב שהמודל לא ינסה שוב בלולאה.
             r["done"] = now != before
-                ? "התמלול הסתיים, יש עכשיו " + now + " כתוביות"
-                : "המשתמש סגר את חלון האישור בלי לתמלל";
+                ? Lang.F("התמלול הסתיים, יש עכשיו {0} כתוביות", now)
+                : Lang.T("המשתמש סגר את חלון האישור בלי לתמלל");
             r["cue_count"] = now;
             return r;
         }
@@ -1011,16 +1009,15 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiStartTap()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = "אין סרט פתוח"; return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
             int left = UntimedCount();
             if (left == 0)
             {
-                r["error"] = "אין שורות שמחכות לתזמון. קודם צריך טקסט - " +
-                             "open_text_import או create_subtitles_from_text עם tap_later=true.";
+                r["error"] = Lang.T("אין שורות שמחכות לתזמון. קודם צריך טקסט - open_text_import או create_subtitles_from_text עם tap_later=true.");
                 return r;
             }
             StartTapping();
-            r["done"] = "מצב התזמון התחיל. " + left + " שורות מחכות; המשתמש לוחץ על הכפתור הכחול בכל משפט";
+            r["done"] = Lang.F("מצב התזמון התחיל. {0} שורות מחכות; המשתמש לוחץ על הכפתור הכחול בכל משפט", left);
             return r;
         }
 
@@ -1032,13 +1029,12 @@ namespace SubtitleStudio
             bool all = UntimedCount() == 0;
             if (all && !c.Bool("retime_all", false))
             {
-                r["error"] = "כל הכתוביות כבר מתוזמנות. לתזמן מחדש את כולן רק אם המשתמש ביקש - retime_all=true";
+                r["error"] = Lang.T("כל הכתוביות כבר מתוזמנות. לתזמן מחדש את כולן רק אם המשתמש ביקש - retime_all=true");
                 return r;
             }
-            AutoTime.Result res = RunAutoTime(all, "תזמון אוטומטי מהצ'אט");
-            if (res.Timed == 0) { r["error"] = res.Error ?? "לא נמצא דיבור ברור"; return r; }
-            r["done"] = "תוזמנו " + res.Timed + " כתוביות לפי השתיקות בסרט. " +
-                        "כדאי שהמשתמש יעבור ויבדוק; Ctrl+Z מבטל";
+            AutoTime.Result res = RunAutoTime(all, Lang.T("תזמון אוטומטי מהצ'אט"));
+            if (res.Timed == 0) { r["error"] = res.Error ?? Lang.T("לא נמצא דיבור ברור"); return r; }
+            r["done"] = Lang.F("תוזמנו {0} כתוביות לפי השתיקות בסרט. כדאי שהמשתמש יעבור ויבדוק; Ctrl+Z מבטל", res.Timed);
             return r;
         }
 
@@ -1047,18 +1043,17 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             string[] why = SceneSnapBlocker();
             if (why != null) { r["error"] = why[1]; return r; }
-            if (!EnsureSceneCuts()) { r["error"] = "איתור מעברי הסצנה בוטל או נכשל"; return r; }
+            if (!EnsureSceneCuts()) { r["error"] = Lang.T("איתור מעברי הסצנה בוטל או נכשל"); return r; }
             r["scene_cuts"] = _cuts.Count;
             if (_cuts.Count == 0)
             {
-                r["done"] = "לא נמצאו מעברי סצנה - הסרט מצולם ברצף. לא שונה כלום";
+                r["done"] = Lang.T("לא נמצאו מעברי סצנה - הסרט מצולם ברצף. לא שונה כלום");
                 return r;
             }
             SceneCuts.SnapResult s = ApplySceneSnap();
             r["done"] = s.Cues == 0
-                ? "נמצאו " + _cuts.Count + " מעברי סצנה, וכל הכתוביות כבר מסודרות ביחס אליהם. לא שונה כלום"
-                : "הוצמדו " + s.Cues + " כתוביות (" + s.Starts + " התחלות, " + s.Ends + " סופים) ל-" +
-                  _cuts.Count + " מעברי סצנה. הקווים הדקים על הציר מסמנים אותם";
+                ? Lang.F("נמצאו {0} מעברי סצנה, וכל הכתוביות כבר מסודרות ביחס אליהם. לא שונה כלום", _cuts.Count)
+                : Lang.F("הוצמדו {0} כתוביות ({1} התחלות, {2} סופים) ל-{3} מעברי סצנה. הקווים הדקים על הציר מסמנים אותם", s.Cues, s.Starts, s.Ends, _cuts.Count);
             return r;
         }
 
