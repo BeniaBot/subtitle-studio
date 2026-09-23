@@ -8,7 +8,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $src  = Join-Path $root 'src'
 $out  = Join-Path $root 'build\strings.tsv'
 
-$heb = [regex]'[֐-׿]'
+$heb = [regex]'[\u0590-\u05FF]'
 
 # Walk the file as a tiny C# lexer: we must know whether a quote opens a string
 # or sits inside a comment, and whether the string is verbatim (@"..").
@@ -112,13 +112,18 @@ function Scan([string]$text)
 }
 
 # What is this string for? Only "ui" needs translating.
-function Classify([string]$ctx, [string]$file)
+function Classify([string]$ctx, [string]$file, [string]$before)
 {
+    # From 0.8.1 the rule is exact: a string is translated when, and only when,
+    # it is the first argument of Lang.T( or Lang.F(. Everything else - prompts
+    # for the model, log lines, data - stays out of the table.
+    if ($file -match '^Installer\\')                             { return 'installer' }
+    if ($before -match 'Lang\.[TF]\(\s*$')                       { return 'ui' }
     if ($ctx -match 'Ai\.Log\s*\(|\bDbg\s*\(|Log\s*\(\s*$')     { return 'log' }
     if ($ctx -match 'const\s+string')                            { return 'const' }
     if ($ctx -match '^\s*(case|default)\b')                      { return 'switch' }
     if ($file -match 'AssemblyInfo')                             { return 'meta' }
-    return 'ui'
+    return 'raw'
 }
 
 $rows = New-Object System.Collections.ArrayList
@@ -134,10 +139,12 @@ foreach ($f in $files)
         $ctx = ''
         if ($li -ge 0 -and $li -lt $lines.Length) { $ctx = ($lines[$li] -replace "`r", '').Trim() }
         $rel = $f.FullName.Substring($src.Length + 1)
+        $b0 = [Math]::Max(0, [int]$s.Start - 40)
+        $before = $text.Substring($b0, [int]$s.Start - $b0)
         [void]$rows.Add([PSCustomObject]@{
             File = $rel
             Line = $s.Line
-            Kind = (Classify $ctx $rel)
+            Kind = (Classify $ctx $rel $before)
             Text = $s.Text
             Ctx  = $ctx
         })
