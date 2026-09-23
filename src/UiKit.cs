@@ -603,7 +603,61 @@ namespace SubtitleStudio
             t.InitialDelay = 400;
             t.ReshowDelay = 120;
             t.AutoPopDelay = 12000;
+            // **מצויר בעצמנו.** הרמז של ווינדוס הוא מלבן אפור בגופן המערכת - הדבר
+            // הכי מיושן במסך, והוא קופץ מעל כל כפתור. כאן: המשטח, הגופן והכיוון שלנו,
+            // ובווינדוס 11 פינות מעוגלות וקו מתאר דרך DWM.
+            t.OwnerDraw = true;
+            t.Popup += TipPopup;
+            t.Draw += TipDraw;
             return t;
+        }
+
+        private static readonly System.Reflection.PropertyInfo TipHandle =
+            typeof(ToolTip).GetProperty("Handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        private static bool _tipFramed;
+
+        private static Font TipFont { get { return Theme.F(9.5f); } }
+        private static int TipPadX { get { return Theme.S(11); } }
+        private static int TipPadY { get { return Theme.S(7); } }
+
+        private static TextFormatFlags TipFlags
+        {
+            get
+            {
+                TextFormatFlags f = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak;
+                if (Lang.Rtl) f |= TextFormatFlags.RightToLeft | TextFormatFlags.Right;
+                return f;
+            }
+        }
+
+        private static Color TipBack { get { return Theme.Dark ? Theme.Mix(Theme.PanelAlt, Color.White, 0.035f) : Color.White; } }
+        private static Color TipRim { get { return Theme.Dark ? Theme.Mix(TipBack, Color.White, 0.14f) : Theme.Mix(Color.White, Color.Black, 0.16f); } }
+
+        private static void TipPopup(object sender, PopupEventArgs e)
+        {
+            ToolTip t = (ToolTip)sender;
+            string text = e.AssociatedControl != null ? t.GetToolTip(e.AssociatedControl) : "";
+            if (string.IsNullOrEmpty(text)) { e.Cancel = true; return; }
+            Size s = TextRenderer.MeasureText(text, TipFont, new Size(Theme.S(340), int.MaxValue), TipFlags);
+            e.ToolTipSize = new Size(s.Width + TipPadX * 2 + 1, s.Height + TipPadY * 2);
+            try
+            {
+                IntPtr h = TipHandle != null ? (IntPtr)TipHandle.GetValue(t, null) : IntPtr.Zero;
+                if (h != IntPtr.Zero) _tipFramed = Native.SetPopupFrame(h, TipRim);
+            }
+            catch { _tipFramed = false; }
+        }
+
+        private static void TipDraw(object sender, DrawToolTipEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            Rectangle b = e.Bounds;
+            using (SolidBrush bg = new SolidBrush(TipBack)) g.FillRectangle(bg, b);
+            // בווינדוס 10 אין קו מתאר מ-DWM - מציירים אחד, חד
+            if (!_tipFramed)
+                using (Pen p = new Pen(TipRim)) g.DrawRectangle(p, b.X, b.Y, b.Width - 1, b.Height - 1);
+            Rectangle tr = new Rectangle(b.X + TipPadX, b.Y + TipPadY, b.Width - TipPadX * 2, b.Height - TipPadY * 2);
+            TextRenderer.DrawText(g, e.ToolTipText, TipFont, tr, Theme.Text, TipFlags);
         }
 
         public static Btn Button(string text, Ico icon, BtnKind kind, int w, int h, EventHandler onClick)
