@@ -10,7 +10,7 @@ $expect = [ordered]@{
     'logic' = 177; 'autotime' = 21; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 27; 'ui' = 45; 'layout' = 95; 'project' = 105; 'screens' = 32
     'fuzz' = 11; 'long' = 15; 'stt' = 65; 'errors' = 36; 'buttons' = 10
-    'source' = 4; 'qa' = 60; 'spell' = 59; 'release' = 42; 'settings' = 9
+    'source' = 7; 'qa' = 60; 'spell' = 59; 'release' = 42; 'settings' = 9
 }
 $names = @($expect.Keys)
 if ($Only -ne '') { $names = @($Only -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) }

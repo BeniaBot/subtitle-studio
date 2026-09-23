@@ -10,7 +10,8 @@
 #     הוצג ״תורגמו מתוך 40 5 כתוביות״ - בכל תרגום, מאז שהחלון נכתב.
 #  3. **גודל קובץ בתוך משפט עברי בלי Ltr.** ‏״1.2 MB מתוך 37 MB״ הוצג
 #     ״MB 37 מתוך MB 1.2״ בחלון ההורדה של העדכון.
-# צפוי: 4 בדיקות.
+# 5-7 (0.8.1): שכבת השפה - תבניות Lang.F, טקסט כתוב בכל קריאה, וטבלת התרגום.
+# צפוי: 7 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $pass = 0; $fail = 0
@@ -85,6 +86,94 @@ foreach ($f in $cs) {
     }
 }
 Check 'גודל קובץ בתוך משפט עברי עטוף ב-Theme.Ltr (״MB 37״ מתהפך)' ($bad.Count -eq 0) (Lines $bad)
+
+# ---- 5-7. שכבת השפה ----
+# ‏Lang.F שנכשל ב-string.Format לא מפיל את התוכנה: הוא מחזיר את התבנית כמו שהיא,
+# עם ״{1}״ באמצע המשפט. כלומר באג שעובר בשקט - לכן הוא נבדק כאן, על הטקסט.
+Add-Type @'
+using System; using System.Collections.Generic; using System.Text.RegularExpressions;
+public static class LangScan {
+  public class Call { public int Line; public char Kind; public bool Literal; public string Template; public int Args; }
+  // every Lang.T( / Lang.F( with its first argument and the number of arguments after it
+  public static List<Call> Find(string t) {
+    var r = new List<Call>();
+    int i = 0;
+    while ((i = t.IndexOf("Lang.", i, StringComparison.Ordinal)) >= 0) {
+      int p = i + 5;
+      if (p + 1 >= t.Length || (t[p] != 'T' && t[p] != 'F') || t[p + 1] != '(' || (i > 0 && (char.IsLetterOrDigit(t[i - 1]) || t[i - 1] == '.'))) { i = p; continue; }
+      var c = new Call { Kind = t[p], Line = 1 };
+      for (int k = 0; k < i; k++) if (t[k] == '\n') c.Line++;
+      int q = p + 2;
+      while (q < t.Length && char.IsWhiteSpace(t[q])) q++;
+      c.Literal = q < t.Length && t[q] == '"';
+      int depth = 1, args = 0; bool first = true; var sb = new System.Text.StringBuilder();
+      for (int k = q; k < t.Length && depth > 0; k++) {
+        char ch = t[k];
+        if (ch == '"' && !(k > 0 && t[k - 1] == '@')) {
+          int s = k + 1; k++;
+          while (k < t.Length && t[k] != '"') { if (t[k] == '\\') k++; k++; }
+          if (first && depth == 1 && c.Template == null) c.Template = t.Substring(s, k - s);
+          continue;
+        }
+        if (ch == '\'') { k++; while (k < t.Length && t[k] != '\'') { if (t[k] == '\\') k++; k++; } continue; }
+        if (ch == '(' || ch == '[' || ch == '{') depth++;
+        else if (ch == ')' || ch == ']' || ch == '}') depth--;
+        else if (ch == ',' && depth == 1) { args++; first = false; }
+      }
+      c.Args = args;
+      r.Add(c);
+      i = p;
+    }
+    return r;
+  }
+  // the {n} indexes a format string uses, or null if string.Format would throw on it
+  public static SortedSet<int> Holes(string f) {
+    var s = new SortedSet<int>();
+    for (int i = 0; i < f.Length; i++) {
+      if (f[i] == '{') {
+        if (i + 1 < f.Length && f[i + 1] == '{') { i++; continue; }
+        int e = f.IndexOf('}', i);
+        if (e < 0) return null;
+        Match m = Regex.Match(f.Substring(i + 1, e - i - 1), @"^(\d+)(,-?\d+)?(:[^{}]*)?$");
+        if (!m.Success) return null;
+        s.Add(int.Parse(m.Groups[1].Value)); i = e;
+      }
+      else if (f[i] == '}') { if (i + 1 < f.Length && f[i + 1] == '}') { i++; continue; } return null; }
+    }
+    return s;
+  }
+}
+'@
+$badF = @(); $badLit = @()
+foreach ($f in $cs) {
+    if ($f.Name -eq 'Lang.cs' -or $f.Name -eq 'LangEn.cs') { continue }
+    $t = [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8)
+    foreach ($c in [LangScan]::Find($t)) {
+        if (-not $c.Literal) { $badLit += ('{0}:{1}  Lang.{2}(...)' -f $f.Name, $c.Line, $c.Kind); continue }
+        if ($c.Kind -ne [char]'F') { continue }
+        $h = [LangScan]::Holes($c.Template)
+        if ($null -eq $h) { $badF += ('{0}:{1}  תבנית שבורה: {2}' -f $f.Name, $c.Line, $c.Template); continue }
+        $need = if ($h.Count -gt 0) { $h.Max + 1 } else { 0 }
+        if ($need -ne $c.Args -or $h.Count -ne $need) { $badF += ('{0}:{1}  {2} ערכים, {3} מקומות: {4}' -f $f.Name, $c.Line, $c.Args, $need, $c.Template) }
+    }
+}
+Check 'כל Lang.F מקבל ערך לכל {n} בתבנית, ואף אחד מיותר' ($badF.Count -eq 0) (Lines $badF)
+Check 'Lang.T ו-Lang.F מקבלים טקסט כתוב, שנכנס לטבלת התרגום' ($badLit.Count -eq 0) (Lines $badLit)
+
+$tsv = Join-Path $root 'build\lang\en.tsv'
+$bad = @()
+if (Test-Path $tsv) {
+    foreach ($line in [IO.File]::ReadAllLines($tsv, [Text.Encoding]::UTF8)) {
+        if ($line.StartsWith('#') -or $line.Trim().Length -eq 0) { continue }
+        $p = $line -split "`t", 2
+        if ($p.Length -lt 2 -or $p[1].Trim().Length -eq 0) { continue }
+        $a = [LangScan]::Holes($p[0]); $b = [LangScan]::Holes($p[1])
+        $sa = if ($a) { ($a | ForEach-Object { $_ }) -join ',' } else { 'x' }
+        $sb = if ($b) { ($b | ForEach-Object { $_ }) -join ',' } else { 'x' }
+        if ($null -eq $a -or $null -eq $b -or $sa -ne $sb) { $bad += ('{0}  ->  {1}' -f $p[0], $p[1]) }
+    }
+}
+Check 'בטבלת התרגום, לאנגלית אותם {n} כמו לעברית' ($bad.Count -eq 0) (Lines $bad)
 
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
