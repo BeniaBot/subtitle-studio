@@ -376,7 +376,8 @@ namespace SubtitleStudio
                     if (col.A == 255)
                         TextRenderer.DrawText(g, s[i].ToString(), f, cell, col,
                             TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine |
-                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                            TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping);
                     else
                         Str(g, s[i].ToString(), f, col, cell, SfCenter);
                 }
@@ -440,6 +441,10 @@ namespace SubtitleStudio
                     if (sf.LineAlignment == StringAlignment.Center) fl |= TextFormatFlags.VerticalCenter;
                 }
                 else fl |= TextFormatFlags.WordBreak;
+                // מנוע ה-GDI מתעלם כברירת מחדל מהזזה ומחיתוך של ה-Graphics. כשפקד
+                // מבקש מההורה לצייר לתוך הרקע שלו (SurfaceControl), הטקסט של ההורה
+                // נחת במקום הלא נכון - כותרת החלון הופיעה בתוך כפתור (נמצא בצילום).
+                fl |= TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping;
                 TextRenderer.DrawText(g, s, f, Rectangle.Round(r), c, fl);
                 return;
             }

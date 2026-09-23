@@ -8,7 +8,38 @@ namespace SubtitleStudio
     internal enum BtnKind { Primary, Ghost, Subtle, Danger, Tool }
 
     /// <summary>כפתור מצויר עם אייקון + טקסט.</summary>
-    internal class Btn : Control
+    /// <summary>פקד **שקוף באמת**: הרקע שלו הוא מה שההורה מצייר מתחתיו.
+    ///
+    /// ב-WinForms ״שקוף״ הוא צבע רקע אחיד (BackColor). כפתור מעוגל על משטח
+    /// בצבע אחר השאיר בכל פינה ריבוע קטן בצבע החלון, וכפתור שקוף על פס כותרת
+    /// נראה כריבוע כהה סביב האייקון (ה-× בכל חלון, כפתורי חלון העוזר). במקום
+    /// לתקן כל כפתור בנפרד: ההורה מצייר את עצמו לתוך הרקע של הפקד, והפקד מעליו.</summary>
+    internal class SurfaceControl : Control
+    {
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            Control p = Parent;
+            if (p == null) { base.OnPaintBackground(e); return; }
+            System.Drawing.Drawing2D.GraphicsState st = e.Graphics.Save();
+            try
+            {
+                e.Graphics.TranslateTransform(-Left, -Top);
+                // בלי using: PaintEventArgs שנבנה מ-Graphics קיים לא אמור לשחרר אותו
+                PaintEventArgs pe = new PaintEventArgs(e.Graphics, new Rectangle(Left, Top, Width, Height));
+                InvokePaintBackground(p, pe);
+                InvokePaint(p, pe);
+            }
+            catch
+            {
+                e.Graphics.Restore(st);
+                st = e.Graphics.Save();
+                using (SolidBrush b = new SolidBrush(BackColor)) e.Graphics.FillRectangle(b, ClientRectangle);
+            }
+            finally { e.Graphics.Restore(st); }
+        }
+    }
+
+    internal class Btn : SurfaceControl
     {
         public Ico Icon = Ico.None;
         public BtnKind Kind = BtnKind.Subtle;
@@ -260,7 +291,7 @@ namespace SubtitleStudio
     }
 
     /// <summary>מתג הפעלה/כיבוי.</summary>
-    internal class Toggle : Control
+    internal class Toggle : SurfaceControl
     {
         private bool _on;
         public event EventHandler CheckedChanged;
@@ -287,10 +318,6 @@ namespace SubtitleStudio
         protected override void OnMouseEnter(EventArgs e) { _hot.To(1); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { _hot.To(0); base.OnMouseLeave(e); }
 
-        protected override void OnPaintBackground(PaintEventArgs e)
-        {
-            using (SolidBrush b = new SolidBrush(BackColor)) e.Graphics.FillRectangle(b, ClientRectangle);
-        }
         protected override void OnClick(EventArgs e) { Checked = !Checked; base.OnClick(e); }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -322,7 +349,7 @@ namespace SubtitleStudio
     }
 
     /// <summary>סליידר ערכים.</summary>
-    internal class Slider : Control
+    internal class Slider : SurfaceControl
     {
         public double Min = 0, Max = 100, Value = 50, Step = 1;
         public string Suffix = "";
@@ -341,11 +368,6 @@ namespace SubtitleStudio
 
         protected override void OnMouseEnter(EventArgs e) { _hot.To(1); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { if (!_drag) _hot.To(0); base.OnMouseLeave(e); }
-
-        protected override void OnPaintBackground(PaintEventArgs e)
-        {
-            using (SolidBrush b = new SolidBrush(BackColor)) e.Graphics.FillRectangle(b, ClientRectangle);
-        }
 
         private int LabelW { get { return ShowValue ? Theme.S(54) : 0; } }
 
@@ -544,7 +566,7 @@ namespace SubtitleStudio
     }
 
     /// <summary>רשימה נפתחת מצוירת - נפתחת בתפריט בעיצוב התוכנה.</summary>
-    internal class Combo : Control
+    internal class Combo : SurfaceControl
     {
         public ComboItems Items = new ComboItems();
         private int _index = -1;
@@ -621,7 +643,6 @@ namespace SubtitleStudio
         {
             Graphics g = e.Graphics;
             Theme.Smooth(g);
-            using (SolidBrush b = new SolidBrush(BackColor)) g.FillRectangle(b, ClientRectangle);
             // בוחר הוא כפתור שפותח רשימה: משטח מורם כמו כפתור, וכשהרשימה פתוחה -
             // טבעת בצבע ההדגשה והחץ מתהפך למעלה
             RectangleF r = new RectangleF(0, 0, Width, Height);
