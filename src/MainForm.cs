@@ -486,7 +486,7 @@ namespace SubtitleStudio
                 SyncAfterDocChange();
                 _list.ScrollToCue(c);
                 _hintLbl.Text = "הכתובית הוזזה ל-" + Theme.Ltr(Tc.Short(c.Start)) + ".  לביטול - Ctrl+Z.";
-                _hintLbl.Invalidate();
+                _hintLbl.Flash();
             };
             _list.ContextRequested += delegate (object s, Point pt)
             {
@@ -640,7 +640,7 @@ namespace SubtitleStudio
             at = Math.Max(0, Math.Min(Speeds.Length - 1, at + dir));
             SetSpeed(Speeds[at]);
             _hintLbl.Text = "מהירות השמעה: " + Theme.Ltr(SpeedText(Speeds[at]));
-            _hintLbl.Invalidate();
+            _hintLbl.Flash();
         }
 
         /// <summary>בחלון צר אין מקום לשני זמנים - מציגים רק את המיקום.</summary>
@@ -1053,6 +1053,7 @@ namespace SubtitleStudio
                 _tl.Invalidate();
                 _video.Invalidate();
                 _hintLbl.Text = "הכתוביות תורגמו ל" + d.Lang + ". לביטול - Ctrl+Z.";
+                _hintLbl.Flash();
                 UpdateHint();
             }
             else
@@ -1082,6 +1083,7 @@ namespace SubtitleStudio
                     Formats.Save(sd.FileName, copy, Formats.FormatFromExt(sd.FileName), _style,
                         _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
                     _hintLbl.Text = "נשמר: " + Theme.FileName(System.IO.Path.GetFileName(sd.FileName));
+                    _hintLbl.Flash();
                 }
                 catch (Exception ex) { Ui.Error(this, "לא נשמר", ErrorText.Of(ex)); }
             }
@@ -1222,7 +1224,7 @@ namespace SubtitleStudio
         {
             _lastIssueHint = null;
             _hintLbl.Text = text;
-            _hintLbl.Invalidate();
+            _hintLbl.Flash();
         }
 
         private void ShowCueMenu(Control anchor)

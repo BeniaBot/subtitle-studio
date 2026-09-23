@@ -680,6 +680,17 @@ namespace SubtitleStudio
         /// <summary>שעון או מספר: ספרות ברוחב אחיד בגופן הממשק (`Theme.Num`),
         /// ומה שאחרי ״/״ מעומעם.</summary>
         public bool Numeric = false;
+        private Tween _flash;
+
+        /// <summary>הודעה חדשה: הטקסט מתבהר לרגע ונרגע תוך שנייה וחצי. בשורת המצב
+        /// הודעה כמו ״נשמר״ הופיעה עד 0.8.1 בלי שום סימן, וקל היה לפספס אותה.</summary>
+        public void Flash()
+        {
+            if (_flash == null) { _flash = new Tween(this); _flash.Ms = 1500; }
+            _flash.Snap(1f);
+            _flash.To(0f);
+            Invalidate();
+        }
 
         public Lbl()
         {
@@ -704,8 +715,10 @@ namespace SubtitleStudio
             sf.LineAlignment = Wrap ? StringAlignment.Near : StringAlignment.Center;
             if (Rtl) sf.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
             if (!Wrap) { sf.FormatFlags |= StringFormatFlags.NoWrap; sf.Trimming = StringTrimming.EllipsisCharacter; }
+            Color col = Color == System.Drawing.Color.Empty ? Theme.Text : Color;
+            if (_flash != null && _flash.Value > 0) col = Theme.Mix(col, Theme.Text, _flash.Eased);
             Theme.Str(e.Graphics, Text, Bold ? Theme.F(Font.SizeInPoints, FontStyle.Bold) : Font,
-                Color == System.Drawing.Color.Empty ? Theme.Text : Color, new RectangleF(0, 0, Width, Height), sf);
+                col, new RectangleF(0, 0, Width, Height), sf);
             sf.Dispose();
         }
     }
