@@ -94,17 +94,17 @@ namespace SubtitleStudio
             if (Menu && hasText)
             {
                 menuW = Theme.S(16);
-                Icons.Draw(g, Ico.ChevronDown, new RectangleF(Theme.S(8), (Height - menuW) / 2f, menuW, menuW),
+                Icons.Draw(g, Ico.ChevronDown, Theme.Mir(r, new RectangleF(Theme.S(8), (Height - menuW) / 2f, menuW, menuW)),
                     Theme.Mix(fg, Theme.Bg, 0.25f), 2f);
             }
             if (Swatch != Color.Empty)
             {
                 float sw = Theme.S(22);
-                RectangleF sr = new RectangleF(Width - pad - sw, (Height - sw) / 2f, sw, sw);
+                RectangleF sr = Theme.Mir(r, new RectangleF(Width - pad - sw, (Height - sw) / 2f, sw, sw));
                 Theme.FillRound(g, sr, Theme.S(5), Swatch);
                 Theme.DrawRound(g, sr, Theme.S(5), Theme.Mix(Swatch, Theme.Text, 0.5f), 1f);
-                RectangleF tr2 = new RectangleF(pad, 0, Width - pad * 2 - sw - Theme.S(8), Height);
-                Theme.Str(g, Text, Font, fg, tr2, Theme.SfRtl);
+                RectangleF tr2 = Theme.Mir(r, new RectangleF(pad, 0, Width - pad * 2 - sw - Theme.S(8), Height));
+                Theme.Str(g, Text, Font, fg, tr2, Theme.SfUi);
                 return;
             }
             // **ממורכז או צמוד לימין.** עד 0.7.2 כל כפתור הצמיד את התוכן לימין, וכל
@@ -131,10 +131,11 @@ namespace SubtitleStudio
             if (Icon != Ico.None)
             {
                 float isz = IconSize;
-                float ix = hasText ? right - isz : (Width - isz) / 2f;   // RTL: אייקון בימין
+                // מחושב בעברית (אייקון בימין) ומשתקף באנגלית לצד השני
+                float ix = hasText ? right - isz : (Width - isz) / 2f;
                 float iy = (Height - isz) / 2f;
                 if (Sub != null) iy = subTop + Theme.S(1);
-                Icons.Draw(g, Icon, new RectangleF(ix, iy, isz, isz), fg, 1.9f);
+                Icons.Draw(g, Icon, Theme.Mir(r, new RectangleF(ix, iy, isz, isz)), fg, 1.9f);
             }
 
             if (hasText)
@@ -144,11 +145,11 @@ namespace SubtitleStudio
                 RectangleF tr = new RectangleF(left, 0, textRight - left, Height);
                 if (Sub != null)
                 {
-                    Theme.Str(g, Text, Theme.UiBold, fg, new RectangleF(tr.X, subTop, tr.Width, Theme.S(19)), Theme.SfRtl);
+                    Theme.Str(g, Text, Theme.UiBold, fg, Theme.Mir(r, new RectangleF(tr.X, subTop, tr.Width, Theme.S(19))), Theme.SfUi);
                     Theme.Str(g, Sub, Theme.Small, Theme.Mix(fg, Theme.Bg, 0.35f),
-                        new RectangleF(tr.X, subTop + Theme.S(19), tr.Width, Theme.S(17)), Theme.SfRtl);
+                        Theme.Mir(r, new RectangleF(tr.X, subTop + Theme.S(19), tr.Width, Theme.S(17))), Theme.SfUi);
                 }
-                else Theme.Str(g, Text, Font, fg, tr, Theme.SfRtl);
+                else Theme.Str(g, Text, Font, fg, Theme.Mir(r, tr), Theme.SfUi);
             }
         }
     }

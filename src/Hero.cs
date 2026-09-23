@@ -40,7 +40,7 @@ namespace SubtitleStudio
             BackColor = Theme.Bg;
 
             _open = new Btn();
-            _open.Text = "עיון בקבצים";
+            _open.Text = Lang.T("עיון בקבצים");
             _open.Icon = Ico.Folder;
             _open.Kind = BtnKind.Primary;
             _open.Size = new Size(Theme.S(172), Theme.S(44));
@@ -50,7 +50,7 @@ namespace SubtitleStudio
 
             // שתי דרכי כניסה אמיתיות: להתחיל מסרט, או לתקן קובץ כתוביות קיים
             _openSubs = new Btn();
-            _openSubs.Text = "קובץ כתוביות";
+            _openSubs.Text = Lang.T("קובץ כתוביות");
             _openSubs.Icon = Ico.TextIcon;
             _openSubs.Kind = BtnKind.Subtle;
             _openSubs.Size = new Size(Theme.S(160), Theme.S(44));
@@ -135,9 +135,17 @@ namespace SubtitleStudio
             int x = (int)(z.X + (z.Width - total) / 2);
             // צמוד לתוכן ולא לתחתית, אחרת נפער חלל באמצע כשהאזור גבוה
             int y = (int)(z.Y + Theme.S(156));
-            // RTL: הכפתור הראשי מימין
-            _openSubs.Location = new Point(x, y);
-            _open.Location = new Point(x + _openSubs.Width + gap, y);
+            // הכפתור הראשי ראשון: בעברית מימין, באנגלית משמאל
+            if (Lang.Rtl)
+            {
+                _openSubs.Location = new Point(x, y);
+                _open.Location = new Point(x + _openSubs.Width + gap, y);
+            }
+            else
+            {
+                _open.Location = new Point(x, y);
+                _openSubs.Location = new Point(x + _open.Width + gap, y);
+            }
         }
 
         // ---------- עכבר ----------
@@ -156,9 +164,9 @@ namespace SubtitleStudio
                 Cursor = (h >= 0 || l >= 0) ? Cursors.Hand : Cursors.Default;
                 // בלי תוויות - ההסבר מגיע בריחוף
                 string tip = "";
-                if (l == 0) tip = "איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)";
-                else if (l == 1) tip = Theme.Dark ? "מעבר למצב בהיר" : "מעבר למצב כהה";
-                else if (l == 2) tip = "על התוכנה, מנוע הווידאו ועדכונים";
+                if (l == 0) tip = Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)");
+                else if (l == 1) tip = Lang.T(Theme.Dark ? "מעבר למצב בהיר" : "מעבר למצב כהה");
+                else if (l == 2) tip = Lang.T("על התוכנה, מנוע הווידאו ועדכונים");
                 Ui.Tip.SetToolTip(this, tip);
                 Invalidate();
             }
@@ -207,7 +215,7 @@ namespace SubtitleStudio
             int top = BlockTop;
 
             DrawTitle(g, top);
-            Theme.Str(g, "אולפן הכתוביות · ליצור, לתקן ולהטמיע כתוביות בעברית", Theme.F(11.5f), Theme.TextDim,
+            Theme.Str(g, Lang.T("אולפן הכתוביות · ליצור, לתקן ולהטמיע כתוביות בעברית"), Theme.F(11.5f), Theme.TextDim,
                 new RectangleF(0, top + Theme.S(46), Width, Theme.S(26)), Theme.SfCenter);
 
             // אזור הגרירה
@@ -226,7 +234,7 @@ namespace SubtitleStudio
             Icons.Draw(g, Ico.Upload,
                 new RectangleF(z.X + (z.Width - iconSize) / 2f, z.Y + Theme.S(30), iconSize, iconSize),
                 DropHover ? Theme.Accent : Theme.TextDim, 1.7f);
-            Theme.Str(g, "גררו לכאן סרט או קובץ כתוביות", Theme.F(14f, FontStyle.Bold), Theme.Text,
+            Theme.Str(g, Lang.T("גררו לכאן סרט או קובץ כתוביות"), Theme.F(14f, FontStyle.Bold), Theme.Text,
                 new RectangleF(z.X, z.Y + Theme.S(88), z.Width, Theme.S(30)), Theme.SfCenter);
             Theme.Str(g, "MP4 · MKV · AVI · MOV · MP3 · SRT · ASS · VTT", Theme.Small, Theme.TextFaint,
                 new RectangleF(z.X, z.Y + Theme.S(116), z.Width, Theme.S(20)), Theme.SfCenter);
@@ -236,24 +244,25 @@ namespace SubtitleStudio
             float colW = z.Width / 3f;
             for (int i = 0; i < 3; i++)
             {
-                float cx = z.Right - (i + 1) * colW;          // ימין לשמאל
+                // מחושב בעברית ומשתקף באנגלית - שלב 1 תמיד ראשון בכיוון הקריאה
+                float cx = z.Right - (i + 1) * colW;
                 float d = Theme.S(22);
-                RectangleF circle = new RectangleF(cx + colW - d - Theme.S(6), sy + Theme.S(2), d, d);
+                RectangleF circle = Theme.Mir(z, new RectangleF(cx + colW - d - Theme.S(6), sy + Theme.S(2), d, d));
                 using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Bg, Theme.Accent, 0.30f)))
                     g.FillEllipse(b, circle);
                 Theme.Str(g, (i + 1).ToString(), Theme.SmallBold, Theme.Accent, circle, Theme.SfCenter);
 
-                RectangleF tr = new RectangleF(cx + Theme.S(4), sy, colW - d - Theme.S(16), Theme.S(24));
-                Theme.Str(g, Steps[i][0], Theme.UiBold, Theme.Text, tr, Theme.SfRtl);
-                Theme.Str(g, Steps[i][1], Theme.Small, Theme.TextFaint,
-                    new RectangleF(cx + Theme.S(4), sy + Theme.S(24), colW - Theme.S(14), Theme.S(36)), WrapRtl);
+                RectangleF tr = Theme.Mir(z, new RectangleF(cx + Theme.S(4), sy, colW - d - Theme.S(16), Theme.S(24)));
+                Theme.Str(g, Lang.T(Steps[i][0]), Theme.UiBold, Theme.Text, tr, Theme.SfUi);
+                Theme.Str(g, Lang.T(Steps[i][1]), Theme.Small, Theme.TextFaint,
+                    Theme.Mir(z, new RectangleF(cx + Theme.S(4), sy + Theme.S(24), colW - Theme.S(14), Theme.S(36))), WrapUi);
             }
 
             // קבצים אחרונים
             if (RecentCount > 0)
             {
-                Theme.Str(g, "נפתחו לאחרונה", Theme.SmallBold, Theme.TextDim,
-                    new RectangleF(z.X + Theme.S(6), RecentTop - Theme.S(22), z.Width, Theme.S(20)), Theme.SfRtl);
+                Theme.Str(g, Lang.T("נפתחו לאחרונה"), Theme.SmallBold, Theme.TextDim,
+                    new RectangleF(z.X + Theme.S(6), RecentTop - Theme.S(22), z.Width - Theme.S(12), Theme.S(20)), Theme.SfUi);
 
                 for (int i = 0; i < RecentCount; i++)
                 {
@@ -285,15 +294,15 @@ namespace SubtitleStudio
                     else if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".txt") ic = Ico.TextIcon;
                     else if (ext == ".mp3" || ext == ".wav" || ext == ".m4a" || ext == ".flac") ic = Ico.Speaker;
 
-                    Icons.Draw(g, ic, new RectangleF(r.Right - Theme.S(26), r.Y + (r.Height - Theme.S(16)) / 2, Theme.S(16), Theme.S(16)),
+                    Icons.Draw(g, ic, Theme.Mir(r, new RectangleF(r.Right - Theme.S(26), r.Y + (r.Height - Theme.S(16)) / 2, Theme.S(16), Theme.S(16))),
                         exists ? (hover ? Theme.Accent : Theme.TextDim) : Theme.TextFaint, 1.8f);
                     string shown = Theme.Ltr(name);
                     float nameW = Math.Min(Theme.Measure(g, shown, Theme.Ui).Width + Theme.S(6), r.Width * 0.5f);
                     float nameX = r.Right - Theme.S(34) - nameW;
                     Theme.Str(g, shown, Theme.Ui, exists ? Theme.Text : Theme.TextFaint,
-                        new RectangleF(nameX, r.Y, nameW, r.Height), Theme.SfRtl);
-                    Theme.Str(g, exists ? "· " + Theme.Ltr(dir) : "· הקובץ לא נמצא", Theme.Small, Theme.TextFaint,
-                        new RectangleF(r.X + Theme.S(8), r.Y, nameX - r.X - Theme.S(14), r.Height), Theme.SfRtl);
+                        Theme.Mir(r, new RectangleF(nameX, r.Y, nameW, r.Height)), Theme.SfUi);
+                    Theme.Str(g, exists ? "· " + Theme.Ltr(dir) : Lang.T("· הקובץ לא נמצא"), Theme.Small, Theme.TextFaint,
+                        Theme.Mir(r, new RectangleF(r.X + Theme.S(8), r.Y, nameX - r.X - Theme.S(14), r.Height)), Theme.SfUi);
                 }
             }
 
@@ -336,7 +345,7 @@ namespace SubtitleStudio
             float x = Theme.S(18);
             for (int i = 0; i < icons.Length; i++)
             {
-                RectangleF r = new RectangleF(x, y - Theme.S(6), d, d);
+                RectangleF r = Theme.Mir(new RectangleF(0, 0, Width, Height), new RectangleF(x, y - Theme.S(6), d, d));
                 _links[i] = r;
                 bool hover = i == _hoverLink;
                 // צ׳יפ ממוסגר, כמו בהשראה - קריא כלחיץ גם בלי ריחוף
@@ -350,13 +359,16 @@ namespace SubtitleStudio
             }
         }
 
-        private static readonly StringFormat WrapRtl = MakeWrap();
-        private static StringFormat MakeWrap()
+        private static readonly StringFormat WrapHe = MakeWrap(true);
+        private static readonly StringFormat WrapEn = MakeWrap(false);
+        private static StringFormat WrapUi { get { return Lang.Rtl ? WrapHe : WrapEn; } }
+
+        private static StringFormat MakeWrap(bool rtl)
         {
             StringFormat f = new StringFormat(StringFormat.GenericTypographic);
             f.Alignment = StringAlignment.Near;
             f.LineAlignment = StringAlignment.Near;
-            f.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
+            if (rtl) f.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
             f.Trimming = StringTrimming.EllipsisCharacter;
             return f;
         }
