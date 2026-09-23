@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 59 בדיקות.
+# צפוי: 65 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -280,6 +280,23 @@ $r = Parse '[{"t":"שורה בלי זמן"},{"s":"לא זמן","t":"גם זו"}]
 Check 'שורה בלי זמן לא נזרקת - נשמרת בלי זמן' ($r.Count -eq 2 -and -not $r[0].HasTime -and -not $r[1].HasTime) ('count=' + $r.Count)
 $r = Parse '[{"s":4,"t":"בלי סוף"}]'
 Check 'בלי זמן סיום: לפי אורך הקריאה, לא 0' ($r[0].End -gt $r[0].Start + 1) ('end=' + $r[0].End)
+
+# הקטע 0:55-1:55 של אותו קליפ חזר (בשחזור) כשורה אחת: ״היי יא יא יא...״ 123 אלף
+# תווים, והתשובה נחתכה בתקרת האורך באמצע מחרוזת. כל הקטע נזרק.
+Write-Host 'לולאה ותשובה חתוכה'
+$unloop = $aiT.GetMethod('Unloop', $SF)
+$u = [string]$unloop.Invoke($null, @([string](('היי ' + (('יא ' * 900).Trim())))))
+Check 'מילה שחוזרת 900 פעם מתקצרת לארבע' ($u -eq 'היי יא יא יא יא') $u
+$u = [string]$unloop.Invoke($null, @([string]'מכור עם השם, השם, השם, השם'))
+Check 'חזרה קצרה אמיתית נשארת כמו שהיא' ($u -eq 'מכור עם השם, השם, השם, השם') $u
+$salv = $aiT.GetMethod('Salvage', $SF)
+$cut = '[{"s":1.0,"e":3.0,"t":"אחת"},{"s":4.0,"e":6.0,"t":"שתיים"},{"s":7.0,"e":9.0,"t":"שלוש יא יא יא יא יא יא יא יא'
+$r = $salv.Invoke($null, @([string]$cut))
+Check 'תשובה שנחתכה: שתי השורות השלמות נשמרות' ($r -ne $null -and $r.Count -ge 2 -and $r[0].Text -eq 'אחת' -and $r[1].Text -eq 'שתיים') ('count=' + $(if ($r) { $r.Count } else { 0 }))
+Check 'והשורה החלקית נשמרת עם הזמן שלה, מקוצרת' ($r.Count -eq 3 -and $r[2].Start -eq 7 -and $r[2].Text -eq 'שלוש יא יא יא יא') $(if ($r -and $r.Count -eq 3) { $r[2].Text } else { '' })
+$loopT = $aiT.GetMethod('Looping', $SF)
+Check 'לולאה מזוהה (ומפעילה שליחה חוזרת)' ([bool]$loopT.Invoke($null, (Pack (Parse ('[{"s":0,"e":18.9,"t":"היי ' + (('יא ' * 60).Trim()) + '"}]'))))) ''
+Check 'שורה רגילה לא נחשבת לולאה' (-not [bool]$loopT.Invoke($null, (Pack (Parse '[{"s":0,"e":3,"t":"מכור עם השם, השם, השם"}]')))) ''
 
 Write-Host 'הרכבת קטע'
 $trT = T 'Transcribe'

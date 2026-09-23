@@ -845,8 +845,107 @@ namespace SubtitleStudio
             AiReply r = Send(sys, h, null, true);
             LastRaw = r.Ok ? r.Text : ("ERROR: " + r.Error);
             if (!r.Ok) { error = r.Error; return null; }
+            List<TrLine> lines = ParseTrLines(r.Text, out error);
 
-            return ParseTrLines(r.Text, out error);
+            // **לולאה של המודל.** בקליפ של שיר (23.9) הקטע 0:55-1:55 חזר כשורה אחת:
+            // ״היי יא יא יא...״ 123 אלף תווים, עד שהתשובה נחתכה בתקרת האורך באמצע
+            // מחרוזת - והקטע כולו נזרק כ״פורמט לא צפוי״. שולחים שוב פעם אחת, עם
+            // אזהרה מפורשת; ואם גם זה לא עוזר - מצילים מה שאפשר, מקוצר.
+            if (lines == null || r.Finish == "MAX_TOKENS" || Looping(lines))
+            {
+                System.Threading.Thread.Sleep(4000);
+                AiReply r2 = Send(sys + LoopWarning, h, null, true);
+                string e2 = null;
+                List<TrLine> l2 = r2.Ok ? ParseTrLines(r2.Text, out e2) : null;
+                if (l2 != null && r2.Finish != "MAX_TOKENS" && !Looping(l2))
+                {
+                    lines = l2; error = null; LastRaw = r2.Text;
+                }
+                else
+                {
+                    if (lines == null) lines = Salvage(r.Text);
+                    if ((lines == null || lines.Count == 0) && r2.Ok) lines = l2 ?? Salvage(r2.Text);
+                    if (lines != null && lines.Count > 0) error = null;
+                }
+            }
+            if (lines == null) return null;
+            foreach (TrLine ln in lines) ln.Text = Unloop(ln.Text);
+            return lines;
+        }
+
+        private const string LoopWarning =
+            "\nזהירות: בניסיון הקודם נוצרה לולאה - אותה מילה חזרה אלפי פעמים והתשובה נחתכה. " +
+            "אם יש שירה חוזרת (למשל ״יא יא יא״), כתוב אותה פעם אחת, " +
+            "ואף פעם אל תחזור על אותה מילה יותר מארבע פעמים ברצף.";
+
+        /// <summary>מקצר מילה שחוזרת ברצף יותר מארבע פעמים לארבע בלבד. ״יא יא יא״ של
+        /// אלף פעמים הוא לולאה של המודל, לא מה ששרו.</summary>
+        internal static string Unloop(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            string[] w = text.Split(' ');
+            if (w.Length < 6) return text;
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            string prev = null; int run = 0;
+            foreach (string word in w)
+            {
+                string k = word.Trim(',', '.', '!', '?', ';', ':').Trim();
+                if (k.Length > 0 && k == prev) run++; else { run = 1; prev = k; }
+                if (run > 4) continue;
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(word);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>האם בשורות יש לולאה: מילה שחוזרת ברצף יותר מ-12 פעמים.</summary>
+        internal static bool Looping(List<TrLine> lines)
+        {
+            if (lines == null) return false;
+            foreach (TrLine ln in lines)
+            {
+                if (ln.Text == null || ln.Text.Length < 40) continue;
+                if (ln.Text.Length - Unloop(ln.Text).Length > ln.Text.Length / 2) return true;
+            }
+            return false;
+        }
+
+        /// <summary>תשובה שנחתכה באמצע (תקרת אורך): כל השורות השלמות שלפני החיתוך,
+        /// ועוד השורה האחרונה החלקית אם יש לה זמן וטקסט. ‏null אם אין כלום.</summary>
+        internal static List<TrLine> Salvage(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            int a = raw.IndexOf('[');
+            if (a < 0) return null;
+            List<TrLine> outp = null;
+            // מהסוף אחורה: הסוגר ״}״ האחרון שאחריו אפשר לסגור את המערך
+            int tries = 0;
+            for (int i = raw.LastIndexOf('}'); i > a && tries < 60; i = raw.LastIndexOf('}', i - 1), tries++)
+            {
+                string e;
+                List<TrLine> l = ParseTrLines(raw.Substring(a, i - a + 1) + "]", out e);
+                if (l != null) { outp = l; break; }
+            }
+            if (outp == null) outp = new List<TrLine>();
+            // השורה החלקית שאחרי הסוגר האחרון
+            int last = raw.LastIndexOf('{');
+            if (last > a && raw.IndexOf('}', last) < 0)
+            {
+                string tail = raw.Substring(last);
+                System.Text.RegularExpressions.Match ms = System.Text.RegularExpressions.Regex.Match(tail, "\"(?:s|start)\"\\s*:\\s*\"?([0-9:.]+(?:,[0-9]+)?)");
+                System.Text.RegularExpressions.Match me = System.Text.RegularExpressions.Regex.Match(tail, "\"(?:e|end)\"\\s*:\\s*\"?([0-9:.]+(?:,[0-9]+)?)");
+                System.Text.RegularExpressions.Match mt = System.Text.RegularExpressions.Regex.Match(tail, "\"(?:t|text)\"\\s*:\\s*\"([^\"]*)");
+                if (mt.Success && mt.Groups[1].Value.Trim().Length > 0)
+                {
+                    TrLine ln = new TrLine();
+                    ln.Start = ms.Success ? ParseTime(ms.Groups[1].Value) : double.NaN;
+                    ln.End = me.Success ? ParseTime(me.Groups[1].Value) : double.NaN;
+                    ln.Text = Unloop(mt.Groups[1].Value.Trim());
+                    if (ln.HasTime && (double.IsNaN(ln.End) || ln.End <= ln.Start)) ln.End = ln.Start + ReadingSec(ln.Text);
+                    outp.Add(ln);
+                }
+            }
+            return outp.Count > 0 ? outp : null;
         }
 
         /// <summary>מפרש את התשובה של התמלול לשורות.
