@@ -24,6 +24,8 @@ namespace SubtitleStudio
         private readonly Btn _open, _openSubs;
         private int _hoverRecent = -1;
         private int _hoverLink = -1;
+        // לכל שבב ריחוף משלו, כדי שהעכבר שעובר ביניהם ״יזרום״ ולא יקפוץ
+        private readonly Tween[] _linkHot = new Tween[3];
         private readonly RectangleF[] _links = new RectangleF[3];
 
         private static readonly string[][] Steps = new string[][]
@@ -57,6 +59,8 @@ namespace SubtitleStudio
             _openSubs.Radius = Theme.S(10);
             _openSubs.Click += delegate { if (OpenSubsClick != null) OpenSubsClick(this, EventArgs.Empty); };
             Controls.Add(_openSubs);
+
+            for (int i = 0; i < _linkHot.Length; i++) _linkHot[i] = new Tween(this);
         }
 
         // ---------- מידות ----------
@@ -161,6 +165,7 @@ namespace SubtitleStudio
             {
                 _hoverRecent = h;
                 _hoverLink = l;
+                for (int i = 0; i < _linkHot.Length; i++) _linkHot[i].To(i == l ? 1f : 0f);
                 Cursor = (h >= 0 || l >= 0) ? Cursors.Hand : Cursors.Default;
                 // בלי תוויות - ההסבר מגיע בריחוף
                 string tip = "";
@@ -176,6 +181,7 @@ namespace SubtitleStudio
         protected override void OnMouseLeave(EventArgs e)
         {
             _hoverLink = -1;
+            for (int i = 0; i < _linkHot.Length; i++) _linkHot[i].To(0f);
             _hoverRecent = -1;
             Cursor = Cursors.Default;
             Invalidate();
@@ -347,14 +353,16 @@ namespace SubtitleStudio
             {
                 RectangleF r = Theme.Mir(new RectangleF(0, 0, Width, Height), new RectangleF(x, y - Theme.S(6), d, d));
                 _links[i] = r;
-                bool hover = i == _hoverLink;
-                // צ׳יפ ממוסגר, כמו בהשראה - קריא כלחיץ גם בלי ריחוף
-                Theme.FillRound(g, r, Theme.S(11), hover ? Theme.Mix(Theme.Bg, Theme.Hover, 0.9f) : Theme.Panel);
-                Theme.DrawRound(g, new RectangleF(r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1),
-                    Theme.S(11), hover ? Theme.Accent : Theme.Border, 1f);
+                float hot = _linkHot[i].Eased;
+                float rad = Theme.S(11);
+                // משטח מורם וקו מתאר חד. עד 0.8.1 הקו הוזז חצי פיקסל פעמיים (כאן
+                // וב-DrawRound), ישב בין שני פיקסלים ונמרח - זה ה״זול״ שבנימין ראה.
+                Surface.Raised(g, r, rad, Theme.Panel, hot, 0f, 1f);
+                if (hot > 0.01f)
+                    Surface.Rim(g, r, rad, Theme.Mix(Theme.Panel, Theme.Accent, 0.75f * hot), Theme.Mix(Theme.Panel, Theme.Accent, 0.45f * hot));
                 float ic = Theme.S(19);
-                Icons.Draw(g, icons[i], new RectangleF(r.X + (d - ic) / 2, r.Y + (d - ic) / 2, ic, ic),
-                    hover ? Theme.Accent : Theme.TextDim, 1.9f);
+                Color icoC = Theme.Mix(Theme.Mix(Theme.TextDim, Theme.Text, 0.55f), Theme.Accent, hot);
+                Icons.Draw(g, icons[i], new RectangleF(r.X + (d - ic) / 2, r.Y + (d - ic) / 2, ic, ic), icoC, 1.9f);
                 x += d + gap;
             }
         }
