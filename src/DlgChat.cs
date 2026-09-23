@@ -96,6 +96,7 @@ namespace SubtitleStudio
             _reset.IconOnly = true;
             _reset.IconSize = Theme.S(15);
             _reset.Kind = BtnKind.Tool;
+            _reset.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
             _reset.Size = new Size(Theme.S(32), Theme.S(32));
             _reset.Click += delegate { _history.Clear(); _view.Clear(); Greet(); };
             Ui.Tip.SetToolTip(_reset, "שיחה חדשה");
@@ -106,6 +107,7 @@ namespace SubtitleStudio
             _close.IconOnly = true;
             _close.IconSize = Theme.S(14);
             _close.Kind = BtnKind.Tool;
+            _close.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
             _close.Size = new Size(Theme.S(32), Theme.S(32));
             _close.Click += delegate { Close(); };
             Controls.Add(_close);
@@ -127,6 +129,7 @@ namespace SubtitleStudio
             _keyBtn.IconOnly = true;
             _keyBtn.IconSize = Theme.S(15);
             _keyBtn.Kind = BtnKind.Tool;
+            _keyBtn.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
             _keyBtn.Size = new Size(Theme.S(32), Theme.S(32));
             _keyBtn.Click += delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); };
             Ui.Tip.SetToolTip(_keyBtn, "המפתח של גוגל, שהעוזר עובד איתו");
