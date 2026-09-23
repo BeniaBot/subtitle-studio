@@ -84,7 +84,10 @@ namespace SubtitleStudio
                 return d;
             }
         }
-        private static string File_ { get { return Path.Combine(Dir, "settings.ini"); } }
+        /// <summary>לבדיקות בלבד: קובץ הגדרות זמני במקום האמיתי. כשהוא מוגדר, השמירה
+        /// פועלת גם תחת SUBSTUDIO_TEST - כך בודקים שמירה אמיתית בלי לגעת בהגדרות של המשתמש.</summary>
+        internal static string FileOverride;
+        private static string File_ { get { return FileOverride ?? Path.Combine(Dir, "settings.ini"); } }
 
         public static bool AutoUpdate = true;
         public static string LastCheck = "";
@@ -112,14 +115,42 @@ namespace SubtitleStudio
             catch { }
         }
 
+        /// <summary>למה השמירה האחרונה נכשלה; ריק אם הצליחה. עד 0.8.1 כל כישלון נבלע
+        /// ב-catch ריק: המשתמש לחץ ״שמירה״ על המפתח, ובהפעלה הבאה הוא לא היה - בלי
+        /// שום סימן. עכשיו מי ששומר משהו חשוב בודק את זה ומספר.</summary>
+        public static string LastError = "";
+
+        /// <summary>המפתח נקבע (או נמחק) בתהליך הזה, בחלון המפתח. בלי זה תהליך שלא
+        /// הכיר מפתח בכלל - חלון שני שנפתח לפני שהמפתח הוזן - דרס אותו בשמירה הבאה
+        /// שלו: כל תהליך כותב את כל הקובץ, והאחרון שכותב קובע. נראה ב-23.9.</summary>
+        public static bool AiKeyTouched, GroqKeyTouched;
+
+        /// <summary>הערך השמור בקובץ עכשיו (מוצפן), או ריק.</summary>
+        private static string OnDisk(string key)
+        {
+            try
+            {
+                if (!System.IO.File.Exists(File_)) return "";
+                foreach (string line in System.IO.File.ReadAllLines(File_, Encoding.UTF8))
+                    if (line.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
+                        return line.Substring(key.Length + 1).Trim();
+            }
+            catch { }
+            return "";
+        }
+
+        /// <summary>האם יש מפתח שמור בקובץ - לבדיקה אחרי ״שמירה״.</summary>
+        public static bool KeyOnDisk(string key) { return OnDisk(key).Length > 0; }
+
         public static void Save(SubStyle s)
         {
             try
             {
                 if (s != null) _last = s;
+                if (s == null) s = _last;
                 // בדיקות אוטומטיות בונות חלונות ומחליפות ערכה - אסור שזה
                 // ידרוס את ההעדפות האמיתיות של המשתמש
-                if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
+                if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1" && FileOverride == null) return;
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("dark=" + (Theme.Dark ? "1" : "0"));
                 sb.AppendLine("lang=" + Lang.Code);
@@ -127,9 +158,10 @@ namespace SubtitleStudio
                 sb.AppendLine("lastcheck=" + LastCheck);
                 sb.AppendLine("volume=" + Volume.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("speed=" + Speed.ToString(CultureInfo.InvariantCulture));
-                sb.AppendLine("aikey=" + Ai.Protect(Ai.Key));
+                // מפתח שהתהליך הזה לא הכיר ולא נגע בו - נשאר כמו שהוא בקובץ
+                sb.AppendLine("aikey=" + (string.IsNullOrEmpty(Ai.Key) && !AiKeyTouched ? OnDisk("aikey") : Ai.Protect(Ai.Key)));
                 sb.AppendLine("aimodel=" + Ai.Model);
-                sb.AppendLine("groqkey=" + Ai.Protect(Stt.GroqKey));
+                sb.AppendLine("groqkey=" + (string.IsNullOrEmpty(Stt.GroqKey) && !GroqKeyTouched ? OnDisk("groqkey") : Ai.Protect(Stt.GroqKey)));
                 sb.AppendLine("stt=" + Stt.ProviderId);
                 sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
                 sb.AppendLine("font=" + s.FontName);
@@ -143,8 +175,14 @@ namespace SubtitleStudio
                 sb.AppendLine("outlinecol=" + s.Outline.ToArgb().ToString(CultureInfo.InvariantCulture));
                 foreach (string r in Recent) sb.AppendLine("recent=" + r);
                 System.IO.File.WriteAllText(File_, sb.ToString(), Encoding.UTF8);
+                LastError = "";
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LastError = ErrorText.Of(ex);
+                try { Ai.Log("שמירת ההגדרות נכשלה: " + ex.GetType().Name + ": " + ex.Message); }
+                catch { }
+            }
         }
 
         /// <summary>רק שורת השפה, בלי לגעת בשום מחלקה אחרת. ‏null אם אין.</summary>

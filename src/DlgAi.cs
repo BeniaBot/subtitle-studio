@@ -97,7 +97,13 @@ namespace SubtitleStudio
                         // **בדיקה שעברה שומרת.** עד 0.8.1 המפתח נשאר פעיל בזיכרון אחרי
                         // בדיקה מוצלחת, ומי שסגר את החלון בלי ״שמירה״ תמלל ותרגם כרגיל -
                         // ובהפעלה הבאה המפתח נעלם. מי שבדק ״עובד״ התכוון להשתמש בו.
-                        if (r != null && r.Ok) { Settings.SaveAll(); Say("החיבור עובד, והמפתח נשמר.", Theme.Good); }
+                        if (r != null && r.Ok)
+                        {
+                            Settings.AiKeyTouched = true;
+                            Settings.SaveAll();
+                            if (Settings.KeyOnDisk("aikey")) Say("החיבור עובד, והמפתח נשמר.", Theme.Good);
+                            else Say("החיבור עובד, אבל המפתח לא נשמר בקובץ. " + Settings.LastError, Theme.Warn);
+                        }
                         else { Ai.Key = old; Say(r != null ? r.Error : "לא התקבלה תשובה.", Theme.Bad); }
                     });
                 }
@@ -154,7 +160,14 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             Ai.Key = _key.Text.Trim();
+            Settings.AiKeyTouched = true;
             Settings.SaveAll();
+            // **לוודא שזה באמת בקובץ.** ״שמירה״ שלא נשמרה היא הבאג הכי מתסכל שיש:
+            // הכול עובד עד ההפעלה הבאה, ואז המפתח נעלם.
+            if (Ai.Key.Length > 0 && !Settings.KeyOnDisk("aikey"))
+                Ui.Error(this, "המפתח לא נשמר",
+                    "המפתח פעיל עד שתסגרו את התוכנה, אבל הוא לא נכתב לקובץ ההגדרות, ובהפעלה הבאה הוא לא יהיה." +
+                    Environment.NewLine + Settings.LastError);
             return true;
         }
 

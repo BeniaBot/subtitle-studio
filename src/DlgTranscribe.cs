@@ -255,7 +255,14 @@ namespace SubtitleStudio
                         _busy = false;
                         _test.Enabled = true;
                         // כמו בחלון של גוגל: בדיקה שעברה שומרת - מי שבדק ״עובד״ התכוון להשתמש
-                        if (ok) { Stt.GroqKey = k; Settings.SaveAll(); Say("החיבור עובד, והמפתח נשמר.", Theme.Good); }
+                        if (ok)
+                        {
+                            Stt.GroqKey = k;
+                            Settings.GroqKeyTouched = true;
+                            Settings.SaveAll();
+                            if (Settings.KeyOnDisk("groqkey")) Say("החיבור עובד, והמפתח נשמר.", Theme.Good);
+                            else Say("החיבור עובד, אבל המפתח לא נשמר בקובץ. " + Settings.LastError, Theme.Warn);
+                        }
                         else Say(err ?? "לא התקבלה תשובה.", Theme.Bad);
                     });
                 }
@@ -275,7 +282,12 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             Stt.GroqKey = _key.Text.Trim();
+            Settings.GroqKeyTouched = true;
             Settings.SaveAll();
+            if (Stt.GroqKey.Length > 0 && !Settings.KeyOnDisk("groqkey"))
+                Ui.Error(this, "המפתח לא נשמר",
+                    "המפתח פעיל עד שתסגרו את התוכנה, אבל הוא לא נכתב לקובץ ההגדרות, ובהפעלה הבאה הוא לא יהיה." +
+                    Environment.NewLine + Settings.LastError);
             return true;
         }
     }
