@@ -125,7 +125,7 @@ build.cmd
 | `Spell.cs` | מנהל האיות: הורדת המילון, טעינה ברקע, מילון אישי, ומה ש-`Qa` שואל |
 | `DlgSpell.cs` | חלון ההורדה של המילון |
 | `Native.cs` | Win32: DWM (כותרת כהה/פינות), waveOut, EM_SETCUEBANNER |
-| `Fonts.cs` | טעינת גופן Assistant המוטמע — **גם** PrivateFontCollection (GDI+) **וגם** AddFontMemResourceEx (GDI) |
+| `Fonts.cs` | טעינת גופן הממשק המוטמע (IBM Plex Sans Hebrew מ-0.8.1; עד אז Assistant) — **גם** PrivateFontCollection (GDI+) **וגם** AddFontMemResourceEx (GDI) |
 | `Ai.cs` | חיבור ל-Gemini: JSON, קריאות פונקציה, תרגום, והצפנת המפתח (DPAPI) |
 | `DlgAi.cs` | הסבר והזנת מפתח, חלון תרגום, וחלון התקדמות |
 | `DlgChat.cs` | חלון הצ'אט (ללא מסגרת) + `IAiHost` |

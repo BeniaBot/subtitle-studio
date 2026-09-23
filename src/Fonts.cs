@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 namespace SubtitleStudio
 {
     /// <summary>
-    /// טוען את גופן הממשק המוטמע (Assistant) מתוך ה-EXE.
+    /// טוען את גופן הממשק המוטמע (IBM Plex Sans Hebrew; עד 0.8.1 - Assistant) מתוך ה-EXE.
     /// חייבים שתי טעינות: PrivateFontCollection בשביל GDI+ (DrawString)
     /// ו-AddFontMemResourceEx בשביל GDI (TextRenderer). בלי השנייה
     /// כל טקסט אטום היה חוזר ל-Segoe UI וההבדל היה בולט.

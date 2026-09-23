@@ -105,14 +105,14 @@
 סוג הדבר שמותר ורצוי לעשות: כל הלוגיקה שאינה WinForms היא C# רגיל,
 והמנוע פשוט מריץ `ffmpeg` בשורת פקודה.
 
-לצד הקוד שלנו יש שני רכיבים של אחרים: **FFmpeg** תחת GPLv3, ו**גופן Assistant**
+לצד הקוד שלנו יש שני רכיבים של אחרים: **FFmpeg** תחת GPLv3, ו**גופן IBM Plex Sans Hebrew**
 תחת OFL 1.1. הנוסח המלא של שלושת הרישיונות נמצא ב־[`licenses/`](licenses)
 וגם **בתוך התוכנה עצמה** — ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
 הפירוט המלא, כולל הצעת קוד המקור של FFmpeg: [THIRD-PARTY.md](THIRD-PARTY.md).
 
 *Our code is **MIT** — take it, change it, ship it, sell it. A macOS or Linux port is
 explicitly welcome. The released EXE also bundles **FFmpeg** (GPLv3) and the
-**Assistant** font (OFL 1.1); full texts are in [`licenses/`](licenses) and inside the
+**IBM Plex Sans Hebrew** font (OFL 1.1); full texts are in [`licenses/`](licenses) and inside the
 app itself. See [THIRD-PARTY.md](THIRD-PARTY.md) for the details and the FFmpeg source
 offer.*
 
@@ -131,7 +131,7 @@ Write subtitles against the waveform · fix out‑of‑sync subtitles by pointin
 <div align="center">
 <sub>
 
-קוד התוכנה תחת [MIT](LICENSE) · ‏[FFmpeg](THIRD-PARTY.md) תחת GPLv3 · גופן [Assistant](THIRD-PARTY.md) תחת OFL 1.1
+קוד התוכנה תחת [MIT](LICENSE) · ‏[FFmpeg](THIRD-PARTY.md) תחת GPLv3 · גופן [IBM Plex Sans Hebrew](THIRD-PARTY.md) תחת OFL 1.1
 
 </sub>
 </div>

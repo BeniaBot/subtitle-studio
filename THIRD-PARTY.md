@@ -6,7 +6,7 @@
 |---|---|---|
 | **הקוד של Subtext** (`src\*.cs`, `build.cmd`, `build\*.ps1`) | **MIT** | הכול. לקחת, לשנות, למכור, לבנות גרסה למק — בלי לשאול ובלי לשלם |
 | **FFmpeg** (מנוע המדיה, מצורף ל‑EXE) | **GPLv3** | להשתמש ולהפיץ, כל עוד מלווים בקוד המקור או בהצעה לקבלו |
-| **גופן Assistant** (מוטמע ב‑EXE) | **SIL OFL 1.1** | להשתמש, להטמיע ולהפיץ; אסור למכור את הגופן בפני עצמו |
+| **גופן IBM Plex Sans Hebrew** (מוטמע ב‑EXE) | **SIL OFL 1.1** | להשתמש, להטמיע ולהפיץ; אסור למכור את הגופן בפני עצמו |
 | **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
 | **מילון Hspell** (בדיקת איות, **לא ב‑EXE**, יורד בנפרד רק למי שמבקש) | **AGPLv3** | להשתמש ולהפיץ, עם הרישיון והפניה למקור |
 
@@ -100,22 +100,23 @@ rewrite. Credit is given voluntarily.*
 
 ---
 
-## גופן Assistant
+## גופן IBM Plex Sans Hebrew
 
-הממשק מוצג בגופן **Assistant** מאת Ben Nathan, מוטמע ב‑EXE בשלושה משקלים
-(‏`assets\fonts`, כ‑223KB). הגופן נכלל **ללא שינוי ובלי שינוי שם**.
+הממשק מוצג בגופן **IBM Plex Sans Hebrew** של IBM, מוטמע ב‑EXE בשלושה משקלים
+(רגיל, חצי‑מודגש, מודגש; ‏`assets\fonts`, כ‑290KB). הגופן נכלל **ללא שינוי ובלי
+שינוי שם**. עד גרסה 0.8.0 הממשק היה בגופן Assistant.
 
-*The UI is set in **Assistant** by Ben Nathan, embedded in the EXE in three weights,
-unmodified and unrenamed.*
+*The UI is set in **IBM Plex Sans Hebrew** by IBM, embedded in the EXE in three
+weights, unmodified and unrenamed. Up to 0.8.0 the UI used Assistant.*
 
 | | |
 |---|---|
 | רישיון · License | **SIL Open Font License 1.1** |
-| נוסח הרישיון · License text | [`licenses/OFL-1.1-Assistant.txt`](licenses/OFL-1.1-Assistant.txt) · וגם [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) |
-| מקור · Source | https://github.com/hafontia/Assistant · https://fonts.google.com/specimen/Assistant |
+| נוסח הרישיון · License text | [`licenses/OFL-1.1-IBM-Plex.txt`](licenses/OFL-1.1-IBM-Plex.txt) · וגם [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) |
+| מקור · Source | https://github.com/IBM/plex · https://fonts.google.com/specimen/IBM+Plex+Sans+Hebrew |
 
-Assistant מבוסס על Source Sans Pro של Adobe, ולכן `Source` הוא **שם גופן שמור**
-(‏Reserved Font Name) — מי שיוצר גרסה נגזרת חייב לתת לה שם אחר.
+‏`Plex` הוא **שם גופן שמור** (‏Reserved Font Name) — מי שיוצר גרסה נגזרת חייב
+לתת לה שם אחר.
 
 ---
 

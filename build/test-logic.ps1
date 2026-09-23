@@ -430,7 +430,7 @@ foreach ($w in $want) {
 }
 # הגופן עצמו - אם הוא בפנים, הרישיון שלו חייב להיות בפנים
 Check 'גופן מוטמע יחד עם הרישיון שלו' `
-    (($null -eq $asm.GetManifestResourceStream('Assistant-Regular.ttf')) -or `
+    (($null -eq $asm.GetManifestResourceStream('IBMPlexSansHebrew-Regular.ttf')) -or `
      ($null -ne $asm.GetManifestResourceStream('OFL-1.1.txt'))) ''
 
 # ---------- קלט פגום שהוא בעצם תקין ----------

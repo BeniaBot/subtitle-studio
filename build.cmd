@@ -28,7 +28,7 @@ if not exist "dist" mkdir "dist"
 set RES=
 if exist "build\payload\ffmpeg.pack" set RES=/resource:"build\payload\ffmpeg.pack",ffmpeg.pack
 
-rem  UI font (Assistant, SIL OFL) - embedded so the app looks the same on every machine.
+rem  UI font (IBM Plex Sans Hebrew, SIL OFL) - embedded so the app looks the same everywhere.
 rem  Listed one by one on purpose: delayed expansion inside the csc line is fragile.
 rem  License texts are embedded too, so the single EXE carries its own
 rem  paperwork: MIT for our code, GPLv3 for FFmpeg, OFL for the font.
@@ -39,11 +39,11 @@ echo Compiling...
   /win32icon:"build\app.ico" ^
   /win32manifest:"build\app.manifest" ^
   %RES% ^
-  /resource:"assets\fonts\Assistant-Regular.ttf",Assistant-Regular.ttf ^
-  /resource:"assets\fonts\Assistant-SemiBold.ttf",Assistant-SemiBold.ttf ^
-  /resource:"assets\fonts\Assistant-Bold.ttf",Assistant-Bold.ttf ^
+  /resource:"assets\fonts\IBMPlexSansHebrew-Regular.ttf",IBMPlexSansHebrew-Regular.ttf ^
+  /resource:"assets\fonts\IBMPlexSansHebrew-SemiBold.ttf",IBMPlexSansHebrew-SemiBold.ttf ^
+  /resource:"assets\fonts\IBMPlexSansHebrew-Bold.ttf",IBMPlexSansHebrew-Bold.ttf ^
   /resource:"licenses\GPL-3.0.txt",GPL-3.0.txt ^
-  /resource:"licenses\OFL-1.1-Assistant.txt",OFL-1.1.txt ^
+  /resource:"licenses\OFL-1.1-IBM-Plex.txt",OFL-1.1.txt ^
   /resource:"LICENSE",MIT.txt ^
   /resource:"licenses\AGPL-3.0-Hspell.txt",AGPL-3.0.txt ^
   /resource:"assets\spell\torah-he.txt",torah-he.txt ^
