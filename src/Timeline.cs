@@ -53,6 +53,8 @@ namespace SubtitleStudio
         private long _newA, _newB;
         private long _viewStartAtDrag;
         private Cue _hoverCue;
+        private Tween _sbHot;
+        private Tween SbHot { get { if (_sbHot == null) _sbHot = new Tween(this); return _sbHot; } }
         private HitPart _hoverPart = HitPart.None;
         private Dictionary<Cue, int> _lanes = new Dictionary<Cue, int>();
         private int _laneCount = 1;
@@ -423,6 +425,7 @@ namespace SubtitleStudio
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            SbHot.To(_mode == Mode.DragScroll || e.Y >= Height - ScrollH - Theme.S(4) ? 1f : 0f);
             long ms = XToMs(e.X);
             switch (_mode)
             {
@@ -528,6 +531,12 @@ namespace SubtitleStudio
             foreach (Cue c in Doc.Cues)
                 c.Selected = c.End > a && c.Start < b;
             if (SelectionChanged != null) SelectionChanged(this, EventArgs.Empty);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            if (_sbHot != null && _mode != Mode.DragScroll) _sbHot.To(0f);
+            base.OnMouseLeave(e);
         }
 
         protected override void OnMouseUp(MouseEventArgs e)
@@ -976,7 +985,11 @@ namespace SubtitleStudio
             float w = (float)(VisibleMs / (double)DurationMs * Width);
             if (w > Width) w = Width;
             if (w < 24) w = 24;
-            Theme.FillRound(g, new RectangleF(x1, y + 3, w, ScrollH - 6), (ScrollH - 6) / 2f, Theme.Mix(Theme.Border, Theme.Text, 0.25f));
+            // דק במנוחה, מתעבה ומתבהר מתחת לעכבר
+            float hot = SbHot.Eased;
+            float full = ScrollH - 6, h = Theme.S(4) + (full - Theme.S(4)) * hot;
+            Theme.FillRound(g, new RectangleF(x1, y + (ScrollH - h) / 2f, w, h), h / 2f,
+                Theme.Mix(Theme.Mix(Theme.Border, Theme.Text, 0.25f), Theme.Text, 0.30f * hot));
         }
     }
 }

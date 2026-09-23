@@ -23,6 +23,9 @@ namespace SubtitleStudio
         private int _hoverRow = -1;
         private int _anchor = -1;
         private bool _dragScroll;
+        // פס הגלילה דק במנוחה ומתעבה כשהעכבר מתקרב אליו או גורר אותו
+        private Tween _sbHot;
+        private Tween SbHot { get { if (_sbHot == null) _sbHot = new Tween(this); return _sbHot; } }
 
         // ---------- הוספה בין שורות (בהשראת אקסל) ----------
         /// <summary>הרווח שבו ריחוף מגלה את כפתור ההוספה, מעל ומתחת לגבול.</summary>
@@ -188,6 +191,7 @@ namespace SubtitleStudio
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            SbHot.To(_dragScroll || (TotalH > ViewH && e.X > Width - ScrollW - Theme.S(6)) ? 1f : 0f);
             if (_dragScroll) { DragScrollTo(e.Y); return; }
 
             if (_dragRow >= 0 && (e.Button & MouseButtons.Left) != 0)
@@ -306,6 +310,7 @@ namespace SubtitleStudio
 
         protected override void OnMouseLeave(EventArgs e)
         {
+            if (!_dragScroll) SbHot.To(0f);
             if (_tipText.Length > 0) { _tipText = ""; Ui.Tip.SetToolTip(this, ""); }
             _hoverRow = -1;
             _hoverGap = -1;
@@ -533,8 +538,10 @@ namespace SubtitleStudio
             {
                 float th = Math.Max(30, ViewH * (float)ViewH / TotalH);
                 float ty = HeaderH + (ViewH - th) * (_scroll / (float)Math.Max(1, TotalH - ViewH));
-                Theme.FillRound(g, new RectangleF(Width - ScrollW + 1, ty, ScrollW - 4, th), (ScrollW - 4) / 2f,
-                    Theme.Mix(Theme.Border, Theme.Text, 0.2f));
+                float hot = SbHot.Eased;
+                float sw = Theme.S(5) + (ScrollW - 4 - Theme.S(5)) * hot;
+                Theme.FillRound(g, new RectangleF(Width - 3 - sw, ty, sw, th), sw / 2f,
+                    Theme.Mix(Theme.Mix(Theme.Border, Theme.Text, 0.2f), Theme.Text, 0.30f * hot));
             }
         }
     }
