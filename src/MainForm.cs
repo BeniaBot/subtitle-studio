@@ -1666,6 +1666,7 @@ namespace SubtitleStudio
 
         private void OnTick()
         {
+            if (IsDisposed || Disposing) return;
             Bitmap f = _engine.Tick();
             if (f != null) _video.SetFrame(f);
             if (WindowState != FormWindowState.Minimized) RefreshQa(false);
@@ -3277,7 +3278,15 @@ namespace SubtitleStudio
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) ReleaseSessionLock();
+            if (disposing)
+            {
+                // שני השעונים נוצרו בלי container, ולכן לא נעצרים עם החלון. השעון של
+                // 33ms המשיך לתקתק על חלון סגור וקרס ב-CreateGraphics - בבדיקות, שיוצרות
+                // וסוגרות חלונות רבים, זה הפיל את התהליך עם חלון שגיאה שמחכה ללחיצה.
+                if (_tick != null) { _tick.Stop(); _tick.Dispose(); }
+                if (_autosave != null) { _autosave.Stop(); _autosave.Dispose(); }
+                ReleaseSessionLock();
+            }
             base.Dispose(disposing);
         }
 
