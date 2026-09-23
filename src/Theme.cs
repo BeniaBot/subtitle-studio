@@ -464,8 +464,8 @@ namespace SubtitleStudio
         public static string Pfx(string letter, string name)
         {
             if (string.IsNullOrEmpty(name)) return letter;
-            // באנגלית ״letter״ הוא מילה שלמה עם רווח (״for ״), ומקף רק מזיק
-            if (Lang.IsEn) return letter + name;
+            // באנגלית ״letter״ הוא מילה שלמה (״Connect to״): רווח, ולא מקף
+            if (Lang.IsEn) return letter + " " + name;
             return letter + (IsHebrew(name[0]) ? "" : "-") + name;
         }
 
