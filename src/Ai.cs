@@ -120,8 +120,11 @@ namespace SubtitleStudio
             {
                 try
                 {
-                    string dir = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SubtitleStudio");
+                    // בבדיקות - לא ליומן האמיתי של המשתמש: עד 0.8.1 כל הרצה של test-stt
+                    // מילאה אותו בשגיאות של שרת מדומה, והוא נראה כמו תקלה אמיתית
+                    string dir = Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1"
+                        ? Path.Combine(Path.GetTempPath(), "SubStudio-test")
+                        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SubtitleStudio");
                     if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
                     return Path.Combine(dir, "ai-log.txt");
                 }
