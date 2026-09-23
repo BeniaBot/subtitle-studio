@@ -60,6 +60,10 @@ namespace SubtitleStudio
         /// <summary>שוליים פנימיים מכל צד. ‎-1 = ברירת המחדל (12). לשבבים צרים
         /// בשורה (כמו ״‎-0.25״ בחלון ההזזה) שבהם 12 מכל צד לא משאירים מקום לכיתוב.</summary>
         public int PadX = -1;
+        /// <summary>אחת מכמה אפשרויות (״צריבה״ מול ״ערוץ נפרד״): עיגול בחירה בקצה,
+        /// ריק או עם נקודה. עד 0.8.1 רק הצבע הבדיל בין הנבחרת לשאר, ולא היה ברור
+        /// שזו בחירה ולא שני כפתורים.</summary>
+        public bool Radio = false;
         // ריחוף ולחיצה נעים בהדרגה (Surface.cs). עד 0.8.1 הם התחלפו בבת אחת.
         private readonly Tween _hot, _press;
 
@@ -196,6 +200,20 @@ namespace SubtitleStudio
             {
                 float textRight = Icon != Ico.None ? right - IconSize - Theme.S(8) : right;
                 float left = pad + menuW;
+                if (Radio)
+                {
+                    float d = Theme.S(18);
+                    RectangleF rc = Theme.Mir(r, new RectangleF(pad, (float)Math.Round((Height - d) / 2f), d, d));
+                    using (Pen p = new Pen(Checked ? accent : Theme.Mix(Theme.TextFaint, Theme.Text, 0.25f * hot), Checked ? 2f : 1.5f))
+                        g.DrawEllipse(p, rc.X + 1, rc.Y + 1, rc.Width - 2, rc.Height - 2);
+                    if (Checked)
+                    {
+                        float dot = Theme.S(8);
+                        using (SolidBrush b = new SolidBrush(accent))
+                            g.FillEllipse(b, rc.X + (d - dot) / 2f, rc.Y + (d - dot) / 2f, dot, dot);
+                    }
+                    left += d + Theme.S(10);
+                }
                 RectangleF tr = new RectangleF(left, 0, textRight - left, Height);
                 if (Sub != null)
                 {

@@ -112,6 +112,7 @@ namespace SubtitleStudio
             _modeBurn.Sub = "הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון";
             _modeBurn.Icon = Ico.Flame;
             _modeBurn.Kind = BtnKind.Subtle;
+            _modeBurn.Radio = true;
             _modeBurn.Checkable = false;
             _modeBurn.Checked = true;
             _modeBurn.Click += delegate { SetMode(true); };
@@ -122,6 +123,7 @@ namespace SubtitleStudio
             _modeSoft.Sub = "אפשר לכבות/להחליף בנגן · הקידוד נשמר, מהיר מאוד";
             _modeSoft.Icon = Ico.Layers;
             _modeSoft.Kind = BtnKind.Subtle;
+            _modeSoft.Radio = true;
             _modeSoft.Click += delegate { SetMode(false); };
             Row(_modeSoft, 56, 16);
 
@@ -342,6 +344,7 @@ namespace SubtitleStudio
             _modeKeep.Sub = "כל השאר נמחק · הסרט החדש יתחיל מ־" + Theme.Ltr(Tc.Short(a));
             _modeKeep.Icon = Ico.Check;
             _modeKeep.Checked = true;
+            _modeKeep.Radio = true;
             _modeKeep.Click += delegate { SetMode(true); };
             Row(_modeKeep, 56, 8);
 
@@ -349,6 +352,7 @@ namespace SubtitleStudio
             _modeCut.Text = "להסיר את הקטע הזה";
             _modeCut.Sub = "מה שלפניו ומה שאחריו יתחברו יחד";
             _modeCut.Icon = Ico.Cut;
+            _modeCut.Radio = true;
             _modeCut.Click += delegate { SetMode(false); };
             Row(_modeCut, 56, 16);
 

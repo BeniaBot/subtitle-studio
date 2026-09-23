@@ -40,6 +40,7 @@ namespace SubtitleStudio
             _optGoogle.Sub = "המפתח שכבר יש לכם · מכסה קטנה";
             _optGoogle.Icon = Ico.Sparkles;
             _optGoogle.Kind = BtnKind.Subtle;
+            _optGoogle.Radio = true;
             _optGoogle.SetBounds(Pad + half + gapX, Y, half, Theme.S(56));
             _optGoogle.Click += delegate { Choose("gemini"); };
             Controls.Add(_optGoogle);
@@ -48,6 +49,7 @@ namespace SubtitleStudio
             _optGroq.Sub = "עד 8 שעות ביום · מפתח חינמי נפרד";
             _optGroq.Icon = Ico.Mic;
             _optGroq.Kind = BtnKind.Subtle;
+            _optGroq.Radio = true;
             _optGroq.SetBounds(Pad, Y, half, Theme.S(56));
             _optGroq.Click += delegate { Choose("groq"); };
             Controls.Add(_optGroq);
