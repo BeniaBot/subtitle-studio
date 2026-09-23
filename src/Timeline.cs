@@ -864,9 +864,22 @@ namespace SubtitleStudio
                 Color fill = sel ? Theme.Mix(baseCol, Theme.Accent, 0.55f) : baseCol;
                 if (hover) fill = Theme.Mix(fill, Color.White, 0.12f);
 
-                RectangleF rr = new RectangleF(r.X, r.Y, Math.Max(3, r.Width), r.Height);
-                Theme.FillRound(g, rr, 4, Color.FromArgb(sel ? 245 : 210, fill));
-                Theme.DrawRound(g, rr, 4, sel ? Color.White : Theme.Mix(fill, Color.Black, 0.25f), sel ? 1.6f : 1f);
+                // קצוות על פיקסלים שלמים, מילוי מדורג וקו מתאר מואר מלמעלה - בלוק
+                // ״אמיתי״ ולא מלבן צבוע. נבחר: קו לבן כפול, חד.
+                RectangleF rr = new RectangleF((float)Math.Round(r.X), (float)Math.Round(r.Y),
+                    (float)Math.Max(3, Math.Round(r.Width)), (float)Math.Round(r.Height));
+                float rad = Math.Min(Theme.S(5), rr.Width / 2f);
+                Surface.Fill(g, rr, rad, Color.FromArgb(sel ? 250 : 232, Theme.Mix(fill, Color.White, 0.13f)),
+                    Color.FromArgb(sel ? 250 : 232, Theme.Mix(fill, Color.Black, 0.08f)));
+                if (sel)
+                {
+                    using (GraphicsPath gp = Theme.RoundRect(new RectangleF(rr.X + 1, rr.Y + 1, rr.Width - 2, rr.Height - 2), Math.Max(0, rad - 1)))
+                    // לבן על כהה; בערכה הבהירה לבן נבלע ברקע - כחול עמוק במקומו
+                    using (Pen p = new Pen(Theme.Dark ? Color.White : Theme.Mix(Theme.Accent, Color.Black, 0.35f), 2f))
+                        g.DrawPath(p, gp);
+                }
+                else
+                    Surface.Rim(g, rr, rad, Theme.Mix(fill, Color.White, 0.38f), Theme.Mix(fill, Color.Black, 0.35f));
 
                 if (rr.Width > Theme.S(26))
                 {

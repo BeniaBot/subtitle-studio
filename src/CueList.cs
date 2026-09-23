@@ -465,17 +465,35 @@ namespace SubtitleStudio
                 int y = HeaderH + i * _rowH - _scroll;
                 bool sel = c.Selected;
                 bool playing = Position >= c.Start && Position < c.End;
-                Color rowBg = sel ? Theme.AccentSoft : (i == _hoverRow ? Theme.Mix(Theme.Panel, Theme.Hover, 0.6f) : Theme.Panel);
-                using (SolidBrush b = new SolidBrush(rowBg)) g.FillRectangle(b, 0, y, Width, _rowH);
-                if (playing)
-                {
-                    using (SolidBrush b = new SolidBrush(Color.FromArgb(34, Theme.Good))) g.FillRectangle(b, 0, y, Width, _rowH);
-                    using (SolidBrush b = new SolidBrush(Theme.Good))
-                        g.FillRectangle(b, 0, y + Theme.S(2), Theme.S(3), _rowH - Theme.S(4));
-                }
-                Theme.HLine(g, Theme.Mix(Theme.Panel, Theme.Border, 0.5f), 6, Width - 6, y + _rowH - 1);
+                bool hover = i == _hoverRow;
+                // **שורה מודגשת היא ״גלולה״ מעוגלת עם מרווח מהקצוות**, לא פס שנמרח
+                // מקיר לקיר. כך נראות רשימות בתוכנות מקצועיות, והעין מבינה מיד מה בחור.
+                // עד הקצה, כולל עמודת המספר. פס הגלילה (כשיש) מצויר מעל.
+                RectangleF pill = new RectangleF(Theme.S(5), y + Theme.S(2), Width - Theme.S(9), _rowH - Theme.S(4));
+                float pr = Theme.S(8);
                 if (sel)
-                    using (SolidBrush b = new SolidBrush(Theme.Accent)) g.FillRectangle(b, Width - Theme.S(3), y + 2, Theme.S(3), _rowH - 4);
+                {
+                    Theme.FillRound(g, pill, pr, Theme.AccentSoft);
+                    Surface.Rim(g, pill, pr, Theme.Mix(Theme.AccentSoft, Theme.Accent, 0.50f), Theme.Mix(Theme.AccentSoft, Theme.Accent, 0.30f));
+                }
+                else if (playing)
+                    Theme.FillRound(g, pill, pr, Theme.Mix(Theme.Panel, Theme.Good, 0.13f));
+                else if (hover)
+                    Theme.FillRound(g, pill, pr, Theme.Mix(Theme.Panel, Theme.Hover, 0.75f));
+                // פס ירוק קטן ומעוגל בקצה: זו השורה שמתנגנת עכשיו. לנבחרת אין פס -
+                // הגלולה והקו שלה מספיקים, ופס בצד המספר נגע בו.
+                if (playing)
+                    Theme.FillRound(g, new RectangleF(pill.X + Theme.S(4), pill.Y + Theme.S(7), Theme.S(3), pill.Height - Theme.S(14)), Theme.S(2), Theme.Good);
+                // קו מפריד רק בין שתי שורות רגילות - לא חותך גלולה
+                bool plain = !sel && !playing && !hover;
+                bool nextPlain = true;
+                if (i + 1 < Doc.Cues.Count)
+                {
+                    Cue n = Doc.Cues[i + 1];
+                    nextPlain = !n.Selected && !(Position >= n.Start && Position < n.End) && i + 1 != _hoverRow;
+                }
+                if (plain && nextPlain)
+                    Theme.HLine(g, Theme.Mix(Theme.Panel, Theme.Border, 0.5f), Theme.S(14), Width - Theme.S(14), y + _rowH - 1);
 
                 // מספר
                 Theme.Str(g, (i + 1).ToString(), Theme.SmallBold, sel ? Theme.Accent : Theme.TextFaint,
