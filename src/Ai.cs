@@ -205,7 +205,7 @@ namespace SubtitleStudio
         public static AiReply Send(string system, List<AiMsg> history, List<AiTool> tools, bool jsonOut)
         {
             AiReply r = new AiReply();
-            if (!HasKey) { r.Error = "לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."; return r; }
+            if (!HasKey) { r.Error = Lang.T("לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."); return r; }
 
             string json = BuildBody(system, history, tools, jsonOut, Model);
 
@@ -255,7 +255,7 @@ namespace SubtitleStudio
                 }
 
                 // שם דגם שלא קיים בחשבון - ממשיכים לבא
-                bool notFound = err != null && err.IndexOf("404") >= 0;
+                bool notFound = LastHttpCode == 404 || (err != null && err.IndexOf("404") >= 0);
 
                 // **והמקרה החשוב**: המכסה של הדגם הזה נגמרה. המכסה היא לכל
                 // דגם בנפרד, אז לדגם הבא יש מכסה משלו. בלי זה המשתמש מקבל
@@ -283,15 +283,14 @@ namespace SubtitleStudio
             {
                 LastHttpCode = 429;
                 LastQuotaIsDaily = true;
-                r.Error = "המכסה היומית של המפתח החינמי נגמרה בכל הדגמים." + Environment.NewLine +
-                          "היא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.";
+                r.Error = Lang.T("המכסה היומית של המפתח החינמי נגמרה בכל הדגמים.\r\nהיא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.");
                 LastError = r.Error;
                 return r;
             }
 
             if (reply == null)
             {
-                r.Error = err != null ? err : "לא התקבלה תשובה מהשרת.";
+                r.Error = err != null ? err : Lang.T("לא התקבלה תשובה מהשרת.");
                 LastError = r.Error;
                 Log("נכשל: " + Safe(r.Error));
                 return r;
@@ -301,7 +300,7 @@ namespace SubtitleStudio
             try
             {
                 Dictionary<string, object> root = Ser().DeserializeObject(reply) as Dictionary<string, object>;
-                if (root == null) { r.Error = "השרת החזיר תשובה לא צפויה: " + Snip(reply); return r; }
+                if (root == null) { r.Error = Lang.F("השרת החזיר תשובה לא צפויה: {0}", Snip(reply)); return r; }
                 object cands;
                 if (!root.TryGetValue("candidates", out cands)) { r.Error = ErrorFrom(root, reply); return r; }
                 System.Collections.IList arr = Arr(cands);
@@ -309,11 +308,11 @@ namespace SubtitleStudio
                 r.Finish = FinishOf(arr[0]);
                 Dictionary<string, object> c0 = arr[0] as Dictionary<string, object>;
                 object content;
-                if (c0 == null || !c0.TryGetValue("content", out content)) { r.Error = "התשובה מהשרת ריקה."; return r; }
+                if (c0 == null || !c0.TryGetValue("content", out content)) { r.Error = Lang.T("התשובה מהשרת ריקה."); return r; }
                 Dictionary<string, object> cd = content as Dictionary<string, object>;
                 object parts;
                 if (cd == null || !cd.TryGetValue("parts", out parts))
-                { r.Error = "המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."; return r; }
+                { r.Error = Lang.T("המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."); return r; }
                 System.Collections.IList pa = Arr(parts);
                 StringBuilder text = new StringBuilder();
                 if (pa != null)
@@ -348,18 +347,19 @@ namespace SubtitleStudio
                 if (r.Text.Length == 0 && r.Call == null)
                 {
                     if (r.Finish == "MAX_TOKENS")
-                        r.Error = "התשובה נקטעה באמצע (הגבלת אורך). נסו בקשה קצרה יותר.";
+                        r.Error = Lang.T("התשובה נקטעה באמצע (הגבלת אורך). נסו בקשה קצרה יותר.");
                     else if (r.Finish == "SAFETY" || r.Finish == "PROHIBITED_CONTENT")
-                        r.Error = "גוגל חסמה את התוכן הזה. נסו ניסוח אחר.";
+                        r.Error = Lang.T("גוגל חסמה את התוכן הזה. נסו ניסוח אחר.");
                     else
-                        r.Error = "המודל לא החזיר תשובה" +
-                                  (string.IsNullOrEmpty(r.Finish) ? "." : " (" + r.Finish + ").") + " נסו לנסח אחרת.";
+                        r.Error = string.IsNullOrEmpty(r.Finish)
+                            ? Lang.T("המודל לא החזיר תשובה. נסו לנסח אחרת.")
+                            : Lang.F("המודל לא החזיר תשובה ({0}). נסו לנסח אחרת.", r.Finish);
                     Log("תשובה ריקה. finish=" + r.Finish + "  גוף: " + Snip(reply));
                 }
             }
             catch (Exception ex)
             {
-                r.Error = "לא הצלחתי לקרוא את התשובה: " + ex.Message;
+                r.Error = Lang.F("לא הצלחתי לקרוא את התשובה: {0}", ex.Message);
                 Log("שגיאת קריאה: " + ex.Message + "  גוף: " + Snip(reply));
             }
             if (r.Error != null) LastError = r.Error;
@@ -382,7 +382,7 @@ namespace SubtitleStudio
         /// <summary>קטע קצר מגוף התשובה, ליומן ולהודעות.</summary>
         private static string Snip(string raw)
         {
-            if (string.IsNullOrEmpty(raw)) return "(ריק)";
+            if (string.IsNullOrEmpty(raw)) return Lang.T("(ריק)");
             string t = raw.Replace("\r", " ").Replace("\n", " ").Trim();
             if (t.Length > 300) t = t.Substring(0, 300) + "...";
             return Safe(t);
@@ -412,13 +412,13 @@ namespace SubtitleStudio
                     if (pd != null && pd.TryGetValue("blockReason", out br))
                     {
                         Log("נחסם: " + Convert.ToString(br));
-                        return "גוגל חסמה את הבקשה (" + Convert.ToString(br) + "). נסו ניסוח אחר.";
+                        return Lang.F("גוגל חסמה את הבקשה ({0}). נסו ניסוח אחר.", Convert.ToString(br));
                     }
                 }
             }
             catch { }
             Log("גוף לא מוכר: " + Snip(raw));
-            return "השרת החזיר תשובה לא צפויה: " + Snip(raw);
+            return Lang.F("השרת החזיר תשובה לא צפויה: {0}", Snip(raw));
         }
 
         /// <summary>שולח, ואם השרת אמר ״רגע, יותר מדי בקשות״ - ממתין כמה
@@ -708,31 +708,29 @@ namespace SubtitleStudio
 
             switch (code)
             {
-                case 400: return "הבקשה נדחתה. אם זו הפעם הראשונה - בדקו שהמפתח הועתק במלואו. (" + inner + ")";
+                case 400: return Lang.F("הבקשה נדחתה. אם זו הפעם הראשונה - בדקו שהמפתח הועתק במלואו. ({0})", inner);
                 case 401:
-                case 403: return "המפתח לא תקף או שאין לו הרשאה. הפיקו מפתח חדש בדף של גוגל.";
-                case 404: return "404 - הדגם לא נמצא בחשבון הזה.";
+                case 403: return Lang.T("המפתח לא תקף או שאין לו הרשאה. הפיקו מפתח חדש בדף של גוגל.");
+                case 404: return Lang.T("404 - הדגם לא נמצא בחשבון הזה.");
                 // שתי מכסות שונות לגמרי, ושתיהן 429. ״המתינו דקה״ על מכסה
                 // יומית הוא שקר שגורם למשתמש לנסות שוב ושוב לחינם.
                 case 429:
                     if (detail != null && detail.IndexOf("PerDay", StringComparison.OrdinalIgnoreCase) >= 0)
-                        return "המכסה היומית של המפתח החינמי נגמרה - בכל הדגמים." + Environment.NewLine +
-                               "היא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.";
-                    return "המפתח החינמי מוגבל לכמה בקשות בדקה, והמכסה נגמרה כרגע. " +
-                           "המתינו דקה ונסו שוב.";
+                        return Lang.T("המכסה היומית של המפתח החינמי נגמרה - בכל הדגמים.\r\nהיא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.");
+                    return Lang.T("המפתח החינמי מוגבל לכמה בקשות בדקה, והמכסה נגמרה כרגע. המתינו דקה ונסו שוב.");
                 case 500:
-                case 503: return "השרת של גוגל עמוס כרגע. נסו שוב בעוד רגע.";
+                case 503: return Lang.T("השרת של גוגל עמוס כרגע. נסו שוב בעוד רגע.");
             }
             if (!string.IsNullOrEmpty(inner)) return inner;
-            return "אין חיבור לאינטרנט, או שהחיבור נחסם. (" + fallback + ")";
+            return Lang.F("אין חיבור לאינטרנט, או שהחיבור נחסם. ({0})", fallback);
         }
 
         /// <summary>בדיקה מפורטת שמחזירה דוח קריא - למקרה שמשהו לא עובד.</summary>
         public static string Diagnose()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("דגם: " + Model);
-            sb.AppendLine("מפתח: " + (HasKey ? (Key.Length + " תווים") : "לא הוגדר"));
+            sb.AppendLine(Lang.F("דגם: {0}", Model));
+            sb.AppendLine(HasKey ? Lang.F("מפתח: {0} תווים", Key.Length) : Lang.T("מפתח: לא הוגדר"));
 
             // 1. חיבור לשרת
             try
@@ -742,15 +740,15 @@ namespace SubtitleStudio
                 probe.Method = "HEAD";
                 probe.Timeout = 15000;
                 using (HttpWebResponse res = (HttpWebResponse)probe.GetResponse())
-                    sb.AppendLine("חיבור לשרת: תקין (" + (int)res.StatusCode + ")");
+                    sb.AppendLine(Lang.F("חיבור לשרת: תקין ({0})", (int)res.StatusCode));
             }
             catch (WebException wex)
             {
                 HttpWebResponse res = wex.Response as HttpWebResponse;
-                if (res != null) sb.AppendLine("חיבור לשרת: מגיע (" + (int)res.StatusCode + ")");
-                else sb.AppendLine("חיבור לשרת: נכשל - " + wex.Status + " - " + wex.Message);
+                if (res != null) sb.AppendLine(Lang.F("חיבור לשרת: מגיע ({0})", (int)res.StatusCode));
+                else sb.AppendLine(Lang.F("חיבור לשרת: נכשל - {0} - {1}", wex.Status, wex.Message));
             }
-            catch (Exception ex) { sb.AppendLine("חיבור לשרת: שגיאה - " + ex.Message); }
+            catch (Exception ex) { sb.AppendLine(Lang.F("חיבור לשרת: שגיאה - {0}", ex.Message)); }
 
             // 2. בקשה אמיתית
             if (HasKey)
@@ -760,7 +758,7 @@ namespace SubtitleStudio
                 m.Text = "1+1";
                 h.Add(m);
                 AiReply r = Send("ענה במספר בלבד.", h, null, false);
-                sb.AppendLine("בקשה רגילה: " + (r.Ok ? "עובדת" : "נכשלה - " + r.Error));
+                sb.AppendLine(r.Ok ? Lang.T("בקשה רגילה: עובדת") : Lang.F("בקשה רגילה: נכשלה - {0}", r.Error));
 
                 if (r.Ok)
                 {
@@ -771,9 +769,9 @@ namespace SubtitleStudio
                     m2.Text = "מה המצב?";
                     h2.Add(m2);
                     AiReply r2 = Send("קרא לפונקציה אם אפשר.", h2, tools, false);
-                    sb.AppendLine("בקשה עם פעולות: " + (r2.Ok ? "עובדת" : "נכשלה - " + r2.Error));
+                    sb.AppendLine(r2.Ok ? Lang.T("בקשה עם פעולות: עובדת") : Lang.F("בקשה עם פעולות: נכשלה - {0}", r2.Error));
                 }
-                sb.AppendLine("הדגם שענה: " + Model);
+                sb.AppendLine(Lang.F("הדגם שענה: {0}", Model));
             }
 
             // 3. אילו דגמים זמינים - זו השאלה שבאמת מעניינת כשמשהו נכשל,
@@ -783,14 +781,14 @@ namespace SubtitleStudio
                 if (_exhausted.Count > 0)
                 {
                     sb.AppendLine("");
-                    sb.AppendLine("דגמים שהמכסה היומית שלהם נגמרה בהפעלה הזאת:");
+                    sb.AppendLine(Lang.T("דגמים שהמכסה היומית שלהם נגמרה בהפעלה הזאת:"));
                     foreach (KeyValuePair<string, bool> kv in _exhausted)
                         sb.AppendLine("  · " + kv.Key);
                     int left = 0;
                     foreach (string mm in Models) if (!_exhausted.ContainsKey(mm)) left++;
-                    sb.AppendLine("נשארו " + left + " דגמים מתוך " + Models.Length + ".");
+                    sb.AppendLine(Lang.F("נשארו {0} דגמים מתוך {1}.", left, Models.Length));
                 }
-                else sb.AppendLine("כל " + Models.Length + " הדגמים עדיין זמינים.");
+                else sb.AppendLine(Lang.F("כל {0} הדגמים עדיין זמינים.", Models.Length));
             }
             string txt = sb.ToString();
             Log("--- אבחון ---" + Environment.NewLine + Safe(txt));
@@ -821,7 +819,7 @@ namespace SubtitleStudio
         public static List<TrLine> TranscribeChunk(byte[] audio, string mime, string context, out string error)
         {
             error = null;
-            if (audio == null || audio.Length == 0) { error = "אין שמע לתמלל."; return null; }
+            if (audio == null || audio.Length == 0) { error = Lang.T("אין שמע לתמלל."); return null; }
 
             string sys =
                 "אתה מתמלל שמע לכתוביות. תמלל בדיוק את מה שנאמר, בשפה שבה זה נאמר.\n" +
@@ -966,7 +964,7 @@ namespace SubtitleStudio
                 int b = txt.LastIndexOf(']');
                 if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
                 System.Collections.IList arr = Arr(Ser().DeserializeObject(txt));
-                if (arr == null) { error = "התמלול חזר בפורמט לא צפוי."; return null; }
+                if (arr == null) { error = Lang.T("התמלול חזר בפורמט לא צפוי."); return null; }
                 foreach (object o in arr)
                 {
                     Dictionary<string, object> d = o as Dictionary<string, object>;
@@ -984,7 +982,7 @@ namespace SubtitleStudio
             }
             catch (Exception ex)
             {
-                error = "התמלול חזר בפורמט לא צפוי: " + ex.Message;
+                error = Lang.F("התמלול חזר בפורמט לא צפוי: {0}", ex.Message);
                 return null;
             }
         }
@@ -1088,7 +1086,7 @@ namespace SubtitleStudio
                 int b = txt.LastIndexOf(']');
                 if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
                 System.Collections.IList arr = Arr(Ser().DeserializeObject(txt));
-                if (arr == null) { error = "התרגום חזר בפורמט לא צפוי."; return null; }
+                if (arr == null) { error = Lang.T("התרגום חזר בפורמט לא צפוי."); return null; }
                 string[] byIndex = new string[lines.Count];
                 foreach (object o in arr)
                 {
@@ -1107,7 +1105,7 @@ namespace SubtitleStudio
             }
             catch (Exception ex)
             {
-                error = "התרגום חזר בפורמט לא צפוי: " + ex.Message;
+                error = Lang.F("התרגום חזר בפורמט לא צפוי: {0}", ex.Message);
                 return null;
             }
         }
