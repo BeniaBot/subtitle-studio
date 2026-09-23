@@ -439,7 +439,7 @@ namespace SubtitleStudio
     }
 
     /// <summary>תיבת טקסט עם מסגרת מעוצבת.</summary>
-    internal class Field : Control
+    internal class Field : SurfaceControl
     {
         public TextBox Box;
         private string _placeholder = "";
@@ -520,10 +520,6 @@ namespace SubtitleStudio
             set { if (Box != null) Box.Text = value; }
         }
 
-        protected override void OnPaintBackground(PaintEventArgs e)
-        {
-            using (SolidBrush b = new SolidBrush(BackColor)) e.Graphics.FillRectangle(b, ClientRectangle);
-        }
 
         protected override void OnResize(EventArgs e)
         {
@@ -656,7 +652,7 @@ namespace SubtitleStudio
     }
 
     /// <summary>תווית פשוטה מצוירת (תומכת RTL).</summary>
-    internal class Lbl : Control
+    internal class Lbl : SurfaceControl
     {
         public bool Rtl = true;
         public bool Bold = false;
@@ -674,10 +670,6 @@ namespace SubtitleStudio
             Height = Theme.S(20);
         }
 
-        protected override void OnPaintBackground(PaintEventArgs e)
-        {
-            using (SolidBrush b = new SolidBrush(BackColor)) e.Graphics.FillRectangle(b, ClientRectangle);
-        }
 
         protected override void OnPaint(PaintEventArgs e)
         {

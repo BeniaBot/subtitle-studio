@@ -750,8 +750,6 @@ namespace SubtitleStudio
             _textEmptyHint.Text = "בחרו כתובית, או צרו חדשה";
             _textEmptyHint.Font = Theme.Ui;
             _textEmptyHint.Color = Theme.TextFaint;
-            // יושב בתוך השדה השקוע - אותו צבע כמו השדה, אחרת הוא טלאי בצבע הכרטיס
-            _textEmptyHint.BackColor = Theme.PanelAlt;
             _editCard.Controls.Add(_textEmptyHint);
             _text.TextChanged += delegate
             {
