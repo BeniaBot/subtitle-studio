@@ -104,7 +104,7 @@ namespace SubtitleStudio
         {
             _main = main; _doc = doc; _mi = mi; _style = style;
             _inMs = inMs; _outMs = outMs;
-            Subtitle = doc.Cues.Count + " כתוביות · " + (mi != null ? mi.Summary() : "");
+            Subtitle = Lang.F("{0} כתוביות · {1}", doc.Cues.Count, (mi != null ? mi.Summary() : ""));
 
             Section(Lang.T("איך להטמיע?"));
             _modeBurn = new Btn();
@@ -149,7 +149,7 @@ namespace SubtitleStudio
             Row(_lang, 32, 8);
 
             _rangeOnly = new Toggle();
-            _rangeOnly.Text = "רק הקטע המסומן על הציר (" + Tc.Short(inMs) + " – " + Tc.Short(outMs) + ")";
+            _rangeOnly.Text = Lang.F("רק הקטע המסומן על הציר ({0} – {1})", Tc.Short(inMs), Tc.Short(outMs));
             _rangeOnly.Visible = inMs >= 0 && outMs > inMs;
             if (_rangeOnly.Visible) Row(_rangeOnly, 26, 8);
 
@@ -248,13 +248,7 @@ namespace SubtitleStudio
                 if (!Ff.CanBurnHebrew)
                 {
                     Ui.Error(this, Lang.T("המנוע במחשב לא תומך בצריבה"),
-                        "התוכנה משתמשת כרגע במנוע ffmpeg שמותקן במחשב, והוא נבנה בלי התמיכה" +
-                        Environment.NewLine +
-                        Lang.T("בכתוביות ובעברית - הצריבה תצא הפוכה או ריקה.") + Environment.NewLine +
-                        Environment.NewLine +
-                        "אפשר לבחור \"ערוץ כתוביות נפרד\" במקום, או לפתוח את התוכנה מחדש" +
-                        Environment.NewLine +
-                        Lang.T("כדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל)."));
+                        Lang.T("התוכנה משתמשת כרגע במנוע ffmpeg שמותקן במחשב, והוא נבנה בלי התמיכה\r\nבכתוביות ובעברית - הצריבה תצא הפוכה או ריקה.\r\n\r\nאפשר לבחור \"ערוץ כתוביות נפרד\" במקום, או לפתוח את התוכנה מחדש\r\nכדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל)."));
                     return false;
                 }
                 string dir;
@@ -335,13 +329,12 @@ namespace SubtitleStudio
         {
             _main = main; _mi = mi; _doc = doc; _a = a; _b = b;
             // מקף עברי ולא מינוס: ‏"מ-00:00:05" נקרא ב-RTL כמו זמן שלילי
-            Subtitle = "מ־" + Theme.Ltr(Tc.Clock(a)) + " עד " + Theme.Ltr(Tc.Clock(b)) +
-                       "  ·  אורך הקטע " + Theme.Ltr(Tc.Short(b - a));
+            Subtitle = Lang.F("מ־{0} עד {1}  ·  אורך הקטע {2}", Theme.Ltr(Tc.Clock(a)), Theme.Ltr(Tc.Clock(b)), Theme.Ltr(Tc.Short(b - a)));
 
             Section(Lang.T("מה לעשות עם הקטע המסומן?"));
             _modeKeep = new Btn();
             _modeKeep.Text = Lang.T("לשמור רק את הקטע הזה");
-            _modeKeep.Sub = "כל השאר נמחק · הסרט החדש יתחיל מ־" + Theme.Ltr(Tc.Short(a));
+            _modeKeep.Sub = Lang.F("כל השאר נמחק · הסרט החדש יתחיל מ־{0}", Theme.Ltr(Tc.Short(a)));
             _modeKeep.Icon = Ico.Check;
             _modeKeep.Checked = true;
             _modeKeep.Radio = true;
@@ -413,9 +406,7 @@ namespace SubtitleStudio
                 if (_keyframe == -2) _keyframe = Ff.NearestKeyframeBefore(_mi.Path, _a);
                 long off = _keyframe >= 0 ? _a - _keyframe : 0;
                 if (_keyframe >= 0 && off > 400)
-                    _note.Text = "שימו לב: בחיתוך מהיר הקטע יתחיל ב־" + Theme.Ltr(Tc.Short(_keyframe)) + " במקום " + Theme.Ltr(Tc.Short(_a)) +
-                                 " (הפרש של " + (off / 1000.0).ToString("0.0") +
-                                 " שניות), כי אי אפשר לחתוך באמצע בלי לקודד מחדש.\r\nלדיוק מלא - כבו את החיתוך המהיר.";
+                    _note.Text = Lang.F("שימו לב: בחיתוך מהיר הקטע יתחיל ב־{0} במקום {1} (הפרש של {2} שניות), כי אי אפשר לחתוך באמצע בלי לקודד מחדש.\r\nלדיוק מלא - כבו את החיתוך המהיר.", Theme.Ltr(Tc.Short(_keyframe)), Theme.Ltr(Tc.Short(_a)), (off / 1000.0).ToString("0.0"));
                 else
                     _note.Text = Lang.T("החיתוך המהיר מעתיק את הזרם כמו שהוא - שניות בודדות, בלי איבוד איכות ובדיוק טוב בקובץ הזה.");
             }

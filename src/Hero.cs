@@ -170,7 +170,7 @@ namespace SubtitleStudio
                 // בלי תוויות - ההסבר מגיע בריחוף
                 string tip = "";
                 if (l == 0) tip = Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)");
-                else if (l == 1) tip = Lang.T(Theme.Dark ? Lang.T("מעבר למצב בהיר") : Lang.T("מעבר למצב כהה"));
+                else if (l == 1) tip = Theme.Dark ? Lang.T("מעבר למצב בהיר") : Lang.T("מעבר למצב כהה");
                 else if (l == 2) tip = Lang.T("על התוכנה, מנוע הווידאו ועדכונים");
                 Ui.Tip.SetToolTip(this, tip);
                 Invalidate();
@@ -259,8 +259,8 @@ namespace SubtitleStudio
                 Theme.Str(g, (i + 1).ToString(), Theme.SmallBold, Theme.Accent, circle, Theme.SfCenter);
 
                 RectangleF tr = Theme.Mir(z, new RectangleF(cx + Theme.S(4), sy, colW - d - Theme.S(16), Theme.S(24)));
-                Theme.Str(g, Lang.T(Steps[i][0]), Theme.UiBold, Theme.Text, tr, Theme.SfUi);
-                Theme.Str(g, Lang.T(Steps[i][1]), Theme.Small, Theme.TextFaint,
+                Theme.Str(g, Steps[i][0], Theme.UiBold, Theme.Text, tr, Theme.SfUi);
+                Theme.Str(g, Steps[i][1], Theme.Small, Theme.TextFaint,
                     Theme.Mir(z, new RectangleF(cx + Theme.S(4), sy + Theme.S(24), colW - Theme.S(14), Theme.S(36))), WrapUi);
             }
 

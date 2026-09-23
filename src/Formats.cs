@@ -565,7 +565,7 @@ namespace SubtitleStudio
                 // אין מספור - נתאים שורה-לשורה / בלוק-לבלוק
                 List<string> blocks = SplitBlocks(text);
                 if (blocks.Count != cues.Count)
-                    warning = "מספר הבלוקים בקובץ (" + blocks.Count + ") שונה ממספר הכתוביות (" + cues.Count + "). הותאם לפי הסדר.";
+                    warning = Lang.F("מספר הבלוקים בקובץ ({0}) שונה ממספר הכתוביות ({1}). הותאם לפי הסדר.", blocks.Count, cues.Count);
                 int n = Math.Min(blocks.Count, cues.Count);
                 for (int i = 0; i < n; i++) cues[i].Text = blocks[i];
                 return n;
@@ -577,7 +577,7 @@ namespace SubtitleStudio
                 int idx = kv.Key - 1;
                 if (idx >= 0 && idx < cues.Count && kv.Value.Length > 0) { cues[idx].Text = kv.Value; done++; }
             }
-            if (done < cues.Count) warning = "עודכנו " + done + " מתוך " + cues.Count + " כתוביות.";
+            if (done < cues.Count) warning = Lang.F("עודכנו {0} מתוך {1} כתוביות.", done, cues.Count);
             return done;
         }
 

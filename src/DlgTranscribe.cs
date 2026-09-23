@@ -66,9 +66,7 @@ namespace SubtitleStudio
             _warn = Label("", true, Theme.Warn);
             Row(_warn, 24, 2);
             Lbl warn2 = Hint(
-                "זו הפעולה היחידה בתוכנה ששולחת את התוכן עצמו החוצה. אם ההקלטה רגישה, " +
-                Lang.T("עדיף לתמלל ידנית - זה עובד בלי אינטרנט.") + Environment.NewLine +
-                Lang.T("התוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."));
+                Lang.T("זו הפעולה היחידה בתוכנה ששולחת את התוכן עצמו החוצה. אם ההקלטה רגישה, עדיף לתמלל ידנית - זה עובד בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."));
             Row(warn2, 44, 12);
 
             _info = Hint("");
@@ -117,8 +115,8 @@ namespace SubtitleStudio
             _optGroq.Invalidate();
 
             _connect.Text = p.HasKey
-                ? "החלפת המפתח של " + p.Name
-                : Theme.Pfx(Lang.T("חיבור ל"), p.Name) + " - מפתח חינמי, פעם אחת";
+                ? Lang.F("החלפת המפתח של {0}", p.Name)
+                : Lang.F("{0} - מפתח חינמי, פעם אחת", Theme.Pfx(Lang.T("חיבור ל"), p.Name));
             _connect.Kind = p.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
             _connect.Invalidate();
 
@@ -137,9 +135,7 @@ namespace SubtitleStudio
                 int mins = Math.Max(1, (int)Math.Ceiling(chunks * perChunk / 60.0));
                 // המספר בסוף המשפט ולא באמצעו: ‏Ltr באמצע טקסט עברי הפך את
                 // "40 שניות · 1 קטעים" ל-"1 · 40 שניות קטעים"
-                _info.Text = "אורך: " + Theme.Ltr(Tc.Length(dur)) + Environment.NewLine +
-                             (mins == 1 ? Lang.T("לוקח בערך דקה. ") : "לוקח בערך " + Theme.Ltr(mins.ToString()) + " דקות. ") +
-                             "אפשר לעצור באמצע, ומה שכבר תומלל יישמר.";
+                _info.Text = Lang.F("אורך: {0}\r\n{1}אפשר לעצור באמצע, ומה שכבר תומלל יישמר.", Theme.Ltr(Tc.Length(dur)), (mins == 1 ? Lang.T("לוקח בערך דקה. ") : Lang.F("לוקח בערך {0} דקות. ", Theme.Ltr(mins.ToString()))));
                 _info.Invalidate();
             }
         }
@@ -261,7 +257,7 @@ namespace SubtitleStudio
                             Settings.GroqKeyTouched = true;
                             Settings.SaveAll();
                             if (Settings.KeyOnDisk("groqkey")) Say(Lang.T("החיבור עובד, והמפתח נשמר."), Theme.Good);
-                            else Say("החיבור עובד, אבל המפתח לא נשמר בקובץ. " + Settings.LastError, Theme.Warn);
+                            else Say(Lang.F("החיבור עובד, אבל המפתח לא נשמר בקובץ. {0}", Settings.LastError), Theme.Warn);
                         }
                         else Say(err ?? Lang.T("לא התקבלה תשובה."), Theme.Bad);
                     });

@@ -18,14 +18,13 @@ namespace SubtitleStudio
     internal class UpdateDlg : Dlg
     {
         public UpdateDlg(Updater.Release rel, ChangeSummary sum)
-            : base("יש גרסה חדשה: " + rel.Version, Ico.Download, 540)
+            : base(Lang.F("יש גרסה חדשה: {0}", rel.Version), Ico.Download, 540)
         {
             Subtitle = sum != null && !sum.Empty
                 ? sum.Headline
-                : "הגרסה שלכם היא " + App.Version;
+                : Lang.F("הגרסה שלכם היא {0}", App.Version);
 
-            Lbl intro = Label("אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה " +
-                              Lang.T("תיסגר ותיפתח מחדש לבד."), false, Theme.TextDim);
+            Lbl intro = Label(Lang.T("אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה תיסגר ותיפתח מחדש לבד."), false, Theme.TextDim);
             intro.Wrap = true;
             Row(intro, 36, 10);
 
@@ -82,7 +81,7 @@ namespace SubtitleStudio
         {
             int shown = 0;
             for (int i = 0; i < sum.Groups.Count; i++)
-                if (sum.Groups[i].Title != "ובנוסף") shown += sum.Groups[i].Items.Count;
+                if (sum.Groups[i].Title != Lang.T("ובנוסף")) shown += sum.Groups[i].Items.Count;
             return shown < sum.Majors + sum.Features + sum.Fixes;
         }
 

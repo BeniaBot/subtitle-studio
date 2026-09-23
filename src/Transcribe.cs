@@ -90,7 +90,7 @@ namespace SubtitleStudio
                 double s = starts[i];
                 if (progress != null)
                     progress(i / (double)starts.Count,
-                             "מתמלל " + Tc.Short((long)(s * 1000)) + " מתוך " + Tc.Short(durationMs));
+                             Lang.F("מתמלל {0} מתוך {1}", Tc.Short((long)(s * 1000)), Tc.Short(durationMs)));
 
                 // שם קצר באנגלית ב-%TEMP%\SubStudio - אותה זהירות כמו בצריבה
                 string wav = Path.Combine(dir, "tr_" + i.ToString(CultureInfo.InvariantCulture) + ".mp3");
@@ -131,7 +131,7 @@ namespace SubtitleStudio
                     if (wait > 60) wait = 60;
                     if (progress != null && wait > 2)
                         progress(i / (double)starts.Count,
-                                 "ממתין למכסה של " + provider.Name + " (" + wait + " שניות)…");
+                                 Lang.F("ממתין למכסה של {0} ({1} שניות)…", provider.Name, wait));
                     SleepCancelable(wait * 1000, canceled);
                     _lastSend = DateTime.MinValue;                    // המתנו כבר מספיק
                 }

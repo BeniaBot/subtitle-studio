@@ -64,8 +64,7 @@ namespace SubtitleStudio
             _status = Hint("");
             Row(_status, 40, 4);
 
-            Row(Hint("השימוש חינמי במסגרת המכסה של גוגל. הכתוביות נשלחות לשרת של גוגל לצורך התרגום - " +
-                     Lang.T("אל תשתמשו בזה על תוכן רגיש.")), 40, 0);
+            Row(Hint(Lang.T("השימוש חינמי במסגרת המכסה של גוגל. הכתוביות נשלחות לשרת של גוגל לצורך התרגום - אל תשתמשו בזה על תוכן רגיש.")), 40, 0);
 
             Buttons(Lang.T("שמירה"), Ico.Save, Lang.T("ביטול"));
         }
@@ -102,7 +101,7 @@ namespace SubtitleStudio
                             Settings.AiKeyTouched = true;
                             Settings.SaveAll();
                             if (Settings.KeyOnDisk("aikey")) Say(Lang.T("החיבור עובד, והמפתח נשמר."), Theme.Good);
-                            else Say("החיבור עובד, אבל המפתח לא נשמר בקובץ. " + Settings.LastError, Theme.Warn);
+                            else Say(Lang.F("החיבור עובד, אבל המפתח לא נשמר בקובץ. {0}", Settings.LastError), Theme.Warn);
                         }
                         else { Ai.Key = old; Say(r != null ? r.Error : Lang.T("לא התקבלה תשובה."), Theme.Bad); }
                     });
@@ -129,7 +128,7 @@ namespace SubtitleStudio
             Thread t = new Thread(delegate ()
             {
                 try { report = Ai.Diagnose(); }
-                catch (Exception ex) { report = "שגיאה בבדיקה: " + ex.Message; }
+                catch (Exception ex) { report = Lang.F("שגיאה בבדיקה: {0}", ex.Message); }
                 try
                 {
                     BeginInvoke((MethodInvoker)delegate
@@ -248,7 +247,7 @@ namespace SubtitleStudio
             Row(_context, 40, 10);
 
             _info = Hint(doc != null
-                ? "יתורגמו " + Theme.Ltr(doc.Cues.Count.ToString()) + " כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z."
+                ? Lang.F("יתורגמו {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", Theme.Ltr(doc.Cues.Count.ToString()))
                 : "");
             Row(_info, 36, 2);
 
@@ -333,8 +332,7 @@ namespace SubtitleStudio
                             _bar.Value = pct / 100f;
                             // כל מספר עטוף לבד. עטיפה של ״5 מתוך 40״ כולו הוצגה
                             // ״תורגמו מתוך 40 5 כתוביות״ (נבדק בציור, 15.9.2026).
-                            _stat.Text = "תורגמו " + Theme.Ltr(done.ToString()) + " מתוך " +
-                                         Theme.Ltr(_cues.Count.ToString()) + " כתוביות";
+                            _stat.Text = Lang.F("תורגמו {0} מתוך {1} כתוביות", Theme.Ltr(done.ToString()), Theme.Ltr(_cues.Count.ToString()));
                             _stat.Invalidate();
                         });
                     }

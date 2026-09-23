@@ -117,7 +117,7 @@ namespace SubtitleStudio
                 js.MaxJsonLength = 16 * 1024 * 1024;
                 root = js.DeserializeObject(json) as Dictionary<string, object>;
             }
-            catch (Exception ex) { error = "תשובה לא מובנת מהמאגר: " + ex.Message; return null; }
+            catch (Exception ex) { error = Lang.F("תשובה לא מובנת מהמאגר: {0}", ex.Message); return null; }
             if (root == null) { error = Lang.T("תשובה לא מובנת מהמאגר."); return null; }
 
             Release r = new Release();
@@ -249,7 +249,7 @@ namespace SubtitleStudio
             });
             worker.IsBackground = true;
 
-            DownloadDlg dlg = new DownloadDlg("מוריד את הגרסה " + rel.Version);
+            DownloadDlg dlg = new DownloadDlg(Lang.F("מוריד את הגרסה {0}", rel.Version));
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
             t.Interval = 120;
             t.Tick += delegate
@@ -389,7 +389,7 @@ namespace SubtitleStudio
             {
                 // כונן מלא נשאר כונן מלא; כל השאר כאן הוא חיבור שנפל באמצע הקריאה
                 string m = ErrorText.Of(ioex);
-                return m.StartsWith("הפעולה לא הצליחה") ? Lang.T("החיבור נותק באמצע. אפשר לנסות שוב.") : m;
+                return m.StartsWith(Lang.T("הפעולה לא הצליחה.")) ? Lang.T("החיבור נותק באמצע. אפשר לנסות שוב.") : m;
             }
         }
 
@@ -499,7 +499,7 @@ namespace SubtitleStudio
             // (נראה בצילום של השדרוג 0.7.1 ל-0.7.2). את המשפט כולו לא עוטפים -
             // אז ״מתוך״ היה נקרא הפוך, ״37 מתוך 1.2״.
             _sub = Theme.Ltr(MediaInfo.FormatSize(got)) +
-                   (total > 0 ? " מתוך " + Theme.Ltr(MediaInfo.FormatSize(total)) : "");
+                   (total > 0 ? Lang.F(" מתוך {0}", Theme.Ltr(MediaInfo.FormatSize(total))) : "");
             Invalidate();
         }
 
@@ -536,7 +536,7 @@ namespace SubtitleStudio
 
         public AboutDlg() : base(Lang.T("על התוכנה"), Ico.Info, 540)
         {
-            Subtitle = "Subtext · אולפן הכתוביות · גרסה " + App.Version;
+            Subtitle = Lang.F("Subtext · אולפן הכתוביות · גרסה {0}", App.Version);
 
             Lbl what = Hint(Lang.T("תוכנה חופשית ליצירה, לתיקון ולהטמעה של כתוביות בעברית.") + Environment.NewLine +
                             Lang.T("רצה בלי התקנה ובלי אינטרנט - הכול נמצא בתוך הקובץ הזה.") + Environment.NewLine +
@@ -544,14 +544,12 @@ namespace SubtitleStudio
             Row(what, 60, 14);
 
             Section(Lang.T("גרסה"));
-            Lbl ver = Hint("גרסה " + Theme.Ltr(App.Version) + "   ·   " +
-                           (Install.IsInstalled() ? Lang.T("עותק מותקן") : Lang.T("עותק נייד")) + "   ·   " +
-                           Theme.Ltr(IntPtr.Size == 8 ? "64 bit" : "32 bit"));
+            Lbl ver = Hint(Lang.F("גרסה {0}   ·   {1}   ·   {2}", Theme.Ltr(App.Version), (Install.IsInstalled() ? Lang.T("עותק מותקן") : Lang.T("עותק נייד")), Theme.Ltr(IntPtr.Size == 8 ? "64 bit" : "32 bit")));
             Row(ver, 20, 6);
 
             _status = Hint(string.IsNullOrEmpty(Settings.LastCheck)
                 ? Lang.T("לחצו ״בדיקת עדכון״ כדי לראות אם יצאה גרסה חדשה.")
-                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck));
+                : Lang.F("נבדק לאחרונה: {0}", Theme.Ltr(Settings.LastCheck)));
             Row(_status, 32, 6);
 
             Btn copy = Small(Lang.T("העתקת פרטי הגרסה"), Ico.Copy);
@@ -559,12 +557,7 @@ namespace SubtitleStudio
             Row(copy, 30, 16);
 
             Section(Lang.T("רישיון"));
-            Lbl lic = Hint("הקוד של התוכנה חופשי (רישיון " + Theme.Ltr("MIT") + ") - מותר לקחת אותו," + Environment.NewLine +
-                           "לשנות ולבנות ממנו מה שרוצים. מנוע הווידאו " + Theme.Ltr("FFmpeg") +
-                           " מגיע ברישיון " + Theme.Ltr("GPLv3") + "," + Environment.NewLine +
-                           "הגופן " + Theme.Ltr("IBM Plex Sans Hebrew") + " ברישיון " + Theme.Ltr("OFL") +
-                           ", ומילון האיות (יורד בנפרד) ברישיון " + Theme.Ltr("AGPLv3") + "." + Environment.NewLine +
-                           Lang.T("הנוסח המלא של כולם נמצא בתוך הקובץ."));
+            Lbl lic = Hint(Lang.F("הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע הווידאו {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.", Theme.Ltr("MIT"), Theme.Ltr("FFmpeg"), Theme.Ltr("GPLv3"), Theme.Ltr("IBM Plex Sans Hebrew"), Theme.Ltr("OFL"), Theme.Ltr("AGPLv3")));
             Row(lic, 84, 6);
 
             Btn save = Small(Lang.T("שמירת נוסח הרישיונות לתיקייה"), Ico.Save);
@@ -652,7 +645,7 @@ namespace SubtitleStudio
                 }
                 catch (Exception ex) { err = ex.Message; }
             }
-            if (n > 0) Ui.Info(this, Lang.T("נשמר"), "נכתבו " + n + " קבצים אל" + Environment.NewLine + Theme.Ltr(dir));
+            if (n > 0) Ui.Info(this, Lang.T("נשמר"), Lang.F("נכתבו {0} קבצים אל\r\n{1}", n, Theme.Ltr(dir)));
             else Ui.Error(this, Lang.T("לא נשמר"), err != null ? err : Lang.T("לא נמצאו נוסחי רישיון בקובץ."));
         }
 
@@ -704,7 +697,7 @@ namespace SubtitleStudio
                             SetStatus(Lang.T("הגרסה שלכם היא העדכנית ביותר."), Theme.Good);
                         else
                         {
-                            SetStatus("יש גרסה חדשה: " + rel.Version, Theme.Accent);
+                            SetStatus(Lang.F("יש גרסה חדשה: {0}", rel.Version), Theme.Accent);
                             Updates.Offer(this, rel, sum);
                         }
                     });
@@ -859,8 +852,8 @@ namespace SubtitleStudio
                 Add(sum, Lang.T("מה חדש"), feats, 6);
                 List<string> tail = new List<string>();
                 int rest = Math.Max(0, feats.Count - 6);
-                if (rest > 0) tail.Add("ועוד " + Count(rest, Lang.T("תוספת אחת"), Lang.T("תוספות")));
-                if (fixes.Count > 0) tail.Add(Count(fixes.Count, Lang.T("תיקון אחד"), Lang.T("תיקונים")) + " ושיפורים");
+                if (rest > 0) tail.Add(Lang.F("ועוד {0}", Count(rest, Lang.T("תוספת אחת"), Lang.T("תוספות"))));
+                if (fixes.Count > 0) tail.Add(Lang.F("{0} ושיפורים", Count(fixes.Count, Lang.T("תיקון אחד"), Lang.T("תיקונים"))));
                 if (tail.Count > 0) Tail(sum, string.Join(" · ", tail.ToArray()));
             }
             else
@@ -875,7 +868,7 @@ namespace SubtitleStudio
                 Add(sum, Lang.T("העיקר שנוסף"), feats, nf);
                 List<string> tail = new List<string>();
                 int rest = Math.Max(0, majors.Count - nm) + Math.Max(0, feats.Count - nf);
-                if (rest > 0) tail.Add("ועוד " + Count(rest, Lang.T("תוספת אחת"), Lang.T("תוספות")));
+                if (rest > 0) tail.Add(Lang.F("ועוד {0}", Count(rest, Lang.T("תוספת אחת"), Lang.T("תוספות"))));
                 if (fixes.Count > 0) tail.Add(Count(fixes.Count, Lang.T("תיקון אחד"), Lang.T("תיקונים")));
                 if (tail.Count > 0) Tail(sum, string.Join(" · ", tail.ToArray()));
             }
@@ -887,9 +880,8 @@ namespace SubtitleStudio
                 if (Cmp(vers[i], oldest) < 0) oldest = vers[i];
             }
             sum.Headline = sum.Jump == 1
-                ? "מה השתנה בגרסה " + newest
-                : "דילגתם על " + Count(sum.Jump, Lang.T("גרסה אחת"), Lang.T("גרסאות")) +
-                  " (" + oldest + " ← " + newest + ") — הנה העיקר";
+                ? Lang.F("מה השתנה בגרסה {0}", newest)
+                : Lang.F("דילגתם על {0} ({1} ← {2}) — הנה העיקר", Count(sum.Jump, Lang.T("גרסה אחת"), Lang.T("גרסאות")), oldest, newest);
             return sum;
         }
 

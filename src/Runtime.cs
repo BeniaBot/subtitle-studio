@@ -213,9 +213,7 @@ namespace SubtitleStudio
             if (error != null)
             {
                 MessageBox.Show(
-                    "לא הצלחתי להכין את מנוע הווידאו:\n\n" + error +
-                    "\n\nהתיקייה: " + dir +
-                    "\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.",
+                    Lang.F("לא הצלחתי להכין את מנוע הווידאו:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.", error, dir),
                     "Subtext", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -231,7 +229,7 @@ namespace SubtitleStudio
                 string dir = TargetDir;
                 if (!Directory.Exists(dir)) { message = Lang.T("אין מה למחוק - המנוע לא נפרס."); return false; }
                 Directory.Delete(dir, true);
-                message = "המנוע נמחק מ:\n" + dir + "\nהוא ייפרס מחדש בהפעלה הבאה.";
+                message = Lang.F("המנוע נמחק מ:\n{0}\nהוא ייפרס מחדש בהפעלה הבאה.", dir);
                 return true;
             }
             catch (Exception ex) { message = ex.Message; return false; }

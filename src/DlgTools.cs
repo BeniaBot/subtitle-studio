@@ -62,17 +62,15 @@ namespace SubtitleStudio
             if (AlreadySmall)
                 // ההודעה הקודמת אמרה "אין צורך" אבל השאירה את הכפתור פעיל,
                 // וזה סותר. עדיף להגיד מה כן לעשות.
-                return "הקובץ כבר קטן מהגודל הזה (" + Theme.Ltr(SourceMb.ToString("0.0") + " MB") +
-                       "). כדי להקטין אותו באמת - לבחור גודל קטן יותר.";
+                return Lang.F("הקובץ כבר קטן מהגודל הזה ({0}). כדי להקטין אותו באמת - לבחור גודל קטן יותר.", Theme.Ltr(SourceMb.ToString("0.0") + " MB"));
             if (TooSmall)
-                return "הגודל הזה קטן מדי לסרט באורך " + Tc.Short((long)(DurationSec * 1000)) +
-                       " - התוצאה תהיה מטושטשת מאוד. כדאי לבחור גודל גדול יותר או לחתוך קטע.";
-            string s = "איכות מתוכננת: " + (VideoKbps / 1000.0).ToString("0.0") + " מגהביט לשנייה";
-            if (AudioKbps > 0) s += " + קול " + AudioKbps + "k";
+                return Lang.F("הגודל הזה קטן מדי לסרט באורך {0} - התוצאה תהיה מטושטשת מאוד. כדאי לבחור גודל גדול יותר או לחתוך קטע.", Tc.Short((long)(DurationSec * 1000)));
+            string s = Lang.F("איכות מתוכננת: {0} מגהביט לשנייה", (VideoKbps / 1000.0).ToString("0.0"));
+            if (AudioKbps > 0) s += Lang.F(" + קול {0}k", AudioKbps);
             if (Height > 0 && Height < SourceHeight)
-                s += "  ·  הרזולוציה תרד ל-" + Height + "p כדי לשמור על תמונה חדה";
+                s += Lang.F("  ·  הרזולוציה תרד ל-{0}p כדי לשמור על תמונה חדה", Height);
             else if (SourceHeight > 0)
-                s += "  ·  הרזולוציה נשארת " + SourceHeight + "p";
+                s += Lang.F("  ·  הרזולוציה נשארת {0}p", SourceHeight);
             return s;
         }
     }
@@ -375,7 +373,7 @@ namespace SubtitleStudio
                         string lang = string.IsNullOrEmpty(st.Language) || st.Language == "und"
                             ? "" : " · " + MediaStream.LangName(st.Language);
                         string ch = st.Channels == 1 ? Lang.T(" · מונו") : (st.Channels == 2 ? Lang.T(" · סטריאו") : "");
-                        names.Add("ערוץ " + n + " · " + st.Codec + ch + lang);
+                        names.Add(Lang.F("ערוץ {0} · {1}{2}{3}", n, st.Codec, ch, lang));
                         n++;
                     }
                 }
@@ -442,8 +440,7 @@ namespace SubtitleStudio
                 if (c.HasRange) sec = (c.B - c.A) / 1000.0;
                 string s2 = Lang.T("ההיפוך טוען את כל הקטע לזיכרון, אז עדיף על קטעים קצרים.");
                 if (sec > 120)
-                    s2 = "שימו לב: קטע של " + Tc.Short((long)(sec * 1000)) +
-                         " ידרוש הרבה זיכרון. כדאי לסמן קטע על הציר ולהפוך רק אותו.";
+                    s2 = Lang.F("שימו לב: קטע של {0} ידרוש הרבה זיכרון. כדאי לסמן קטע על הציר ולהפוך רק אותו.", Tc.Short((long)(sec * 1000)));
                 return s2;
             };
             reverse.Build = delegate (ToolCtx c)
@@ -521,8 +518,8 @@ namespace SubtitleStudio
 
         private static int Rank(string g)
         {
-            if (g == "קול") return 0;
-            if (g == "וידאו") return 1;
+            if (g == Lang.T("קול")) return 0;
+            if (g == Lang.T("וידאו")) return 1;
             return 2;
         }
     }
@@ -632,7 +629,7 @@ namespace SubtitleStudio
             {
                 bool has = a >= 0 && b > a;
                 Lbl l = Hint(has
-                    ? "יעבוד על הטווח המסומן: " + Tc.Short(a) + " – " + Tc.Short(b)
+                    ? Lang.F("יעבוד על הטווח המסומן: {0} – {1}", Tc.Short(a), Tc.Short(b))
                     : Lang.T("לא סומן טווח על הציר - הפעולה תרוץ על כל הקובץ."));
                 Row(l, 32, 6);
             }

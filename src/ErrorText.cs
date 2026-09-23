@@ -43,8 +43,7 @@ namespace SubtitleStudio
             string known = FromFfmpeg(log);
             if (known != null) return known;
             string tail = Ff.LastLines(log, 2);
-            return "מנוע הווידאו לא הצליח לעבד את הקובץ." +
-                   (tail.Length > 0 ? Environment.NewLine + Theme.Ltr(tail) : "");
+            return Lang.F("מנוע הווידאו לא הצליח לעבד את הקובץ.{0}", (tail.Length > 0 ? Environment.NewLine + Theme.Ltr(tail) : ""));
         }
 
         /// <summary>null = לא זוהה. נבדקות רק השורות האחרונות: אזהרה על
@@ -57,7 +56,7 @@ namespace SubtitleStudio
             if (Has(t, "No space left on device"))
                 return Lang.T("אין מספיק מקום בכונן. פנו מקום, או שמרו לכונן אחר.");
             if (Has(t, "File too large"))
-                return "הכונן לא מקבל קובץ גדול כל כך. בהרבה דיסק-און-קי המגבלה היא " + Theme.Ltr("4GB") + ". שמרו לכונן אחר.";
+                return Lang.F("הכונן לא מקבל קובץ גדול כל כך. בהרבה דיסק-און-קי המגבלה היא {0}. שמרו לכונן אחר.", Theme.Ltr("4GB"));
             if (Has(t, "Cannot allocate memory") || Has(t, "Out of memory"))
                 return Lang.T("אין מספיק זיכרון פנוי. סגרו תוכנות אחרות ונסו שוב.");
 
@@ -70,9 +69,7 @@ namespace SubtitleStudio
             if (m.Success || Has(t, "Encoder not found") || Has(t, "Filter not found"))
             {
                 string part = m.Success ? (m.Groups[1].Value + m.Groups[2].Value + m.Groups[3].Value) : "";
-                return "מנוע הווידאו שבשימוש חסר רכיב שהפעולה צריכה" +
-                       (part.Length > 0 ? " (" + Theme.Ltr(part) + ")" : "") + ". " +
-                       "אם הונח ליד התוכנה קובץ " + Theme.Ltr("ffmpeg.exe") + " אחר - הסירו אותו, ולתוכנה יש מנוע משלה.";
+                return Lang.F("מנוע הווידאו שבשימוש חסר רכיב שהפעולה צריכה{0}. אם הונח ליד התוכנה קובץ {1} אחר - הסירו אותו, ולתוכנה יש מנוע משלה.", (part.Length > 0 ? " (" + Theme.Ltr(part) + ")" : ""), Theme.Ltr("ffmpeg.exe"));
             }
 
             if (Has(t, "matches no streams") || Has(t, "does not contain any stream"))
@@ -89,14 +86,13 @@ namespace SubtitleStudio
                 return Lang.T("הקובץ פגום, או שזה לא קובץ וידאו או קול.");
 
             if (Regex.IsMatch(t, @"Error opening output[^\r\n]*Permission denied"))
-                return "אי אפשר לשמור שם. אולי קובץ בשם הזה פתוח בתוכנה אחרת (למשל בנגן), או שהתיקייה מוגנת. " +
-                       Lang.T("סגרו אותו, או בחרו מקום אחר.");
+                return Lang.T("אי אפשר לשמור שם. אולי קובץ בשם הזה פתוח בתוכנה אחרת (למשל בנגן), או שהתיקייה מוגנת. סגרו אותו, או בחרו מקום אחר.");
             if (Regex.IsMatch(t, @"Error opening output[^\r\n]*No such file or directory"))
                 return Lang.T("התיקייה שנבחרה לשמירה לא קיימת. אולי הכונן נותק.");
 
             if (Has(t, "muxer does not support") || Has(t, "not currently supported in container") ||
                 Has(t, "Could not write header"))
-                return "סוג הקובץ שנבחר לא מתאים לתוכן הזה. נסו לשמור כ-" + Theme.Ltr("MP4") + " או כ-" + Theme.Ltr("MKV") + ".";
+                return Lang.F("סוג הקובץ שנבחר לא מתאים לתוכן הזה. נסו לשמור כ-{0} או כ-{1}.", Theme.Ltr("MP4"), Theme.Ltr("MKV"));
 
             // התהליך עצמו לא עלה (Win32Exception מ-Process.Start)
             if (Has(t, "cannot find the file specified"))
@@ -110,8 +106,7 @@ namespace SubtitleStudio
         {
             if (ex == null) return Lang.T("הפעולה לא הצליחה.");
             if (ex is UnauthorizedAccessException)
-                return "אין הרשאה לכתוב לשם. אולי הקובץ מסומן לקריאה בלבד, או שהתיקייה מוגנת. " +
-                       Lang.T("נסו לשמור במסמכים או בשולחן העבודה.");
+                return Lang.T("אין הרשאה לכתוב לשם. אולי הקובץ מסומן לקריאה בלבד, או שהתיקייה מוגנת. נסו לשמור במסמכים או בשולחן העבודה.");
             if (ex is PathTooLongException)
                 return Lang.T("הנתיב ארוך מדי. שמרו בתיקייה עם נתיב קצר יותר, למשל בשולחן העבודה.");
             if (ex is DirectoryNotFoundException)
@@ -168,8 +163,7 @@ namespace SubtitleStudio
         /// שחוסם עונה לרוב בדף HTML ובקוד 200, כלומר ״הצלחה״. עד 0.8.0 זה הגיע
         /// למשתמש כ״המילון שירד פגום״ או ״תשובה לא מובנת״, והוא ניסה שוב ושוב.</summary>
         public static readonly string Filtered =
-            "נראה שסינון האינטרנט חסם את ההורדה. אפשר לבקש מהסינון לאשר את האתר " +
-            Theme.Ltr("github.com") + ", ולנסות שוב.";
+            Lang.F("נראה שסינון האינטרנט חסם את ההורדה. אפשר לבקש מהסינון לאשר את האתר {0}, ולנסות שוב.", Theme.Ltr("github.com"));
 
         /// <summary>האם מה שהגיע הוא דף אינטרנט ולא הקובץ שביקשנו.</summary>
         public static bool IsWebPage(string contentType, byte[] head, int len)
@@ -197,7 +191,7 @@ namespace SubtitleStudio
                 if (code == 404) return notFound;
                 // 403, ‏418 ו-451: קודים שמסננים מחזירים כשהם חוסמים בלי להגיש דף
                 if (code == 403 || code == 418 || code == 451) return Filtered;
-                return "השרת לא זמין כרגע (" + Theme.Ltr(code.ToString()) + "). אפשר לנסות שוב בעוד כמה דקות.";
+                return Lang.F("השרת לא זמין כרגע ({0}). אפשר לנסות שוב בעוד כמה דקות.", Theme.Ltr(code.ToString()));
             }
             switch (wex.Status)
             {

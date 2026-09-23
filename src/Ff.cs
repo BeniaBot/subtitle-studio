@@ -66,15 +66,15 @@ namespace SubtitleStudio
         {
             switch ((code ?? "").ToLowerInvariant())
             {
-                case "heb": case "he": return "עברית";
-                case "eng": case "en": return "אנגלית";
-                case "ara": case "ar": return "ערבית";
-                case "rus": case "ru": return "רוסית";
-                case "fre": case "fra": case "fr": return "צרפתית";
-                case "spa": case "es": return "ספרדית";
-                case "ger": case "deu": case "de": return "גרמנית";
-                case "yid": case "yi": return "יידיש";
-                case "und": case "": return "לא מוגדר";
+                case "heb": case "he": return Lang.T("עברית");
+                case "eng": case "en": return Lang.T("אנגלית");
+                case "ara": case "ar": return Lang.T("ערבית");
+                case "rus": case "ru": return Lang.T("רוסית");
+                case "fre": case "fra": case "fr": return Lang.T("צרפתית");
+                case "spa": case "es": return Lang.T("ספרדית");
+                case "ger": case "deu": case "de": return Lang.T("גרמנית");
+                case "yid": case "yi": return Lang.T("יידיש");
+                case "und": case "": return Lang.T("לא מוגדר");
                 default: return code;
             }
         }
@@ -519,7 +519,7 @@ namespace SubtitleStudio
                             string label = stepCount > 1
                                 ? (job.StepNames != null && job.StepNames.Length > stepIndex
                                     ? job.StepNames[stepIndex] + "  ·  " + status
-                                    : "שלב " + (stepIndex + 1) + " מתוך " + stepCount + "  ·  " + status)
+                                    : Lang.F("שלב {0} מתוך {1}  ·  {2}", (stepIndex + 1), stepCount, status))
                                 : status;
                             outer(all, label);
                         };
@@ -559,9 +559,9 @@ namespace SubtitleStudio
                                     {
                                         long ms = Tc.Parse(m.Groups[1].Value);
                                         double prog = job.TotalMs > 0 ? Math.Min(0.999, ms / (double)job.TotalMs) : 0;
-                                        string status = Tc.Short(ms) + (job.TotalMs > 0 ? " מתוך " + Tc.Short(job.TotalMs) : "");
+                                        string status = Tc.Short(ms) + (job.TotalMs > 0 ? Lang.F(" מתוך {0}", Tc.Short(job.TotalMs)) : "");
                                         Match sp = Regex.Match(line, @"speed=\s*([\d.]+)x");
-                                        if (sp.Success) status += "   (מהירות ×" + sp.Groups[1].Value + ")";
+                                        if (sp.Success) status += Lang.F("   (מהירות ×{0})", sp.Groups[1].Value);
                                         onProgress(prog, status);
                                     }
                                 }

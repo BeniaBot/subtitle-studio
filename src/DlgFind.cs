@@ -26,7 +26,7 @@ namespace SubtitleStudio
 
         public FindDlg(string initial, int total) : base(Lang.T("חיפוש בכתוביות"), Ico.Search, 460)
         {
-            Subtitle = total + " כתוביות";
+            Subtitle = Lang.F("{0} כתוביות", total);
 
             _term = new Field();
             _term.Placeholder = Lang.T("מה לחפש?");
@@ -77,7 +77,7 @@ namespace SubtitleStudio
             a.Forward = forward;
             FindNext(this, a);
             if (a.Found) Say(Lang.T("נמצא - הכתובית מסומנת מאחורי החלון."), Theme.Good);
-            else Say("לא נמצא ״" + t + "״ בשום כתובית.", Theme.Warn);
+            else Say(Lang.F("לא נמצא ״{0}״ בשום כתובית.", t), Theme.Warn);
         }
 
         private void Say(string text, Color c)

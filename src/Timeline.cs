@@ -232,7 +232,7 @@ namespace SubtitleStudio
             }
             g.SmoothingMode = old;
 
-            Theme.Str(g, Doc.Cues.Count + " כתוביות · התקרבו כדי לערוך אותן", Theme.Small, Theme.TextDim,
+            Theme.Str(g, Lang.F("{0} כתוביות · התקרבו כדי לערוך אותן", Doc.Cues.Count), Theme.Small, Theme.TextDim,
                 new RectangleF(Theme.S(80), TrackTop + Theme.S(2), Width - Theme.S(160), Theme.S(17)), Theme.SfCenter);
         }
 
@@ -636,7 +636,7 @@ namespace SubtitleStudio
 
             if (Wave != null && !Wave.Ready)
             {
-                string s = "מכין את פס הקול...  " + (int)(Wave.Progress * 100) + "%";
+                string s = Lang.F("מכין את פס הקול...  {0}%", (int)(Wave.Progress * 100));
                 Theme.FillRound(g, new RectangleF(8, waveTop + 6, 190, 22), 11, Color.FromArgb(190, Theme.Panel));
                 Theme.Str(g, s, Theme.Small, Theme.TextDim, new RectangleF(16, waveTop + 6, 176, 22), Theme.SfRtl);
             }

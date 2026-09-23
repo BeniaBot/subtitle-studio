@@ -205,7 +205,7 @@ namespace SubtitleStudio
             error = null;
             string json;
             try { json = File.ReadAllText(path, Encoding.UTF8); }
-            catch (Exception ex) { error = "לא הצלחתי לקרוא את הקובץ: " + ex.Message; return null; }
+            catch (Exception ex) { error = Lang.F("לא הצלחתי לקרוא את הקובץ: {0}", ex.Message); return null; }
             return Parse(json, out error);
         }
 

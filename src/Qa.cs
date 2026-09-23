@@ -168,16 +168,16 @@ namespace SubtitleStudio
             string one, many;
             switch (k)
             {
-                case IssueKind.Overlap: one = "חופפת לכתובית הבאה"; many = "חופפות לכתובית הבאה"; break;
-                case IssueKind.TooFast: one = "מהירה מדי לקריאה"; many = "מהירות מדי לקריאה"; break;
-                case IssueKind.TooShort: one = "קצרה מדי"; many = "קצרות מדי"; break;
-                case IssueKind.TooLong: one = "נשארת יותר מדי זמן"; many = "נשארות יותר מדי זמן"; break;
-                case IssueKind.LongLine: one = "עם שורה ארוכה מדי"; many = "עם שורה ארוכה מדי"; break;
-                case IssueKind.ManyLines: one = "עם יותר משתי שורות"; many = "עם יותר משתי שורות"; break;
-                case IssueKind.Spelling: one = "עם מילה שאולי שגויה"; many = "עם מילים שאולי שגויות"; break;
-                default: one = "ריקה"; many = "ריקות"; break;
+                case IssueKind.Overlap: one = Lang.T("חופפת לכתובית הבאה"); many = Lang.T("חופפות לכתובית הבאה"); break;
+                case IssueKind.TooFast: one = Lang.T("מהירה מדי לקריאה"); many = Lang.T("מהירות מדי לקריאה"); break;
+                case IssueKind.TooShort: one = Lang.T("קצרה מדי"); many = Lang.T("קצרות מדי"); break;
+                case IssueKind.TooLong: one = Lang.T("נשארת יותר מדי זמן"); many = Lang.T("נשארות יותר מדי זמן"); break;
+                case IssueKind.LongLine: one = Lang.T("עם שורה ארוכה מדי"); many = Lang.T("עם שורה ארוכה מדי"); break;
+                case IssueKind.ManyLines: one = Lang.T("עם יותר משתי שורות"); many = Lang.T("עם יותר משתי שורות"); break;
+                case IssueKind.Spelling: one = Lang.T("עם מילה שאולי שגויה"); many = Lang.T("עם מילים שאולי שגויות"); break;
+                default: one = Lang.T("ריקה"); many = Lang.T("ריקות"); break;
             }
-            return n == 1 ? "כתובית אחת " + one : Theme.Ltr(n.ToString(CultureInfo.InvariantCulture)) + " כתוביות " + many;
+            return n == 1 ? Lang.F("כתובית אחת {0}", one) : Lang.F("{0} כתוביות {1}", Theme.Ltr(n.ToString(CultureInfo.InvariantCulture)), many);
         }
 
         /// <summary>למה זו בעיה, בכמה מילים, לתיאור בתפריט.</summary>
@@ -185,14 +185,14 @@ namespace SubtitleStudio
         {
             switch (k)
             {
-                case IssueKind.Overlap: return "שתי כתוביות על המסך באותו רגע";
-                case IssueKind.TooFast: return "אין מספיק זמן לקרוא";
-                case IssueKind.TooShort: return "נעלמות לפני שמספיקים לקרוא";
-                case IssueKind.TooLong: return "נשארות אחרי שהדיבור נגמר";
-                case IssueKind.LongLine: return "יוצאות מהמסך בטלפון";
-                case IssueKind.ManyLines: return "מכסות את התמונה";
-                case IssueKind.Spelling: return "אולי שגיאת כתיב";
-                default: return "אין בהן טקסט";
+                case IssueKind.Overlap: return Lang.T("שתי כתוביות על המסך באותו רגע");
+                case IssueKind.TooFast: return Lang.T("אין מספיק זמן לקרוא");
+                case IssueKind.TooShort: return Lang.T("נעלמות לפני שמספיקים לקרוא");
+                case IssueKind.TooLong: return Lang.T("נשארות אחרי שהדיבור נגמר");
+                case IssueKind.LongLine: return Lang.T("יוצאות מהמסך בטלפון");
+                case IssueKind.ManyLines: return Lang.T("מכסות את התמונה");
+                case IssueKind.Spelling: return Lang.T("אולי שגיאת כתיב");
+                default: return Lang.T("אין בהן טקסט");
             }
         }
 
@@ -205,16 +205,13 @@ namespace SubtitleStudio
                 case IssueKind.Overlap:
                     return Lang.T("נגמרת אחרי שהכתובית הבאה כבר התחילה, ושתיהן על המסך יחד.");
                 case IssueKind.TooFast:
-                    return Theme.Ltr(Math.Round(c.Cps).ToString(CultureInfo.InvariantCulture)) +
-                           " תווים בשנייה - אי אפשר לקרוא בזמן. כדאי להאריך אותה, או לקצר את הטקסט.";
+                    return Lang.F("{0} תווים בשנייה - אי אפשר לקרוא בזמן. כדאי להאריך אותה, או לקצר את הטקסט.", Theme.Ltr(Math.Round(c.Cps).ToString(CultureInfo.InvariantCulture)));
                 case IssueKind.TooShort:
                     return Lang.T("מופיעה פחות משנייה, ונעלמת לפני שמספיקים לקרוא.");
                 case IssueKind.TooLong:
-                    return "נשארת " + Theme.Ltr(Math.Round(c.Duration / 1000.0).ToString(CultureInfo.InvariantCulture)) +
-                           " שניות. כתובית שנשארת אחרי שהדיבור נגמר מבלבלת; כדאי לפצל או לקצר.";
+                    return Lang.F("נשארת {0} שניות. כתובית שנשארת אחרי שהדיבור נגמר מבלבלת; כדאי לפצל או לקצר.", Theme.Ltr(Math.Round(c.Duration / 1000.0).ToString(CultureInfo.InvariantCulture)));
                 case IssueKind.LongLine:
-                    return "שורה ארוכה מ-" + Theme.Ltr(MaxLineChars.ToString(CultureInfo.InvariantCulture)) +
-                           " תווים יוצאת מהמסך בטלפון ובטלוויזיה קטנה.";
+                    return Lang.F("שורה ארוכה מ-{0} תווים יוצאת מהמסך בטלפון ובטלוויזיה קטנה.", Theme.Ltr(MaxLineChars.ToString(CultureInfo.InvariantCulture)));
                 case IssueKind.ManyLines:
                     return Lang.T("שלוש שורות ומעלה מכסות את התמונה. כדאי לפצל לשתי כתוביות.");
                 case IssueKind.Spelling:
@@ -224,11 +221,9 @@ namespace SubtitleStudio
                         if (w.Count == 1)
                         {
                             List<string> sug = Spell.Suggest(w[0], 1);
-                            return "״" + w[0] + "״ אולי כתובה לא נכון" + (sug.Count > 0 ? " - אולי ״" + sug[0] + "״?" : ".") +
-                                   " קליק ימני על השורה מציע תיקון.";
+                            return Lang.F("״{0}״ אולי כתובה לא נכון{1} קליק ימני על השורה מציע תיקון.", w[0], (sug.Count > 0 ? Lang.F(" - אולי ״{0}״?", sug[0]) : "."));
                         }
-                        return "״" + w[0] + "״ ו-״" + w[1] + "״" + (w.Count > 2 ? Lang.T(" ועוד") : "") +
-                               " אולי כתובות לא נכון. קליק ימני על השורה מציע תיקון.";
+                        return Lang.F("״{0}״ ו-״{1}״{2} אולי כתובות לא נכון. קליק ימני על השורה מציע תיקון.", w[0], w[1], (w.Count > 2 ? Lang.T(" ועוד") : ""));
                     }
                 default:
                     return Lang.T("אין בה טקסט. אפשר לכתוב, או למחוק אותה.");
@@ -347,9 +342,8 @@ namespace SubtitleStudio
             if (r.Removed > 0) done.Add(Count(r.Removed, Lang.T("כתובית ריקה אחת נמחקה"), Lang.T("כתוביות ריקות נמחקו")));
             string s = done.Count == 0 ? Lang.T("לא היה מה לתקן אוטומטית.") : string.Join("  ·  ", done.ToArray()) + ".";
             if (r.Left.Count > 0)
-                s += " " + (r.Left.Count == 1 ? Lang.T("נשארה בעיה אחת") : "נשארו " + Theme.Ltr(r.Left.Count.ToString(CultureInfo.InvariantCulture)) + " בעיות") +
-                     " שצריך לתקן ביד.";
-            return s + "  לביטול - Ctrl+Z.";
+                s += Lang.F(" {0} שצריך לתקן ביד.", (r.Left.Count == 1 ? Lang.T("נשארה בעיה אחת") : Lang.F("נשארו {0} בעיות", Theme.Ltr(r.Left.Count.ToString(CultureInfo.InvariantCulture)))));
+            return Lang.F("{0}  לביטול - Ctrl+Z.", s);
         }
 
         private static string Count(int n, string one, string many)

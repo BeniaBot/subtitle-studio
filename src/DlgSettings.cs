@@ -66,7 +66,7 @@ namespace SubtitleStudio
             };
             Row(_google, 52, 6);
 
-            _groq = Card("המפתח של " + Theme.Ltr("Groq"), Ico.Mic);
+            _groq = Card(Lang.F("המפתח של {0}", Theme.Ltr("Groq")), Ico.Mic);
             _groq.Click += delegate
             {
                 GroqSetupDlg d = new GroqSetupDlg();
@@ -87,7 +87,7 @@ namespace SubtitleStudio
             _spellLine = Hint("");
             Row(_spellLine, 22, 6);
 
-            _getDict = Small("להוריד את המילון (" + Theme.Ltr("1.2 MB") + ", פעם אחת)", Ico.Download);
+            _getDict = Small(Lang.F("להוריד את המילון ({0}, פעם אחת)", Theme.Ltr("1.2 MB")), Ico.Download);
             _getDict.Click += delegate
             {
                 SpellSetupDlg d = new SpellSetupDlg();
@@ -109,7 +109,7 @@ namespace SubtitleStudio
             Btn check = Card(Lang.T("בדיקת עדכונים עכשיו"), Ico.Download);
             check.Sub = string.IsNullOrEmpty(Settings.LastCheck)
                 ? Lang.T("הבדיקה לא שולחת שום מידע - רק שואלת אם יש גרסה חדשה")
-                : "נבדק לאחרונה: " + Theme.Ltr(Settings.LastCheck) + " · לא נשלח שום מידע";
+                : Lang.F("נבדק לאחרונה: {0} · לא נשלח שום מידע", Theme.Ltr(Settings.LastCheck));
             check.Click += delegate
             {
                 AboutDlg d = new AboutDlg();
@@ -185,8 +185,7 @@ namespace SubtitleStudio
         private void RemoveDict()
         {
             if (Ui.Msg(this, Lang.T("למחוק את המילון?"),
-                    "בדיקת האיות תפסיק לעבוד עד שהמילון יורד שוב (" + Theme.Ltr("1.2 MB") + "). " +
-                    Lang.T("המילים שהוספתם למילון האישי נשמרות."),
+                    Lang.F("בדיקת האיות תפסיק לעבוד עד שהמילון יורד שוב ({0}). המילים שהוספתם למילון האישי נשמרות.", Theme.Ltr("1.2 MB")),
                     Ico.Warning, Lang.T("למחוק"), Lang.T("ביטול")) != 0) return;
             string err;
             if (!Spell.Remove(out err)) Ui.Error(this, Lang.T("לא נמחק"), err);
@@ -197,7 +196,7 @@ namespace SubtitleStudio
         private void Refresh2()
         {
             _google.Sub = Ai.HasKey
-                ? "מוגדר · הדגם שבשימוש: " + Theme.Ltr(Ai.Model)
+                ? Lang.F("מוגדר · הדגם שבשימוש: {0}", Theme.Ltr(Ai.Model))
                 : Lang.T("לא מוגדר · בלעדיו אין תרגום ואין עוזר");
             _groq.Sub = string.IsNullOrEmpty(Stt.GroqKey)
                 ? Lang.T("לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם")
@@ -219,7 +218,7 @@ namespace SubtitleStudio
             _delEngine.Visible = Ff.IsOwnEngine;
             // בלי מילון אין מה לספר כאן, והמקטע ״בדיקת איות״ כבר מציע להוריד אותו
             long dict = Spell.SizeOnDisk;
-            _dictLine.Text = "מילון האיות · " + Theme.Ltr(MediaInfo.FormatSize(dict));
+            _dictLine.Text = Lang.F("מילון האיות · {0}", Theme.Ltr(MediaInfo.FormatSize(dict)));
             _dictLine.Visible = dict > 0;
             _delDict.Visible = dict > 0;
             _engineLine.Invalidate();
@@ -231,11 +230,11 @@ namespace SubtitleStudio
         {
             string ff = Ff.Exe;
             if (string.IsNullOrEmpty(ff)) return Lang.T("מנוע הווידאו · ייפרס בהפעלה הבאה");
-            if (!Ff.IsOwnEngine) return "מנוע הווידאו · מותקן במחשב: " + Theme.Ltr(ff);
+            if (!Ff.IsOwnEngine) return Lang.F("מנוע הווידאו · מותקן במחשב: {0}", Theme.Ltr(ff));
             long size = 0;
             try { size = new FileInfo(ff).Length; }
             catch { }
-            return "מנוע הווידאו · " + (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff));
+            return Lang.F("מנוע הווידאו · {0}", (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff)));
         }
 
         /// <summary>מחזיר את ההעדפות לברירת המחדל. **המפתחות לא נמחקים** - הם
@@ -244,8 +243,7 @@ namespace SubtitleStudio
         private void ResetAll()
         {
             if (Ui.Msg(this, Lang.T("להחזיר את ההגדרות לברירת המחדל?"),
-                    "הערכה, עוצמת הקול, מהירות ההשמעה, עיצוב הכתוביות ורשימת הקבצים " +
-                    Lang.T("האחרונים יחזרו למצב ההתחלתי. הכתוביות הפתוחות, המפתחות והמילון לא ייגעו."),
+                    Lang.T("הערכה, עוצמת הקול, מהירות ההשמעה, עיצוב הכתוביות ורשימת הקבצים האחרונים יחזרו למצב ההתחלתי. הכתוביות הפתוחות, המפתחות והמילון לא ייגעו."),
                     Ico.Warning, Lang.T("להחזיר"), Lang.T("ביטול")) != 0) return;
 
             Settings.Volume = 80;

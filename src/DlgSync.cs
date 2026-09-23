@@ -61,7 +61,7 @@ namespace SubtitleStudio
 
             Btn all = new Btn();
             all.Text = Lang.T("להזיז את כל הכתוביות");
-            all.Sub = DeltaText() + " · מתאים כשכל הקובץ מוסט באותה מידה";
+            all.Sub = Lang.F("{0} · מתאים כשכל הקובץ מוסט באותה מידה", DeltaText());
             all.Icon = Ico.ShiftLR;
             all.Kind = BtnKind.Primary;
             all.Click += delegate { ApplyShift(_doc.Cues); };
@@ -95,8 +95,7 @@ namespace SubtitleStudio
 
             Section(Lang.T("הפער גדל לאורך הסרט?"));
             Lbl explain = Hint(_state.HasA
-                ? "נקודה ראשונה שמורה:  " + Theme.Ltr(_state.LabelA) + Environment.NewLine +
-                  Lang.T("עכשיו לחצו ״מתיחה״ ואתקן את כל הסרט לפי שתי הנקודות.")
+                ? Lang.F("נקודה ראשונה שמורה:  {0}\r\nעכשיו לחצו ״מתיחה״ ואתקן את כל הסרט לפי שתי הנקודות.", Theme.Ltr(_state.LabelA))
                 : Lang.T("לפעמים הכתוביות מדויקות בהתחלה ובורחות בהמשך.") + Environment.NewLine +
                   Lang.T("שמרו נקודה כאן, עברו לכתובית בסוף הסרט, וחזרו לחלון הזה."));
             Row(explain, 46, 8);
@@ -144,7 +143,7 @@ namespace SubtitleStudio
         {
             if (_delta == 0) return Lang.T("הכתובית כבר בדיוק במקום");
             string dir = _delta > 0 ? Lang.T("מאוחר יותר") : Lang.T("מוקדם יותר");
-            return "הזזה של " + Theme.Ltr((Math.Abs(_delta) / 1000.0).ToString("0.00")) + " שניות " + dir;
+            return Lang.F("הזזה של {0} שניות {1}", Theme.Ltr((Math.Abs(_delta) / 1000.0).ToString("0.00")), dir);
         }
 
         private void ApplyShift(List<Cue> cues)
@@ -218,14 +217,14 @@ namespace SubtitleStudio
                 float left = pad, right = Width - pad;
 
                 // הכתובית
-                string cueLabel = "כתובית " + Theme.Ltr(CueNumber.ToString()) + (CueText.Length > 0 ? "   ·   " + Short(CueText, 28) : "");
+                string cueLabel = Lang.F("כתובית {0}{1}", Theme.Ltr(CueNumber.ToString()), (CueText.Length > 0 ? "   ·   " + Short(CueText, 28) : ""));
                 Theme.Str(g, cueLabel, Theme.UiBold, Theme.Text,
                     new RectangleF(pad, Theme.S(10), Width - pad * 2, Theme.S(22)), Theme.SfRtl);
 
                 // הפרש גדול באמצע
                 string big = delta == 0
                     ? Lang.T("אין הפרש")
-                    : Theme.Ltr((delta > 0 ? "+" : "−") + (Math.Abs(delta) / 1000.0).ToString("0.00")) + " שניות";
+                    : Lang.F("{0} שניות", Theme.Ltr((delta > 0 ? "+" : "−") + (Math.Abs(delta) / 1000.0).ToString("0.00")));
                 Color dc = delta == 0 ? Theme.Good : (Math.Abs(delta) > 3000 ? Theme.Warn : Theme.Accent);
                 Theme.Str(g, big, Theme.F(16f, FontStyle.Bold), dc,
                     new RectangleF(pad, Theme.S(34), Width - pad * 2, Theme.S(30)), Theme.SfCenter);

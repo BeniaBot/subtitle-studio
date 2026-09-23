@@ -425,7 +425,7 @@ namespace SubtitleStudio
             long total = 0;
             for (int i = 0; i < Cues.Count; i++) total += Cues[i].Duration;
             StringBuilder sb = new StringBuilder();
-            sb.Append(Cues.Count == 1 ? Lang.T("כתובית אחת") : Theme.Ltr(Cues.Count.ToString()) + " כתוביות");
+            sb.Append(Cues.Count == 1 ? Lang.T("כתובית אחת") : Lang.F("{0} כתוביות", Theme.Ltr(Cues.Count.ToString())));
             sb.Append(Lang.T("  ·  משך כולל ")).Append(Theme.Ltr(Tc.Short(total)));
             return sb.ToString();
         }

@@ -29,9 +29,9 @@ namespace SubtitleStudio
             int sel = doc.SelectedCues().Count;
             _scope.Items.AddRange(new object[]
             {
-                "כל הכתוביות (" + doc.Cues.Count + ")",
-                "המסומנות בלבד (" + sel + ")",
-                "מהסמן והלאה (" + Tc.Short(position) + ")",
+                Lang.F("כל הכתוביות ({0})", doc.Cues.Count),
+                Lang.F("המסומנות בלבד ({0})", sel),
+                Lang.F("מהסמן והלאה ({0})", Tc.Short(position)),
                 Lang.T("עד הסמן")
             });
             _scope.SelectedIndex = sel > 0 ? 1 : 0;
@@ -108,11 +108,11 @@ namespace SubtitleStudio
             long ms = AmountMs();
             List<Cue> t = Target();
             string dir = ms == 0 ? "" : (ms > 0 ? Lang.T("מאוחר יותר") : Lang.T("מוקדם יותר"));
-            string s = t.Count + " כתוביות יזוזו " + Tc.Short(Math.Abs(ms)) + " " + dir + ".";
+            string s = Lang.F("{0} כתוביות יזוזו {1} {2}.", t.Count, Tc.Short(Math.Abs(ms)), dir);
             if (t.Count > 0)
             {
                 Cue f = t[0];
-                s += "\nלדוגמה: הכתובית הראשונה תעבור מ-" + Tc.Clock(f.Start) + " ל-" + Tc.Clock(Math.Max(0, f.Start + ms)) + ".";
+                s += Lang.F("\nלדוגמה: הכתובית הראשונה תעבור מ-{0} ל-{1}.", Tc.Clock(f.Start), Tc.Clock(Math.Max(0, f.Start + ms)));
             }
             _preview.Text = s;
             _preview.Invalidate();
@@ -173,7 +173,7 @@ namespace SubtitleStudio
                     {
                         string enc;
                         _text.Text = Formats.ReadTextSmart(d.FileName, out enc);
-                        Subtitle = "נטען: " + Theme.FileName(Path.GetFileName(d.FileName)) + " (" + enc + ")";
+                        Subtitle = Lang.F("נטען: {0} ({1})", Theme.FileName(Path.GetFileName(d.FileName)), enc);
                         Invalidate();
                     }
                     catch (Exception ex) { Ui.Error(this, Lang.T("לא הצלחתי לקרוא"), ErrorText.Of(ex)); }
@@ -343,8 +343,7 @@ namespace SubtitleStudio
             string how = SplitByBlank() ? Lang.T("כל שורה ריקה מפרידה בין כתוביות") : Lang.T("כל שורה היא כתובית");
             string first = cues[0].PlainText;
             if (first.Length > 44) first = first.Substring(0, 42) + "…";
-            _preview.Text = "ייווצרו " + cues.Count + " כתוביות  ·  " + how + Environment.NewLine +
-                            "הראשונה: ״" + first + "״";
+            _preview.Text = Lang.F("ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״", cues.Count, how, first);
             _preview.Invalidate();
         }
 
@@ -372,7 +371,7 @@ namespace SubtitleStudio
             _subs = mi.Subtitles();
             Subtitle = _subs.Count == 0
                 ? Lang.T("לא נמצאו ערוצי כתוביות בקובץ הזה")
-                : (_subs.Count == 1 ? Lang.T("נמצא ערוץ כתוביות אחד") : "נמצאו " + _subs.Count + " ערוצי כתוביות");
+                : (_subs.Count == 1 ? Lang.T("נמצא ערוץ כתוביות אחד") : Lang.F("נמצאו {0} ערוצי כתוביות", _subs.Count));
 
             if (_subs.Count == 0)
             {
@@ -427,12 +426,12 @@ namespace SubtitleStudio
             }
             SaveFileDialog d = new SaveFileDialog();
             string ext = s.IsImageSubtitle ? ".sup" : (s.Codec.ToLowerInvariant() == "ass" ? ".ass" : ".srt");
-            d.Filter = "קובץ כתוביות|*" + ext;
+            d.Filter = Lang.F("קובץ כתוביות|*{0}", ext);
             try { d.FileName = Path.GetFileNameWithoutExtension(_mi.Path) + " - " + MediaStream.LangName(s.Language) + ext; }
             catch { }
             if (d.ShowDialog(this) != DialogResult.OK) return;
             if (ExtractTo(d.FileName, s))
-                Ui.Info(this, Lang.T("נשמר"), "הכתוביות נשמרו אל:\n" + d.FileName);
+                Ui.Info(this, Lang.T("נשמר"), Lang.F("הכתוביות נשמרו אל:\n{0}", d.FileName));
         }
 
         protected override bool OnOk()
@@ -647,7 +646,7 @@ namespace SubtitleStudio
         public ReplaceDlg(Doc doc) : base(Lang.T("חיפוש והחלפה"), Ico.Search, 560)
         {
             _doc = doc;
-            Subtitle = "מחליף בכל " + doc.Cues.Count + " הכתוביות בבת אחת";
+            Subtitle = Lang.F("מחליף בכל {0} הכתוביות בבת אחת", doc.Cues.Count);
 
             Section(Lang.T("לחפש"));
             _find = new Field();
@@ -732,7 +731,7 @@ namespace SubtitleStudio
             }
             _count.Text = hits == 0
                 ? Lang.T("לא נמצאו התאמות.")
-                : "נמצאו " + hits + " מופעים ב־" + rows + " כתוביות.";
+                : Lang.F("נמצאו {0} מופעים ב־{1} כתוביות.", hits, rows);
             _count.Invalidate();
         }
 

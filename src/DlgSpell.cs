@@ -22,8 +22,7 @@ namespace SubtitleStudio
             Subtitle = Lang.T("מסמנת מילים שאולי כתובות לא נכון");
 
             Section(Lang.T("מה צריך"));
-            Row(Hint("בשביל זה צריך מילון עברי. הוא חינמי, שוקל " + Theme.Ltr("1.2 MB") +
-                     ", ויורד פעם אחת. אחרי זה הבדיקה עובדת בלי אינטרנט."), 22, 10);
+            Row(Hint(Lang.F("בשביל זה צריך מילון עברי. הוא חינמי, שוקל {0}, ויורד פעם אחת. אחרי זה הבדיקה עובדת בלי אינטרנט.", Theme.Ltr("1.2 MB"))), 22, 10);
 
             Section(Lang.T("איך זה עובד"));
             Row(Hint(Lang.T("מילה חשודה מסומנת ברשימת הכתוביות. קליק ימני על השורה מציע תיקון, או להוסיף את המילה למילון.")), 22, 4);
@@ -64,7 +63,7 @@ namespace SubtitleStudio
                         Post(delegate
                         {
                             _bar.Value = total > 0 ? done / (float)total : 0;
-                            Say("מוריד… " + Theme.Ltr(MediaInfo.FormatSize(done)) + " מתוך " + Theme.Ltr(MediaInfo.FormatSize(total)), Theme.TextDim);
+                            Say(Lang.F("מוריד… {0} מתוך {1}", Theme.Ltr(MediaInfo.FormatSize(done)), Theme.Ltr(MediaInfo.FormatSize(total))), Theme.TextDim);
                         });
                     },
                     delegate { return _cancel; },

@@ -91,7 +91,7 @@ namespace SubtitleStudio
         public int MinGapMs { get { return 3200; } }
         public int LastRetrySec { get { return _retry; } }
         public bool LastQuotaIsDaily { get { return _daily; } }
-        public string QuotaMessage { get { return "המכסה החינמית של " + DisplayName + " נגמרה לעכשיו. " + ResetText; } }
+        public string QuotaMessage { get { return Lang.F("המכסה החינמית של {0} נגמרה לעכשיו. {1}", DisplayName, ResetText); } }
 
         /// <summary>מתי אפשר להמשיך: הדגם שמתאפס ראשון. המכסה השעתית מתאפסת
         /// תוך שעה, והיומית מחר - וזה ההבדל בין ״לחכות קצת״ ל״מחר״.</summary>
@@ -105,8 +105,8 @@ namespace SubtitleStudio
                 if (first == DateTime.MaxValue) return Lang.T("אפשר לנסות שוב בעוד כמה דקות.");
                 double min = (first - DateTime.UtcNow).TotalMinutes;
                 if (min <= 1) return Lang.T("אפשר לנסות שוב עכשיו.");
-                if (min < 90) return "אפשר להמשיך בעוד כ-" + Math.Ceiling(min).ToString(CultureInfo.InvariantCulture) + " דקות.";
-                if (min < 20 * 60) return "אפשר להמשיך בעוד כ-" + Math.Ceiling(min / 60).ToString(CultureInfo.InvariantCulture) + " שעות.";
+                if (min < 90) return Lang.F("אפשר להמשיך בעוד כ-{0} דקות.", Math.Ceiling(min).ToString(CultureInfo.InvariantCulture));
+                if (min < 20 * 60) return Lang.F("אפשר להמשיך בעוד כ-{0} שעות.", Math.Ceiling(min / 60).ToString(CultureInfo.InvariantCulture));
                 return Lang.T("אפשר להמשיך מחר.");
             }
         }
@@ -230,10 +230,10 @@ namespace SubtitleStudio
 
         private string Explain(int code, string body, string netError)
         {
-            if (code == 401 || code == 403) return "המפתח של " + DisplayName + " לא תקין, או שפג תוקפו.";
-            if (code == 429) return "המכסה של " + DisplayName + " נגמרה לעכשיו.";
+            if (code == 401 || code == 403) return Lang.F("המפתח של {0} לא תקין, או שפג תוקפו.", DisplayName);
+            if (code == 429) return Lang.F("המכסה של {0} נגמרה לעכשיו.", DisplayName);
             if (code == 413) return Lang.T("קטע השמע גדול מדי לשירות.");
-            if (code >= 500) return "השרת של " + DisplayName + " לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.";
+            if (code >= 500) return Lang.F("השרת של {0} לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.", DisplayName);
             // הפרטים הטכניים (באנגלית) כבר ביומן - בהודעה הם רק שוברים את הכיוון
             if (code == 0) return Lang.T("אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת.");
             string msg = null;
@@ -243,7 +243,7 @@ namespace SubtitleStudio
                 if (m.Success) msg = Regex.Unescape(m.Groups[1].Value);
             }
             catch { }
-            return DisplayName + " החזיר שגיאה " + code + (msg != null ? ": " + msg : ".");
+            return Lang.F("{0} החזיר שגיאה {1}{2}", DisplayName, code, (msg != null ? ": " + msg : "."));
         }
 
         // ---------- קריאת התשובה ----------

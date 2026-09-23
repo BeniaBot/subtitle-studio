@@ -151,7 +151,7 @@ namespace SubtitleStudio
             DoLayout();
         }
 
-        private const string Placeholder = "מה לעשות? למשל: תרגם לאנגלית";
+        private static string Placeholder { get { return Lang.T("מה לעשות? למשל: תרגם לאנגלית"); } }
         private bool _hint;
 
         private void ShowHint()
