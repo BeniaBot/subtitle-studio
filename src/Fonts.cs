@@ -70,8 +70,11 @@ namespace SubtitleStudio
                 foreach (FontFamily f in _pfc.Families)
                 {
                     string n = f.Name;
+                    // ״Medium״ נחשב חצי-מודגש: בגופנים שאין להם SemiBold (Heebo, Rubik)
+                    // זה המשקל שבין הרגיל למודגש
                     if (n.IndexOf("SemiBold", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        n.IndexOf("Semi Bold", StringComparison.OrdinalIgnoreCase) >= 0) _semi = f;
+                        n.IndexOf("Semi Bold", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        n.IndexOf("Medium", StringComparison.OrdinalIgnoreCase) >= 0) _semi = f;
                     else if (n.IndexOf("Bold", StringComparison.OrdinalIgnoreCase) >= 0) _bold = f;
                     else if (_regular == null) _regular = f;
                 }
