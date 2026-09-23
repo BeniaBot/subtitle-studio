@@ -129,7 +129,7 @@ namespace SubtitleStudio
             _keyBtn.Kind = BtnKind.Tool;
             _keyBtn.Size = new Size(Theme.S(32), Theme.S(32));
             _keyBtn.Click += delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); };
-            Ui.Tip.SetToolTip(_keyBtn, "הגדרות ה-AI והמפתח");
+            Ui.Tip.SetToolTip(_keyBtn, "המפתח של גוגל, שהעוזר עובד איתו");
             Controls.Add(_keyBtn);
 
             KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) Close(); };

@@ -202,7 +202,7 @@ namespace SubtitleStudio
         public static AiReply Send(string system, List<AiMsg> history, List<AiTool> tools, bool jsonOut)
         {
             AiReply r = new AiReply();
-            if (!HasKey) { r.Error = "לא הוגדר מפתח. פתחו את הגדרות ה-AI כדי להזין אותו."; return r; }
+            if (!HasKey) { r.Error = "לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."; return r; }
 
             string json = BuildBody(system, history, tools, jsonOut, Model);
 
