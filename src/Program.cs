@@ -35,14 +35,18 @@ namespace SubtitleStudio
             }
             catch { }
 
-            SubStyle style = Settings.Load();
-
-            // בפעם הראשונה השפה נקבעת לפי ווינדוס. מרגע שהמשתמש בחר,
-            // הבחירה שלו קובעת - גם אם היא שונה משפת המערכת.
-            // הבדיקות מריצות את אותו חלון בשתי השפות, ולכן יש עקיפה.
+            // **השפה נקבעת לפני כל דבר אחר**, גם לפני ההגדרות: טעינת ההגדרות
+            // נוגעת בעוזר, בתמלול ובאיות, ומחרוזת קבועה שנוצרת שם לפני הבחירה
+            // הייתה ננעלת בעברית. לכן קוראים קודם רק את שורת השפה.
+            // בפעם הראשונה השפה נקבעת לפי ווינדוס; מרגע שהמשתמש בחר, הבחירה
+            // שלו קובעת. הבדיקות מריצות את אותו חלון בשתי השפות, ולכן יש עקיפה.
             string forced = Environment.GetEnvironmentVariable("SUBTEXT_LANG");
+            string saved = Settings.PeekLang();
             if (!string.IsNullOrEmpty(forced)) Lang.Set(forced);
-            else if (!Settings.LangChosen) Lang.Set(Lang.Detect());
+            else if (saved != null) Lang.Set(saved);
+            else Lang.Set(Lang.Detect());
+
+            SubStyle style = Settings.Load();
 
             // פריסת מנוע הווידאו המוטמע (בפעם הראשונה בלבד)
             Runtime.Prepare();
@@ -83,9 +87,6 @@ namespace SubtitleStudio
         private static string File_ { get { return Path.Combine(Dir, "settings.ini"); } }
 
         public static bool AutoUpdate = true;
-        /// <summary>האם המשתמש (או קובץ הגדרות קיים) כבר קבע שפה.
-        /// בלי זה מזהים לפי שפת ווינדוס בהפעלה הראשונה.</summary>
-        public static bool LangChosen = false;
         public static string LastCheck = "";
         /// <summary>עוצמת ההשמעה ומהירותה - העדפות של המשתמש, לא של הקובץ.</summary>
         public static int Volume = 80;
@@ -146,6 +147,23 @@ namespace SubtitleStudio
             catch { }
         }
 
+        /// <summary>רק שורת השפה, בלי לגעת בשום מחלקה אחרת. ‏null אם אין.</summary>
+        public static string PeekLang()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(File_)) return null;
+                foreach (string line in System.IO.File.ReadAllLines(File_, Encoding.UTF8))
+                    if (line.StartsWith("lang=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string v = line.Substring(5).Trim();
+                        return v.Length > 0 ? v : null;
+                    }
+            }
+            catch { }
+            return null;
+        }
+
         public static SubStyle Load()
         {
             SubStyle s = new SubStyle();
@@ -162,7 +180,6 @@ namespace SubtitleStudio
                     switch (k)
                     {
                         case "dark": Theme.Dark = v == "1"; break;
-                        case "lang": if (v.Length > 0) { Lang.Set(v); LangChosen = true; } break;
                         case "font": if (v.Length > 0) s.FontName = v; break;
                         case "size": s.FontPct = D(v, s.FontPct); break;
                         case "bold": s.Bold = v == "1"; break;
