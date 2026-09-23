@@ -796,10 +796,16 @@ namespace SubtitleStudio
 
         // ---------- תרגום ----------
         /// <summary>שורה אחת שחזרה מתמלול: זמנים בשניות מתחילת הקטע שנשלח.</summary>
+        /// <summary>התשובה הגולמית האחרונה של התמלול - לאבחון (build	r-probe.ps1).</summary>
+        internal static string LastRaw = "";
+
         internal class TrLine
         {
             public double Start, End;
             public string Text = "";
+            /// <summary>לשורה יש זמן שהצלחנו לקרוא. בלי זמן היא **לא נזרקת**: היא נשמרת
+            /// כ״זמן משוער״ (≈), בדיוק כמו אחרי יבוא טקסט.</summary>
+            public bool HasTime { get { return !double.IsNaN(Start); } }
         }
 
         /// <summary>מתמלל קטע שמע אחד. הזמנים שחוזרים הם יחסית לתחילת הקטע.
@@ -821,7 +827,9 @@ namespace SubtitleStudio
                 "פסק כרגיל, וחלק לשורות קצרות שנוחות לקריאה על מסך.\n" +
                 (string.IsNullOrEmpty(context) ? "" : "רקע על התוכן: " + context + "\n") +
                 "החזר אך ורק מערך JSON: [{\"s\":0.00,\"e\":2.50,\"t\":\"...\"}]\n" +
-                "‏s ו-e בשניות מתחילת קובץ השמע הזה. אם אין דיבור כלל - החזר [].";
+                "‏s ו-e הם **מספרים** בשניות מתחילת קובץ השמע הזה (למשל 65.5), לא 1:05.\n" +
+                "כל שורה פעם אחת: אל תחזור על אותה שורה ברצף אלא אם היא באמת נשמעת שוב.\n" +
+                "אם אין דיבור כלל - החזר [].";
 
             AiMsg m = new AiMsg();
             m.Role = "user";
@@ -832,12 +840,26 @@ namespace SubtitleStudio
             h.Add(m);
 
             AiReply r = Send(sys, h, null, true);
+            LastRaw = r.Ok ? r.Text : ("ERROR: " + r.Error);
             if (!r.Ok) { error = r.Error; return null; }
 
+            return ParseTrLines(r.Text, out error);
+        }
+
+        /// <summary>מפרש את התשובה של התמלול לשורות.
+        ///
+        /// **אף שורה עם טקסט לא נזרקת בשקט.** עד 0.8.1 זמן שלא נקרא כמספר (״1:05״,
+        /// ״00:01:05,200״, או שדה בשם start במקום s) הפך לאפס, ובקטע שאינו הראשון
+        /// כל השורות נזרקו כ״חפיפה עם הקטע הקודם״: בקליפ של שלוש דקות נעלמו 57 שניות,
+        /// מקטע שהחזיר את התשובה **הארוכה** מכולם. עכשיו כל צורת זמן נקראת, ושורה
+        /// בלי זמן בכלל נשמרת עם HasTime=false.</summary>
+        internal static List<TrLine> ParseTrLines(string raw, out string error)
+        {
+            error = null;
             List<TrLine> outp = new List<TrLine>();
             try
             {
-                string txt = r.Text.Trim();
+                string txt = (raw ?? "").Trim();
                 int a = txt.IndexOf('[');
                 int b = txt.LastIndexOf(']');
                 if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
@@ -848,14 +870,12 @@ namespace SubtitleStudio
                     Dictionary<string, object> d = o as Dictionary<string, object>;
                     if (d == null) continue;
                     TrLine ln = new TrLine();
-                    ln.Start = NumOf(d, "s");
-                    ln.End = NumOf(d, "e");
-                    object tv;
-                    if (d.TryGetValue("t", out tv)) ln.Text = Convert.ToString(tv);
-                    if (ln.Text == null) ln.Text = "";
-                    ln.Text = ln.Text.Trim();
+                    ln.Start = TimeOf(d, "s", "start", "begin", "from", "start_time", "startTime", "time");
+                    ln.End = TimeOf(d, "e", "end", "to", "stop", "end_time", "endTime");
+                    ln.Text = TextOf(d, "t", "text", "line", "content");
                     if (ln.Text.Length == 0) continue;
-                    if (ln.End <= ln.Start) ln.End = ln.Start + 1.5;
+                    if (ln.HasTime && (double.IsNaN(ln.End) || ln.End <= ln.Start))
+                        ln.End = ln.Start + ReadingSec(ln.Text);
                     outp.Add(ln);
                 }
                 return outp;
@@ -867,14 +887,67 @@ namespace SubtitleStudio
             }
         }
 
-        private static double NumOf(Dictionary<string, object> d, string key)
+        /// <summary>כמה זמן שורה צריכה להישאר על המסך כדי שיספיקו לקרוא אותה.</summary>
+        internal static double ReadingSec(string text)
         {
-            object o;
-            if (d == null || !d.TryGetValue(key, out o) || o == null) return 0;
+            int n = text == null ? 0 : text.Length;
+            return Math.Max(1.2, Math.Min(6.0, n / 15.0));
+        }
+
+        private static string TextOf(Dictionary<string, object> d, params string[] keys)
+        {
+            foreach (string k in keys)
+            {
+                object v;
+                if (d.TryGetValue(k, out v) && v != null)
+                {
+                    string t = Convert.ToString(v, CultureInfo.InvariantCulture).Trim();
+                    if (t.Length > 0) return t;
+                }
+            }
+            return "";
+        }
+
+        /// <summary>זמן בשניות מכל צורה שהמודל בוחר: 65.5, ״65.5״, ״65,5״, ״1:05.5״,
+        /// ״00:01:05,500״, ״65.5s״. ‏NaN אם אין שדה כזה או שהוא לא נקרא.</summary>
+        internal static double TimeOf(Dictionary<string, object> d, params string[] keys)
+        {
+            foreach (string k in keys)
+            {
+                object o;
+                if (d == null || !d.TryGetValue(k, out o) || o == null) continue;
+                double v = ParseTime(Convert.ToString(o, CultureInfo.InvariantCulture));
+                if (!double.IsNaN(v)) return v;
+            }
+            return double.NaN;
+        }
+
+        internal static double ParseTime(string s)
+        {
+            if (s == null) return double.NaN;
+            s = s.Trim().TrimEnd('s', 'S').Trim();
+            if (s.Length == 0) return double.NaN;
             double v;
-            if (double.TryParse(Convert.ToString(o, CultureInfo.InvariantCulture),
-                    NumberStyles.Any, CultureInfo.InvariantCulture, out v)) return v;
-            return 0;
+            if (s.IndexOf(':') < 0)
+            {
+                if (double.TryParse(s.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v) && v >= 0)
+                    return v;
+                return double.NaN;
+            }
+            string[] parts = s.Split(':');
+            if (parts.Length > 3) return double.NaN;
+            double total = 0;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string p = parts[i].Trim();
+                if (i < parts.Length - 1) { int n; if (!int.TryParse(p, out n) || n < 0) return double.NaN; total = total * 60 + n; }
+                else
+                {
+                    if (!double.TryParse(p.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v) || v < 0) return double.NaN;
+                    total = total * 60 + v;
+                }
+            }
+            return total;
         }
 
         /// <summary>מתרגם רשימת שורות ומחזיר רשימה באותו אורך. מחזיר null בשגיאה.</summary>

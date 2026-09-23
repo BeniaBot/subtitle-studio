@@ -173,21 +173,14 @@ namespace SubtitleStudio
                 quotaStreak = 0;
                 failStreak = 0;
 
-                foreach (Ai.TrLine ln in lines)
-                {
-                    // מה שנפל בתוך החפיפה כבר נלכד בקטע הקודם
-                    if (i > 0 && ln.Start < OverlapSec * 0.8) continue;
-                    long a = (long)Math.Round((s + ln.Start) * 1000.0);
-                    long b = (long)Math.Round((s + ln.End) * 1000.0);
-                    // שורה שנמשכת אל תוך החפיפה של הקטע הבא תיתפס שם שוב - Dedupe מטפל
-                    if (b > durationMs) b = durationMs;
-                    if (b <= a) continue;
-                    all.Add(new Cue(a, b, ln.Text));
-                }
+                // קטע שהחזיר טקסט ולא נשאר ממנו כלום הוא חור, גם אם השרת ״הצליח״.
+                // עד 0.8.1 זה עבר בשקט: 57 שניות נעלמו בלי שום הודעה.
+                int kept = AddChunk(all, lines, i, s, chunkSec, durationMs);
+                if (kept == 0 && lines.Count >= 3) NoteGap(res, s, chunkSec, totalSec);
             }
 
             all.Sort(delegate (Cue x, Cue y) { return x.Start.CompareTo(y.Start); });
-            res.Cues = Dedupe(all);
+            res.Cues = Dedupe(CollapseRepeats(all));
             if (progress != null) progress(1, "מסיים…");
             if (res.QuotaOut && res.Error == null)
                 res.Error = provider.QuotaMessage;
@@ -198,6 +191,76 @@ namespace SubtitleStudio
                     ? lastErr
                     : "לא זוהה דיבור בקובץ.";
             return res;
+        }
+
+        /// <summary>הופך את השורות של קטע אחד לכתוביות. מחזיר כמה נכנסו.
+        ///
+        /// שורה עם זמן - במקומה, כמו תמיד (ומה שנופל בחפיפה עם הקטע הקודם נזרק,
+        /// כי הוא כבר נלכד שם). שורה **בלי זמן**, או עם זמן שלא ייתכן (אחרי סוף
+        /// הקטע), נשמרת כ״זמן משוער״: השורות האלה נפרסות לפי אורכן על פני החלק
+        /// של הקטע שלא כוסה, ומסומנות Untimed - כמו אחרי יבוא טקסט, עם ״≈״ ברשימה
+        /// וההצעה ״לתזמן בלחיצה״. הטקסט הוא החלק היקר; תזמון אפשר לתקן.</summary>
+        internal static int AddChunk(List<Cue> all, List<Ai.TrLine> lines, int index, double startSec, int chunkSec, long durationMs)
+        {
+            int kept = 0;
+            List<Ai.TrLine> loose = new List<Ai.TrLine>();
+            foreach (Ai.TrLine ln in lines)
+            {
+                if (!ln.HasTime || ln.Start > chunkSec + 2) { loose.Add(ln); continue; }
+                // מה שנפל בתוך החפיפה כבר נלכד בקטע הקודם
+                if (index > 0 && ln.Start < OverlapSec * 0.8) continue;
+                long a = (long)Math.Round((startSec + ln.Start) * 1000.0);
+                long b = (long)Math.Round((startSec + Math.Min(ln.End, chunkSec + 2)) * 1000.0);
+                // שורה שנמשכת אל תוך החפיפה של הקטע הבא תיתפס שם שוב - Dedupe מטפל
+                if (b > durationMs) b = durationMs;
+                if (b <= a) continue;
+                all.Add(new Cue(a, b, ln.Text));
+                kept++;
+            }
+            if (loose.Count == 0) return kept;
+
+            double from = startSec + (index > 0 ? OverlapSec : 0);
+            double to = Math.Min(startSec + chunkSec, durationMs / 1000.0);
+            if (to - from < 1) return kept;
+            double weight = 0;
+            foreach (Ai.TrLine ln in loose) weight += Ai.ReadingSec(ln.Text);
+            double scale = Math.Min(1.0, (to - from) / Math.Max(0.1, weight));
+            double gap = weight * scale < (to - from) ? ((to - from) - weight * scale) / (loose.Count + 1) : 0;
+            double t = from + gap;
+            foreach (Ai.TrLine ln in loose)
+            {
+                double len = Ai.ReadingSec(ln.Text) * scale;
+                Cue c = new Cue((long)Math.Round(t * 1000), (long)Math.Round((t + len) * 1000), ln.Text);
+                c.Untimed = true;
+                all.Add(c);
+                kept++;
+                t += len + gap;
+            }
+            return kept;
+        }
+
+        /// <summary>מאחד רצף של אותה שורה שחוזרת צמוד.
+        ///
+        /// המודל נתקע לפעמים בלולאה: בקליפ של שיר חזר ״מכור עם השם״ 45 פעמים, כל
+        /// שנייה בדיוק, חצי דקה ברצף - 45 כתוביות שמהבהבות. רצף של שורות זהות עם
+        /// פחות מ-0.7 שניות ביניהן הופך לכתובית אחת (לכל היותר 7 שניות; מעבר לזה
+        /// מתחילה חדשה). פזמון אמיתי שחוזר נשאר על המסך כל הזמן שהוא מושר.</summary>
+        internal static List<Cue> CollapseRepeats(List<Cue> sorted)
+        {
+            List<Cue> outp = new List<Cue>();
+            foreach (Cue c in sorted)
+            {
+                Cue p = outp.Count > 0 ? outp[outp.Count - 1] : null;
+                if (p != null && Key(p.Text) == Key(c.Text) && Key(c.Text).Length > 0 &&
+                    c.Start - p.End < 700 && Math.Max(p.End, c.End) - p.Start <= 7000)
+                {
+                    if (c.End > p.End) p.End = c.End;
+                    p.Untimed = p.Untimed && c.Untimed;
+                    continue;
+                }
+                outp.Add(c);
+            }
+            return outp;
         }
 
         /// <summary>רושם את הטווח שקטע כושל היה אמור לכסות, כדי שההודעה

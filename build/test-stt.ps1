@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 45 בדיקות.
+# צפוי: 59 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -253,6 +253,69 @@ Check 'בחירה מפורשת גוברת' ($cur.Id -eq 'gemini') $cur.Id
 $stt.GetField('ProviderId', $SF).SetValue($null, $pid0); $stt.GetField('GroqKey', $SF).SetValue($null, $key0)
 $gem = $stt.GetProperty('Gemini', $SF).GetValue($null, $null)
 Check 'גוגל: קטע של 60 שניות, 12 שניות בין בקשות (כמו קודם)' ($gem.ChunkSec -eq 60 -and $gem.MinGapMs -eq 12000) ''
+
+# ================= התשובה של גוגל: זמנים בכל צורה, ושורות שאין לשכוח =================
+# הבאג (23.9.2026, קליפ של שיר, 3 דקות): קטע שהחזיר את התשובה הארוכה מכולם
+# נעלם כולו - זמן שלא נקרא כמספר הפך לאפס, ובקטע שאינו הראשון כל השורות נזרקו
+# כ״חפיפה״. וקטע אחר נתקע בלולאה: ״מכור עם השם״ 45 פעמים, כל שנייה.
+Write-Host 'פירוש התשובה של גוגל'
+$aiT = T 'Ai'
+$parse = $aiT.GetMethod('ParseTrLines', $SF)
+function Parse([string]$raw) { $a = New-Object object[] 2; $a[0] = $raw; $r = $parse.Invoke($null, $a); return ,$r }
+$fmt = @(
+    @{ n = 'מספרים';                  j = '[{"s":1.5,"e":3,"t":"a"}]';                                  want = 1.5 },
+    @{ n = 'מחרוזת של מספר';           j = '[{"s":"12.5","e":"14","t":"a"}]';                             want = 12.5 },
+    @{ n = 'דקות:שניות';               j = '[{"s":"0:12.5","e":"0:14","t":"a"}]';                         want = 12.5 },
+    @{ n = 'שעות:דקות:שניות,אלפיות';    j = '[{"s":"00:01:05,200","e":"00:01:07,000","t":"a"}]';           want = 65.2 },
+    @{ n = 'שמות שדות אחרים (start/text)'; j = '[{"start":12,"end":14,"text":"a"}]';                        want = 12 },
+    @{ n = 'עם סיומת s';               j = '[{"s":"7.25s","e":"9s","t":"a"}]';                            want = 7.25 },
+    @{ n = 'בתוך גדר קוד';             j = "``````json`n[{`"s`":3,`"e`":4,`"t`":`"a`"}]`n``````";          want = 3 }
+)
+foreach ($f in $fmt) {
+    $r = Parse $f.j
+    $ok = $r -ne $null -and $r.Count -eq 1 -and [Math]::Abs($r[0].Start - $f.want) -lt 0.001 -and $r[0].HasTime
+    Check ('זמן: ' + $f.n) $ok $(if ($r -ne $null -and $r.Count -gt 0) { 'start=' + $r[0].Start } else { 'null' })
+}
+$r = Parse '[{"t":"שורה בלי זמן"},{"s":"לא זמן","t":"גם זו"}]'
+Check 'שורה בלי זמן לא נזרקת - נשמרת בלי זמן' ($r.Count -eq 2 -and -not $r[0].HasTime -and -not $r[1].HasTime) ('count=' + $r.Count)
+$r = Parse '[{"s":4,"t":"בלי סוף"}]'
+Check 'בלי זמן סיום: לפי אורך הקריאה, לא 0' ($r[0].End -gt $r[0].Start + 1) ('end=' + $r[0].End)
+
+Write-Host 'הרכבת קטע'
+$trT = T 'Transcribe'
+$lineT = $aiT.GetNestedType('TrLine', [Reflection.BindingFlags]'NonPublic,Public')
+$cueT = T 'Cue'
+function Lines($spec) {
+    $l = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($lineT))
+    foreach ($x in $spec) { $o = [Activator]::CreateInstance($lineT); $o.Start = $x[0]; $o.End = $x[1]; $o.Text = $x[2]; $l.Add($o) }
+    return ,$l
+}
+function NewCues { return ,([Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))) }
+$add = $trT.GetMethod('AddChunk', $SF)
+$nan = [double]::NaN
+# הקטע השני (index 1) מתחיל ב-55 שניות; זמנים שנקראו מ״0:12״ וכו׳ נכנסים במקומם
+$all = NewCues
+$kept = $add.Invoke($null, (Pack $all (Lines @(@(12.0, 14.0, 'אחת'), @(30.0, 33.0, 'שתיים'))) 1 55.0 60 190000L))
+Check 'קטע שני: שורות עם זמן נכנסות במקומן' ($kept -eq 2 -and $all[0].Start -eq 67000 -and -not $all[0].Untimed) ("kept=$kept start=" + $all[0].Start)
+$all = NewCues
+$kept = $add.Invoke($null, (Pack $all (Lines @(@($nan, $nan, 'אחת'), @($nan, $nan, 'שתיים'), @($nan, $nan, 'שלוש'))) 1 55.0 60 190000L))
+$inRange = $true; foreach ($c in $all) { if ($c.Start -lt 60000 -or $c.End -gt 115000 -or -not $c.Untimed) { $inRange = $false } }
+Check 'קטע בלי זמנים בכלל: כל השורות נשמרות, משוערות (≈), בתוך הקטע' ($kept -eq 3 -and $inRange) ("kept=$kept")
+$all = NewCues
+$kept = $add.Invoke($null, (Pack $all (Lines @(,@(95.0, 97.0, 'זמן מחוץ לקטע'))) 1 55.0 60 190000L))
+Check 'זמן שלא ייתכן (אחרי סוף הקטע): נשמר כמשוער, לא נזרק' ($kept -eq 1 -and $all[0].Untimed -and $all[0].Start -lt 115000) ("kept=$kept")
+
+Write-Host 'לולאת חזרה'
+$collapse = $trT.GetMethod('CollapseRepeats', $SF)
+$loop = NewCues
+for ($k = 0; $k -lt 45; $k++) { $loop.Add([Activator]::CreateInstance($cueT, @([long](142800 + $k * 1000), [long](143500 + $k * 1000), [string]'מכור עם השם'))) }
+$out = $collapse.Invoke($null, (Pack $loop))
+$maxLen = 0; foreach ($c in $out) { $maxLen = [Math]::Max($maxLen, $c.End - $c.Start) }
+Check '45 חזרות צמודות: כמה כתוביות של עד 7 שניות, לא 45' ($out.Count -ge 4 -and $out.Count -le 8 -and $maxLen -le 7000) ("count=" + $out.Count + " max=" + $maxLen)
+$song = NewCues
+foreach ($x in @(@(0, 2500, 'בקרוב ממש'), @(5000, 7500, 'בקרוב ממש'), @(8000, 9000, 'אחרת'))) { $song.Add([Activator]::CreateInstance($cueT, @([long]$x[0], [long]$x[1], [string]$x[2]))) }
+$out = $collapse.Invoke($null, (Pack $song))
+Check 'פזמון שחוזר אחרי הפסקה אמיתית נשאר שתי כתוביות' ($out.Count -eq 3) ("count=" + $out.Count)
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ""
