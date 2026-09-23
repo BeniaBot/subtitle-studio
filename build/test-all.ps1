@@ -3,6 +3,7 @@
 # fewer checks than expected, times out, or crashes counts as a failure.
 # A stuck package is usually a .NET crash dialog - hang-report.ps1 prints it.
 # ASCII only.  Usage: test-all.ps1 [-Only name,name] [-Timeout 900]
+# A name like buttons@en runs test-buttons.ps1 -Lang en.
 param([string]$Only = '', [int]$Timeout = 900)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
@@ -11,6 +12,8 @@ $expect = [ordered]@{
     'update-notes' = 27; 'ui' = 45; 'layout' = 95; 'project' = 105; 'screens' = 32
     'fuzz' = 11; 'long' = 15; 'stt' = 65; 'errors' = 36; 'buttons' = 10
     'source' = 7; 'qa' = 60; 'spell' = 59; 'release' = 42; 'settings' = 9
+    # name@en = the same package with -Lang en: the whole layout is mirrored there
+    'buttons@en' = 10; 'layout@en' = 95; 'screens@en' = 32
 }
 $names = @($expect.Keys)
 if ($Only -ne '') { $names = @($Only -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) }
@@ -18,9 +21,13 @@ if ($Only -ne '') { $names = @($Only -split ',' | ForEach-Object { $_.Trim() } |
 $rows = @(); $total = 0; $bad = 0
 $sw = [Diagnostics.Stopwatch]::StartNew()
 foreach ($n in $names) {
-    $file = Join-Path $here ('test-' + $n + '.ps1')
+    $parts = $n -split '@', 2
+    $file = Join-Path $here ('test-' + $parts[0] + '.ps1')
+    $lang = if ($parts.Count -gt 1) { $parts[1] } else { '' }
     $t0 = $sw.Elapsed.TotalSeconds
-    $job = Start-Job -ArgumentList $file { param($f) powershell -NoProfile -ExecutionPolicy Bypass -File $f 2>&1 | Out-String }
+    $job = Start-Job -ArgumentList $file, $lang { param($f, $l)
+        if ($l) { powershell -NoProfile -ExecutionPolicy Bypass -File $f -Lang $l 2>&1 | Out-String }
+        else { powershell -NoProfile -ExecutionPolicy Bypass -File $f 2>&1 | Out-String } }
     $out = ''; $state = 'done'
     if (Wait-Job $job -Timeout $Timeout) { $out = Receive-Job $job } else {
         $state = 'TIMEOUT'

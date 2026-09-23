@@ -12,6 +12,8 @@
 #   1366x768  ב-100%  -> 728 לוגי
 #   1920x1080 ב-125%  -> 1040/1.25 = 832 לוגי
 # ובסוף בודקים שחלון שכן חורג - הכפתורים שלו נשארים גלויים.
+# ‏-Lang en: אותה בדיקה בממשק אנגלי - הטקסט ארוך יותר, וחלון יכול לגדול מעבר למסך
+param([string]$Lang = 'he')
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
@@ -23,6 +25,7 @@ public static class DpiS { [DllImport("user32.dll")] public static extern bool S
 [void][DpiS]::SetProcessDPIAware()
 $root = Split-Path $PSScriptRoot -Parent
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
+[void]$asm.GetType('SubtitleStudio.Lang').GetMethod('Set', [Reflection.BindingFlags]'NonPublic,Public,Static').Invoke($null, @([string]$Lang))
 $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 $IN = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 function TY($n) { return $asm.GetType("SubtitleStudio.$n") }

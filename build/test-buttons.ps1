@@ -17,6 +17,10 @@
 # **סובלנות:** 8 פיקסלים ב-125% לרוחב. אייקון מצויר בתוך ריבוע עם שוליים משלו
 # (חץ צר, למשל), ואות כמו ״ק״ יורדת מתחת לשורה - זה לא באג.
 # צפוי: 10 בדיקות.
+#
+# ‏-Lang en: אותן בדיקות בממשק אנגלי (0.8.1). האנגלית ארוכה מהעברית, ו״טקסט
+# נכנס לכפתור״ הוא בדיוק מה שנשבר בה.
+param([string]$Lang = 'he')
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -58,6 +62,7 @@ function Check($n, $ok, $d) { if ($ok) { $script:pass++; Write-Host "  ok    $n 
 
 $scale = 1.25
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]$scale)
+[void](TY 'Lang').GetMethod('Set', $ST).Invoke($null, @([string]$Lang))
 
 # כל המדידות כאן הן של טקסט מצויר. בלי הגופן המוטמע הכול נמדד ב-Segoe UI,
 # שרחב ממנו, והבדיקה מדווחת על כפתורים צרים שבתוכנה האמיתית תקינים. זה קרה:

@@ -1,5 +1,7 @@
 ﻿# בדיקת פריסה בלי עין אנושית: בונה את החלון בכמה גדלים ומחפש פקדים שדורסים זה את זה
 # או שגולשים מחוץ להורה. זה תופס בדיוק את מה שקשה לראות בצילום מסך.
+# ‏-Lang en: אותה בדיקה בממשק אנגלי, שבו כל הפריסה משתקפת (0.8.1)
+param([string]$Lang = 'he')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -13,6 +15,7 @@ Add-Type -AssemblyName System.Drawing
 $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exe))
 $formT = $asm.GetType('SubtitleStudio.MainForm')
 $themeT = $asm.GetType('SubtitleStudio.Theme')
+[void]$asm.GetType('SubtitleStudio.Lang').GetMethod('Set', [Reflection.BindingFlags]'NonPublic,Public,Static').Invoke($null, @([string]$Lang))
 
 $pass = 0; $fail = 0
 function Check($name, $ok, $detail) {
