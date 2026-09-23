@@ -22,8 +22,9 @@ namespace SubtitleStudio
         {
             if (kind == Ico.None) return;
             float s = Math.Min(box.Width, box.Height) / 24f;
-            float ox = box.X + (box.Width - 24f * s) / 2f;
-            float oy = box.Y + (box.Height - 24f * s) / 2f;
+            // מיושר לפיקסל שלם: אותו אייקון בשני מקומות נראה זהה, ולא פעם חד ופעם מרוח
+            float ox = (float)Math.Round(box.X + (box.Width - 24f * s) / 2f);
+            float oy = (float)Math.Round(box.Y + (box.Height - 24f * s) / 2f);
 
             SmoothingMode old = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -129,23 +130,6 @@ namespace SubtitleStudio
                     pts[i * 2 + 1] = cy + (float)(local[i, 0] * sa + local[i, 1] * ca);
                 }
                 FPoly(pts);
-            }
-
-            /// <summary>אות/סימן במרכז נקודה - חד יותר מציור ידני.</summary>
-            public void Glyph(string text, float size, float cx, float cy)
-            {
-                using (Font f = new Font("Segoe UI", Math.Max(4f, size * S), FontStyle.Bold, GraphicsUnit.Pixel))
-                using (StringFormat sf = new StringFormat(StringFormat.GenericTypographic))
-                {
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Center;
-                    sf.FormatFlags |= StringFormatFlags.NoWrap;
-                    RectangleF r = new RectangleF(X + (cx - 8) * S, Y + (cy - 8) * S, 16 * S, 16 * S);
-                    System.Drawing.Text.TextRenderingHint old = G.TextRenderingHint;
-                    G.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-                    G.DrawString(text, f, B, r, sf);
-                    G.TextRenderingHint = old;
-                }
             }
 
             /// <summary>עקומה חלקה דרך נקודות (Bezier).</summary>
@@ -282,8 +266,19 @@ namespace SubtitleStudio
                 case Ico.Export: d.Poly(4, 15, 4, 20, 20, 20, 20, 15); d.L(12, 15, 12, 3.5f); d.Poly(7.5f, 8, 12, 3.3f, 16.5f, 8); break;
                 case Ico.Download: d.L(12, 3, 12, 16); d.Poly(6.5f, 10.5f, 12, 16.2f, 17.5f, 10.5f); d.L(4, 20, 20, 20); break;
                 case Ico.Upload: d.L(12, 17, 12, 4); d.Poly(6.5f, 9.5f, 12, 3.8f, 17.5f, 9.5f); d.L(4, 20.5f, 20, 20.5f); break;
-                case Ico.Info: d.Ell(2.8f, 2.8f, 18.4f, 18.4f); d.Glyph("i", 13f, 12, 11.6f); break;
-                case Ico.Question: d.Ell(2.8f, 2.8f, 18.4f, 18.4f); d.Glyph("?", 12.5f, 12, 11.8f); break;
+                // ״i״ ו-״?״ כקווים ולא כאותיות: עד 0.8.1 הם צוירו ב-Segoe UI מודגש,
+                // יצאו גושיים וקטנים, ולא דמו לשום אייקון אחר באותה שורה
+                case Ico.Info:
+                    d.Ell(2.8f, 2.8f, 18.4f, 18.4f);
+                    d.FEll(10.8f, 6.6f, 2.4f, 2.4f);
+                    d.L(12, 11.2f, 12, 16.8f);
+                    break;
+                case Ico.Question:
+                    d.Ell(2.8f, 2.8f, 18.4f, 18.4f);
+                    d.Arc(9.1f, 6.6f, 5.8f, 5.8f, 195, 255);   // הקשת: משמאל, מעל, ובחזרה למרכז
+                    d.L(12, 12.4f, 12, 13.8f);
+                    d.FEll(10.85f, 15.9f, 2.3f, 2.3f);
+                    break;
                 case Ico.Warning:
                     d.Poly(12, 3.5f, 22, 20, 2, 20, 12, 3.5f); d.L(12, 9.5f, 12, 15); d.FEll(11, 16.6f, 2f, 2f); break;
                 case Ico.Sliders:
