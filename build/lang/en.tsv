@@ -430,28 +430,28 @@
 רווח	Space
 ניגון ועצירה	Play and pause
 קפיצה של שתי שניות	Jump two seconds
-אותו דבר, גם באמצע כתיבה	The same, even while typing
+אותו דבר, גם באמצע כתיבה	Same, while typing
 Ctrl+רווח	Ctrl+Space
-ניגון ועצירה באמצע כתיבה	Play and pause while typing
+ניגון ועצירה באמצע כתיבה	Play/pause while typing
 מהירות ההשמעה	Playback speed
 כתובית חדשה כאן	New subtitle here
-בתזמון בלחיצה: כאן מתחיל	In tap timing: it starts here
-קליק ימני ברשימה	Right-click in the list
+בתזמון בלחיצה: כאן מתחיל	Tap timing: starts here
+קליק ימני ברשימה	Right-click a row
 תיקון איות, חלוקה, איחוד	Spelling fix, split, merge
 התחלה / סיום כאן	Start / end here
 לכתובית הבאה	To the next subtitle
-מחיקת המסומנות	Delete the selected ones
+מחיקת המסומנות	Delete selected
 סימון קטע לחיתוך	Mark a section to trim
 Ctrl+גלגלת	Ctrl+Wheel
 זום בציר הזמן	Zoom the timeline
-גרירה על הציר	Drag on the timeline
+גרירה על הציר	Drag on timeline
 יצירת כתובית חדשה	Make a new subtitle
 פרויקט חדש	New project
 פתיחת קובץ	Open a file
 שמירת הכתוביות	Save the subtitles
 ביטול פעולה	Undo
 העוזר החכם	The smart assistant
-יצירת הסרט עם הכתוביות	Make the video with the subtitles
+יצירת הסרט עם הכתוביות	Make the video
 איך עובדים כאן	How it works
 ארבעה שלבים, וכל הקיצורים במקום אחד	Four steps, and all the shortcuts in one place
 קיצורים ופעולות מהירות	Shortcuts and quick actions
@@ -484,8 +484,8 @@ Ctrl+גלגלת	Ctrl+Wheel
 לא מוגדר · בלעדיו אין תרגום ואין עוזר	Not set · without it there's no translation and no assistant
 לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם	Not set · gives up to 8 hours of transcription a day, free
 מוגדר · עד 8 שעות תמלול ביום	Set · up to 8 hours of transcription a day
-המילון עוד לא הורד. הוא חינמי, ואחרי ההורדה הבדיקה עובדת בלי אינטרנט.	The dictionary hasn't been downloaded yet. It's free, and after the download the check works offline.
-המילון מוכן. הוא מכיר גם ארמית, ראשי תיבות ומספרים באותיות.	The dictionary is ready. It also knows Aramaic, abbreviations and numbers written in letters.
+המילון עוד לא הורד. הוא חינמי, ואחרי ההורדה הבדיקה עובדת בלי אינטרנט.	Not downloaded yet. It's free, and then the check works offline.
+המילון מוכן. הוא מכיר גם ארמית, ראשי תיבות ומספרים באותיות.	Ready. It also knows Aramaic, abbreviations and numbers in letters.
 המילון מותקן, והבדיקה כבויה.	The dictionary is installed, and the check is off.
 מילון האיות · {0}	Spelling dictionary · {0}
 מנוע הווידאו · ייפרס בהפעלה הבאה	Video engine · will be set up at the next start
@@ -679,8 +679,8 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 התוכנה מקשיבה לסרט וכותבת את הכתוביות	The program listens to the video and writes the subtitles
 איפה לתמלל	Where to transcribe
 גוגל	Google
-המפתח שכבר יש לכם · מכסה קטנה	The key you already have · a small quota
-עד 8 שעות ביום · מפתח חינמי נפרד	Up to 8 hours a day · a separate free key
+המפתח שכבר יש לכם · מכסה קטנה	Your existing key · small quota
+עד 8 שעות ביום · מפתח חינמי נפרד	8 hours a day · separate free key
 לפני שמתחילים	Before you start
 זו הפעולה היחידה בתוכנה ששולחת את התוכן עצמו החוצה. אם ההקלטה רגישה, עדיף לתמלל ידנית - זה עובד בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.	This is the only action in the program that sends the content itself out. If the recording is sensitive, it's better to transcribe by hand - that works offline.\r\nThe result comes into the editor like any subtitle, so go over it and fix it.
 הקובץ	The file
@@ -1291,7 +1291,7 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 נבדק לאחרונה: {0}	Last checked: {0}
 העתקת פרטי הגרסה	Copy the version details
 רישיון	Licence
-הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע הווידאו {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.	The program's code is free (licence {0}) - you may take it,\r\nchange it and build whatever you like from it. The video engine {1} comes under {2},\r\nthe font {3} under {4}, and the spelling dictionary (downloaded separately) under {5}.\r\nThe full text of all of them is inside the file.
+הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע הווידאו {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.	The code is free (licence {0}) - you may take it, change it\r\nand build on it as you like. The video engine {1} is under {2},\r\nthe font {3} under {4}, and the spelling dictionary\r\n(downloaded separately) under {5}. The full texts are inside the file.
 שמירת נוסח הרישיונות לתיקייה	Save the licence texts to a folder
 קוד ותמיכה	Code and support
 קוד המקור באינטרנט	Source code online
@@ -1310,7 +1310,7 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 הגרסה שלכם היא העדכנית ביותר.	You have the latest version.
 חשוב לדעת	Good to know
 מה חדש	What's new
-תיקונים	Fixes
+תיקונים	fixes
 ועוד {0}	Plus {0}
 תוספת אחת	one addition
 תוספות	additions
