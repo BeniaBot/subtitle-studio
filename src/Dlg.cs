@@ -61,7 +61,7 @@ namespace SubtitleStudio
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
             // חלון שנגלל (ראו FitToHeight): הכותרת זזה יחד עם הפקדים, אחרת הם עוברים מעליה
             int oy = AutoScroll ? AutoScrollPosition.Y : 0;
-            using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.PanelAlt, 0.7f)))
+            using (SolidBrush b = new SolidBrush(HeadColor))
                 g.FillRectangle(b, 0, oy, Width, HeadH);
             Theme.HLine(g, Theme.BorderSoft, 0, Width, HeadH + oy);
             int tx = _baseW - Pad;
@@ -117,11 +117,17 @@ namespace SubtitleStudio
 
         protected static int HeadH { get { return Theme.S(60); } }
 
+        /// <summary>צבע פס הכותרת. כפתור שיושב עליו חייב לקבל אותו כרקע.</summary>
+        protected static Color HeadColor { get { return Theme.Mix(Theme.Panel, Theme.PanelAlt, 0.7f); } }
+
         protected Btn CloseButton()
         {
             Btn x = new Btn();
             x.Icon = Ico.Close;
             x.Kind = BtnKind.Tool;
+            // שקוף במנוחה - אבל ״שקוף״ ב-WinForms הוא צבע הרקע של הכפתור, שהוא צבע
+            // החלון. על פס הכותרת הבהיר יותר הוא נראה כריבוע כהה סביב ה-×.
+            x.BackColor = HeadColor;
             x.IconOnly = true;
             x.IconSize = Theme.S(14);
             x.SetBounds(Theme.S(10), Theme.S(14), Theme.S(32), Theme.S(32));
