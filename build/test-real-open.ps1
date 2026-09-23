@@ -7,6 +7,9 @@
 #  - התוכנה לא קורסת, והחלון מצולם (%TEMP%\ss-smoke\smoke-open.png - להסתכל!)
 #  - סגירה מיד אחרי פתיחה לא שואלת ״לשמור?״ (באג ותיק של RaiseChanged)
 # ההגדרות האמיתיות של המשתמש מגובות ומוחזרות, כי פתיחה מוסיפה לאחרונים.
+# -Light: פותח בערכה הבהירה. -Lang en: בממשק אנגלי. שניהם דרך קובץ ההגדרות,
+# שמגובה לפני ומוחזר אחרי - ההעדפות של המשתמש לא משתנות.
+param([switch]$Light, [string]$Lang = '')
 $ErrorActionPreference = 'Stop'
 $root = 'D:\Claude\subtitle-studio'
 $sp = Join-Path $env:TEMP 'ss-smoke'
@@ -45,6 +48,13 @@ function Shot($h, $file) {
 $ini = Join-Path $env:APPDATA 'SubtitleStudio\settings.ini'
 $iniBak = Join-Path $sp 'settings.ini.bak'
 if (Test-Path $ini) { Copy-Item $ini $iniBak -Force }
+if ($Light -or $Lang -ne '') {
+    $lines = @(); if (Test-Path $ini) { $lines = @([IO.File]::ReadAllLines($ini, [Text.Encoding]::UTF8) | Where-Object { -not ($_ -like 'dark=*') -and -not ($_ -like 'lang=*') }) }
+    $lines += ('dark=' + $(if ($Light) { '0' } else { '1' }))
+    if ($Lang -ne '') { $lines += ('lang=' + $Lang) }
+    New-Item -ItemType Directory (Split-Path $ini) -Force | Out-Null
+    [IO.File]::WriteAllLines($ini, $lines, (New-Object Text.UTF8Encoding $false))
+}
 
 try {
     # ---- פרויקט ----
