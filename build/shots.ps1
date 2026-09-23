@@ -14,6 +14,8 @@ param([string[]]$Only = @(), [switch]$Light, [string]$Lang = 'he', [double]$Scal
 
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
+# עם -File רשימה מופרדת בפסיקים מגיעה כמחרוזת אחת, ואף שם לא התאים (קרה)
+$Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ -ne '' })
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 Add-Type @'
 using System.Runtime.InteropServices;
@@ -67,6 +69,22 @@ function MainWith([int]$w, [int]$h, [bool]$withMedia)
     return $m
 }
 
+# תפריט קופץ לדוגמה, עם פריט בריחוף - כמו תפריט ״כתוביות״
+function MenuSample
+{
+    $mt = TY 'MenuItem'
+    $mk = $mt.GetMethod('Make', $ST)
+    $list = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($mt))
+    $list.Add($mk.Invoke($null, @([string]'פתיחת קובץ כתוביות', [string]'SRT, VTT, ASS או טקסט רגיל', [Enum]::Parse((TY 'Ico'), 'Open'), $null)))
+    $list.Add($mk.Invoke($null, @([string]'שמירת הכתוביות', [string]'לקובץ SRT ליד הסרט', [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
+    $list.Add($mt.GetMethod('Sep', $ST).Invoke($null, @()))
+    $list.Add($mk.Invoke($null, @([string]'בדיקת איות', [string]'', [Enum]::Parse((TY 'Ico'), 'Check'), $null)))
+    $list.Add($mk.Invoke($null, @([string]'תרגום אוטומטי', [string]'התזמונים נשמרים', [Enum]::Parse((TY 'Ico'), 'Translate'), $null)))
+    $pm = [Activator]::CreateInstance((TY 'PopupMenu'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, @($list, [int]300), $null)
+    (TY 'PopupMenu').GetField('_hover', $IN).SetValue($pm, 1)
+    return $pm
+}
+
 $forms = @(
     @{ n = 'Settings';    make = { NewOf 'SettingsDlg' @((MainWith 1200 800 $false)) } },
     @{ n = 'About';       make = { NewOf 'AboutDlg' @() } },
@@ -88,7 +106,8 @@ $forms = @(
     @{ n = 'SpellSetup';  make = { NewOf 'SpellSetupDlg' @() } },
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
-    @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } }
+    @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
+    @{ n = 'Menu';        make = { MenuSample } }
 )
 
 $createCtl = [Windows.Forms.Control].GetMethod('CreateControl', $IN, $null, [Type[]]@([bool]), $null)
