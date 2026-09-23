@@ -105,13 +105,7 @@ namespace SubtitleStudio
 
             bool hasText = !IconOnly && !string.IsNullOrEmpty(Text);
             float pad = hasText ? Theme.S(12) : 0;
-            float menuW = 0;
-            if (Menu && hasText)
-            {
-                menuW = Theme.S(16);
-                Icons.Draw(g, Ico.ChevronDown, Theme.Mir(r, new RectangleF(Theme.S(8), (Height - menuW) / 2f, menuW, menuW)),
-                    Theme.Mix(fg, Theme.Bg, 0.25f), 2f);
-            }
+            float menuW = Menu && hasText ? Theme.S(16) : 0;
             if (Swatch != Color.Empty)
             {
                 float sw = Theme.S(22);
@@ -126,9 +120,12 @@ namespace SubtitleStudio
             // כפתור שרחב מהתוכן שלו נראה עקום: ב״ביטול״ נשארו 94 פיקסלים משמאל
             // מול 15 מימין, בכל חלון. צמוד לימין נשאר רק מה שמתנהג כמו שורה
             // ברשימה ולא כמו כפתור: כרטיס עם שורת הסבר, שורת קישור (Tool),
-            // דגימת צבע, וכפתור תפריט (שהחץ שלו בצד השני).
+            // ודגימת צבע.
+            // **כפתור תפריט ממורכז גם הוא, והחץ צמוד לכיתוב.** עד 0.8.1 החץ ישב
+            // בקצה השני, ובסרגל העליון (״כתוביות ▾״) נשאר חור באמצע הכפתור.
             float right = Width - pad;
-            if (hasText && Sub == null && !Menu && Kind != BtnKind.Tool && !AlignRight)
+            float chevX = Theme.S(8);
+            if (hasText && Sub == null && Kind != BtnKind.Tool && !AlignRight)
             {
                 float iconW = Icon != Ico.None ? IconSize + Theme.S(8) : 0;
                 // אותו מנוע שמצייר (Theme.Str: טקסט אטום דרך TextRenderer). המדידה של
@@ -137,9 +134,17 @@ namespace SubtitleStudio
                     ? TextRenderer.MeasureText(g, Text, Font, new Size(int.MaxValue, int.MaxValue),
                                                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width
                     : Theme.Measure(g, Text, Font).Width;
-                float group = iconW + textW;
-                if (group <= Width - pad * 2) right = (Width + group) / 2f;
+                float chevW = menuW > 0 ? menuW + Theme.S(6) : 0;
+                float group = iconW + textW + chevW;
+                if (group <= Width - pad * 2)
+                {
+                    right = (Width + group) / 2f;
+                    if (menuW > 0) chevX = right - iconW - textW - Theme.S(6) - menuW;
+                }
             }
+            if (menuW > 0)
+                Icons.Draw(g, Ico.ChevronDown, Theme.Mir(r, new RectangleF(chevX, (Height - menuW) / 2f, menuW, menuW)),
+                    Theme.Mix(fg, Theme.Bg, 0.25f), 2f);
 
             // בכרטיס עם שורת הסבר: שתי השורות כגוש אחד, ממורכז לגובה
             float subTop = (Height - Theme.S(36)) / 2f;
