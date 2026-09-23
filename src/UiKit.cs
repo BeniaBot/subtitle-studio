@@ -26,7 +26,8 @@ namespace SubtitleStudio
         public bool IconOnly = false;
         /// <summary>להצמיד את התוכן לימין גם כשהכפתור רחב ממנו. ברירת המחדל: ממורכז.</summary>
         public bool AlignRight = false;
-        private bool _hover, _down;
+        // ריחוף ולחיצה נעים בהדרגה (Surface.cs). עד 0.8.1 הם התחלפו בבת אחת.
+        private readonly Tween _hot, _press;
 
         public Btn()
         {
@@ -35,12 +36,18 @@ namespace SubtitleStudio
             Height = Theme.S(34);
             Font = Theme.Ui;
             Cursor = Cursors.Hand;
+            _hot = new Tween(this);
+            _press = new Tween(this);
+            _press.Ms = 90;
         }
 
-        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { _hover = false; _down = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnMouseDown(MouseEventArgs e) { _down = true; Invalidate(); base.OnMouseDown(e); }
-        protected override void OnMouseUp(MouseEventArgs e) { _down = false; Invalidate(); base.OnMouseUp(e); }
+        protected override void OnMouseEnter(EventArgs e) { _hot.To(1); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hot.To(0); _press.To(0); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { if (e.Button == MouseButtons.Left) _press.To(1); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { _press.To(0); base.OnMouseUp(e); }
+        protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+        protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+        protected override void OnEnabledChanged(EventArgs e) { if (!Enabled) { _hot.Snap(0); _press.Snap(0); } Invalidate(); base.OnEnabledChanged(e); }
         protected override void OnClick(EventArgs e)
         {
             if (Checkable) { Checked = !Checked; Invalidate(); }
@@ -54,39 +61,47 @@ namespace SubtitleStudio
             RectangleF r = new RectangleF(0, 0, Width, Height);
 
             Color accent = Tint == Color.Empty ? Theme.Accent : Tint;
-            Color bg, fg, border = Color.Empty;
+            Color fg;
+            float hot = Enabled ? _hot.Eased : 0f;
+            float press = Enabled ? _press.Eased : 0f;
 
+            // **הרקע: משטח עם עומק, לא מלבן בצבע אחד** (Surface.cs). מילוי מדורג
+            // וקו מתאר בהיר למעלה וכהה למטה - כאילו האור בא מלמעלה.
             switch (Kind)
             {
                 case BtnKind.Primary:
-                    bg = _down ? Theme.Mix(accent, Color.Black, 0.2f) : (_hover ? Theme.Mix(accent, Color.White, 0.12f) : accent);
-                    fg = Color.White;
-                    break;
                 case BtnKind.Danger:
-                    bg = _down ? Theme.Mix(Theme.Bad, Color.Black, 0.2f) : (_hover ? Theme.Mix(Theme.Bad, Color.White, 0.12f) : Theme.Bad);
-                    fg = Color.White;
-                    break;
+                    {
+                        Color c = Kind == BtnKind.Danger ? Theme.Bad : accent;
+                        if (!Enabled) c = Theme.Mix(c, Theme.Bg, 0.55f);
+                        Surface.Accent(g, r, Radius, c, hot, press);
+                        fg = Enabled ? Color.White : Theme.Mix(Color.White, Theme.Bg, 0.45f);
+                        break;
+                    }
                 case BtnKind.Ghost:
-                    bg = _down ? Theme.Hover : (_hover ? Theme.Mix(Theme.Panel, Theme.Hover, 0.7f) : Color.Transparent);
+                    // כפתור משני (״ביטול״): הצורה תמיד שם, המילוי מתמלא בריחוף
+                    Surface.Raised(g, r, Radius, Theme.PanelAlt, hot, press, 0.45f + 0.55f * hot, Enabled ? 1f : 0.5f);
                     fg = Theme.Text;
-                    border = Theme.Border;
                     break;
                 case BtnKind.Tool:
-                    bg = Checked ? Theme.AccentSoft : (_down ? Theme.Hover : (_hover ? Theme.Mix(Theme.Panel, Theme.Hover, 0.8f) : Color.Transparent));
+                    if (Checked) CheckedFace(g, r, accent);
+                    // שקוף במנוחה; המשטח מופיע בהדרגה מתחת לעכבר
+                    else Surface.Raised(g, r, Radius, Theme.PanelAlt, hot, press, hot, hot);
                     // כפתור כלי עם גוון משלו (למשל ה-AI) - הצבע הוא סימן ההיכר שלו
-                    fg = Checked || Tint != Color.Empty ? accent : (Enabled ? Theme.Text : Theme.TextFaint);
-                    if (!Enabled) fg = Theme.TextFaint;
+                    if (Checked || Tint != Color.Empty) fg = accent;
+                    else fg = Theme.Mix(Theme.TextDim, Theme.Text, 0.72f + 0.28f * hot);
                     break;
                 default:
-                    bg = Checked ? Theme.AccentSoft : (_down ? Theme.Mix(Theme.PanelAlt, Color.Black, 0.15f) : (_hover ? Theme.Hover : Theme.PanelAlt));
-                    fg = Checked ? accent : Theme.Text;
+                    if (Checked) { CheckedFace(g, r, accent); fg = accent; }
+                    else
+                    {
+                        Color fill = Enabled ? Theme.PanelAlt : Theme.Mix(Theme.PanelAlt, Theme.Bg, 0.5f);
+                        Surface.Raised(g, r, Radius, fill, hot, press, Enabled ? 1f : 0.8f, Enabled ? 1f : 0.55f);
+                        fg = Theme.Text;
+                    }
                     break;
             }
-            if (!Enabled) { bg = Theme.Mix(bg, Theme.Bg, 0.55f); fg = Theme.TextFaint; }
-
-            if (bg != Color.Transparent) Theme.FillRound(g, r, Radius, bg);
-            if (border != Color.Empty) Theme.DrawRound(g, r, Radius, border, 1f);
-            if (Checked && Kind != BtnKind.Tool) Theme.DrawRound(g, r, Radius, accent, 1.2f);
+            if (!Enabled) fg = Theme.TextFaint;
 
             bool hasText = !IconOnly && !string.IsNullOrEmpty(Text);
             float pad = hasText ? Theme.S(12) : 0;
@@ -151,6 +166,16 @@ namespace SubtitleStudio
                 }
                 else Theme.Str(g, Text, Font, fg, Theme.Mir(r, tr), Theme.SfUi);
             }
+
+            // מי שמגיע במקלדת רואה איפה הוא. בלחיצת עכבר ווינדוס מסתיר את זה בעצמו.
+            if (Focused && ShowFocusCues && Enabled) Surface.FocusRing(g, r, Radius, accent);
+        }
+
+        /// <summary>מצב נבחר (מתג בסרגל, בחירה בקבוצה): מילוי בגוון ההדגשה וקו בצבעו.</summary>
+        private void CheckedFace(Graphics g, RectangleF r, Color accent)
+        {
+            Surface.Fill(g, r, Radius, Theme.Mix(Theme.AccentSoft, accent, 0.10f), Theme.AccentSoft);
+            Surface.Rim(g, r, Radius, Theme.Mix(accent, Theme.AccentSoft, 0.25f), Theme.Mix(accent, Theme.AccentSoft, 0.45f));
         }
     }
 

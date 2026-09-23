@@ -150,19 +150,26 @@ namespace SubtitleStudio
         /// בהדרגה, לכפתור שקוף שמקבל רקע רק בריחוף.</summary>
         public static void Raised(Graphics g, RectangleF r, float radius, Color fill, float hot, float press, float alpha)
         {
-            if (alpha <= 0.01f) return;
+            Raised(g, r, radius, fill, hot, press, alpha, alpha);
+        }
+
+        /// <summary>כמו למעלה, עם שקיפות נפרדת למילוי ולקו - לכפתור משני
+        /// שהצורה שלו תמיד נראית והמילוי מתמלא רק בריחוף.</summary>
+        public static void Raised(Graphics g, RectangleF r, float radius, Color fill, float hot, float press, float fillAlpha, float rimAlpha)
+        {
+            if (fillAlpha <= 0.01f && rimAlpha <= 0.01f) return;
             bool dark = Theme.Dark;
             Color baseC = Theme.Mix(fill, dark ? Color.White : Theme.Hover, hot * (dark ? 0.07f : 0.55f));
             baseC = Theme.Mix(baseC, Color.Black, press * (dark ? 0.18f : 0.06f));
             float lift = 1f - press;
-            Color top = Theme.Mix(baseC, Color.White, (dark ? 0.045f : 0.35f) * lift);
+            Color top = Theme.Mix(baseC, Color.White, (dark ? 0.06f : 0.35f) * lift);
             Color bottom = Theme.Mix(baseC, Color.Black, dark ? 0.03f : 0.015f);
-            Fill(g, r, radius, Fade(top, alpha), Fade(bottom, alpha));
+            if (fillAlpha > 0.01f) Fill(g, r, radius, Fade(top, fillAlpha), Fade(bottom, fillAlpha));
 
             Color rimTop, rimBottom;
             if (dark)
             {
-                rimTop = A(Color.White, (0.085f + 0.05f * hot) * lift + 0.04f * press);
+                rimTop = A(Color.White, (0.10f + 0.05f * hot) * lift + 0.04f * press);
                 rimBottom = A(Color.White, 0.035f + 0.02f * hot);
             }
             else
@@ -170,7 +177,7 @@ namespace SubtitleStudio
                 rimTop = A(Color.Black, 0.075f + 0.03f * hot);
                 rimBottom = A(Color.Black, (0.16f + 0.04f * hot) * lift + 0.08f * press);
             }
-            Rim(g, r, radius, Fade(rimTop, alpha), Fade(rimBottom, alpha));
+            if (rimAlpha > 0.01f) Rim(g, r, radius, Fade(rimTop, rimAlpha), Fade(rimBottom, rimAlpha));
         }
 
         /// <summary>כפתור ראשי בצבע (כחול, ירוק, אדום): מילוי מדורג, קו אור פנימי
