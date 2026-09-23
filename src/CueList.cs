@@ -506,9 +506,12 @@ namespace SubtitleStudio
 
                 // טקסט
                 string txt = c.Text.Replace("\r\n", "  ·  ").Replace("\n", "  ·  ");
-                if (txt.Trim().Length == 0) txt = Lang.T("(ריק - לחצו כדי לכתוב)");
+                // לפי הכתובית ולא לפי הטקסט המוצג: כתובית שבאמת מתחילה ב״(ריק״
+                // נצבעה עד 0.8.1 כמו שורה ריקה, ובאנגלית ההשוואה לא הייתה נכונה אף פעם
+                bool blank = txt.Trim().Length == 0;
+                if (blank) txt = Lang.T("(ריק - לחצו כדי לכתוב)");
                 RectangleF tr = new RectangleF(textX, y + Theme.S(4), textW, _rowH - Theme.S(8));
-                Theme.Str(g, txt, Theme.Ui, txt.StartsWith("(ריק") ? Theme.TextFaint : Theme.Text, tr, Theme.SfRtl);
+                Theme.Str(g, txt, Theme.Ui, blank ? Theme.TextFaint : Theme.Text, tr, Theme.SfRtl);
 
                 // זמנים
                 // ״≈״ מסמן שהזמן הוא הערכה מיבוא טקסט ועוד לא נקבע מול הסרט
