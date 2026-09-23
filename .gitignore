@@ -22,3 +22,6 @@ build/installer/version.txt
 
 # a generated report of every Hebrew literal (made by build/extract-strings.ps1)
 build/strings.tsv
+
+# fonts under comparison, not part of the build
+build/font-lab/
