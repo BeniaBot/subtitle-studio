@@ -69,6 +69,17 @@ function MainWith([int]$w, [int]$h, [bool]$withMedia)
     return $m
 }
 
+# חלון התקדמות באמצע עבודה (62%). העבודה עצמה לא רצה: היא מתחילה ב-Load,
+# ו-Load לא קורה מחוץ למסך.
+function ProgressSample
+{
+    $job = [Activator]::CreateInstance((TY 'FfJob'))
+    $pd = NewOf 'ProgressDlg' @([string]'הטמעת הכתוביות בסרט', $job)
+    foreach ($f in @('_prog', '_shown')) { (TY 'ProgressDlg').GetField($f, $IN).SetValue($pd, [double]0.62) }
+    (TY 'ProgressDlg').GetField('_phase', $IN).SetValue($pd, [float]0.55)
+    (TY 'ProgressDlg').GetField('_status', $IN).SetValue($pd, [string]'שלב 2 מתוך 2 · צורב את הכתוביות לתוך התמונה')
+    return $pd
+}
 # תפריט קופץ לדוגמה, עם פריט בריחוף - כמו תפריט ״כתוביות״
 function MenuSample
 {
@@ -107,7 +118,8 @@ $forms = @(
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
     @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
-    @{ n = 'Menu';        make = { MenuSample } }
+    @{ n = 'Menu';        make = { MenuSample } },
+    @{ n = 'Progress';    make = { ProgressSample } }
 )
 
 $createCtl = [Windows.Forms.Control].GetMethod('CreateControl', $IN, $null, [Type[]]@([bool]), $null)
