@@ -94,7 +94,10 @@ namespace SubtitleStudio
                     {
                         _busy = false;
                         _test.Enabled = true;
-                        if (r != null && r.Ok) Say("החיבור עובד. אפשר לשמור.", Theme.Good);
+                        // **בדיקה שעברה שומרת.** עד 0.8.1 המפתח נשאר פעיל בזיכרון אחרי
+                        // בדיקה מוצלחת, ומי שסגר את החלון בלי ״שמירה״ תמלל ותרגם כרגיל -
+                        // ובהפעלה הבאה המפתח נעלם. מי שבדק ״עובד״ התכוון להשתמש בו.
+                        if (r != null && r.Ok) { Settings.SaveAll(); Say("החיבור עובד, והמפתח נשמר.", Theme.Good); }
                         else { Ai.Key = old; Say(r != null ? r.Error : "לא התקבלה תשובה.", Theme.Bad); }
                     });
                 }

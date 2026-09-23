@@ -254,7 +254,8 @@ namespace SubtitleStudio
                     {
                         _busy = false;
                         _test.Enabled = true;
-                        if (ok) Say("החיבור עובד. אפשר לשמור.", Theme.Good);
+                        // כמו בחלון של גוגל: בדיקה שעברה שומרת - מי שבדק ״עובד״ התכוון להשתמש
+                        if (ok) { Stt.GroqKey = k; Settings.SaveAll(); Say("החיבור עובד, והמפתח נשמר.", Theme.Good); }
                         else Say(err ?? "לא התקבלה תשובה.", Theme.Bad);
                     });
                 }
