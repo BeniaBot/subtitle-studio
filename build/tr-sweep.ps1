@@ -4,7 +4,8 @@
 #
 # **צורך מכסה:** בערך בקשה אחת לכל דקת שמע אצל גוגל. ההגדרות רק נקראות.
 #   tr-sweep.ps1 -List files.txt      הפלט: %TEMP%\ss-sweep\tr-<n>.srt ודוח בחלון
-param([Parameter(Mandatory = $true)][string]$List, [string]$Out = '')
+#   -Provider groq|gemini              שירות מסוים (ברירת המחדל: כמו בתוכנה - Groq אם יש לו מפתח)
+param([Parameter(Mandatory = $true)][string]$List, [string]$Out = '', [string]$Provider = '')
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions, System.Security
@@ -14,6 +15,8 @@ $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 function TY($n) { return $asm.GetType("SubtitleStudio.$n") }
 [void](TY 'Settings').GetMethod('Load', $ST).Invoke($null, @())
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
+if ($Provider) { (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, [string]$Provider) }
+Write-Host ('provider: ' + (TY 'Stt').GetProperty('Current', $ST).GetValue($null, $null).DisplayName)
 if (-not $Out) { $Out = Join-Path $env:TEMP 'ss-sweep' }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $run = (TY 'Transcribe').GetMethods($ST) | Where-Object { $_.Name -eq 'Run' -and $_.GetParameters().Count -eq 5 }
