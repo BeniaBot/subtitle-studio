@@ -550,10 +550,13 @@ namespace SubtitleStudio
             gif.OutSuffix = "";
             gif.Build = delegate (ToolCtx c)
             {
-                return c.RangeIn() + "-i " + Ff.Q(c.In) + " " + c.RangeOut() +
+                // האורך נחתך **בתוך** שרשרת הפילטרים: עם ‎-t אחרי הקלט, GIF מקובץ TS יצא ריק
+                // (נמדד); ‎trim+setpts עובד בכל הצורות
+                string cut = c.HasRange ? "trim=duration=" + Tc.Ff(c.B - c.A) + ",setpts=PTS-STARTPTS," : "";
+                return c.RangeIn() + "-i " + Ff.Q(c.In) + " " +
                        // בתוך ריבוע של 640, בלי להגדיל: עד 0.8.1 הרוחב היה 640 תמיד, וסרטון עומד
                        // יצא GIF של 640×1403 ושל 37 מגה לשש שניות
-                       "-filter_complex \"fps=15,scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease:flags=lanczos,split[s0][s1];" +
+                       "-filter_complex \"" + cut + "fps=15,scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease:flags=lanczos,split[s0][s1];" +
                        "[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=sierra2_4a\" -loop 0 " + Ff.Q(c.Out);
             };
             t.Add(gif);
