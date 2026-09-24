@@ -49,6 +49,9 @@ namespace SubtitleStudio
         public Func<int, string> ExtFor;
         public bool UseRange;
         public bool NeedsVideo;
+        /// <summary>מעתיק את התמונה כמו שהיא (רק הקול משתנה). כלי כזה נשאר במיכל של
+        /// המקור; כלי שמקודד תמונה ל-H.264 יוצא MP4 כשהמקור WEBM (ראו ToolRunDlg.Ext).</summary>
+        public bool KeepsVideo;
         public Func<ToolCtx, string> Build;
         /// <summary>עבודה מרובת שלבים (קידוד דו-מעברי וכדומה).</summary>
         public Func<ToolCtx, string[]> BuildSteps;
@@ -91,7 +94,8 @@ namespace SubtitleStudio
             FitInfo f = new FitInfo();
             f.TargetMb = c.Val;
             f.DurationSec = c.Mi != null ? c.Mi.DurationSec : 0;
-            f.SourceHeight = c.Mi != null ? c.Mi.Height : 0;
+            // ״p״ הוא הצלע הקצרה: בסרטון עומד הגובה הוא 1280, והוא נחשב עד 0.8.1 ל-1280p
+            f.SourceHeight = Burn.ShortSide(c.Mi);
             if (f.DurationSec <= 0.5) return f;
 
             f.SourceMb = c.Mi != null ? c.Mi.SizeBytes / 1024.0 / 1024.0 : 0;
@@ -141,10 +145,11 @@ namespace SubtitleStudio
             vol.ParamKind = 1; vol.Min = -20; vol.Max = 20; vol.Def = 6; vol.Step = 0.5; vol.Suffix = " dB";
             vol.ParamLabel = Lang.T("כמה להגביר? (מינוס = להנמיך)");
             vol.OutSuffix = Lang.T(" - עוצמה");
+            vol.KeepsVideo = true;
             vol.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af volume=" + c.Val.ToString("0.##", CultureInfo.InvariantCulture) + "dB " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Q.MaxAudio + " " : "") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(vol);
 
@@ -154,10 +159,11 @@ namespace SubtitleStudio
             norm.Desc = Lang.T("מיישר את ההבדלים בין קטעים חלשים לחזקים (נרמול שידור)");
             norm.Icon = Ico.Sliders;
             norm.OutSuffix = Lang.T(" - מאוזן");
+            norm.KeepsVideo = true;
             norm.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af loudnorm=I=-16:TP=-1.5:LRA=11 " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Q.MaxAudio + " " : "") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(norm);
 
@@ -186,6 +192,7 @@ namespace SubtitleStudio
             mute.Icon = Ico.SpeakerOff;
             mute.NeedsVideo = true;
             mute.OutSuffix = Lang.T(" - בלי קול");
+            mute.KeepsVideo = true;
             mute.Build = delegate (ToolCtx c) { return "-i " + Ff.Q(c.In) + " -c copy -an " + Ff.Q(c.Out); };
             t.Add(mute);
 
@@ -199,10 +206,11 @@ namespace SubtitleStudio
             swap.FileFilter = Lang.T("קבצי אודיו|*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg|כל הקבצים|*.*");
             swap.NeedsVideo = true;
             swap.OutSuffix = Lang.T(" - פסקול חדש");
+            swap.KeepsVideo = true;
             swap.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) +
-                       " -map 0:v -map 1:a -c:v copy " + Q.MaxAudio + " -shortest " + Ff.Q(c.Out);
+                       " -map 0:v -map 1:a -c:v copy " + Burn.AudioFor(c.Out) + " -shortest " + Ff.Q(c.Out);
             };
             t.Add(swap);
 
@@ -243,7 +251,8 @@ namespace SubtitleStudio
             res.Build = delegate (ToolCtx c)
             {
                 int h = c.Opt == 0 ? 1080 : c.Opt == 1 ? 720 : c.Opt == 2 ? 480 : 360;
-                return "-i " + Ff.Q(c.In) + " -vf \"scale=-2:" + h + "\" " + Q.MaxVideo + " " +
+                string sc = Burn.ScaleShort(c.Mi, h);
+                return "-i " + Ff.Q(c.In) + (sc.Length > 0 ? " -vf \"" + sc + "\"" : "") + " " + Q.MaxVideo + " " +
                        (c.Mi != null && c.Mi.HasAudio ? Q.MaxAudio + " " : "-an ") + Ff.Q(c.Out);
             };
             t.Add(res);
@@ -300,7 +309,7 @@ namespace SubtitleStudio
             {
                 string f = c.Opt == 0 ? "transpose=1" : c.Opt == 1 ? "transpose=2" : c.Opt == 2 ? "transpose=1,transpose=1" : "hflip";
                 return "-i " + Ff.Q(c.In) + " -vf \"" + f + "\" " + Q.MaxVideo + " " +
-                       (c.Mi != null && c.Mi.HasAudio ? "-c:a copy " : "-an ") + Ff.Q(c.Out);
+                       Burn.AudioArgs(c.Mi, c.Out) + " " + Ff.Q(c.Out);
             };
             t.Add(rot);
 
@@ -353,8 +362,11 @@ namespace SubtitleStudio
             phone.OutSuffix = Lang.T(" - לוואטסאפ");
             phone.Build = delegate (ToolCtx c)
             {
-                return "-i " + Ff.Q(c.In) +
-                       " -vf \"scale='min(1280,iw)':-2\" -c:v libx264 -profile:v main -level 4.0 -crf 24 -preset medium -pix_fmt yuv420p " +
+                // 720 על הצלע הקצרה. עד 0.8.1 הרוחב הוגבל ל-1280, וסרטון עומד של 1080×1920
+                // נשאר בגודלו - ״מקטין ל-720p״ לא הקטין כלום
+                string sc = Burn.ScaleShort(c.Mi, 720);
+                return "-i " + Ff.Q(c.In) + (sc.Length > 0 ? " -vf \"" + sc + "\"" : "") +
+                       " -c:v libx264 -profile:v main -level 4.0 -crf 24 -preset medium -pix_fmt yuv420p " +
                        (c.Mi != null && c.Mi.HasAudio ? "-c:a aac -b:a 128k -ac 2 " : "-an ") +
                        "-movflags +faststart " + Ff.Q(c.Out);
             };
@@ -369,6 +381,7 @@ namespace SubtitleStudio
             track.ParamLabel = Lang.T("איזה ערוץ שמע להשאיר");
             track.NeedsVideo = true;
             track.OutSuffix = Lang.T(" - ערוץ נבחר");
+            track.KeepsVideo = true;
             track.OptionsFor = delegate (MediaInfo mi)
             {
                 List<string> names = new List<string>();
@@ -406,14 +419,39 @@ namespace SubtitleStudio
             join.OutSuffix = Lang.T(" - מחובר");
             join.Build = delegate (ToolCtx c)
             {
+                // **חיבור דורש שני סרטים זהים במבנה**: אותה רזולוציה, יחס פיקסל, קצב פריימים
+                // ודגימת קול. עד 0.8.1 הם חוברו כמו שהם, וכל זוג שונה נכשל ב״הפעולה לא
+                // הצליחה״ (נמצא בסבב: TS של 740×414 עם MP4 עומד). עכשיו השני מותאם לראשון:
+                // מוקטן לתוך המסגרת שלו עם שוליים שחורים, באותו קצב, וקול בשקט אם אין לו.
+                MediaInfo m2 = null;
+                try { m2 = Ff.ProbeFile(c.Extra); }
+                catch { }
+                int w = c.Mi != null && c.Mi.Width > 0 ? c.Mi.Width : 1280;
+                int h = c.Mi != null && c.Mi.Height > 0 ? c.Mi.Height : 720;
+                if (Burn.Portrait(c.Mi) && c.Mi.Width > c.Mi.Height) { int x = w; w = h; h = x; }
+                w -= w % 2; h -= h % 2;
+                double fps = c.Mi != null && c.Mi.Fps > 1 && c.Mi.Fps < 121 ? c.Mi.Fps : 30;
+                string fs = fps.ToString("0.###", CultureInfo.InvariantCulture);
+                string frame = "scale=" + w + ":" + h + ":force_original_aspect_ratio=decrease,pad=" + w + ":" + h +
+                             ":(ow-iw)/2:(oh-ih)/2,setsar=1,fps=" + fs + ",format=yuv420p";
                 bool audio = c.Mi != null && c.Mi.HasAudio;
-                string filter = audio
-                    ? "[0:v][0:a][1:v][1:a]concat=n=2:v=1:a=1[v][a]"
-                    : "[0:v][1:v]concat=n=2:v=1:a=0[v]";
+                bool audio2 = m2 == null || m2.HasAudio;
+                string af = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo";
+                StringBuilder g = new StringBuilder();
+                g.Append("[0:v]").Append(frame).Append("[v0];[1:v]").Append(frame).Append("[v1];");
+                if (audio)
+                {
+                    g.Append("[0:a]").Append(af).Append("[a0];");
+                    if (audio2) g.Append("[1:a]").Append(af).Append("[a1];");
+                    else g.Append("anullsrc=r=48000:cl=stereo,atrim=duration=")
+                          .Append((m2 != null ? m2.DurationSec : 1).ToString("0.###", CultureInfo.InvariantCulture)).Append("[a1];");
+                    g.Append("[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]");
+                }
+                else g.Append("[v0][v1]concat=n=2:v=1:a=0[v]");
                 string maps = audio ? "-map \"[v]\" -map \"[a]\" " : "-map \"[v]\" ";
                 return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) +
-                       " -filter_complex \"" + filter + "\" " + maps + Q.MaxVideo + " " +
-                       (audio ? Q.MaxAudio + " " : "") + Ff.Q(c.Out);
+                       " -filter_complex \"" + g.ToString() + "\" " + maps + Q.MaxVideo + " " +
+                       (audio ? Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(join);
 
@@ -425,10 +463,11 @@ namespace SubtitleStudio
             denoise.ParamKind = 1; denoise.Min = 6; denoise.Max = 30; denoise.Def = 12; denoise.Step = 1;
             denoise.ParamLabel = Lang.T("עוצמת הניקוי");
             denoise.OutSuffix = Lang.T(" - נקי");
+            denoise.KeepsVideo = true;
             denoise.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af afftdn=nr=" + ((int)c.Val) + ":nf=-25 " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Q.MaxAudio + " " : "") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(denoise);
 
@@ -488,7 +527,8 @@ namespace SubtitleStudio
             {
                 FitInfo f = FitPlan(c);
                 string log = "fit_" + DateTime.Now.Ticks.ToString();
-                string scale = f.Height > 0 ? " -vf \"scale=-2:" + f.Height + "\"" : "";
+                string sc = f.Height > 0 ? Burn.ScaleShort(c.Mi, f.Height) : "";
+                string scale = sc.Length > 0 ? " -vf \"" + sc + "\"" : "";
                 string common = "-i " + Ff.Q(c.In) + scale +
                     " -c:v libx264 -b:v " + f.VideoKbps + "k -preset medium -pix_fmt yuv420p -passlogfile " + log;
                 string pass1 = common + " -pass 1 -an -f null NUL";
@@ -511,7 +551,9 @@ namespace SubtitleStudio
             gif.Build = delegate (ToolCtx c)
             {
                 return c.RangeIn() + "-i " + Ff.Q(c.In) + " " + c.RangeOut() +
-                       "-filter_complex \"fps=15,scale=640:-1:flags=lanczos,split[s0][s1];" +
+                       // בתוך ריבוע של 640, בלי להגדיל: עד 0.8.1 הרוחב היה 640 תמיד, וסרטון עומד
+                       // יצא GIF של 640×1403 ושל 37 מגה לשש שניות
+                       "-filter_complex \"fps=15,scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease:flags=lanczos,split[s0][s1];" +
                        "[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=sierra2_4a\" -loop 0 " + Ff.Q(c.Out);
             };
             t.Add(gif);
@@ -706,8 +748,23 @@ namespace SubtitleStudio
         {
             if (_tool.ExtFor != null) return _tool.ExtFor(opt);
             if (!string.IsNullOrEmpty(_tool.OutExt)) return _tool.OutExt;
-            try { return Path.GetExtension(_mi.Path); }
+            string ext;
+            try { ext = Path.GetExtension(_mi.Path); }
             catch { return ".mp4"; }
+            // כלי שמקודד תמונה ל-H.264 לא יכול לכתוב WEBM. עד 0.8.1 אחד-עשר כלים נכשלו
+            // על כל קובץ WEBM (נמצא בסבב על קבצים אמיתיים).
+            return ReencodesVideo ? (Burn.TakesH264(ext) ? ext : ".mp4") : ext;
+        }
+
+        private bool ReencodesVideo
+        {
+            get { return !_tool.KeepsVideo && _tool.ExtFor == null && string.IsNullOrEmpty(_tool.OutExt) && _mi != null && _mi.HasVideo; }
+        }
+
+        /// <summary>השם שבאמת ייכתב (גם אם המשתמש הקליד ‎.webm לכלי שמקודד תמונה).</summary>
+        internal string FinalPath(string outPath)
+        {
+            return ReencodesVideo && !string.IsNullOrEmpty(outPath) ? Burn.ReencodePath(outPath) : outPath;
         }
 
         private string Suggest(int opt)
@@ -728,7 +785,7 @@ namespace SubtitleStudio
 
         protected override bool OnOk()
         {
-            string outPath = _out.Text.Trim();
+            string outPath = FinalPath(_out.Text.Trim());
             if (outPath.Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור.")); return false; }
             if (_tool.ParamKind == 3 && (_fileField == null || _fileField.Text.Trim().Length == 0))
             { Ui.Error(this, Lang.T("חסר קובץ"), Lang.T("בחרו את הקובץ הנדרש לפעולה.")); return false; }
@@ -748,6 +805,7 @@ namespace SubtitleStudio
         /// <summary>העבודה עצמה, בלי להריץ (ראו ExportVideoDlg.BuildJob).</summary>
         internal FfJob BuildJob(string outPath)
         {
+            outPath = FinalPath(outPath);
             ToolCtx c = Ctx();
             c.Out = outPath;
 

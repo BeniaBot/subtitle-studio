@@ -104,6 +104,57 @@ namespace SubtitleStudio
                      ext == ".vob" || ext == ".wmv" || ext == ".asf" || ext == ".rm" || ext == ".rmvb");
         }
 
+        /// <summary>דגלי קלט להעתקה (בלי קידוד). ב-AVI של DivX/Xvid יש מסגרות בלי חותמת
+        /// זמן, ו-MKV מסרב להן: ״ערוץ נפרד״ מ-AVI ל-MKV נכשל עד 0.8.1 (נמצא בסבב על
+        /// קבצים אמיתיים). ‏genpts משלים את החותמות.</summary>
+        public static string CopyInputFlags(MediaInfo mi)
+        {
+            try
+            {
+                string ext = Path.GetExtension(mi != null ? mi.Path : "").ToLowerInvariant();
+                if (ext == ".avi" || ext == ".divx") return "-fflags +genpts ";
+            }
+            catch { }
+            return "";
+        }
+
+        /// <summary>קידוד הקול לקובץ שהתמונה בו מועתקת: Opus ל-WEBM (שלא מקבל AAC),
+        /// AAC לכל השאר. עד 0.8.1 כלי הקול על קובץ WEBM כתבו AAC ל-WEBM ונכשלו.</summary>
+        public static string AudioFor(string outPath)
+        {
+            string ext = "";
+            try { ext = Path.GetExtension(outPath).ToLowerInvariant(); }
+            catch { }
+            return ext == ".webm" || ext == ".ogv" ? "-c:a libopus -b:a 192k" : Q.MaxAudio;
+        }
+
+        /// <summary>האם התמונה עומדת (סרטון טלפון). לפי הסיבוב שבקובץ, לא רק לפי המידות.</summary>
+        public static bool Portrait(MediaInfo mi)
+        {
+            if (mi == null || mi.Width <= 0 || mi.Height <= 0) return false;
+            MediaStream v = mi.FirstVideo();
+            bool turned = v != null && (Math.Abs(v.Rotation) == 90 || Math.Abs(v.Rotation) == 270);
+            return turned ? mi.Width > mi.Height : mi.Height > mi.Width;
+        }
+
+        /// <summary>הצלע הקצרה של התמונה - זה מה ש״720p״ אומר גם בסרטון עומד.</summary>
+        public static int ShortSide(MediaInfo mi)
+        {
+            if (mi == null || mi.Width <= 0 || mi.Height <= 0) return 0;
+            return Math.Min(mi.Width, mi.Height);
+        }
+
+        /// <summary>פילטר שמקטין את הצלע הקצרה ל-<paramref name="side"/>, **ולעולם לא
+        /// מגדיל**. ריק כשאין מה להקטין. עד 0.8.1 ״720p״ קבע את הגובה: סרטון עומד של
+        /// 584×1280 ירד ל-328×720, וסרטון של 208×360 הוגדל ל-416×720 - קובץ כבד, בלי איכות.</summary>
+        public static string ScaleShort(MediaInfo mi, int side)
+        {
+            int s = ShortSide(mi);
+            if (side <= 0 || (s > 0 && s <= side)) return "";
+            side -= side % 2;
+            return Portrait(mi) ? "scale=" + side + ":-2" : "scale=-2:" + side;
+        }
+
         /// <summary>נתיב לקובץ שמקודד מחדש ל-H.264: אותו שם, ו-MP4 כשהמיכל המקורי לא מתאים.</summary>
         public static string ReencodePath(string path)
         {
@@ -348,6 +399,7 @@ namespace SubtitleStudio
                     case 4: lang = "und"; break;
                 }
                 StringBuilder sb = new StringBuilder();
+                sb.Append(Burn.CopyInputFlags(_mi));
                 if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" -to ").Append(Tc.Ff(b)).Append(" ");
                 sb.Append("-i ").Append(Ff.Q(_mi.Path)).Append(" -i ").Append(Ff.Q(subFile)).Append(" ");
                 if (_keepExisting.Checked) sb.Append("-map 0 -map 1 ");
@@ -528,7 +580,7 @@ namespace SubtitleStudio
             {
                 job.TotalMs = _b - _a;
                 if (_fast.Checked)
-                    sb.Append("-ss ").Append(Tc.Ff(_a)).Append(" -to ").Append(Tc.Ff(_b)).Append(" -i ").Append(Ff.Q(_mi.Path))
+                    sb.Append(Burn.CopyInputFlags(_mi)).Append("-ss ").Append(Tc.Ff(_a)).Append(" -to ").Append(Tc.Ff(_b)).Append(" -i ").Append(Ff.Q(_mi.Path))
                       .Append(" -c copy -avoid_negative_ts make_zero ");
                 else
                     // קידוד מחדש: קפיצה לפני הקלט ואורך אחריו (ראו ToolCtx.RangeIn)
