@@ -158,14 +158,44 @@ namespace SubtitleStudio
             Lbl lb = c as Lbl;
             if (lb != null && lb.Wrap && !string.IsNullOrEmpty(lb.Text))
             {
-                Font lf = lb.Bold ? Theme.F(lb.Font.SizeInPoints, FontStyle.Bold) : lb.Font;
-                int need = Theme.TextHeight(lb.Text, lf, ContentW) + Theme.S(4);
+                int need = TextNeed(lb, ContentW);
                 if (need > hh) hh = need;
             }
             c.SetBounds(Pad, Y, ContentW, hh);
             Controls.Add(c);
             Y += hh + Theme.S(gap);
+            // הסבר שמתחלף לפי בחירה נמדד כאן כשהוא עוד ריק. עד 0.8.1 ההסבר באנגלית
+            // בחלון ההטמעה ירד לשורה שנייה ונגע בכפתורים
+            if (lb != null && lb.Wrap) lb.TextChanged += delegate { FitText(lb); };
             return c;
+        }
+
+        /// <summary>הגובה שפסקה צריכה, עם מרווח קבוע מתחת לשורה האחרונה.</summary>
+        private static int TextNeed(Lbl lb, int width)
+        {
+            Font lf = lb.Bold ? Theme.F(lb.Font.SizeInPoints, FontStyle.Bold) : lb.Font;
+            return Theme.TextHeight(lb.Text, lf, width) + Theme.S(10);
+        }
+
+        /// <summary>מגדיל שורת פסקה שהטקסט החדש שלה לא נכנס, ומזיז את מה שמתחתיה.
+        /// רק מגדיל: פסקה שמתקצרת משאירה את השורה, כדי שהחלון לא יקפוץ בכל בחירה.</summary>
+        private void FitText(Lbl l)
+        {
+            if (string.IsNullOrEmpty(l.Text) || l.Parent != this) return;
+            int grow = TextNeed(l, l.Width) - l.Height;
+            if (grow <= 0) return;
+            int oldBottom = l.Bottom;
+            l.Height += grow;
+            if (_flow == null)
+            {
+                // עוד בבנייה: מה שכבר נוסף מתחת יורד, והסמן איתו
+                foreach (Control c in Controls) if (c != l && c.Top >= oldBottom) c.Top += grow;
+                Y += grow;
+                return;
+            }
+            foreach (FlowRow row in _flow)
+                if (row.Cs.Contains(l)) { row.H = Math.Max(row.H, l.Bottom - row.Top); break; }
+            Restack();
         }
 
         protected Lbl Label(string text, bool bold, Color col)
@@ -271,7 +301,9 @@ namespace SubtitleStudio
             }
             for (int i = 0; i < _flow.Count; i++)
             {
-                int next = i + 1 < _flow.Count ? _flow[i + 1].Top : _flow[i].Top + _flow[i].H;
+                // השורה האחרונה: עד הסמן, שכולל את המרווח שלה. עד 0.8.1 המרווח שלה היה
+                // אפס, וכל סידור מחדש הצמיד את השדה האחרון לכפתורים
+                int next = i + 1 < _flow.Count ? _flow[i + 1].Top : Math.Max(_flow[i].Top + _flow[i].H, Y);
                 _flow[i].Gap = Math.Max(0, next - (_flow[i].Top + _flow[i].H));
             }
         }
