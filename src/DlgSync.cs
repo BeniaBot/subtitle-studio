@@ -70,7 +70,7 @@ namespace SubtitleStudio
             Btn fromHere = new Btn();
             fromHere.Text = Lang.T("רק מהכתובית הזאת והלאה");
             fromHere.Sub = Lang.T("כשהתקלה מתחילה באמצע הסרט");
-            fromHere.Icon = Ico.ChevronLeft;
+            fromHere.Icon = Lang.Rtl ? Ico.ChevronLeft : Ico.ChevronRight;   // ״והלאה״ = כיוון הקריאה
             fromHere.Kind = BtnKind.Subtle;
             fromHere.Click += delegate
             {

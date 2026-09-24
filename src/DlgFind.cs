@@ -39,20 +39,25 @@ namespace SubtitleStudio
             Btn prev = new Btn();
             prev.Text = Lang.T("הקודם");
             prev.Kind = BtnKind.Ghost;
-            prev.Icon = Ico.ChevronRight;
+            // החץ מצביע לכיוון הקריאה: ״הבא״ שמאלה בעברית, ימינה באנגלית. עד 0.8.1 שניהם
+            // הצביעו הפוך בממשק האנגלי
+            prev.Icon = Lang.Rtl ? Ico.ChevronRight : Ico.ChevronLeft;
             prev.IconSize = Theme.S(14);
             prev.Click += delegate { Go(false); };
-            prev.SetBounds(Pad, Y, Theme.S(120), Theme.S(36));
+            // באנגלית ״הקודם״ משמאל ו״הבא״ מימין, כמו בכל ממשק משמאל לימין. הקואורדינטות
+            // כאן בעברית, והחלון משקף אותן
+            int prevX = Lang.Rtl ? Pad : Pad + Theme.S(128), nextX = Lang.Rtl ? Pad + Theme.S(128) : Pad;
+            prev.SetBounds(prevX, Y, Theme.S(120), Theme.S(36));
             Controls.Add(prev);
             Y += Theme.S(36) + Theme.S(4);
 
             Btn next = new Btn();
             next.Text = Lang.T("הבא");
             next.Kind = BtnKind.Primary;
-            next.Icon = Ico.ChevronLeft;
+            next.Icon = Lang.Rtl ? Ico.ChevronLeft : Ico.ChevronRight;
             next.IconSize = Theme.S(14);
             next.Click += delegate { Go(true); };
-            next.SetBounds(Pad + Theme.S(128), prev.Top, Theme.S(120), Theme.S(36));
+            next.SetBounds(nextX, prev.Top, Theme.S(120), Theme.S(36));
             Controls.Add(next);
 
             Buttons(Lang.T("סגירה"), Ico.Check, null);
