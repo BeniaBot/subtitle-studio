@@ -76,25 +76,92 @@ namespace SubtitleStudio
             }
             catch { }
 
-            // בדיקת עברית בקידוד ווינדוס 1255
-            int heb = 0, ansi = 0;
-            for (int i = 0; i < data.Length; i++)
+            // קידוד ישן של בייט אחד. **עד 0.8.1 כל קובץ כזה נחשב עברית** אם היו בו בייטים
+            // בטווח האותיות העבריות - אבל שם יושבות גם é, à, ç של חלונות-1252, ״Déjà vu״
+            // נפתח כ-״Dיjא vu״, ורוסית וערבית יצאו ג'יבריש (נמדד, build\subs-sweep.ps1).
+            // עכשיו מנסים כל קידוד ובוחרים את זה שהטקסט שלו נראה כמו שפה.
+            // בשוויון - עברית, כמו תמיד.
+            int[] pages = { 1255, 1252, 1256, 1251, 1253, 1250, 1254 };
+            string best = null; int bestPage = 0, bestScore = int.MinValue;
+            foreach (int cp in pages)
             {
-                if (data[i] >= 0xE0 && data[i] <= 0xFA) heb++;
-                else if (data[i] > 0x7F) ansi++;
+                string s;
+                try { s = Encoding.GetEncoding(cp).GetString(data); }
+                catch { continue; }
+                int sc = Plausibility(s);
+                if (sc > bestScore) { bestScore = sc; best = s; bestPage = cp; }
             }
-            try
-            {
-                if (heb > 0 && heb >= ansi)
-                { encodingName = Lang.T("Windows-1255 (עברית)"); return Encoding.GetEncoding(1255).GetString(data); }
-                encodingName = "Windows-1252";
-                return Encoding.GetEncoding(1252).GetString(data);
-            }
-            catch
+            if (best == null)
             {
                 encodingName = "ANSI";
                 return Encoding.Default.GetString(data);
             }
+            encodingName = CodePageName(bestPage);
+            return best;
+        }
+
+        private static string CodePageName(int cp)
+        {
+            switch (cp)
+            {
+                case 1255: return Lang.T("Windows-1255 (עברית)");
+                case 1256: return Lang.T("Windows-1256 (ערבית)");
+                case 1251: return Lang.T("Windows-1251 (קירילית)");
+                case 1253: return Lang.T("Windows-1253 (יוונית)");
+                case 1250: return Lang.T("Windows-1250 (מרכז אירופה)");
+                case 1254: return Lang.T("Windows-1254 (טורקית)");
+                default: return "Windows-" + cp.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        /// <summary>כמה הטקסט נראה כמו שפה אמיתית: מילה בכתב אחד עם אות לא-אנגלית
+        /// מקבלת נקודה; מילה שמערבבת כתבים, ניקוד שלא אחרי אות, אות סופית באמצע מילה,
+        /// או מילה לטינית שרוב האותיות בה מוטעמות - קנס.</summary>
+        internal static int Plausibility(string s)
+        {
+            int good = 0, bad = 0;
+            int i = 0, n = s.Length;
+            while (i < n)
+            {
+                if (!IsWordChar(s[i])) { if (s[i] == '�' || (s[i] >= 0x80 && s[i] < 0xA0)) bad++; i++; continue; }
+                int start = i;
+                while (i < n && IsWordChar(s[i])) i++;
+                int scripts = 0, heb = 0, lat = 0, latExt = 0, other = 0;
+                bool hebB = false, latB = false, arB = false, cyB = false, grB = false;
+                bool wordBad = false;
+                for (int k = start; k < i; k++)
+                {
+                    char c = s[k];
+                    if (c >= 0x05D0 && c <= 0x05EA)
+                    {
+                        hebB = true; heb++;
+                        // אות סופית (ך ם ן ף ץ) ואחריה עוד אות עברית
+                        if ((c == 'ך' || c == 'ם' || c == 'ן' || c == 'ף' || c == 'ץ') && k + 1 < i && s[k + 1] >= 0x05D0 && s[k + 1] <= 0x05EA) wordBad = true;
+                    }
+                    else if (c >= 0x0591 && c <= 0x05C7)
+                    {
+                        hebB = true;
+                        // ניקוד וטעמים באים רק אחרי אות עברית (או אחרי ניקוד אחר)
+                        if (k == start || !(s[k - 1] >= 0x0591 && s[k - 1] <= 0x05EA)) wordBad = true;
+                    }
+                    else if (c < 0x80 && char.IsLetter(c)) { latB = true; lat++; }
+                    else if (c >= 0x00C0 && c <= 0x024F) { latB = true; latExt++; }
+                    else if (c >= 0x0600 && c <= 0x06FF) { arB = true; other++; }
+                    else if (c >= 0x0400 && c <= 0x04FF) { cyB = true; other++; }
+                    else if (c >= 0x0370 && c <= 0x03FF) { grB = true; other++; }
+                }
+                if (hebB) scripts++; if (latB) scripts++; if (arB) scripts++; if (cyB) scripts++; if (grB) scripts++;
+                if (scripts > 1) wordBad = true;
+                if (latB && latExt >= 2 && latExt > lat) wordBad = true;
+                if (wordBad) bad++;
+                else if (heb > 0 || latExt > 0 || other > 0) good++;
+            }
+            return good - 3 * bad;
+        }
+
+        private static bool IsWordChar(char c)
+        {
+            return char.IsLetter(c) || (c >= 0x0591 && c <= 0x05C7);
         }
 
         public static SubFormat DetectFormat(string path, string content)

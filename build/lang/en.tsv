@@ -404,9 +404,9 @@
 קידוד מחדש: מדויק בדיוק לנקודה שסימנתם, אבל לוקח זמן בהתאם לאורך הסרט.	Re-encoding: exact to the point you marked, but it takes time depending on the length of the video.
 בחרו לאן לשמור.	Choose where to save.
 להחליף את הקובץ הקיים?	Replace the existing file?
+חיתוך	Trim
 חותך את הקטע	Trimming the section
 מסיר את הקטע	Removing the section
-חיתוך	Trim
 
 # ---- DlgFind.cs ----
 חיפוש בכתוביות	Search the subtitles
@@ -773,6 +773,11 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 
 # ---- Formats.cs ----
 Windows-1255 (עברית)	Windows-1255 (Hebrew)
+Windows-1256 (ערבית)	Windows-1256 (Arabic)
+Windows-1251 (קירילית)	Windows-1251 (Cyrillic)
+Windows-1253 (יוונית)	Windows-1253 (Greek)
+Windows-1250 (מרכז אירופה)	Windows-1250 (Central European)
+Windows-1254 (טורקית)	Windows-1254 (Turkish)
 ; נוצר ב-Subtext\r\n	; Made with Subtext\r\n
 מספר הבלוקים בקובץ ({0}) שונה ממספר הכתוביות ({1}). הותאם לפי הסדר.	The number of blocks in the file ({0}) differs from the number of subtitles ({1}). They were matched in order.
 עודכנו {0} מתוך {1} כתוביות.	Updated {0} of {1} subtitles.

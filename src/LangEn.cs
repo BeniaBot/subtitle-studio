@@ -394,9 +394,9 @@ namespace SubtitleStudio
             "קידוד מחדש: מדויק בדיוק לנקודה שסימנתם, אבל לוקח זמן בהתאם לאורך הסרט.", "Re-encoding: exact to the point you marked, but it takes time depending on the length of the video.",
             "בחרו לאן לשמור.", "Choose where to save.",
             "להחליף את הקובץ הקיים?", "Replace the existing file?",
+            "חיתוך", "Trim",
             "חותך את הקטע", "Trimming the section",
             "מסיר את הקטע", "Removing the section",
-            "חיתוך", "Trim",
             "חיפוש בכתוביות", "Search the subtitles",
             "{0} כתוביות", "{0} subtitles",
             "‏Enter מוצא את הבא, ‏Shift+Enter את הקודם.", "Enter finds the next one, Shift+Enter the previous one.",
@@ -743,6 +743,11 @@ namespace SubtitleStudio
             " מתוך {0}", " of {0}",
             "   (מהירות ×{0})", "   (speed ×{0})",
             "Windows-1255 (עברית)", "Windows-1255 (Hebrew)",
+            "Windows-1256 (ערבית)", "Windows-1256 (Arabic)",
+            "Windows-1251 (קירילית)", "Windows-1251 (Cyrillic)",
+            "Windows-1253 (יוונית)", "Windows-1253 (Greek)",
+            "Windows-1250 (מרכז אירופה)", "Windows-1250 (Central European)",
+            "Windows-1254 (טורקית)", "Windows-1254 (Turkish)",
             "; נוצר ב-Subtext\r\n", "; Made with Subtext\r\n",
             "מספר הבלוקים בקובץ ({0}) שונה ממספר הכתוביות ({1}). הותאם לפי הסדר.", "The number of blocks in the file ({0}) differs from the number of subtitles ({1}). They were matched in order.",
             "עודכנו {0} מתוך {1} כתוביות.", "Updated {0} of {1} subtitles.",
@@ -906,13 +911,13 @@ namespace SubtitleStudio
             "המילון עוד נטען. עוד רגע המילים החשודות יסומנו ברשימה.", "The dictionary is still loading. In a moment the suspicious words will be marked in the list.",
             "אין עדיין כתוביות לבדוק.", "There are no subtitles to check yet.",
             "לא נמצאו מילים שאולי כתובות לא נכון.", "No words that may be misspelled were found.",
+        };
+        private static readonly string[] P3 = new string[] {
             "״{0}״ הוחלפה ב״{1}״.  לביטול - Ctrl+Z.", "“{0}” was replaced with “{1}”.  To undo - Ctrl+Z.",
             "״{0}״ נוספה למילון, ולא תסומן יותר.", "“{0}” was added to the dictionary and won't be marked again.",
             "בדיקת האיות כבויה. אפשר להדליק אותה שוב: ״כתוביות ← בדיקת איות״.", "Spell check is off. You can turn it back on: “Subtitles → Spell check”.",
             "מחלק את הכתובית במקום שבו נמצא הסמן", "Splits the subtitle where the cursor is",
             "מאחד את הכתוביות המסומנות", "Merges the selected subtitles",
-        };
-        private static readonly string[] P3 = new string[] {
             "תחילת קטע", "Section start",
             "מסמן כאן את תחילת הקטע לחיתוך (I)", "Marks the start of the section to trim here (I)",
             "אחר כך: ״הסרט ← חיתוך קטע״", "Then: “Video → Trim a section”",
@@ -1208,13 +1213,13 @@ namespace SubtitleStudio
             "בשחרור הזה לא צורף קובץ.", "No file was attached to this release.",
             "העדכון מגיע כמתקין", "The update comes as an installer",
             "בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט.", "Only an installer was published for this version. You can open the download page and decide.",
+        };
+        private static readonly string[] P4 = new string[] {
             "לפתוח את הדף", "Open the page",
             "מוריד את הגרסה {0}", "Downloading version {0}",
             "העדכון נכשל", "The update failed",
             "העדכון לא הצליח", "The update didn't work",
             "ההורדה נקטעה באמצע. אפשר לנסות שוב.", "The download was cut off. You can try again.",
-        };
-        private static readonly string[] P4 = new string[] {
             "הקובץ שהתקבל קטן מדי - ההורדה נכשלה.", "The file received is too small - the download failed.",
             "הקובץ שירד לא זהה לגרסה שפורסמה. אפשר לנסות שוב.", "The downloaded file doesn't match the published version. You can try again.",
             "הקובץ לא נמצא בשרת. אפשר לנסות שוב מאוחר יותר.", "The file wasn't found on the server. You can try again later.",
