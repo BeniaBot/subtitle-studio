@@ -153,7 +153,7 @@ namespace SubtitleStudio
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1" && FileOverride == null) return;
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("dark=" + (Theme.Dark ? "1" : "0"));
-                sb.AppendLine("lang=" + Lang.Code);
+                sb.AppendLine("lang=" + (LangChoice ?? Lang.Code));
                 sb.AppendLine("autoupdate=" + (AutoUpdate ? "1" : "0"));
                 sb.AppendLine("lastcheck=" + LastCheck);
                 sb.AppendLine("volume=" + Volume.ToString(CultureInfo.InvariantCulture));
@@ -185,7 +185,12 @@ namespace SubtitleStudio
             }
         }
 
-        /// <summary>רק שורת השפה, בלי לגעת בשום מחלקה אחרת. ‏null אם אין.</summary>
+        /// <summary>רק שורת השפה, בלי לגעת בשום מחלקה אחרת. ‏null = אין קובץ, כלומר
+        /// התקנה חדשה (ואז Lang.Detect).
+        ///
+        /// **קובץ בלי שורת שפה = משתמש של גרסה קודמת**, וכל הגרסאות עד 0.8.1 היו בעברית:
+        /// הוא נשאר בעברית. בלי זה מי שווינדוס שלו באנגלית - ורבים כאלה בארץ - היה
+        /// מעדכן ומקבל פתאום את כל התוכנה באנגלית, בלי שום דרך לחזור.</summary>
         public static string PeekLang()
         {
             try
@@ -195,12 +200,17 @@ namespace SubtitleStudio
                     if (line.StartsWith("lang=", StringComparison.OrdinalIgnoreCase))
                     {
                         string v = line.Substring(5).Trim();
-                        return v.Length > 0 ? v : null;
+                        return v.Length > 0 ? v : Lang.He;
                     }
+                return Lang.He;
             }
             catch { }
             return null;
         }
+
+        /// <summary>השפה שהמשתמש בחר בהגדרות ועוד לא נכנסה לתוקף (נכנסת בהפעלה הבאה).
+        /// ‏null = כמו עכשיו.</summary>
+        public static string LangChoice;
 
         public static SubStyle Load()
         {

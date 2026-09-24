@@ -33,6 +33,9 @@ namespace SubtitleStudio
     {
         private readonly MainForm _main;
         private Toggle _dark, _auto, _spellOn;
+        private Combo _lang;
+        /// <summary>המשתמש בחר שפה אחרת וביקש להפעיל מחדש. ‏MainForm מפעיל מחדש אחרי שהחלון נסגר.</summary>
+        public bool RestartWanted;
         private Btn _google, _groq, _getDict, _delEngine, _delDict;
         private Lbl _spellLine, _engineLine, _dictLine;
 
@@ -53,6 +56,20 @@ namespace SubtitleStudio
                 else { Theme.Dark = _dark.Checked; Settings.SaveAll(); }
             };
             Row(_dark, 30, 16);
+
+            // **שפת הממשק**, באותה שורה עם מצב כהה (הגובה חייב להישאר מתחת ל-693). כל שם
+            // בשפה שלו: מי שלא קורא את השפה הנוכחית צריך למצוא את שלו. הקואורדינטות כאן
+            // בעברית - המתג מימין והבורר משמאל - והחלון משקף אותן באנגלית. עד 0.8.1 לא היה
+            // בורר בכלל: מי שקיבל אנגלית (ווינדוס באנגלית) נשאר בה.
+            int lw = Theme.S(140);
+            _lang = new Combo();
+            _lang.Items.Add("עברית");
+            _lang.Items.Add("English");
+            _lang.SelectedIndex = (Settings.LangChoice ?? Lang.Code) == Lang.En ? 1 : 0;
+            _lang.SetBounds(Pad, _dark.Top - Theme.S(2), lw, Theme.S(34));
+            Controls.Add(_lang);
+            _dark.SetBounds(Pad + lw + Theme.S(16), _dark.Top, ContentW - lw - Theme.S(16), _dark.Height);
+            _lang.SelectedIndexChanged += delegate { ChooseLang(_lang.SelectedIndex == 1 ? Lang.En : Lang.He); };
 
             // ---------- שירותים באינטרנט ----------
             Section(Lang.T("שירותים באינטרנט"));
@@ -130,6 +147,7 @@ namespace SubtitleStudio
             _delDict.Click += delegate { RemoveDict(); };
 
             Buttons(Lang.T("סגירה"), Ico.Check, null);
+            _lang.BringToFront();
             BottomButton(Lang.T("איפוס הגדרות"), Ico.Refresh, delegate { ResetAll(); });
             Refresh2();
         }
@@ -259,6 +277,22 @@ namespace SubtitleStudio
             if (Spell.Installed) Spell.EnsureLoaded();
             Refresh2();
             Ui.Msg(this, Lang.T("ההגדרות אופסו"), Lang.T("הכול חזר לברירת המחדל."), Ico.Info, Lang.T("אישור"));
+        }
+
+        /// <summary>השפה נשמרת מיד, ונכנסת לתוקף בהפעלה הבאה: כל המחרוזות נקבעות כשהחלונות
+        /// נבנים. מציעים להפעיל מחדש עכשיו; עבודה שלא נשמרה שואלת כרגיל לפני הסגירה.</summary>
+        private void ChooseLang(string code)
+        {
+            Settings.LangChoice = code == Lang.Code ? null : code;
+            Settings.SaveAll();
+            if (code == Lang.Code) return;
+            if (Ui.Confirm(this, Lang.T("שפת הממשק"),
+                    Lang.T("שפת הממשק תתחלף בפעם הבאה שהתוכנה תיפתח. להפעיל אותה מחדש עכשיו?"),
+                    Lang.T("להפעיל מחדש"), Lang.T("אחר כך")))
+            {
+                RestartWanted = true;
+                Close();
+            }
         }
     }
 }

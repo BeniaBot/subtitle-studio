@@ -58,6 +58,17 @@ Check 'והמפתח לא בקובץ - בדיוק מה שחלון המפתח בו
 $log = Join-Path $env:TEMP 'SubStudio-test\ai-log.txt'
 Check 'והכישלון נרשם ביומן (של הבדיקות, לא של המשתמש)' ((Test-Path $log) -and ((Get-Content $log -Encoding UTF8 -Tail 5) -join ' ') -match 'שמירת ההגדרות נכשלה') $log
 
+# 4א. שפת הממשק (0.8.1). ‏0.8.0 לא כתבה שורת שפה - וקובץ כזה חייב להישאר בעברית, אחרת
+# מי שווינדוס שלו באנגלית היה מעדכן ומקבל פתאום אנגלית
+$peek = $S.GetMethod('PeekLang', $ST)
+[IO.File]::WriteAllText($ini, "dark=1`r`naikey=`r`nvolume=80`r`n", (New-Object Text.UTF8Encoding $true))
+Check 'קובץ של גרסה קודמת (בלי שורת שפה): עברית' ($peek.Invoke($null, @()) -eq 'he') ([string]$peek.Invoke($null, @()))
+[IO.File]::Delete($ini)
+Check 'אין קובץ בכלל (התקנה חדשה): לזהות לפי המחשב' ($null -eq $peek.Invoke($null, @())) ''
+$S.GetField('LangChoice', $ST).SetValue($null, [string]'en'); SaveAll
+Check 'בחירה בהגדרות נשמרת, ונקראת בהפעלה הבאה' (((Get-Content $ini -Encoding UTF8) -contains 'lang=en') -and $peek.Invoke($null, @()) -eq 'en') ''
+$S.GetField('LangChoice', $ST).SetValue($null, $null)
+
 # 5. וההגדרות האמיתיות לא נגעו
 $after = if (Test-Path $realIni) { (Get-FileHash $realIni).Hash } else { '' }
 Check 'קובץ ההגדרות של המשתמש לא השתנה' ($after -eq $realHash) ''

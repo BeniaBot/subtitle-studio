@@ -481,6 +481,9 @@ namespace SubtitleStudio
             "ההגדרות אופסו", "Settings were reset",
             "הכול חזר לברירת המחדל.", "Everything is back to the defaults.",
             "אישור", "OK",
+            "שפת הממשק", "Interface language",
+            "שפת הממשק תתחלף בפעם הבאה שהתוכנה תיפתח. להפעיל אותה מחדש עכשיו?", "The interface language will change the next time the program opens. Restart it now?",
+            "להפעיל מחדש", "Restart now",
             "מסמנת מילים שאולי כתובות לא נכון", "Marks words that may be misspelled",
             "מה צריך", "What's needed",
             "בשביל זה צריך מילון עברי. הוא חינמי, שוקל {0}, ויורד פעם אחת. אחרי זה הבדיקה עובדת בלי אינטרנט.", "This needs a Hebrew dictionary. It's free, weighs {0}, and is downloaded once. After that the check works offline.",
@@ -606,11 +609,11 @@ namespace SubtitleStudio
             " שנ׳", " sec",
             "אורך הדהייה", "Fade length",
             " - עם דהייה", " - faded",
+        };
+        private static readonly string[] P2 = new string[] {
             "הכנה לשליחה בוואטסאפ", "Prepare for messaging apps",
             "מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום", "720p, fully phone compatible - a small file that opens anywhere",
             " - לוואטסאפ", " - for phones",
-        };
-        private static readonly string[] P2 = new string[] {
             "בחירת ערוץ שמע", "Choose an audio track",
             "לסרטים עם כמה שפות - משאיר רק את הערוץ שבחרתם", "For videos with several languages - keeps only the track you choose",
             "איזה ערוץ שמע להשאיר", "Which audio track to keep",
@@ -908,11 +911,11 @@ namespace SubtitleStudio
             "כתובית אחת עם מילה חשודה", "One subtitle with a suspicious word",
             "{0} כתוביות עם מילים חשודות", "{0} subtitles with suspicious words",
             "בדיקת האיות דלוקה. עוד רגע המילים החשודות יסומנו ברשימה.", "Spell check is on. In a moment the suspicious words will be marked in the list.",
+        };
+        private static readonly string[] P3 = new string[] {
             "המילון עוד נטען. עוד רגע המילים החשודות יסומנו ברשימה.", "The dictionary is still loading. In a moment the suspicious words will be marked in the list.",
             "אין עדיין כתוביות לבדוק.", "There are no subtitles to check yet.",
             "לא נמצאו מילים שאולי כתובות לא נכון.", "No words that may be misspelled were found.",
-        };
-        private static readonly string[] P3 = new string[] {
             "״{0}״ הוחלפה ב״{1}״.  לביטול - Ctrl+Z.", "“{0}” was replaced with “{1}”.  To undo - Ctrl+Z.",
             "״{0}״ נוספה למילון, ולא תסומן יותר.", "“{0}” was added to the dictionary and won't be marked again.",
             "בדיקת האיות כבויה. אפשר להדליק אותה שוב: ״כתוביות ← בדיקת איות״.", "Spell check is off. You can turn it back on: “Subtitles → Spell check”.",
@@ -1210,11 +1213,11 @@ namespace SubtitleStudio
             "תשובה לא מובנת מהמאגר: {0}", "The repository sent an answer that couldn't be understood: {0}",
             "תשובה לא מובנת מהמאגר.", "The repository sent an answer that couldn't be understood.",
             "לא נמצאה גרסה במאגר.", "No version was found in the repository.",
+        };
+        private static readonly string[] P4 = new string[] {
             "אין קובץ להורדה", "No file to download",
             "בשחרור הזה לא צורף קובץ.", "No file was attached to this release.",
             "העדכון מגיע כמתקין", "The update comes as an installer",
-        };
-        private static readonly string[] P4 = new string[] {
             "בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט.", "Only an installer was published for this version. You can open the download page and decide.",
             "לפתוח את הדף", "Open the page",
             "מוריד את הגרסה {0}", "Downloading version {0}",

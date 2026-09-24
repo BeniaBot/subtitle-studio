@@ -498,6 +498,9 @@ Ctrl+גלגלת	Ctrl+Wheel
 הכול חזר לברירת המחדל.	Everything is back to the defaults.
 אישור	OK
 
+שפת הממשק	Interface language
+שפת הממשק תתחלף בפעם הבאה שהתוכנה תיפתח. להפעיל אותה מחדש עכשיו?	The interface language will change the next time the program opens. Restart it now?
+להפעיל מחדש	Restart now
 # ---- DlgSpell.cs ----
 מסמנת מילים שאולי כתובות לא נכון	Marks words that may be misspelled
 מה צריך	What's needed

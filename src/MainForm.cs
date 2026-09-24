@@ -155,6 +155,12 @@ namespace SubtitleStudio
                 _engine.Dispose();
                 if (_wave != null) _wave.Abort();
             };
+            FormClosed += delegate
+            {
+                if (!_restartOnClose) return;
+                try { System.Diagnostics.Process.Start(Application.ExecutablePath); }
+                catch (Exception ex) { Ai.Log("הפעלה מחדש נכשלה: " + ex.Message); }
+            };
             DragEnter += delegate (object s, DragEventArgs e)
             {
                 if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy;
@@ -3261,11 +3267,24 @@ namespace SubtitleStudio
             d.Dispose();
         }
 
+        /// <summary>נסגר כדי להיפתח מחדש (שפת ממשק חדשה).</summary>
+        private bool _restartOnClose;
+
         private void ShowSettings()
         {
             SettingsDlg d = new SettingsDlg(this);
             d.ShowDialog(this);
+            bool restart = d.RestartWanted;
             d.Dispose();
+            // שפה חדשה: סגירה רגילה (עם ״לשמור?״), ואחריה תהליך חדש. **לא Application.Restart:**
+            // הוא עובר על רשימת החלונות בזמן שהם נסגרים, ונפל ב״האוסף השתנה״ (נמצא בהרצה
+            // אמיתית של 0.8.1)
+            if (restart)
+            {
+                _restartOnClose = true;
+                Close();
+                if (!IsDisposed) _restartOnClose = false;     // בוטל בשאלת השמירה
+            }
         }
 
         private void ShowHelp()

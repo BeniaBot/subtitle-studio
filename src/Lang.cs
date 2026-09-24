@@ -36,19 +36,30 @@ namespace SubtitleStudio
             _map = null;
         }
 
-        /// <summary>שפת ברירת המחדל בהפעלה ראשונה, לפי שפת ווינדוס.
-        /// עברית - עברית; כל השאר - אנגלית.</summary>
+        /// <summary>שפת ברירת המחדל בהתקנה חדשה. עברית אם יש **סימן כלשהו** לעברית:
+        /// ווינדוס בעברית, תבנית אזורית של ישראל, או מקלדת עברית. בארץ ווינדוס באנגלית
+        /// נפוץ מאוד, ועד 0.8.1 רק שפת ווינדוס נבדקה - משתמש כזה היה מקבל אנגלית.
+        /// אנגלית רק במחשב שאין בו שום עברית. ובכל מקרה - אפשר לשנות בהגדרות.</summary>
         public static string Detect()
         {
             try
             {
-                string n = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-                if (n == "he" || n == "iw") return He;
-                n = System.Globalization.CultureInfo.InstalledUICulture.TwoLetterISOLanguageName;
-                if (n == "he" || n == "iw") return He;
+                if (IsHe(System.Globalization.CultureInfo.CurrentUICulture)) return He;
+                if (IsHe(System.Globalization.CultureInfo.InstalledUICulture)) return He;
+                if (IsHe(System.Globalization.CultureInfo.CurrentCulture)) return He;
+                if (System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName == "IL") return He;
+                foreach (System.Windows.Forms.InputLanguage il in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
+                    if (IsHe(il.Culture)) return He;
             }
             catch { return He; }
             return En;
+        }
+
+        private static bool IsHe(System.Globalization.CultureInfo c)
+        {
+            if (c == null) return false;
+            string n = c.TwoLetterISOLanguageName;
+            return n == "he" || n == "iw";
         }
 
         private static Dictionary<string, string> Map
