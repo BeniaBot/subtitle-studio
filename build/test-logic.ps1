@@ -264,6 +264,7 @@ Input #0, mp3, from 'stream.mp3':
 "@
 $m4 = Probe $t4
 Eq 'unknown duration is zero' (MiF $m4 'DurationSec') 0
+Eq 'audio: sample rate read' (StF (MiF $m4 'Streams')[0] 'SampleRate') 44100
 
 # קצב פריימים עשרוני
 $t5 = @"
@@ -746,6 +747,19 @@ Check 'קטע ל-WEBM: הקול ב-Opus' (($aa.Invoke($null, @($mi, 'x.webm', $t
 $rp = $burnT.GetMethod('ReencodePath')
 Check 'קידוד מחדש של WEBM יוצא MP4 (WEBM לא מקבל H.264)' (($rp.Invoke($null, @('C:\a\b.webm'))) -eq 'C:\a\b.mp4') ($rp.Invoke($null, @('C:\a\b.webm')))
 Check 'MKV נשאר MKV' (($rp.Invoke($null, @('C:\a\b.mkv'))) -eq 'C:\a\b.mkv') ''
+$af = $burnT.GetMethod('AudioFor')
+Check 'כלי קול על MP3: הקודק של MP3, לא AAC בתוך .mp3' (($af.Invoke($null, @('C:\a\b.mp3'))) -match 'libmp3lame') ($af.Invoke($null, @('C:\a\b.mp3')))
+Check 'כלי קול על WMA: הקודק של WMA' (($af.Invoke($null, @('C:\a\b.wma'))) -match 'wmav2') ($af.Invoke($null, @('C:\a\b.wma')))
+Check 'כלי קול על MP4: AAC' (($af.Invoke($null, @('C:\a\b.mp4'))) -match 'aac') ''
+$pm = $burnT.GetMethod('Portrait'); $ss = $burnT.GetMethod('ScaleShort')
+$tall = [Activator]::CreateInstance($miT); $tall.Width = 584; $tall.Height = 1280
+$wide = [Activator]::CreateInstance($miT); $wide.Width = 1280; $wide.Height = 720
+$tiny = [Activator]::CreateInstance($miT); $tiny.Width = 208; $tiny.Height = 360
+# המידות ב-MediaInfo כבר אחרי הסיבוב; Portrait לא מסובב שוב
+Check 'סרטון עומד מזוהה כעומד' ($pm.Invoke($null, @($tall))) ''
+Check 'סרטון שוכב לא עומד' (-not $pm.Invoke($null, @($wide))) ''
+Check '480p של סרטון עומד: הצלע הקצרה (הרוחב) יורדת ל-480' (($ss.Invoke($null, @($tall, 480))) -eq 'scale=480:-2') ($ss.Invoke($null, @($tall, 480)))
+Check '720p של סרטון קטן: לא מגדילים' (($ss.Invoke($null, @($tiny, 720))) -eq '') ($ss.Invoke($null, @($tiny, 720)))
 
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

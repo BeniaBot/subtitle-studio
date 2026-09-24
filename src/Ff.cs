@@ -20,6 +20,7 @@ namespace SubtitleStudio
         public int Width, Height;
         public double Fps;
         public int Channels;
+        public int SampleRate;          // קול: הרץ. ‏0 = לא ידוע
         public long BitRate;
         public bool Default;
         public int Rotation;
@@ -369,6 +370,7 @@ namespace SubtitleStudio
                         case "width": st.Width = (int)D(v); break;
                         case "height": st.Height = (int)D(v); break;
                         case "channels": st.Channels = (int)D(v); break;
+                        case "sample_rate": st.SampleRate = (int)D(v); break;
                         case "bit_rate": st.BitRate = (long)D(v); break;
                         case "tags.language": st.Language = v; break;
                         case "tags.title": st.Title = v; break;
@@ -453,6 +455,8 @@ namespace SubtitleStudio
                     if (br.Success) cur.BitRate = (long)(D(br.Groups[1].Value) * 1000);
                     if (cur.Type == "audio")
                     {
+                        Match hz = Regex.Match(tail, @"(\d+)\s*Hz");
+                        if (hz.Success) cur.SampleRate = (int)D(hz.Groups[1].Value);
                         if (tail.Contains("mono")) cur.Channels = 1;
                         else if (tail.Contains("stereo")) cur.Channels = 2;
                         else if (tail.Contains("5.1")) cur.Channels = 6;

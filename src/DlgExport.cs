@@ -125,16 +125,23 @@ namespace SubtitleStudio
             string ext = "";
             try { ext = Path.GetExtension(outPath).ToLowerInvariant(); }
             catch { }
-            return ext == ".webm" || ext == ".ogv" ? "-c:a libopus -b:a 192k" : Q.MaxAudio;
+            switch (ext)
+            {
+                case ".webm": case ".ogv": case ".ogg": case ".opus": return "-c:a libopus -b:a 192k";
+                // קובץ קול: הקודק של המיכל. עד 0.8.1 ״היפוך״ על MP3 כתב AAC לתוך ‎.mp3 ונכשל
+                case ".mp3": return "-c:a libmp3lame -q:a 2";
+                case ".wav": return "-c:a pcm_s16le";
+                case ".wma": case ".asf": return "-c:a wmav2 -b:a 192k";
+                case ".flac": return "-c:a flac";
+                default: return Q.MaxAudio;
+            }
         }
 
-        /// <summary>האם התמונה עומדת (סרטון טלפון). לפי הסיבוב שבקובץ, לא רק לפי המידות.</summary>
+        /// <summary>האם התמונה עומדת (סרטון טלפון). ‏MediaInfo כבר מחזיק את המידות
+        /// **אחרי** הסיבוב שבקובץ (Ff.ProbeFile), אז אין לסובב שוב.</summary>
         public static bool Portrait(MediaInfo mi)
         {
-            if (mi == null || mi.Width <= 0 || mi.Height <= 0) return false;
-            MediaStream v = mi.FirstVideo();
-            bool turned = v != null && (Math.Abs(v.Rotation) == 90 || Math.Abs(v.Rotation) == 270);
-            return turned ? mi.Width > mi.Height : mi.Height > mi.Width;
+            return mi != null && mi.Width > 0 && mi.Height > mi.Width;
         }
 
         /// <summary>הצלע הקצרה של התמונה - זה מה ש״720p״ אומר גם בסרטון עומד.</summary>

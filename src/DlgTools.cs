@@ -162,7 +162,11 @@ namespace SubtitleStudio
             norm.KeepsVideo = true;
             norm.Build = delegate (ToolCtx c)
             {
-                return "-i " + Ff.Q(c.In) + " -af loudnorm=I=-16:TP=-1.5:LRA=11 " +
+                // ‏loudnorm מעלה את הקול ל-192 אלף הרץ, ו-WMA (ועוד) מסרבים לזה. חוזרים לקצב
+                // של המקור: 48 אלף קבוע הגדיל קובץ WAV של 8 אלף פי שישה
+                MediaStream a = c.Mi != null ? c.Mi.FirstAudio() : null;
+                int hz = a != null && a.SampleRate >= 8000 && a.SampleRate <= 96000 ? a.SampleRate : 48000;
+                return "-i " + Ff.Q(c.In) + " -af loudnorm=I=-16:TP=-1.5:LRA=11,aresample=" + hz + " " +
                        (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(norm);
@@ -210,7 +214,9 @@ namespace SubtitleStudio
             swap.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) +
-                       " -map 0:v -map 1:a -c:v copy " + Burn.AudioFor(c.Out) + " -shortest " + Ff.Q(c.Out);
+                       // apad + shortest = באורך הסרט: קול קצר נגמר בשקט, ארוך נחתך. עד 0.8.1
+                       // shortest לבד חתך את הסרט לאורך הקול (152 שניות יצאו 62)
+                       " -map 0:v -map 1:a -c:v copy " + Burn.AudioFor(c.Out) + " -af apad -shortest " + Ff.Q(c.Out);
             };
             t.Add(swap);
 
@@ -231,6 +237,10 @@ namespace SubtitleStudio
             conv.OutSuffix = Lang.T(" - מומר");
             conv.Build = delegate (ToolCtx c)
             {
+                // קובץ קול (גם עם תמונת עטיפה): בלי ערוץ תמונה. עד 0.8.1 העטיפה קודדה כסרט
+                // של פריים אחד, וההמרה נכשלה
+                if (c.Mi != null && !c.Mi.HasVideo)
+                    return "-i " + Ff.Q(c.In) + " -vn " + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
                 if (c.Opt == 0)
                     return "-i " + Ff.Q(c.In) + " " + Q.MaxVideo + " " + Q.MaxAudio + " -movflags +faststart " + Ff.Q(c.Out);
                 return "-i " + Ff.Q(c.In) + " -c copy " + (Path.GetExtension(c.Out).ToLowerInvariant() == ".mp4" ? "-movflags +faststart " : "") + Ff.Q(c.Out);
@@ -428,7 +438,6 @@ namespace SubtitleStudio
                 catch { }
                 int w = c.Mi != null && c.Mi.Width > 0 ? c.Mi.Width : 1280;
                 int h = c.Mi != null && c.Mi.Height > 0 ? c.Mi.Height : 720;
-                if (Burn.Portrait(c.Mi) && c.Mi.Width > c.Mi.Height) { int x = w; w = h; h = x; }
                 w -= w % 2; h -= h % 2;
                 double fps = c.Mi != null && c.Mi.Fps > 1 && c.Mi.Fps < 121 ? c.Mi.Fps : 30;
                 string fs = fps.ToString("0.###", CultureInfo.InvariantCulture);
@@ -499,7 +508,7 @@ namespace SubtitleStudio
                 {
                     // רק הקול
                     return "-i " + Ff.Q(c.In) + " " + range + "-af areverse " +
-                           (hasV ? "-c:v copy " : "") + Q.MaxAudio + " " + Ff.Q(c.Out);
+                           (hasV ? "-c:v copy " : "") + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
                 }
                 if (c.Opt == 1 || !hasA)
                 {
