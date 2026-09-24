@@ -470,9 +470,20 @@ namespace SubtitleStudio
             return outer.X + (outer.Right - (x + w));
         }
 
+        /// <summary>לבדיקות בלבד: כל טקסט של שורה אחת שצויר ונחתך בשלוש נקודות. ‏null = לא
+        /// עוקבים (ברירת המחדל - המדידה עולה זמן). ‏shots.ps1 מדפיס את הרשימה לכל חלון: עד
+        /// 0.8.1 תיאורים נחתכו בשתי השפות, וכל אחד נמצא רק בעין.</summary>
+        internal static System.Collections.Generic.List<string> ClipLog;
+
         public static void Str(Graphics g, string s, Font f, Color c, RectangleF r, StringFormat sf)
         {
             if (string.IsNullOrEmpty(s)) return;
+            if (ClipLog != null && (sf.FormatFlags & StringFormatFlags.NoWrap) != 0 && r.Width > 4)
+            {
+                int need = TextRenderer.MeasureText(g, s, f, new Size(int.MaxValue, int.MaxValue),
+                                                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+                if (need > r.Width + 1 && !ClipLog.Contains(s)) ClipLog.Add(s);
+            }
             // מלבן נמוך מגובה הגופן גורם ל-GDI+ לא לצייר בכלל - מרחיבים סביב המרכז
             float fh = f.GetHeight(g) + 2;
             if (r.Height < fh)

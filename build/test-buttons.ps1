@@ -124,12 +124,24 @@ function Walk($c) { foreach ($k in $c.Controls) { $k; Walk $k } }
 function Shown($c, $top) { $p = $c; while ($p -ne $null -and $p -ne $top) { if (-not $getState.Invoke($p, @([int]2))) { return $false }; $p = $p.Parent }; return $true }
 
 $all = New-Object Collections.ArrayList
+# טקסט של שורה אחת שנחתך ב״...״, בכל חלון חוץ מהראשי (שם שורה ארוכה ברשימה נחתכת בכוונה)
+$clipped = New-Object Collections.ArrayList
+$themeT = TY 'Theme'
 foreach ($f in $forms) {
     $form = & $f.make
     $form.StartPosition = 'Manual'; $form.Location = New-Object Drawing.Point -6000, 0
     [void]$form.Handle
     [void]$createCtl.Invoke($form, @($true))
     $form.PerformLayout()
+    if ($f.n -notlike 'Main*') {
+        $log = New-Object 'System.Collections.Generic.List[string]'
+        $themeT.GetField('ClipLog', $ST).SetValue($null, $log)
+        $whole = New-Object Drawing.Bitmap $form.Width, $form.Height
+        $form.DrawToBitmap($whole, (New-Object Drawing.Rectangle 0, 0, $form.Width, $form.Height))
+        $whole.Dispose()
+        $themeT.GetField('ClipLog', $ST).SetValue($null, $null)
+        foreach ($x in $log) { [void]$clipped.Add(($f.n + ': ' + $x)) }
+    }
     foreach ($c in (Walk $form)) {
         if (-not $btnT.IsInstanceOfType($c)) { continue }
         if (-not (Shown $c $form) -or $c.Width -lt 8 -or $c.Height -lt 8) { continue }
@@ -186,6 +198,9 @@ Check 'שום תוכן לא נוגע בקצה הכפתור' ($bad.Count -eq 0) (
 
 $bad = @($all | Where-Object { $_.HasText -and $_.TextW -gt $_.Avail + 1 })
 Check 'טקסט נכנס לכפתור שלו (בלי ״...״)' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» צריך {2} ויש {3}" -f $x.Where, $x.Label, $x.TextW, $x.Avail })
+
+# נמצא בסבב של 0.8.1: שתי תוויות בעזרה (עברית), שורת משנה ב״קצב פריימים״ (אנגלית)
+Check 'שום טקסט לא נחתך ב״...״ בשום חלון' ($clipped.Count -eq 0) ("`n     " + ($clipped -join "`n     "))
 
 $bad = @($all | Where-Object { $_.Card -and $_.SubW -gt $_.Avail + 1 })
 Check 'שורת ההסבר בכרטיס נכנסת (בלי ״...״)' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» צריך {2} ויש {3}" -f $x.Where, $x.Label, $x.SubW, $x.Avail })
