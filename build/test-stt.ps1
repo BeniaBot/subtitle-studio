@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 74 בדיקות.
+# צפוי: 86 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -115,7 +115,9 @@ $ok = @"
  {"id":1,"start":5.0,"end":7.0,"text":" תודה רבה.","avg_logprob":-1.3,"compression_ratio":0.9,"no_speech_prob":0.92},
  {"id":2,"start":8.0,"end":24.0,"text":" $long","avg_logprob":-0.3,"compression_ratio":1.4,"no_speech_prob":0.02},
  {"id":3,"start":24.5,"end":28.0,"text":" כן כן כן כן כן כן כן כן כן כן כן כן","avg_logprob":-0.4,"compression_ratio":3.1,"no_speech_prob":0.05},
- {"id":4,"start":28.2,"end":29.5,"text":" תודה רבה.","avg_logprob":-0.25,"compression_ratio":0.9,"no_speech_prob":0.03}
+ {"id":4,"start":28.2,"end":29.5,"text":" תודה רבה.","avg_logprob":-0.25,"compression_ratio":0.9,"no_speech_prob":0.03},
+ {"id":5,"start":30.0,"end":47.0,"text":" תודה רבה.","avg_logprob":-1.2,"compression_ratio":0.9,"no_speech_prob":0.17},
+ {"id":6,"start":48.0,"end":58.0,"text":" אה","avg_logprob":-0.5,"compression_ratio":0.9,"no_speech_prob":0.1}
 ]}
 "@
 $s = StartServer @((Resp 200 $ok $null))
@@ -138,6 +140,9 @@ Check 'שורה ראשונה: טקסט בלי רווח מוביל, בזמנים 
 Check '״תודה רבה״ בשקט (Whisper לא בטוח שהיה דיבור) - נזרק' (-not ($lines | Where-Object { $_.Start -eq 5.0 })) ''
 Check 'לולאת חזרה (compression_ratio 3.1) - נזרקת' (-not ($lines | Where-Object { $_.Text -like 'כן כן*' })) ''
 Check '״תודה רבה״ שנאמר באמת - נשאר' (@($lines | Where-Object { $_.Start -eq 28.2 }).Count -eq 1) ''
+# נמדד בסבב על דרשה אמיתית: ״תודה רבה״ אחת על 30 שניות, no_speech 0.17 - וחצי מהתוכן נעלם בלי סימן
+Check '״תודה רבה״ על 17 שניות - נזרק גם כש-no_speech נמוך' (-not ($lines | Where-Object { $_.Start -eq 30.0 })) ''
+Check 'שתי אותיות על 10 שניות - נזרק' (-not ($lines | Where-Object { $_.Start -eq 48.0 })) ''
 $split = @($lines | Where-Object { $_.Start -ge 8.0 -and $_.End -le 24.0 })
 $maxLen = 0; $maxDur = 0; foreach ($x in $split) { if ($x.Text.Length -gt $maxLen) { $maxLen = $x.Text.Length }; if ($x.End - $x.Start -gt $maxDur) { $maxDur = $x.End - $x.Start } }
 $joined = ($split | ForEach-Object { $_.Text }) -join ' '
@@ -189,9 +194,11 @@ $c0 = '{"segments":[{"start":1.0,"end":4.0,"text":"אחת","avg_logprob":-0.2,"c
 $c1 = '{"segments":[{"start":1.0,"end":4.0,"text":"בגבול","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":7.0,"end":9.5,"text":"שתיים","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
 # הצליל בקובץ הבדיקה רצוף, כך שבכל קטע יש ״קול בלי כתוביות״ (Recover): בקטע הראשון
 # בין 4 ל-21, בשני מ-29.5 עד הסוף. התיקון של הראשון מוצא שורה שהמודל דילג עליה.
-$fix0 = '{"segments":[{"start":5.0,"end":7.0,"text":"באמצע","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
+# החור הוא 17 שניות של קול; תיקון שמכסה 6 מהן (30% לפחות) סוגר אותו
+$fix0 = '{"segments":[{"start":5.0,"end":11.0,"text":"באמצע","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
 $none = '{"segments":[]}'
-$s = StartServer @((Resp 200 $c0 $null), (Resp 200 $fix0 $null), (Resp 200 $c1 $null), (Resp 200 $none $null))
+# בקטע השני התיקון חוזר ריק, ואז עוד ניסיון בחלון מוזז (Groq), גם הוא ריק
+$s = StartServer @((Resp 200 $c0 $null), (Resp 200 $fix0 $null), (Resp 200 $c1 $null), (Resp 200 $none $null), (Resp 200 $none $null))
 $p = NewProvider $s.Port
 $p.Chunk = 25
 $trT = T 'Transcribe'
@@ -203,9 +210,59 @@ StopServer $s
 $texts = @($res.Cues | ForEach-Object { $_.Text + '@' + $_.Start })
 Check 'ארבע כתוביות: הכפילות בחפיפה נזרקה, והשורה מהחור נכנסה' ($res.Cues.Count -eq 4) ($texts -join ', ')
 Check 'הזמנים מוזזים לפי תחילת הקטע, והתיקון לפי תחילת החור (3+5=8)' (($texts -join ',') -eq 'אחת@1000,באמצע@8000,בגבול@21000,שתיים@27000') ($texts -join ',')
-Check 'שתי בקשות תיקון - אחת לכל קטע שנשאר בו קול בלי כתוביות' ($res.Recovered -eq 2) ("recovered=" + $res.Recovered)
+Check 'שלוש בקשות תיקון: אחת בקטע הראשון (התמלא), ושתיים בשני (חלון מוזז)' ($res.Recovered -eq 3) ("recovered=" + $res.Recovered)
 Check 'שם השירות בתוצאה' ($res.ProviderName -eq 'Groq') $res.ProviderName
-Check 'בלי שגיאה ובלי חורים' ($res.Error -eq $null -and $res.Gaps.Count -eq 0 -and $res.Failed -eq 0) ("error=" + $res.Error)
+$req1 = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes((Join-Path $s.Dir 'req-1.bin')))
+$req0 = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes((Join-Path $s.Dir 'req-0.bin')))
+Check 'הקטע עצמו בדגם הקבוע, והשליחה החוזרת בדגם השני (Whisper לא יציב)' (($req0 -match 'name="model"\r\n\r\nwhisper-large-v3\r\n') -and ($req1 -match 'name="model"\r\n\r\nwhisper-large-v3-turbo\r\n')) ''
+Check 'ואחריה חוזרים לדגם הקבוע' ($p.CurrentModel -eq 'whisper-large-v3') $p.CurrentModel
+Check 'בלי שגיאה' ($res.Error -eq $null -and $res.Failed -eq 0) ("error=" + $res.Error)
+# החור שבסוף הקטע השני נשלח שוב וחזר ריק: עד 0.8.1 הוא נבלע. עכשיו הוא חור שמדווח
+Check 'חור שגם השליחה החוזרת לא מילאה - מדווח, לא נבלע' ($res.Gaps.Count -eq 1 -and $res.Gaps[0] -match '29') ($res.Gaps -join ', ')
+
+# ================= 4א. קטע שחזר ריק כולו, ויש בו קול =================
+Write-Host 'קטע שחזר ריק, ויש בו קול'
+# נמדד בסבב: דיאלוג ברור של 17 שניות חזר מ-Whisper כ״תודה רבה״ אחת (שנזרקת) - כלומר ריק
+$phantom = '{"segments":[{"start":0.0,"end":17.0,"text":" תודה רבה.","avg_logprob":-1.2,"compression_ratio":0.9,"no_speech_prob":0.17}]}'
+$good = '{"segments":[{"start":1.0,"end":7.0,"text":"דיאלוג אמיתי","avg_logprob":-0.3,"compression_ratio":1,"no_speech_prob":0.1}]}'
+$s = StartServer @((Resp 200 $phantom $null), (Resp 200 $good $null))
+$p = NewProvider $s.Port
+$p.Chunk = 25
+$res = $run.Invoke($null, (Pack $p ([string]$media) ([long]17000) ([string]'') $null $null))
+StopServer $s
+Check 'נשלח שוב, ומה שחזר נכנס' ($res.Recovered -eq 1 -and $res.Cues.Count -eq 1 -and $res.Cues[0].Text -eq 'דיאלוג אמיתי') ("recovered=" + $res.Recovered + " cues=" + $res.Cues.Count)
+$s = StartServer @((Resp 200 $phantom $null), (Resp 200 $none $null), (Resp 200 $none $null))
+$p = NewProvider $s.Port
+$p.Chunk = 25
+$res = $run.Invoke($null, (Pack $p ([string]$media) ([long]17000) ([string]'') $null $null))
+StopServer $s
+Check 'גם שני הניסיונות ריקים: לא ״לא זוהה דיבור״ אלא ״לא החזיר טקסט, למרות שיש קול״' ($res.Cues.Count -eq 0 -and $res.Error -match 'לא החזיר טקסט' -and $res.Gaps.Count -eq 1 -and $res.Recovered -eq 2) ($res.Error + " recovered=" + $res.Recovered)
+
+# ״ובגירים״ בשנייה 30 של חור של 30 שניות סגרה אותו עד 0.8.1 (נמדד). מילה בקצה איננה מילוי
+$edge = '{"segments":[{"start":29.0,"end":30.0,"text":"ובגירים","avg_logprob":-0.3,"compression_ratio":1,"no_speech_prob":0.1}]}'
+$shifted = '{"segments":[{"start":0.5,"end":6.5,"text":"הדרשה עצמה","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.05},{"start":6.5,"end":12.5,"text":"והמשך הדרשה","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.05}]}'
+$s = StartServer @((Resp 200 $phantom $null), (Resp 200 $edge $null), (Resp 200 $shifted $null))
+$p = NewProvider $s.Port
+$p.Chunk = 25
+$res = $run.Invoke($null, (Pack $p ([string]$media) ([long]17000) ([string]'') $null $null))
+StopServer $s
+$texts = @($res.Cues | ForEach-Object { $_.Text + '@' + $_.Start })
+Check 'מילה בקצה החור לא סוגרת אותו: נשלח שוב בחלון מוזז, והדרשה נכנסת' ($res.Recovered -eq 2 -and ($texts -join ',') -match 'הדרשה עצמה@3500' -and $res.Gaps.Count -eq 0) (($texts -join ', ') + " gaps=" + ($res.Gaps -join ','))
+
+# ================= 4ג. נעילת השפה =================
+Write-Host 'נעילת השפה'
+$he1 = '{"language":"Hebrew","segments":[{"start":1.0,"end":6.0,"text":"משפט ראשון ארוך מספיק כדי להיחשב","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
+$s = StartServer @((Resp 200 $he1 $null), (Resp 200 $he1 $null))
+$p = NewProvider $s.Port
+$r1 = Chunk $p $audio ''
+$r2 = Chunk $p $audio ''
+StopServer $s
+$q0 = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes((Join-Path $s.Dir 'req-0.bin')))
+$q1 = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes((Join-Path $s.Dir 'req-1.bin')))
+Check 'הקטע הראשון: בלי שפה, Whisper מזהה' (-not ($q0 -match 'name="language"')) ''
+Check 'מהקטע הבא: השפה שזוהתה ננעלת (turbo תרגם עברית לאנגלית)' ($q1 -match 'name="language"\r\n\r\nhe\r\n') ''
+[void]$p.GetType().GetMethod('NewFile').Invoke($p, @())
+Check 'קובץ חדש: הנעילה משתחררת' ($p.GetType().GetProperty('Language', [Reflection.BindingFlags]'NonPublic,Instance').GetValue($p, $null) -eq '') ''
 
 # ================= 4ב. עצירה באמצע =================
 Write-Host 'עצירה באמצע (שבעה קטעים של 10 שניות)'
@@ -258,6 +315,7 @@ Check 'בחירה מפורשת גוברת' ($cur.Id -eq 'gemini') $cur.Id
 $stt.GetField('ProviderId', $SF).SetValue($null, $pid0); $stt.GetField('GroqKey', $SF).SetValue($null, $key0)
 $gem = $stt.GetProperty('Gemini', $SF).GetValue($null, $null)
 Check 'גוגל: קטע של 60 שניות, 12 שניות בין בקשות (כמו קודם)' ($gem.ChunkSec -eq 60 -and $gem.MinGapMs -eq 12000) ''
+Check 'גוגל: קטע שחזר ריק לא נשלח שוב (כעשרים בקשות ביום)' (-not $gem.CheapRetry) ''
 
 # ================= התשובה של גוגל: זמנים בכל צורה, ושורות שאין לשכוח =================
 # הבאג (23.9.2026, קליפ של שיר, 3 דקות): קטע שהחזיר את התשובה הארוכה מכולם

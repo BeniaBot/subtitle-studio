@@ -37,6 +37,14 @@ namespace SubtitleStudio
         /// <summary>ההודעה למשתמש כשהמכסה נגמרה.</summary>
         string QuotaMessage { get; }
         List<Ai.TrLine> TranscribeChunk(byte[] audio, string mime, string context, out string error);
+        /// <summary>שליחה חוזרת של קטע שחזר חסר (השלמת חור). ב-Whisper - בדגם השני: אותו
+        /// קטע נותן פעם טקסט ופעם ״תודה רבה״ אחת (נמדד), ודגם אחר שומע אחרת.</summary>
+        List<Ai.TrLine> RetryChunk(byte[] audio, string mime, string context, out string error);
+        /// <summary>המכסה גדולה מספיק כדי לשלוח שוב קטע שלם שחזר ריק למרות שיש בו קול.
+        /// בגוגל (כעשרים בקשות ביום) - לא: סרט של מוזיקה היה מכלה אותה.</summary>
+        bool CheapRetry { get; }
+        /// <summary>תחילת קובץ חדש: מה שנלמד על הקודם (למשל השפה) נשכח.</summary>
+        void NewFile();
     }
 
     /// <summary>הספק הוותיק: Gemini, דרך המפתח של העוזר.</summary>
@@ -57,6 +65,15 @@ namespace SubtitleStudio
         {
             return Ai.TranscribeChunk(audio, mime, context, out error);
         }
+
+        public List<Ai.TrLine> RetryChunk(byte[] audio, string mime, string context, out string error)
+        {
+            return Ai.TranscribeChunk(audio, mime, context, out error);
+        }
+
+        public bool CheapRetry { get { return false; } }
+
+        public void NewFile() { }
     }
 
     /// <summary>כל שירות שמדבר ב-API התמלול של OpenAI. ‏Groq הוא הראשון.
@@ -110,7 +127,57 @@ namespace SubtitleStudio
                 return Lang.T("אפשר להמשיך מחר.");
             }
         }
-        public string CurrentModel { get { return Models[_model]; } }
+        public string CurrentModel { get { return Models[_force >= 0 ? _force : _model]; } }
+        /// <summary>דגם לבקשה אחת (RetryChunk), בלי להחליף את הדגם הקבוע. ‏-1 = אין.</summary>
+        private int _force = -1;
+        public bool CheapRetry { get { return true; } }
+
+        /// <summary>שפת הקובץ, מהקטע הראשון שהחזיר טקסט ממשי. ״ריק״ = Whisper מזהה לבד.
+        ///
+        /// **למה לנעול:** ‏whisper-large-v3-turbo זיהה דרשה בעברית כאנגלית, והחזיר
+        /// **תרגום** לאנגלית משובשת (״I am the witness of the Holy Spirit״) - נמדד. זה
+        /// הדגם שעוברים אליו כשהמכסה השעתית של הראשון נגמרת, כלומר באמצע שיעור ארוך.</summary>
+        private string _lang = "";
+        internal string Language { get { return _lang; } }
+
+        public void NewFile() { _lang = ""; }
+
+        /// <summary>השם שבתשובה (״Hebrew״) לקוד שהשירות מקבל. שפה לא מוכרת - לא נועלים.</summary>
+        internal static string LangCode(string name)
+        {
+            switch ((name ?? "").Trim().ToLowerInvariant())
+            {
+                case "hebrew": case "he": return "he";
+                case "english": case "en": return "en";
+                case "arabic": case "ar": return "ar";
+                case "russian": case "ru": return "ru";
+                case "french": case "fr": return "fr";
+                case "spanish": case "es": return "es";
+                case "german": case "de": return "de";
+                case "yiddish": case "yi": return "yi";
+                case "amharic": case "am": return "am";
+                default: return "";
+            }
+        }
+
+        public List<Ai.TrLine> RetryChunk(byte[] audio, string mime, string context, out string error)
+        {
+            int other = (_model + 1) % Models.Length;
+            DateTime until;
+            bool otherOut;
+            lock (_outUntil) otherOut = _outUntil.TryGetValue(other, out until) && DateTime.UtcNow < until;
+            if (other != _model && !otherOut)
+            {
+                _force = other;
+                try
+                {
+                    List<Ai.TrLine> r = TranscribeChunk(audio, mime, context, out error);
+                    if (r != null) return r;
+                }
+                finally { _force = -1; }
+            }
+            return TranscribeChunk(audio, mime, context, out error);
+        }
         private string Key { get { return KeyOverride ?? Stt.GroqKey; } }
 
         /// <summary>נקודת קצה לבדיקת מפתח: רשימת הדגמים. לא עולה שנייה של מכסה.</summary>
@@ -150,6 +217,13 @@ namespace SubtitleStudio
                         // המכסה של הדגם הזה נגמרה. לדגם השני מכסה משלו.
                         TimeSpan span = wait > 0 ? TimeSpan.FromSeconds(wait)
                                                  : (perDay ? TimeSpan.FromHours(24) : TimeSpan.FromMinutes(60));
+                        if (_force >= 0)
+                        {
+                            // נגמרה המכסה של הדגם שביקשנו רק לניסיון - הקבוע לא משתנה
+                            lock (_outUntil) _outUntil[_force] = DateTime.UtcNow + span;
+                            error = Explain(code, reply, error);
+                            return null;
+                        }
                         lock (_outUntil) _outUntil[_model] = DateTime.UtcNow + span;
                         int other = NextModel();
                         if (other >= 0)
@@ -166,7 +240,25 @@ namespace SubtitleStudio
                 error = Explain(code, reply, error);
                 return null;
             }
-            return Parse(reply, out error);
+            List<Ai.TrLine> got = Parse(reply, out error);
+            // נועלים את השפה רק אחרי טקסט ממשי: קטע של מוזיקה ״מזוהה״ לפעמים כאנגלית
+            if (_lang.Length == 0 && got != null)
+            {
+                int letters = 0;
+                foreach (Ai.TrLine l in got) letters += Letters(l.Text ?? "");
+                if (letters >= 20) _lang = LangCode(DetectedLanguage(reply));
+            }
+            return got;
+        }
+
+        internal static string DetectedLanguage(string json)
+        {
+            try
+            {
+                Match m = Regex.Match(json ?? "", "\"language\"\\s*:\\s*\"([^\"]*)\"");
+                return m.Success ? m.Groups[1].Value : "";
+            }
+            catch { return ""; }
         }
 
         private int NextModel()
@@ -189,6 +281,7 @@ namespace SubtitleStudio
             Field(ms, boundary, "response_format", "verbose_json");
             Field(ms, boundary, "temperature", "0");
             Field(ms, boundary, "timestamp_granularities[]", "segment");
+            if (_lang.Length > 0) Field(ms, boundary, "language", _lang);
             string prompt = PromptFor(context);
             if (prompt.Length > 0) Field(ms, boundary, "prompt", prompt);
             string ext = mime != null && mime.Contains("wav") ? "wav" : "mp3";
@@ -303,7 +396,12 @@ namespace SubtitleStudio
                 // תווים = 1.85, ובאנגלית 113 תווים = 1.28. קטע ארוך של Whisper
                 // היה מתקרב לסף ונזרק בשקט. לכן דורשים גם מעט מילים שונות.
                 if (comp > 2.4 && Repetitive(text)) continue;
-                if (noSpeech > 0.2 && IsPhantom(text)) continue;
+                // משפט רפאים שנמתח על כמה שניות לא נאמר באמת: ״תודה רבה״ לוקחת שנייה.
+                // עד 0.8.1 הוא נזרק רק כש-no_speech גבוה, ועל דרשה ברורה Whisper החזיר
+                // ״תודה רבה״ אחת על 30 השניות הראשונות, עם no_speech נמוך (נמדד בסבב)
+                if (IsPhantom(text) && (noSpeech > 0.2 || b - a > 3.0)) continue;
+                // ומעט מאוד טקסט על קטע ארוך - הזיה, לא דיבור (דיבור הוא 8-15 תווים לשנייה)
+                if (b - a >= 8.0 && Letters(text) / (b - a) < 1.0) continue;
                 foreach (Ai.TrLine ln in SplitLong(a, b, text)) outp.Add(ln);
             }
             return outp;
@@ -323,6 +421,13 @@ namespace SubtitleStudio
                 distinct.Add(w);
             }
             return total >= 6 && distinct.Count * 2 < total;
+        }
+
+        private static int Letters(string text)
+        {
+            int n = 0;
+            foreach (char ch in text) if (char.IsLetterOrDigit(ch)) n++;
+            return n;
         }
 
         private static bool IsPhantom(string text)

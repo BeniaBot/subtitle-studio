@@ -66,6 +66,7 @@ namespace SubtitleStudio
             if (!Ff.Available) { res.Error = Lang.T("מנוע הווידאו לא זמין."); return res; }
             if (durationMs <= 0) { res.Error = Lang.T("לא הצלחתי לקרוא את אורך הקובץ."); return res; }
 
+            provider.NewFile();
             string dir = Ff.TempDir();
             double totalSec = durationMs / 1000.0;
             int chunkSec = Math.Max(OverlapSec + 5, provider.ChunkSec);
@@ -197,7 +198,10 @@ namespace SubtitleStudio
             if (res.Error == null && res.Cues.Count == 0 && !res.Canceled)
                 res.Error = res.Failed > 0 && lastErr != null
                     ? lastErr
-                    : Lang.T("לא זוהה דיבור בקובץ.");
+                    // יש קול, ושום ניסיון לא החזיר טקסט: זה לא ״אין דיבור״
+                    : res.Gaps.Count > 0
+                        ? Lang.F("{0} לא החזיר טקסט, למרות שיש בקובץ קול. אפשר לנסות שוב, או לתמלל דרך השירות השני.", provider.Name)
+                        : Lang.T("לא זוהה דיבור בקובץ.");
             return res;
         }
 
@@ -353,44 +357,85 @@ namespace SubtitleStudio
         private static List<Ai.TrLine> Recover(ISttProvider provider, string mediaPath, string dir, int index, double s,
             double clipLen, List<Ai.TrLine> lines, List<double[]> silences, string context, Result res, Func<bool> canceled)
         {
-            if (lines == null || lines.Count == 0 || silences == null) return lines;
+            if (lines == null || silences == null) return lines;
+            // קטע שחזר ריק כולו, ויש בו קול: רק בשירות שהמכסה שלו מרשה. עד 0.8.1 הוא
+            // נחשב ״לא זוהה דיבור״ - על דיאלוג ברור של 17 שניות (Whisper, נמדד)
+            if (lines.Count == 0 && !provider.CheapRetry) return lines;
             List<double[]> holes = Holes(lines, silences, index, clipLen);
             int tried = 0;
             foreach (double[] h in holes)
             {
                 if (tried >= MaxRecoverPerChunk || (canceled != null && canceled())) break;
                 tried++;
-                double subStart = Math.Max(0, h[0] - 1);
-                double subLen = Math.Min(clipLen, h[1] + 1) - subStart;
-                string mp3 = Path.Combine(dir, "tr_" + index.ToString(CultureInfo.InvariantCulture) + "_fix.mp3");
-                try { if (File.Exists(mp3)) File.Delete(mp3); }
-                catch { }
-                string so, se;
-                Ff.RunSync(Ff.Exe, "-y -hide_banner -v error -ss " + (s + subStart).ToString("0.###", CultureInfo.InvariantCulture) +
-                    " -t " + subLen.ToString("0.###", CultureInfo.InvariantCulture) + " -i " + Ff.Q(mediaPath) +
-                    " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(mp3), out so, out se, dir);
-                byte[] bytes = null;
-                try { if (File.Exists(mp3)) { bytes = File.ReadAllBytes(mp3); File.Delete(mp3); } }
-                catch { }
-                List<Ai.TrLine> got = null;
-                string err;
-                if (bytes != null && bytes.Length >= 500)
+                double need = FillShare * SoundIn(silences, h[0], h[1]);
+                // ניסיון ראשון: מעט לפני החור. שני (רק בשירות שהמכסה שלו מרשה): החלון
+                // מתחיל כמה שניות לתוך החור. Whisper ״נתקע״ על חלון שנפתח במוזיקה: דרשה
+                // שהחלון שלה התחיל בשנייה 0 חזרה ״תודה רבה״, ומשנייה 3 - מלאה (נמדד)
+                double[] from = provider.CheapRetry ? new double[] { Math.Max(0, h[0] - 1), h[0] + ShiftSec }
+                                                    : new double[] { Math.Max(0, h[0] - 1) };
+                List<Ai.TrLine> best = null;
+                double bestStart = 0, bestCover = 0;
+                foreach (double subStart in from)
                 {
-                    Throttle();
-                    res.Recovered++;
-                    got = provider.TranscribeChunk(bytes, "audio/mp3", context, out err);
+                    if (canceled != null && canceled()) break;
+                    double subLen = Math.Min(clipLen, h[1] + 1) - subStart;
+                    if (subLen < HoleSoundSec) break;
+                    List<Ai.TrLine> got = Resend(provider, mediaPath, dir, index, s + subStart, subLen, context, res);
+                    double cover = Covered(got, subStart, h[0], h[1]);
+                    if (got != null && (best == null || cover > bestCover)) { best = got; bestStart = subStart; bestCover = cover; }
+                    if (cover >= need) break;
                 }
-                if (got == null)
+                // חור שלא התמלא ברובו: מה שחזר (אם חזר) נכנס, **והמשתמש שומע עליו**. עד 0.8.1
+                // כל תשובה ״מוצלחת״ נחשבה סגירה - גם מילה אחת בקצה של חור של 30 שניות
+                if (bestCover < need)
                 {
-                    // לא הצלחנו לתקן - לפחות להגיד איפה חסר
-                    double from = s + h[0], to = s + h[1];
-                    res.GapStartSec.Add(from);
-                    res.Gaps.Add(Tc.Short((long)(from * 1000)) + "–" + Tc.Short((long)(to * 1000)));
-                    continue;
+                    double gFrom = s + h[0], gTo = s + h[1];
+                    res.GapStartSec.Add(gFrom);
+                    res.Gaps.Add(Tc.Short((long)(gFrom * 1000)) + "–" + Tc.Short((long)(gTo * 1000)));
                 }
-                lines = Merge(lines, got, subStart, h[2] > 0, clipLen);
+                if (best != null && bestCover > 0) lines = Merge(lines, best, bestStart, h[2] > 0, clipLen);
             }
             return lines;
+        }
+
+        /// <summary>כמה מהקול שבחור צריך לקבל טקסט כדי שהחור ייחשב סגור.</summary>
+        private const double FillShare = 0.3;
+        /// <summary>בכמה שניות להזיז את החלון בניסיון השני.</summary>
+        private const double ShiftSec = 3;
+
+        /// <summary>כמה שניות מתוך החור (בשניות מתחילת הקטע) מכוסות בשורות שחזרו.</summary>
+        internal static double Covered(List<Ai.TrLine> got, double subStart, double a, double b)
+        {
+            if (got == null) return 0;
+            double sum = 0;
+            foreach (Ai.TrLine t in got)
+            {
+                if (!t.HasTime || t.Text == null || t.Text.Trim().Length == 0) continue;
+                double x = Math.Max(a, subStart + t.Start), y = Math.Min(b, subStart + t.End);
+                if (y > x) sum += y - x;
+            }
+            return sum;
+        }
+
+        /// <summary>שולח שוב טווח מהקובץ (בשניות מתחילתו). ‏null אם לא הצליח.</summary>
+        private static List<Ai.TrLine> Resend(ISttProvider provider, string mediaPath, string dir, int index,
+            double at, double len, string context, Result res)
+        {
+            string mp3 = Path.Combine(dir, "tr_" + index.ToString(CultureInfo.InvariantCulture) + "_fix.mp3");
+            try { if (File.Exists(mp3)) File.Delete(mp3); }
+            catch { }
+            string so, se;
+            Ff.RunSync(Ff.Exe, "-y -hide_banner -v error -ss " + at.ToString("0.###", CultureInfo.InvariantCulture) +
+                " -t " + len.ToString("0.###", CultureInfo.InvariantCulture) + " -i " + Ff.Q(mediaPath) +
+                " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(mp3), out so, out se, dir);
+            byte[] bytes = null;
+            try { if (File.Exists(mp3)) { bytes = File.ReadAllBytes(mp3); File.Delete(mp3); } }
+            catch { }
+            if (bytes == null || bytes.Length < 500) return null;
+            Throttle();
+            res.Recovered++;
+            string err;
+            return provider.RetryChunk(bytes, "audio/mp3", context, out err);
         }
 
         /// <summary>משלב את התמלול החוזר של חור בשורות של הקטע (הכול בשניות מתחילת הקטע).</summary>

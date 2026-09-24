@@ -1035,7 +1035,7 @@ namespace SubtitleStudio
             "{0}  ועוד {1}", "{0}  and {1} more",
             "קטע אחד לא תומלל", "One section wasn't transcribed",
             "כמה קטעים לא תומללו", "Some sections weren't transcribed",
-            "הקטעים האלה לא הצליחו, וכדאי להשלים אותם ידנית:", "These sections failed, and it's worth filling them in by hand:",
+            "בקטעים האלה לא התקבל טקסט. אם יש בהם דיבור - כדאי להשלים ידנית:", "No text came back for these sections. If there is speech in them, fill it in by hand:",
             "{0}, או לתמלל את השאר דרך גוגל.", "{0}, or transcribe the rest through Google.",
             "המכסה של גוגל מתאפסת מחר. אפשר גם לעבור ל-Groq, שנותן עד 8 שעות ביום - בחלון התמלול, ״איפה לתמלל״.", "Google's quota resets tomorrow. You can also switch to Groq, which gives up to 8 hours a day - in the transcription window, “Where to transcribe”.",
             "אין מה לשמור", "Nothing to save",
@@ -1204,6 +1204,7 @@ namespace SubtitleStudio
             "מתמלל {0} מתוך {1}", "Transcribing {0} of {1}",
             "ממתין למכסה של {0} ({1} שניות)…", "Waiting for the {0} quota ({1} seconds)…",
             "מסיים…", "Finishing…",
+            "{0} לא החזיר טקסט, למרות שיש בקובץ קול. אפשר לנסות שוב, או לתמלל דרך השירות השני.", "{0} returned no text, though the file has sound. Try again, or transcribe with the other service.",
             "סגור", "Close",
             "לא נמצאה אף גרסה במאגר.", "No version was found in the repository.",
             "תשובה לא מובנת מהמאגר: {0}", "The repository sent an answer that couldn't be understood: {0}",
@@ -1212,9 +1213,9 @@ namespace SubtitleStudio
             "אין קובץ להורדה", "No file to download",
             "בשחרור הזה לא צורף קובץ.", "No file was attached to this release.",
             "העדכון מגיע כמתקין", "The update comes as an installer",
-            "בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט.", "Only an installer was published for this version. You can open the download page and decide.",
         };
         private static readonly string[] P4 = new string[] {
+            "בגרסה הזאת פורסם רק קובץ התקנה. אפשר לפתוח את דף ההורדה ולהחליט.", "Only an installer was published for this version. You can open the download page and decide.",
             "לפתוח את הדף", "Open the page",
             "מוריד את הגרסה {0}", "Downloading version {0}",
             "העדכון נכשל", "The update failed",

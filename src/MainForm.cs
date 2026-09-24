@@ -2779,7 +2779,9 @@ namespace SubtitleStudio
                 if (res.Gaps.Count > 4)
                     where = Lang.F("{0}  ועוד {1}", string.Join("  ·  ", res.Gaps.GetRange(0, 4).ToArray()), Theme.Ltr((res.Gaps.Count - 4).ToString()));
                 Ui.Info(this, res.Gaps.Count == 1 ? Lang.T("קטע אחד לא תומלל") : Lang.T("כמה קטעים לא תומללו"),
-                    Lang.T("הקטעים האלה לא הצליחו, וכדאי להשלים אותם ידנית:") + Environment.NewLine +
+                    // גם קטע שיש בו קול ולא חזר ממנו טקסט: אולי מוזיקה, אולי דיבור שהשירות
+                    // ״לא שמע״. הבודק שקט לא מבחין ביניהם, ולכן הניסוח לא מאשים אף אחד
+                    Lang.T("בקטעים האלה לא התקבל טקסט. אם יש בהם דיבור - כדאי להשלים ידנית:") + Environment.NewLine +
                     Theme.Ltr(where));
             }
         }
