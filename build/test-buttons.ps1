@@ -146,14 +146,17 @@ foreach ($f in $forms) {
         if ($c.Icon -ne 'None') { $avail -= $c.IconSize + (S 8) }
         if ($c.Menu) { $avail -= S 16 }
         if (-not $c.Swatch.IsEmpty) { $avail -= (S 22) + (S 8) }
+        if ($c.Radio) { $avail -= (S 18) + (S 10) }
         $font = if ($c.Sub) { (TY 'Theme').GetProperty('UiBold', $ST).GetValue($null, $null) } else { $c.Font }
+        # שורת ההסבר בכרטיס: עד 0.8.1 רק הכותרת נמדדה, ובאנגלית ההסבר של ״צריבה בתמונה״ נחתך
+        $sw = if ($c.Sub) { [Windows.Forms.TextRenderer]::MeasureText($c.Sub, (TY 'Theme').GetProperty('Small', $ST).GetValue($null, $null), (New-Object Drawing.Size 100000, 1000), [Windows.Forms.TextFormatFlags]'NoPadding,NoPrefix').Width } else { 0 }
         $tw = if ($hasText) { [Windows.Forms.TextRenderer]::MeasureText($c.Text, $font, (New-Object Drawing.Size 100000, 1000), [Windows.Forms.TextFormatFlags]'NoPadding,NoPrefix').Width } else { 0 }
         [void]$all.Add([pscustomobject]@{
             Where = $f.n; Label = $label; W = $c.Width; H = $c.Height
             Centered = $hasText -and -not $c.Sub -and -not $c.Menu -and [string]$c.Kind -ne 'Tool' -and -not $c.AlignRight -and $c.Swatch.IsEmpty
             IconOnly = -not $hasText; Card = [bool]$c.Sub
             L = $ink[0]; R = $ink[1]; T = $ink[2]; B = $ink[3]; M = $m
-            TextW = $tw; Avail = $avail; HasText = [bool]$hasText
+            TextW = $tw; SubW = $sw; Avail = $avail; HasText = [bool]$hasText
             # כפתור מלא בצורת עיגול או גלולה (הניגון): הרקע עצמו מגיע עד הקצה
             Round = ($c.Radius * 2 -ge $c.Height - 2) -and ([string]$c.Kind -eq 'Primary')
         })
@@ -183,6 +186,9 @@ Check 'שום תוכן לא נוגע בקצה הכפתור' ($bad.Count -eq 0) (
 
 $bad = @($all | Where-Object { $_.HasText -and $_.TextW -gt $_.Avail + 1 })
 Check 'טקסט נכנס לכפתור שלו (בלי ״...״)' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» צריך {2} ויש {3}" -f $x.Where, $x.Label, $x.TextW, $x.Avail })
+
+$bad = @($all | Where-Object { $_.Card -and $_.SubW -gt $_.Avail + 1 })
+Check 'שורת ההסבר בכרטיס נכנסת (בלי ״...״)' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» צריך {2} ויש {3}" -f $x.Where, $x.Label, $x.SubW, $x.Avail })
 
 # כפתור המהירות, בכל מהירות - לא רק ״1×״ שבמקרה נכנס. עד 0.7.2 ״1.25×״ הוצג ״1…״.
 $mfT = TY 'MainForm'

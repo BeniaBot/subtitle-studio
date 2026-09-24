@@ -47,10 +47,13 @@ $media = Join-Path $env:TEMP 'ss-gallery\test.mp4'
 if (-not (Test-Path $media)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
 $mi = (TY 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$media))
-function ToolNamed($like) {
+# לפי השם המלא בעברית, דרך התרגום. עם תבנית עברית הצילום באנגלית לא מצא את הכלי
+# ונפל לכלי הראשון (״החלפת הפסקול״ צולם בשם FitSize)
+function ToolNamed($he) {
+    $want = [string](TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null).Invoke($null, @([string]$he))
     $all = (TY 'MediaTools').GetMethod('All', $ST).Invoke($null, @())
-    foreach ($x in $all) { if ((TY 'MediaTool').GetField('Name', $IN).GetValue($x) -like $like) { return $x } }
-    return $all[0]
+    foreach ($x in $all) { if ((TY 'MediaTool').GetField('Name', $IN).GetValue($x) -eq $want) { return $x } }
+    throw "no tool named $he"
 }
 $rel = [Activator]::CreateInstance((TY 'Updater+Release')); $rel.Version = '0.9.9'; $rel.Notes = 'x'
 $sum = (TY 'Changelog').GetMethod('Build', $ST).Invoke($null, @([string][IO.File]::ReadAllText((Join-Path $root 'changelog.json'), [Text.Encoding]::UTF8), [string]'0.1.0', [string]'0.7.0'))
@@ -106,7 +109,7 @@ $forms = @(
     @{ n = 'About';       make = { NewOf 'AboutDlg' @() } },
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
-    @{ n = 'FitSize';     make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*גודל קובץ*'), $mi, [int64]-1, [int64]-1, [int64]0) } },
+    @{ n = 'FitSize';     make = { NewOf 'ToolRunDlg' @($null, (ToolNamed 'התאמה לגודל קובץ מבוקש'), $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Trim';        make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },

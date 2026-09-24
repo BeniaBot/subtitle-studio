@@ -354,7 +354,7 @@
 {0} כתוביות · {1}	{0} subtitles · {1}
 איך להטמיע?	How to embed them?
 צריבה בתמונה	Burn into the picture
-הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון	The subtitles become part of the pixels · works in every player and on every phone
+הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון	Part of the picture itself · works in every player and on every phone
 ערוץ כתוביות נפרד	Separate subtitle track
 אפשר לכבות/להחליף בנגן · הקידוד נשמר, מהיר מאוד	Can be turned off or switched in the player · no re-encoding, very fast
 קובץ היעד	Output file
@@ -658,7 +658,7 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 ההיפוך טוען את כל הקטע לזיכרון, אז עדיף על קטעים קצרים.	Reversing loads the whole section into memory, so it's best for short sections.
 שימו לב: קטע של {0} ידרוש הרבה זיכרון. כדאי לסמן קטע על הציר ולהפוך רק אותו.	Note: a {0} section will need a lot of memory. Mark a section on the timeline and reverse only that.
 התאמה לגודל קובץ מבוקש	Fit a file size
-"שייכנס ל-200MB" - התוכנה מחשבת את האיכות הכי טובה שנכנסת בגודל הזה	"Fit in 200MB" - the program works out the best quality that fits in that size
+"שייכנס ל-200MB" - התוכנה מחשבת את האיכות הכי טובה שנכנסת בגודל הזה	"Fit in 200MB" - the program finds the best quality that fits
 לאיזה גודל להגיע	Target size
 מעבר ראשון - ניתוח	First pass - analysis
 מעבר שני - קידוד	Second pass - encoding
@@ -1296,7 +1296,7 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 נבדק לאחרונה: {0}	Last checked: {0}
 העתקת פרטי הגרסה	Copy the version details
 רישיון	Licence
-הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע הווידאו {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.	The code is free (licence {0}) - you may take it, change it\r\nand build on it as you like. The video engine {1} is under {2},\r\nthe font {3} under {4}, and the spelling dictionary\r\n(downloaded separately) under {5}. The full texts are inside the file.
+הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע הווידאו {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.	The code is free (licence {0}): take it, change it and build on it as you like.\r\nThe video engine {1} is under {2}, the font {3} under {4},\r\nand the spelling dictionary (downloaded separately) under {5}.\r\nThe full texts are inside the file.
 שמירת נוסח הרישיונות לתיקייה	Save the licence texts to a folder
 קוד ותמיכה	Code and support
 קוד המקור באינטרנט	Source code online
