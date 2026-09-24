@@ -8,14 +8,14 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 65 בדיקות.
+# צפוי: 74 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
 $asm = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path $root 'dist\Subtext.exe')))
 $SF = [Reflection.BindingFlags]'NonPublic,Public,Static'
 function T($n) { $asm.GetType("SubtitleStudio.$n") }
-function Pack { $a = New-Object object[] $args.Count; for ($i=0;$i -lt $args.Count;$i++){ $v=$args[$i]; if ($v -ne $null) { $v = $v.psobject.BaseObject }; $a[$i]=$v }; return ,$a }
+function Pack { $a = New-Object object[] $args.Count; for ($i=0;$i -lt $args.Count;$i++){ $v=$args[$i]; if ($null -ne $v) { $v = $v.psobject.BaseObject }; $a[$i]=$v }; return ,$a }
 $pass=0; $fail=0
 function Check($n,$ok,$d){ if($ok){$script:pass++;Write-Host "  ok    $n   $d"}else{$script:fail++;Write-Host "  FAIL  $n   $d" -ForegroundColor Red} }
 
@@ -187,7 +187,11 @@ if (-not (Test-Path $media)) { powershell -NoProfile -ExecutionPolicy Bypass -Fi
 # קטע ראשון 0-25, שני 20-45 (צעד 20, חפיפה 5). ״בגבול״ נאמר ב-21 ונלכד בשניהם.
 $c0 = '{"segments":[{"start":1.0,"end":4.0,"text":"אחת","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":21.0,"end":24.0,"text":"בגבול","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
 $c1 = '{"segments":[{"start":1.0,"end":4.0,"text":"בגבול","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":7.0,"end":9.5,"text":"שתיים","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
-$s = StartServer @((Resp 200 $c0 $null), (Resp 200 $c1 $null))
+# הצליל בקובץ הבדיקה רצוף, כך שבכל קטע יש ״קול בלי כתוביות״ (Recover): בקטע הראשון
+# בין 4 ל-21, בשני מ-29.5 עד הסוף. התיקון של הראשון מוצא שורה שהמודל דילג עליה.
+$fix0 = '{"segments":[{"start":5.0,"end":7.0,"text":"באמצע","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
+$none = '{"segments":[]}'
+$s = StartServer @((Resp 200 $c0 $null), (Resp 200 $fix0 $null), (Resp 200 $c1 $null), (Resp 200 $none $null))
 $p = NewProvider $s.Port
 $p.Chunk = 25
 $trT = T 'Transcribe'
@@ -197,8 +201,9 @@ $sw = [Diagnostics.Stopwatch]::StartNew()
 $res = $run.Invoke($null, (Pack $p ([string]$media) ([long]40000) ([string]'') $null $null))
 StopServer $s
 $texts = @($res.Cues | ForEach-Object { $_.Text + '@' + $_.Start })
-Check 'שלוש כתוביות: הכפילות בחפיפה נזרקה' ($res.Cues.Count -eq 3) ($texts -join ', ')
-Check 'הזמנים מוזזים לפי תחילת הקטע' (($texts -join ',') -eq 'אחת@1000,בגבול@21000,שתיים@27000') ($texts -join ',')
+Check 'ארבע כתוביות: הכפילות בחפיפה נזרקה, והשורה מהחור נכנסה' ($res.Cues.Count -eq 4) ($texts -join ', ')
+Check 'הזמנים מוזזים לפי תחילת הקטע, והתיקון לפי תחילת החור (3+5=8)' (($texts -join ',') -eq 'אחת@1000,באמצע@8000,בגבול@21000,שתיים@27000') ($texts -join ',')
+Check 'שתי בקשות תיקון - אחת לכל קטע שנשאר בו קול בלי כתוביות' ($res.Recovered -eq 2) ("recovered=" + $res.Recovered)
 Check 'שם השירות בתוצאה' ($res.ProviderName -eq 'Groq') $res.ProviderName
 Check 'בלי שגיאה ובלי חורים' ($res.Error -eq $null -and $res.Gaps.Count -eq 0 -and $res.Failed -eq 0) ("error=" + $res.Error)
 
@@ -333,6 +338,39 @@ $song = NewCues
 foreach ($x in @(@(0, 2500, 'בקרוב ממש'), @(5000, 7500, 'בקרוב ממש'), @(8000, 9000, 'אחרת'))) { $song.Add([Activator]::CreateInstance($cueT, @([long]$x[0], [long]$x[1], [string]$x[2]))) }
 $out = $collapse.Invoke($null, (Pack $song))
 Check 'פזמון שחוזר אחרי הפסקה אמיתית נשאר שתי כתוביות' ($out.Count -eq 3) ("count=" + $out.Count)
+
+Write-Host 'קול בלי כתוביות (Recover) - על נתונים שנמדדו ב-24.9.2026'
+$holes = $trT.GetMethod('Holes', $SF)
+$merge = $trT.GetMethod('Merge', $SF)
+function Sil($spec) { $l = New-Object 'System.Collections.Generic.List[double[]]'; foreach ($x in $spec) { $l.Add([double[]]@($x[0], $x[1])) }; return ,$l }
+# שיר של 56 שניות: מוזיקה רצופה, בלי שקט; הכתוביות נגמרות ב-26
+$song = Lines @(@(1.5, 3.0, 'שוב אתה בא'), @(3.0, 16.0, 'תן לי מילה אחת גדולה'), @(21.0, 26.0, 'היא עושה בנו להט'))
+$h = $holes.Invoke($null, (Pack $song (Sil @()) 0 56.1))
+Check 'שיר: קול עד הסוף וכתוביות עד 26 - חור בסוף הקטע' ($h.Count -eq 1 -and $h[0][0] -eq 26.0 -and $h[0][2] -eq 1) ('holes=' + $h.Count)
+$h = $holes.Invoke($null, (Pack $song (Sil @(,@(26.2, 56.1))) 0 56.1))
+Check 'אותו קטע, אבל אחרי 26 שקט - אין חור' ($h.Count -eq 0) ('holes=' + $h.Count)
+$mid = Lines @(@(0.0, 20.0, 'עד כאן'), @(35.0, 40.0, 'ומכאן'))
+$h = $holes.Invoke($null, (Pack $mid (Sil @(,@(40.5, 60.0))) 0 60.0))
+Check 'חור באמצע (20-35) שיש בו קול' ($h.Count -eq 1 -and $h[0][0] -eq 20.0 -and $h[0][1] -eq 35.0 -and $h[0][2] -eq 0) ('holes=' + $h.Count)
+$h = $holes.Invoke($null, (Pack (Lines @(,@(12.0, 60.0, 'x'))) (Sil @()) 1 60.0))
+Check 'קטע שני: חמש השניות הראשונות כבר כוסו בחפיפה - שבע שניות אינן חור' ($h.Count -eq 0) ('holes=' + $h.Count)
+
+# הנאום בכנסת: התמלול המלא ״כיווץ״ את הזמנים. הזנב (מ-45) תומלל שוב לבד.
+$knesset = Lines @(@(29.5, 33.5, 'אז אני חש חובה לנצל את זכות הדיבור שלי בכדי למחות.'), @(33.5, 37.5, 'אני עומד פה בכנסת, בפרלמנט בשלטון של יהודים,'),
+    @(37.5, 41.5, 'ומוחה על הפגיעה בלומדי התורה וזועק למקבלי ההחלטות:'), @(41.5, 45.0, 'תתעשתו כי אתם משחקים באש! תפסיקו,'), @(45.0, 48.0, 'פשוט תפסיקו לרדוף את לומדי התורה!'))
+$tail = Lines @(@(0.0, 2.14, 'יהודים ומוחה'), @(2.14, 4.6, 'על הפגיעה בלומדי התורה'), @(4.6, 7.48, 'וזועק'), @(7.48, 10.14, 'למקבלי ההחלטות, תתעשתו'),
+    @(10.14, 12.34, 'כי אתם משחקים באש.'), @(12.34, 14.28, 'תפסיקו, פשוט תפסיקו'), @(14.28, 16.54, 'לרדוף את לומדי התורה, תודה.'))
+$out = $merge.Invoke($null, (Pack $knesset $tail 45.0 $true 61.2))
+$fire = $null; foreach ($l in $out) { if ($l.Text -like 'תתעשתו*') { $fire = $l } }
+Check 'נאום: הזמנים נמתחים - ״תתעשתו״ עובר מ-41.5 אל סביב 52.5 (במקום באמת)' ($fire -ne $null -and $fire.Start -gt 50 -and $fire.Start -lt 56) ('start=' + $fire.Start)
+$dups = 0; foreach ($l in $out) { if ($l.Text -like '*משחקים באש*') { $dups++ } }
+Check 'נאום: בלי כפילות - ״משחקים באש״ מופיע פעם אחת' ($dups -eq 1) ('count=' + $dups + ' lines=' + $out.Count)
+$out = $merge.Invoke($null, (Pack (Lines @(@(1.5, 3.0, 'שוב אתה בא'), @(21.0, 26.0, 'היא עושה בנו להט'))) (Lines @(@(1.0, 4.0, 'אז תבטיח לי'), @(4.0, 6.5, 'שתשמור עליי'))) 25.0 $true 56.1))
+$last = $out[$out.Count - 1]
+Check 'שיר: המודל דילג - השורות החדשות נכנסות לחור (29-31.5), והקודמות לא זזות' ($out.Count -eq 4 -and $last.Start -eq 29.0 -and $out[1].Start -eq 21.0) ('count=' + $out.Count + ' last=' + $last.Start)
+$out = $merge.Invoke($null, (Pack (Lines @(@(10.0, 14.0, 'שורה'), @(18.0, 22.0, 'תבטיח לי'))) (Lines @(@(1.0, 4.0, 'תבטיח לי'), @(5.0, 8.0, 'משהו חדש'))) 25.0 $true 56.1))
+$still = $out[1]
+Check 'פזמון שחוזר בזנב (עוגן אחד) לא נחשב להתכווצות: שום זמן לא נמתח' ($still.Start -eq 18.0 -and $out.Count -eq 4) ('start=' + $still.Start + ' count=' + $out.Count)
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ""

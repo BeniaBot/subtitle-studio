@@ -46,6 +46,8 @@ namespace SubtitleStudio
             /// <summary>נעצרנו באמצע (מכסה, או כישלון רצוף): מאיפה לא תומלל, במילישניות.
             /// ‏-1 = הגענו לסוף. בלי זה ההודעה אומרת ״תומלל רק חלק״ ולא אומרת איזה.</summary>
             public long StoppedAtMs = -1;
+            /// <summary>כמה בקשות תיקון נשלחו לחורים שהמודל השאיר (Recover).</summary>
+            public int Recovered;
         }
 
         /// <summary>מתמלל קובץ מדיה שלם דרך הספק שנבחר. נקרא מחוט רקע - הוא חוסם.</summary>
@@ -109,6 +111,8 @@ namespace SubtitleStudio
                 byte[] bytes;
                 try { bytes = File.ReadAllBytes(wav); }
                 catch { res.Failed++; NoteGap(res, s, chunkSec, totalSec); continue; }
+                // איפה בקטע יש קול: בשביל הבדיקה שאחרי התמלול (Recover)
+                List<double[]> silences = Silences(wav, dir);
                 try { File.Delete(wav); }
                 catch { }
                 if (bytes.Length < 500) continue;          // קטע שקט לגמרי
@@ -172,6 +176,10 @@ namespace SubtitleStudio
                 }
                 quotaStreak = 0;
                 failStreak = 0;
+
+                // קול בלי כתוביות: המודל דילג, או שהזמנים שלו ״התכווצו״ (ראו Recover)
+                double clipLen = Math.Min(chunkSec, totalSec - s);
+                lines = Recover(provider, mediaPath, dir, i, s, clipLen, lines, silences, context, res, canceled);
 
                 // קטע שהחזיר טקסט ולא נשאר ממנו כלום הוא חור, גם אם השרת ״הצליח״.
                 // עד 0.8.1 זה עבר בשקט: 57 שניות נעלמו בלי שום הודעה.
@@ -261,6 +269,203 @@ namespace SubtitleStudio
                 outp.Add(c);
             }
             return outp;
+        }
+
+        // ---------- קול בלי כתוביות ----------
+        // נמדד על קבצים אמיתיים (build\tr-sweep.ps1, 24.9.2026), והתשובה ״הצליחה״ בשניהם:
+        //  - שיר של 56 שניות תומלל עד 26. תמלול של 26-56 לבד החזיר עוד שבע שורות
+        //    שהמודל פשוט דילג עליהן.
+        //  - נאום של 61 שניות: הטקסט מלא, אבל הזמנים ״התכווצו״ - ״תפסיקו לרדוף את
+        //    לומדי התורה״ ב-45 במקום ב-58. כתוביות שמקדימות את הדיבור ב-13 שניות.
+        // בשני המקרים יש בקטע קול אחרי הכתובית האחרונה, ומשם הבדיקה מתחילה.
+
+        /// <summary>חור מעל כמה שניות, שיש בו לפחות כמה שניות קול, נשלח שוב.</summary>
+        private const double HoleSec = 8, HoleSoundSec = 5;
+        /// <summary>לכל היותר כמה בקשות תיקון לקטע - כל אחת עולה במכסה.</summary>
+        private const int MaxRecoverPerChunk = 2;
+
+        /// <summary>הטווחים השקטים בקובץ, בשניות מתחילתו (silencedetect).</summary>
+        internal static List<double[]> Silences(string file, string dir)
+        {
+            List<double[]> r = new List<double[]>();
+            string so, se;
+            try { Ff.RunSync(Ff.Exe, "-hide_banner -nostdin -i " + Ff.Q(file) + " -af silencedetect=noise=-35dB:d=0.5 -f null -", out so, out se, dir); }
+            catch { return r; }
+            double start = -1;
+            foreach (string line in (se ?? "").Split('\n'))
+            {
+                System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(line, @"silence_start:\s*(-?[\d.]+)");
+                if (m.Success) { start = Math.Max(0, Num(m.Groups[1].Value)); continue; }
+                m = System.Text.RegularExpressions.Regex.Match(line, @"silence_end:\s*([\d.]+)");
+                if (m.Success && start >= 0) { r.Add(new double[] { start, Num(m.Groups[1].Value) }); start = -1; }
+            }
+            if (start >= 0) r.Add(new double[] { start, double.MaxValue });      // נגמר בשקט
+            return r;
+        }
+
+        private static double Num(string s)
+        {
+            double v;
+            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v) ? v : 0;
+        }
+
+        /// <summary>כמה שניות קול יש בין <paramref name="a"/> ל-<paramref name="b"/>.</summary>
+        internal static double SoundIn(List<double[]> silences, double a, double b)
+        {
+            if (b <= a) return 0;
+            double quiet = 0;
+            foreach (double[] q in silences)
+            {
+                double x = Math.Max(a, q[0]), y = Math.Min(b, q[1]);
+                if (y > x) quiet += y - x;
+            }
+            return Math.Max(0, (b - a) - quiet);
+        }
+
+        /// <summary>החורים בקטע: מקומות בלי כתובית שיש בהם קול. בשניות מתחילת הקטע,
+        /// הגדולים קודם. חור בסוף הקטע מסומן ב-[2]=1.</summary>
+        internal static List<double[]> Holes(List<Ai.TrLine> lines, List<double[]> silences, int index, double clipLen)
+        {
+            List<Ai.TrLine> timed = new List<Ai.TrLine>();
+            foreach (Ai.TrLine l in lines) if (l.HasTime) timed.Add(l);
+            timed.Sort(delegate (Ai.TrLine x, Ai.TrLine y) { return x.Start.CompareTo(y.Start); });
+            List<double[]> holes = new List<double[]>();
+            // תחילת הקטע (חוץ מהראשון) כבר כוסתה בחפיפה עם הקטע הקודם
+            double prev = index > 0 ? OverlapSec : 0;
+            foreach (Ai.TrLine l in timed)
+            {
+                if (l.Start - prev >= HoleSec && SoundIn(silences, prev, l.Start) >= HoleSoundSec)
+                    holes.Add(new double[] { prev, l.Start, 0 });
+                prev = Math.Max(prev, l.End);
+            }
+            if (clipLen - prev >= HoleSec && SoundIn(silences, prev, clipLen) >= HoleSoundSec)
+                holes.Add(new double[] { prev, clipLen, 1 });
+            holes.Sort(delegate (double[] x, double[] y) { return (y[1] - y[0]).CompareTo(x[1] - x[0]); });
+            return holes;
+        }
+
+        /// <summary>שולח שוב את החורים (לכל היותר שניים לקטע) ומשלב את מה שחזר.
+        ///
+        /// ‏**טקסט חדש** = המודל דילג: השורות נכנסות לחור. **טקסט שכבר יש** בחור
+        /// שבסוף הקטע = הזמנים התכווצו: השורה שחזרה מראה איפה המשפט באמת, וכל
+        /// הקטע נמתח לפיה (נמדד: ההתכווצות אחידה מתחילת הקטע, פי 1.27 לכל אורכו).
+        /// חור שלא הצלחנו לתמלל שוב נרשם ב-Gaps - המשתמש שומע עליו, לא מגלה לבד.</summary>
+        private static List<Ai.TrLine> Recover(ISttProvider provider, string mediaPath, string dir, int index, double s,
+            double clipLen, List<Ai.TrLine> lines, List<double[]> silences, string context, Result res, Func<bool> canceled)
+        {
+            if (lines == null || lines.Count == 0 || silences == null) return lines;
+            List<double[]> holes = Holes(lines, silences, index, clipLen);
+            int tried = 0;
+            foreach (double[] h in holes)
+            {
+                if (tried >= MaxRecoverPerChunk || (canceled != null && canceled())) break;
+                tried++;
+                double subStart = Math.Max(0, h[0] - 1);
+                double subLen = Math.Min(clipLen, h[1] + 1) - subStart;
+                string mp3 = Path.Combine(dir, "tr_" + index.ToString(CultureInfo.InvariantCulture) + "_fix.mp3");
+                try { if (File.Exists(mp3)) File.Delete(mp3); }
+                catch { }
+                string so, se;
+                Ff.RunSync(Ff.Exe, "-y -hide_banner -v error -ss " + (s + subStart).ToString("0.###", CultureInfo.InvariantCulture) +
+                    " -t " + subLen.ToString("0.###", CultureInfo.InvariantCulture) + " -i " + Ff.Q(mediaPath) +
+                    " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(mp3), out so, out se, dir);
+                byte[] bytes = null;
+                try { if (File.Exists(mp3)) { bytes = File.ReadAllBytes(mp3); File.Delete(mp3); } }
+                catch { }
+                List<Ai.TrLine> got = null;
+                string err;
+                if (bytes != null && bytes.Length >= 500)
+                {
+                    Throttle();
+                    res.Recovered++;
+                    got = provider.TranscribeChunk(bytes, "audio/mp3", context, out err);
+                }
+                if (got == null)
+                {
+                    // לא הצלחנו לתקן - לפחות להגיד איפה חסר
+                    double from = s + h[0], to = s + h[1];
+                    res.GapStartSec.Add(from);
+                    res.Gaps.Add(Tc.Short((long)(from * 1000)) + "–" + Tc.Short((long)(to * 1000)));
+                    continue;
+                }
+                lines = Merge(lines, got, subStart, h[2] > 0, clipLen);
+            }
+            return lines;
+        }
+
+        /// <summary>משלב את התמלול החוזר של חור בשורות של הקטע (הכול בשניות מתחילת הקטע).</summary>
+        internal static List<Ai.TrLine> Merge(List<Ai.TrLine> lines, List<Ai.TrLine> got, double subStart, bool tail, double clipLen)
+        {
+            // השורות האחרונות של הקטע: רק הן יכולות להופיע שוב בחור שבסוף אם הזמנים
+            // התכווצו. פזמון שחוזר באמצע שיר לא ייחשב כהתכווצות.
+            List<Ai.TrLine> timed = new List<Ai.TrLine>();
+            foreach (Ai.TrLine l in lines) if (l.HasTime) timed.Add(l);
+            timed.Sort(delegate (Ai.TrLine x, Ai.TrLine y) { return x.Start.CompareTo(y.Start); });
+            List<Ai.TrLine> last = timed.GetRange(Math.Max(0, timed.Count - 3), Math.Min(3, timed.Count));
+
+            // כל שורה משותפת היא עוגן: איפה המודל שם אותה, ואיפה היא באמת
+            List<double> ks = new List<double>();
+            foreach (Ai.TrLine t in got)
+            {
+                if (!t.HasTime) continue;
+                foreach (Ai.TrLine l in last)
+                    if (l.Start > 1 && Similar(l.Text, t.Text)) { ks.Add((subStart + t.Start) / l.Start); break; }
+            }
+            // התכווצות = לפחות שתי שורות משותפות, ושתיהן מצביעות על אותו יחס (עד 12%).
+            // פזמון שחוזר נותן עוגן אחד, או עוגנים שלא מסכימים ביניהם.
+            bool shrunk = false;
+            double k = 1;
+            if (tail && ks.Count >= 2)
+            {
+                double lo = double.MaxValue, hi = 0, sum = 0;
+                foreach (double v in ks) { lo = Math.Min(lo, v); hi = Math.Max(hi, v); sum += v; }
+                k = sum / ks.Count;
+                shrunk = lo > 1.05 && hi < 1.8 && (hi - lo) / k <= 0.12;
+            }
+            List<Ai.TrLine> outp = new List<Ai.TrLine>(lines);
+            if (!shrunk)
+            {
+                // דילוג: הכול חדש - כולל שורה שחוזרת, כי בשיר הפזמון באמת מושר שוב
+                foreach (Ai.TrLine t in got)
+                {
+                    if (t.HasTime) { t.Start += subStart; t.End += subStart; }
+                    outp.Add(t);
+                }
+                return outp;
+            }
+            double mainEnd = 0;
+            foreach (Ai.TrLine l in lines)
+            {
+                if (!l.HasTime) continue;
+                l.Start = Math.Min(clipLen, l.Start * k);
+                l.End = Math.Min(clipLen, l.End * k);
+                mainEnd = Math.Max(mainEnd, l.End);
+            }
+            // הזנב תמלל שוב את אותו דיבור - ממנו נכנס רק מה שאחרי סוף הקטע המתוח
+            foreach (Ai.TrLine t in got)
+            {
+                if (!t.HasTime || subStart + t.Start < mainEnd - 0.5) continue;
+                t.Start += subStart; t.End += subStart;
+                outp.Add(t);
+            }
+            return outp;
+        }
+
+        /// <summary>אותה אמירה, גם אם בניסוח קצת אחר: לפחות 60% מזוגות האותיות משותפים.</summary>
+        internal static bool Similar(string a, string b)
+        {
+            string x = Key(a), y = Key(b);
+            if (x.Length < 4 || y.Length < 4) return x.Length > 0 && x == y;
+            if (x == y || x.Contains(y) || y.Contains(x)) return true;
+            Dictionary<string, int> bx = new Dictionary<string, int>();
+            for (int i = 0; i + 1 < x.Length; i++) { string g = x.Substring(i, 2); int c; bx.TryGetValue(g, out c); bx[g] = c + 1; }
+            int common = 0;
+            for (int i = 0; i + 1 < y.Length; i++)
+            {
+                string g = y.Substring(i, 2); int c;
+                if (bx.TryGetValue(g, out c) && c > 0) { common++; bx[g] = c - 1; }
+            }
+            return 2.0 * common / ((x.Length - 1) + (y.Length - 1)) >= 0.6;
         }
 
         /// <summary>רושם את הטווח שקטע כושל היה אמור לכסות, כדי שההודעה
