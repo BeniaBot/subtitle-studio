@@ -305,6 +305,10 @@ build.cmd
 
 מ-0.7.1. כל שורה כאן נולדה מבאג שיצא, או כמעט יצא:
 
+0. **סבב מכל הכיוונים לפני שמעלים** (בנימין, 24.9.2026): מעבר על **כל חלון**
+   ב-`shots.ps1` בשתי הערכות **ובשתי השפות** (`-Light`, ‏`-Lang en`), בהגדלה,
+   והרצה אמיתית של מסך העבודה. **נקי לפני מקושט**: קו אחד חד ומרווחים עקביים
+   עדיפים על עוד שכבת קישוט.
 1. **כל החבילות, במספר הבדיקות המלא - `build	est-all.ps1`:** logic, autotime,
    scenecuts, list, roundtrip, update-notes, ui, layout, project, screens, fuzz,
    long, stt, errors, buttons, source, qa, spell, release, settings.
