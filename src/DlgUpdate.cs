@@ -114,14 +114,17 @@ namespace SubtitleStudio
 
             private int Indent { get { return Theme.S(16); } }
 
-            private static TextFormatFlags Flags
+            /// <summary>כיוון השורה. כותרת הולכת עם הממשק; פריט בממשק אנגלי - לפי
+            /// התוכן, כי פריט בלי תרגום מוצג בעברית. עד 0.8.1 הכול צויר מימין לשמאל.</summary>
+            private static bool RtlLine(Line ln)
             {
-                get
-                {
-                    return TextFormatFlags.WordBreak | TextFormatFlags.NoPadding |
-                           TextFormatFlags.NoPrefix | TextFormatFlags.RightToLeft |
-                           TextFormatFlags.Right;
-                }
+                return Lang.Rtl || (!ln.Header && Theme.RtlText(ln.Text));
+            }
+
+            private static TextFormatFlags Flags(bool rtl)
+            {
+                TextFormatFlags f = TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
+                return rtl ? f | TextFormatFlags.RightToLeft | TextFormatFlags.Right : f | TextFormatFlags.Left;
             }
 
             /// <summary>פורש את השורות ומחזיר את הגובה הכולל.</summary>
@@ -167,9 +170,9 @@ namespace SubtitleStudio
             {
                 Font f = header ? Theme.SmallBold : Theme.Ui;
                 int w = header ? _w : _w - Indent;
-                Size sz = TextRenderer.MeasureText(g, text, f, new Size(w, int.MaxValue), Flags);
                 Line ln = new Line();
                 ln.Text = text; ln.Header = header; ln.Top = y;
+                Size sz = TextRenderer.MeasureText(g, text, f, new Size(w, int.MaxValue), Flags(RtlLine(ln)));
                 ln.H = Math.Max(f.Height, sz.Height) + Theme.S(2);
                 _lines.Add(ln);
                 return y + ln.H + Theme.S(header ? 6 : 7);
@@ -195,22 +198,23 @@ namespace SubtitleStudio
                 {
                     Line ln = _lines[i];
                     if (ln.Top + ln.H < e.ClipRectangle.Top || ln.Top > e.ClipRectangle.Bottom) continue;
+                    bool rtl = RtlLine(ln);
                     if (ln.Header)
                     {
                         TextRenderer.DrawText(g, ln.Text, Theme.SmallBold,
-                            new Rectangle(0, ln.Top, _w, ln.H), Theme.TextDim, Flags);
+                            new Rectangle(0, ln.Top, _w, ln.H), Theme.TextDim, Flags(rtl));
                     }
                     else
                     {
                         // הנקודה מצוירת ולא נכתבת: תו ״•״ בתחילת מחרוזת עברית
                         // הוא תו ניטרלי, והוא נודד לקצה השני של השורה.
                         float r = Theme.S(3);
-                        float cx = _w - Indent / 2f;
+                        float cx = rtl ? _w - Indent / 2f : Indent / 2f;
                         float cy = ln.Top + Theme.Ui.Height / 2f;
                         using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Accent, Theme.Panel, 0.15f)))
                             g.FillEllipse(b, cx - r, cy - r, r * 2, r * 2);
                         TextRenderer.DrawText(g, ln.Text, Theme.Ui,
-                            new Rectangle(0, ln.Top, _w - Indent, ln.H), Theme.Text, Flags);
+                            new Rectangle(rtl ? 0 : Indent, ln.Top, _w - Indent, ln.H), Theme.Text, Flags(rtl));
                     }
                 }
             }

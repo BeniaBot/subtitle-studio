@@ -814,7 +814,10 @@ namespace SubtitleStudio
                 {
                     Dictionary<string, object> it = its[k] as Dictionary<string, object>;
                     if (it == null) continue;
-                    string s = Str(it, "s").Trim();
+                    // ‏"en": השורה באנגלית, מ-0.8.1. גרסאות ישנות מתעלמות מהשדה, ופריט
+                    // בלי אנגלית מוצג בעברית (עדיף על שורה חסרה)
+                    string s = Lang.IsEn ? Str(it, "en").Trim() : "";
+                    if (s.Length == 0) s = Str(it, "s").Trim();
                     if (s.Length == 0) continue;
                     ChangeItem ci = new ChangeItem();
                     ci.Kind = Str(it, "t").Trim().ToLowerInvariant();

@@ -87,6 +87,19 @@ Check 'חסם עליון נשמר' (((F $sc 'Versions') -notcontains '0.6.0') -a
 $sv = $build.Invoke($null, @([string]$json, 'v0.6.2', 'v0.6.3'))
 Check 'תגית עם v מובילה' ((F $sv 'Jump') -eq 1) ''
 
+# ---- ממשק באנגלית: השדה en, ועברית כשאין (0.8.1) ----
+$langT = $asm.GetType('SubtitleStudio.Lang')
+$jen = '{"versions":[{"v":"9.1.0","items":[{"t":"feature","s":"שורה","en":"A line"},{"t":"fix","s":"רק עברית"}]}]}'
+[void]$langT.GetMethod('Set', $ST).Invoke($null, @([string]'en'))
+$se1 = $build.Invoke($null, @([string]$jen, '9.0.0', '9.1.0'))
+$items = @(); foreach ($g in (F $se1 'Groups')) { $items += @(F $g 'Items') }
+Check 'ממשק באנגלית: השורה באנגלית' ($items -contains 'A line') ($items -join ' | ')
+Check 'ופריט בלי אנגלית מוצג בעברית ולא נעלם' ($items -contains 'רק עברית') ''
+[void]$langT.GetMethod('Set', $ST).Invoke($null, @([string]'he'))
+$sh1 = $build.Invoke($null, @([string]$jen, '9.0.0', '9.1.0'))
+$items = @(); foreach ($g in (F $sh1 'Groups')) { $items += @(F $g 'Items') }
+Check 'ממשק בעברית: העברית, גם כשיש אנגלית' (($items -contains 'שורה') -and -not ($items -contains 'A line')) ($items -join ' | ')
+
 # ---- כשהיומן לא ירד: תיאור המהדורה מוצג כמו שהוא ----
 # סינון אינטרנט שחוסם את raw.githubusercontent.com מביא לכאן. תיאור שנכתב
 # לדפדפן (קו מפריד, HTML, גדר קוד עם טביעות אימות) נראה בחלון כמו תקלה.
