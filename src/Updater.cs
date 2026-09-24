@@ -516,7 +516,9 @@ namespace SubtitleStudio
             RectangleF bar = new RectangleF(pad, Theme.S(90), Width - pad * 2, Theme.S(12));
             Theme.FillRound(g, bar, bar.Height / 2, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
             float w = (float)(bar.Width * Math.Max(0.02, Math.Min(1, _p)));
-            Theme.FillRound(g, new RectangleF(bar.X, bar.Y, w, bar.Height), bar.Height / 2, Theme.Accent);
+            // מתמלא מכיוון הקריאה, כמו חלון ההתקדמות: עד 0.8.1 תמיד משמאל, גם בעברית
+            RectangleF fill = Theme.Mir(new RectangleF(0, 0, Width, Height), new RectangleF(bar.Right - w, bar.Y, w, bar.Height));
+            Theme.FillRound(g, fill, bar.Height / 2, Theme.Accent);
         }
     }
 }

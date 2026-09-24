@@ -571,11 +571,11 @@ Ctrl+גלגלת	Ctrl+Wheel
   ·  הרזולוציה נשארת {0}p	  ·  the resolution stays {0}p
 קול	Audio
 שינוי עוצמת השמע	Change the volume
-להגביר סרט חלש או להנמיך סרט צורם - בלי לפגוע בווידאו	Make a quiet video louder or a harsh one softer - without touching the picture
+להגביר סרט חלש או להנמיך סרט צורם - בלי לפגוע בווידאו	Make a quiet video louder or a harsh one softer - picture untouched
 כמה להגביר? (מינוס = להנמיך)	How much louder? (minus = softer)
  - עוצמה	 - volume
 איזון עוצמה אוטומטי	Automatic volume levelling
-מיישר את ההבדלים בין קטעים חלשים לחזקים (נרמול שידור)	Evens out the difference between quiet and loud parts (broadcast normalisation)
+מיישר את ההבדלים בין קטעים חלשים לחזקים (נרמול שידור)	Evens out quiet and loud parts (broadcast normalisation)
  - מאוזן	 - levelled
 חילוץ הפסקול לקובץ אודיו	Extract the soundtrack to an audio file
 שומר את הקול בלבד - נוח לתמלול או להאזנה	Saves the audio only - handy for transcribing or listening
@@ -601,7 +601,7 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 פורמט היעד	Output format
  - מומר	 - converted
 שינוי רזולוציה	Change resolution
-מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה	Makes the picture smaller - at the highest quality possible for the chosen resolution
+מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה	Makes the picture smaller, at the best quality for that size
 גובה התמונה	Picture height
  - מוקטן	 - smaller
 דחיסה - הקטנת נפח הקובץ	Compress - make the file smaller
@@ -629,7 +629,7 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 אורך הדהייה	Fade length
  - עם דהייה	 - faded
 הכנה לשליחה בוואטסאפ	Prepare for messaging apps
-מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום	Shrinks to 720p, fully phone compatible - a small file that opens anywhere
+מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום	720p, fully phone compatible - a small file that opens anywhere
  - לוואטסאפ	 - for phones
 בחירת ערוץ שמע	Choose an audio track
 לסרטים עם כמה שפות - משאיר רק את הערוץ שבחרתם	For videos with several languages - keeps only the track you choose

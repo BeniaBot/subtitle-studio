@@ -10,7 +10,7 @@
 # מספיק). בשבילו test-real-open.ps1 (עם סרט) או test-run.ps1 (מסך הפתיחה).
 # ‏dialog-gallery.ps1 הישן מציג כל חלון על המסך (Show) ולוקח את המיקוד. לא להשתמש בו
 # כשבנימין ליד המחשב.
-param([string[]]$Only = @(), [switch]$Light, [string]$Lang = 'he', [double]$Scale = 1.25)
+param([string[]]$Only = @(), [switch]$Light, [string]$Lang = 'he', [double]$Scale = 1.25, [switch]$Tools)
 
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
@@ -130,8 +130,21 @@ $forms = @(
     @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
     @{ n = 'Menu';        make = { MenuSample } },
     @{ n = 'Progress';    make = { ProgressSample } },
-    @{ n = 'Splash';      make = { $sp = NewOf 'SplashForm' @(); foreach ($f in @('_p', '_shown')) { (TY 'SplashForm').GetField($f, $IN).SetValue($sp, [double]0.63) }; (TY 'SplashForm').GetField('_phase', $IN).SetValue($sp, [float]0.4); $sp } }
+    @{ n = 'Splash';      make = { $sp = NewOf 'SplashForm' @(); foreach ($f in @('_p', '_shown')) { (TY 'SplashForm').GetField($f, $IN).SetValue($sp, [double]0.63) }; (TY 'SplashForm').GetField('_phase', $IN).SetValue($sp, [float]0.4); $sp } },
+    # חלונות עבודה: מתחילים לעבוד רק ב-Shown, ומחוץ למסך אין Shown - שום דבר לא נשלח
+    @{ n = 'AiRun';       make = { NewOf 'AiRunDlg' @($dcues, [string]'English', [string]'') } },
+    @{ n = 'TrRun';       make = { NewOf 'TranscribeRunDlg' @([string]$media, [int64]40000, [string]'') } },
+    @{ n = 'Download';    make = { $d = NewOf 'DownloadDlg' @([string]'Subtext 0.9.9'); $d.SetProgress(0.4, [int64]15000000, [int64]38000000); $d } },
+    @{ n = 'Chat';        make = { $ch = NewOf 'AiChatForm' @((MainWith 1200 800 $false)); [void]$ch.GetType().GetMethod('Greet', $IN).Invoke($ch, @()); $ch } }
 )
+# ‏-Tools: החלון של כל אחד מהכלים (עם טווח מסומן, לכלים שמשתמשים בו). ‏$f הוא המשתנה של
+# הלולאה שמריצה את make, ולכן הבלוק רואה אותו
+if ($Tools) {
+    $allTools = @((TY 'MediaTools').GetMethod('All', $ST).Invoke($null, @()))
+    for ($k = 0; $k -lt $allTools.Count; $k++) {
+        $forms += @{ n = ('Tool' + ($k + 1).ToString('00')); idx = $k; make = { NewOf 'ToolRunDlg' @($null, $allTools[$f.idx], $mi, [int64]1000, [int64]6000, [int64]0) } }
+    }
+}
 
 $createCtl = [Windows.Forms.Control].GetMethod('CreateControl', $IN, $null, [Type[]]@([bool]), $null)
 foreach ($f in $forms)

@@ -111,10 +111,20 @@ $forms = @(
     @{ n = 'Extract';     make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
-    @{ n = 'FitSize';     make = { NewOf 'ToolRunDlg' @($null, (ToolNamed '*גודל קובץ*'), $mi, [int64]-1, [int64]-1, [int64]0) } },
+    # חלונות עבודה: מתחילים רק ב-Shown, ומחוץ למסך אין Shown - שום דבר לא נשלח
+    @{ n = 'AiRun';       make = { NewOf 'AiRunDlg' @($dcues, [string]'English', [string]'') } },
+    @{ n = 'TrRun';       make = { NewOf 'TranscribeRunDlg' @([string]$media, [int64]40000, [string]'') } },
+    @{ n = 'Download';    nobtn = $true; make = { $d = NewOf 'DownloadDlg' @([string]'Subtext 0.9.9'); $d.SetProgress(0.4, [int64]15000000, [int64]38000000); $d } },
+    @{ n = 'Chat';        make = { $ch = NewOf 'AiChatForm' @($main); [void]$ch.GetType().GetMethod('Greet', $IN).Invoke($ch, @()); $ch } },
     @{ n = 'Main-1500';   make = { $main.Size = New-Object Drawing.Size 1500, 950; $main } },
     @{ n = 'Main-1000';   make = { $main.Size = New-Object Drawing.Size 1000, 700; $main } }
 )
+# החלון של **כל** כלי, עם טווח מסומן. עד 0.8.1 נבדק רק ״התאמה לגודל״, ונבחר לפי תבנית
+# בעברית - באנגלית היא לא התאימה ונבדק הכלי הראשון במקומו. ‏$f של הלולאה נראה בבלוק.
+$allTools = @((TY 'MediaTools').GetMethod('All', $ST).Invoke($null, @()))
+for ($k = 0; $k -lt $allTools.Count; $k++) {
+    $forms += @{ n = ('Tool' + ($k + 1).ToString('00')); idx = $k; make = { NewOf 'ToolRunDlg' @($null, $allTools[$f.idx], $mi, [int64]1000, [int64]6000, [int64]0) } }
+}
 
 $btnT = TY 'Btn'
 $createCtl = [Windows.Forms.Control].GetMethod('CreateControl', $IN, $null, [Type[]]@([bool]), $null)
@@ -178,7 +188,8 @@ foreach ($f in $forms) {
 
 function Report($list, $fmt) { if ($list.Count -eq 0) { return '' }; return "`n     " + (($list | Select-Object -First 12 | ForEach-Object { & $fmt $_ }) -join "`n     ") }
 
-Check 'נמצאו כפתורים בכל החלונות' ($all.Count -ge 140 -and @($all | Select-Object -ExpandProperty Where -Unique).Count -eq $forms.Count) ("כפתורים: " + $all.Count)
+$seen = @($all | Select-Object -ExpandProperty Where -Unique); $none = @($forms | Where-Object { -not $_.nobtn -and $seen -notcontains $_.n } | ForEach-Object { $_.n })
+Check 'נמצאו כפתורים בכל החלונות' ($all.Count -ge 140 -and $none.Count -eq 0) ("כפתורים: " + $all.Count + $(if ($none.Count) { "  בלי: " + ($none -join ', ') } else { '' }))
 
 $bad = @($all | Where-Object { $_.Centered -and [Math]::Abs($_.L - $_.R) -gt (S 6) })
 Check 'כפתור עם טקסט: התוכן ממורכז לרוחב' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» שמאל {2} ימין {3}" -f $x.Where, $x.Label, $x.L, $x.R })

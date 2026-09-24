@@ -195,6 +195,11 @@ namespace SubtitleStudio
             int ix = _send.Right + Theme.S(10);
             _input.SetBounds(ix, compTop + Theme.S(17), Math.Max(Theme.S(40), ClientSize.Width - pad - Theme.S(20) - ix),
                 ComposerH - Theme.S(34));
+            // המיקומים כאן בעברית. באנגלית הכותרת ותיבת הכתיבה משתקפות: הכפתורים בצד ימין
+            // והשליחה בסוף השורה. עד 0.8.1 החלון נשאר כמו בעברית (נמצא בסבב של 0.8.1)
+            if (!Lang.Rtl)
+                foreach (Control c in new Control[] { _close, _reset, _keyBtn, _send, _input })
+                    c.Left = ClientSize.Width - c.Right;
             Invalidate();
         }
 
@@ -209,17 +214,19 @@ namespace SubtitleStudio
             Theme.HLine(g, Theme.BorderSoft, 0, Width, HeadH - 1);
 
             float d = Theme.S(30);
-            RectangleF badge = new RectangleF(Width - Theme.S(14) - d, (HeadH - d) / 2f, d, d);
+            RectangleF all = new RectangleF(0, 0, Width, Height);
+            RectangleF badge = Theme.Mir(all, new RectangleF(Width - Theme.S(14) - d, (HeadH - d) / 2f, d, d));
             using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Purple, 0.22f))) g.FillEllipse(b, badge);
             Icons.Draw(g, Ico.Sparkles,
                 new RectangleF(badge.X + d * 0.22f, badge.Y + d * 0.22f, d * 0.56f, d * 0.56f), Theme.Purple, 2f);
 
-            float tx = badge.X - Theme.S(10);
-            float tleft = _keyBtn.Right + Theme.S(8);
+            // בקואורדינטות של עברית (הכפתורים משמאל), ומשתקף באנגלית
+            float tx = Width - Theme.S(14) - d - Theme.S(10);
+            float tleft = Theme.S(12) + _close.Width + Theme.S(4) + _reset.Width + Theme.S(4) + _keyBtn.Width + Theme.S(8);
             Theme.Str(g, Lang.T("עוזר AI"), Theme.Big, Theme.Text,
-                new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22)), Theme.SfUi);
+                Theme.Mir(all, new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22))), Theme.SfUi);
             Theme.Str(g, Lang.T("מבקשים במילים רגילות - והוא מבצע"), Theme.Small, Theme.TextDim,
-                new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18)), Theme.SfUi);
+                Theme.Mir(all, new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18))), Theme.SfUi);
 
             // תיבת הכתיבה
             int pad = Theme.S(12);
@@ -567,7 +574,8 @@ namespace SubtitleStudio
                                 float cw = Theme.Measure(g, it.Chips[i], Theme.Small).Width + Theme.S(28);
                                 if (cw > w) cw = w;
                                 if (x - cw < 0) { x = w; y += rowH + Theme.S(6); }
-                                it.ChipRects[i] = new RectangleF(x - cw, y, cw, rowH);
+                                // זורמות מימין בעברית, ומשמאל באנגלית
+                                it.ChipRects[i] = Theme.Mir(new RectangleF(0, 0, w, rowH), new RectangleF(x - cw, y, cw, rowH));
                                 x -= cw + Theme.S(6);
                             }
                             it.H = y + rowH;
