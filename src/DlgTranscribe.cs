@@ -188,7 +188,7 @@ namespace SubtitleStudio
         private static readonly string[][] Steps = new string[][]
         {
             new string[] { Lang.T("נכנסים לאתר של Groq"), Lang.T("הכפתור למטה פותח אותו. אפשר להירשם עם חשבון גוגל.") },
-            new string[] { Lang.T("לוחצים ״Create API Key״"), Lang.T("מקבלים מחרוזת ארוכה שמתחילה ב-gsk_. בלי כרטיס אשראי.") },
+            new string[] { Lang.T("לוחצים ״Create API Key״"), Lang.F("מקבלים מחרוזת ארוכה שמתחילה ב-{0}. בלי כרטיס אשראי.", Theme.Ltr("gsk_")) },
             new string[] { Lang.T("מעתיקים ומדביקים כאן"), Lang.T("המפתח נשמר מוצפן במחשב שלכם בלבד.") }
         };
 

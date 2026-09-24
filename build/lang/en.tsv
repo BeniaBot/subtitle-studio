@@ -298,7 +298,7 @@
 לא נמצאו ערוצי כתוביות בקובץ הזה	No subtitle tracks were found in this file
 נמצא ערוץ כתוביות אחד	One subtitle track found
 נמצאו {0} ערוצי כתוביות	{0} subtitle tracks found
-אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש.	If the subtitles are “burned” into the picture, they can't be extracted - they have to be typed again.
+אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש.	Subtitles “burned” into the picture can't be extracted - they have to be typed again.
 אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחת קובץ״.	You can also load an outside subtitle file with the “Open file” button.
 איזה ערוץ?	Which track?
 ״פתיחה לעריכה״ מביאה את הכתוביות לתוך התוכנה - אפשר לתרגם, לתקן תזמון ולהטמיע מחדש.	“Open for editing” brings the subtitles into the program - you can translate them, fix the timing and embed them again.
@@ -701,7 +701,7 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 נכנסים לאתר של Groq	Go to the Groq website
 הכפתור למטה פותח אותו. אפשר להירשם עם חשבון גוגל.	The button below opens it. You can sign up with a Google account.
 לוחצים ״Create API Key״	Click “Create API Key”
-מקבלים מחרוזת ארוכה שמתחילה ב-gsk_. בלי כרטיס אשראי.	You get a long string that starts with gsk_. No credit card.
+מקבלים מחרוזת ארוכה שמתחילה ב-{0}. בלי כרטיס אשראי.	You get a long string that starts with {0}. No credit card.
 חיבור ל-Groq	Connect to Groq
 תמלול של עד 8 שעות הקלטה ביום, בחינם	Transcription of up to 8 hours of recording a day, free
 פתיחת האתר של Groq	Open the Groq website

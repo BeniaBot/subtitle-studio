@@ -77,10 +77,12 @@ function MainWith([int]$w, [int]$h, [bool]$withMedia)
 function ProgressSample
 {
     $job = [Activator]::CreateInstance((TY 'FfJob'))
-    $pd = NewOf 'ProgressDlg' @([string]'הטמעת הכתוביות בסרט', $job)
+    # טקסטים אמיתיים, דרך התרגום: עם עברית קבועה הצילום באנגלית הראה חלון עברי
+    $ltp = (TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null); $lfp = (TY 'Lang').GetMethod('F', $ST)
+    $pd = NewOf 'ProgressDlg' @([string]$ltp.Invoke($null, @('התאמה לגודל קובץ מבוקש')), $job)
     foreach ($f in @('_prog', '_shown')) { (TY 'ProgressDlg').GetField($f, $IN).SetValue($pd, [double]0.62) }
     (TY 'ProgressDlg').GetField('_phase', $IN).SetValue($pd, [float]0.55)
-    (TY 'ProgressDlg').GetField('_status', $IN).SetValue($pd, [string]'שלב 2 מתוך 2 · צורב את הכתוביות לתוך התמונה')
+    (TY 'ProgressDlg').GetField('_status', $IN).SetValue($pd, [string]$lfp.Invoke($null, @([string]'שלב {0} מתוך {1}  ·  {2}', [object[]]@('2', '2', [string]$ltp.Invoke($null, @('מעבר שני - קידוד'))))))
     return $pd
 }
 # תפריט קופץ לדוגמה, עם פריט בריחוף - כמו תפריט ״כתוביות״
