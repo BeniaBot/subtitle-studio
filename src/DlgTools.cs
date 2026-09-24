@@ -112,11 +112,12 @@ namespace SubtitleStudio
             }
             if (videoKbps < 80) { f.TooSmall = true; videoKbps = 80; }
 
-            // אין טעם לקדד ברוחב פס גבוה בהרבה מהמקור
+            // לא יותר מהמקור עצמו. עד 0.8.1 התקרה הייתה 115% מהקובץ **כולו**, ועוד קול
+            // מעליה: ״שייכנס ל-200״ על קובץ של 49 מגה יצא 62 (נמצא בסבב על קבצים אמיתיים)
             if (c.Mi != null && c.Mi.SizeBytes > 0 && f.DurationSec > 0)
             {
                 double srcKbps = c.Mi.SizeBytes * 8.0 / f.DurationSec / 1000.0;
-                double cap = srcKbps * 1.15;
+                double cap = (srcKbps - f.AudioKbps) * 0.97;
                 if (cap > 200 && videoKbps > cap) videoKbps = cap;
             }
             f.VideoKbps = (int)Math.Round(videoKbps);

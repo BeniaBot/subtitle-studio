@@ -173,6 +173,12 @@ Check 'fit: downscales' ((F $p3 'Height') -gt 0 -and (F $p3 'Height') -le 480) (
 # סרט קצר ואיכותי - לא מנפחים מעבר למקור
 $p4 = Plan 60 1080 30 200
 Check 'fit: caps at source' ((F $p4 'VideoKbps') -lt 5200) (F $p4 'VideoKbps')
+# ולא יוצא גדול מהמקור: עד 0.8.1 קובץ של 49 מגה יצא 62
+$outBytes = ((F $p4 'VideoKbps') + (F $p4 'AudioKbps')) * 1000 / 8 * 60
+Check 'fit: never larger than the source' ($outBytes -le 30MB) ([math]::Round($outBytes / 1MB, 1))
+$p5 = Plan 152 480 49 200
+$outBytes = ((F $p5 'VideoKbps') + (F $p5 'AudioKbps')) * 1000 / 8 * 152
+Check 'fit: 49 MB file, target 200 - stays under 49' ($outBytes -le 49MB) ([math]::Round($outBytes / 1MB, 1))
 
 # ---------- השוואת גרסאות לעדכון ----------
 Write-Host 'מנגנון עדכונים'
