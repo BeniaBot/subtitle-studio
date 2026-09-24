@@ -16,7 +16,7 @@ function TY($n) { return $asm.GetType("SubtitleStudio.$n") }
 [void](TY 'Settings').GetMethod('Load', $ST).Invoke($null, @())
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
 if ($Provider) { (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, [string]$Provider) }
-Write-Host ('provider: ' + (TY 'Stt').GetProperty('Current', $ST).GetValue($null, $null).DisplayName)
+Write-Host ('provider: ' + (TY 'Stt').GetProperty('Current', $ST).GetValue($null, $null).Name)
 if (-not $Out) { $Out = Join-Path $env:TEMP 'ss-sweep' }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $run = (TY 'Transcribe').GetMethods($ST) | Where-Object { $_.Name -eq 'Run' -and $_.GetParameters().Count -eq 5 }

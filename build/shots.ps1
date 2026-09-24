@@ -56,7 +56,7 @@ function ToolNamed($he) {
     throw "no tool named $he"
 }
 $rel = [Activator]::CreateInstance((TY 'Updater+Release')); $rel.Version = '0.9.9'; $rel.Notes = 'x'
-$sum = (TY 'Changelog').GetMethod('Build', $ST).Invoke($null, @([string][IO.File]::ReadAllText((Join-Path $root 'changelog.json'), [Text.Encoding]::UTF8), [string]'0.1.0', [string]'0.7.0'))
+$sum = (TY 'Changelog').GetMethod('Build', $ST).Invoke($null, @([string][IO.File]::ReadAllText((Join-Path $root 'changelog.json'), [Text.Encoding]::UTF8), [string]$(if ($env:SHOT_FROM) { $env:SHOT_FROM } else { '0.1.0' }), [string]$(if ($env:SHOT_TO) { $env:SHOT_TO } else { '0.7.0' })))
 
 function MainWith([int]$w, [int]$h, [bool]$withMedia)
 {

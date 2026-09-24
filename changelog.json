@@ -2,6 +2,77 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.1",
+      "date": "2026-09-24",
+      "items": [
+        {
+          "t": "major",
+          "s": "מראה חדש: גופן חדש וקריא יותר, קווים חדים, כפתורים ומשטחים עם עומק, ותנועה עדינה",
+          "en": "A new look: a new, more readable font, crisp lines, buttons and surfaces with depth, and gentle motion"
+        },
+        {
+          "t": "major",
+          "s": "הממשק גם באנגלית - בוחרים בהגדרות, בשורה ״מראה״. מי שכבר משתמש נשאר בעברית",
+          "en": "The interface in English too - choose it in Settings, on the Appearance row. Existing users stay in Hebrew"
+        },
+        {
+          "t": "feature",
+          "s": "תמלול דרך Groq: ״תודה רבה״ שלא נאמרה, אנגלית במקום עברית וקטעים שחזרו ריקים נתפסים, והקטע נשלח שוב",
+          "en": "Transcription through Groq: a \"thank you\" nobody said, English instead of Hebrew and empty sections are caught, and the section is sent again"
+        },
+        {
+          "t": "feature",
+          "s": "קטע שלא תומלל - התוכנה אומרת איפה, במקום לדלג עליו בשקט",
+          "en": "A section that could not be transcribed is reported, not skipped in silence"
+        },
+        {
+          "t": "fix",
+          "s": "11 כלים לא עבדו על קובצי WEBM",
+          "en": "11 tools did not work on WEBM files"
+        },
+        {
+          "t": "fix",
+          "s": "חיתוך מדויק של קובץ TS יצא עם קול שלא מסונכרן לתמונה",
+          "en": "An exact trim of a TS file came out with the sound out of sync"
+        },
+        {
+          "t": "fix",
+          "s": "החלפת פסקול בקובץ קול קצר מהסרט קיצרה את הסרט עצמו",
+          "en": "Replacing the soundtrack with a shorter sound file cut the video short"
+        },
+        {
+          "t": "fix",
+          "s": "חיבור שני סרטים ברזולוציות שונות נכשל",
+          "en": "Joining two videos of different sizes failed"
+        },
+        {
+          "t": "fix",
+          "s": "סרטון עומד (מהטלפון): רזולוציה והכנה לשליחה לפי הצלע הקצרה, בלי להגדיל",
+          "en": "Portrait videos from a phone: resolution and messaging-app prep go by the short side, never upscaling"
+        },
+        {
+          "t": "fix",
+          "s": "איזון עוצמה על WMA, היפוך והמרה של MP3 עם תמונת עטיפה, ו-GIF מקובץ TS - נכשלו או יצאו ריקים",
+          "en": "Volume levelling on WMA, reverse and convert of an MP3 with cover art, and a GIF from a TS file failed or came out empty"
+        },
+        {
+          "t": "fix",
+          "s": "קובצי כתוביות ישנים בקידוד של רוסית, ערבית או מערב אירופה נפתחו בג׳יבריש",
+          "en": "Old subtitle files in Russian, Arabic or Western European encodings opened as gibberish"
+        },
+        {
+          "t": "fix",
+          "s": "שמירת הגדרות שנכשלה מדווחת, ומפתח שעבר ״בדיקת חיבור״ נשמר מיד",
+          "en": "A failed settings save is reported, and a key that passes the connection test is saved at once"
+        },
+        {
+          "t": "fix",
+          "s": "תיאורים ארוכים בתפריטים ובחלונות כבר לא נחתכים בשלוש נקודות",
+          "en": "Long descriptions in menus and windows are no longer cut off with an ellipsis"
+        }
+      ]
+    },
+    {
       "v": "0.8.0",
       "date": "2026-09-22",
       "items": [
