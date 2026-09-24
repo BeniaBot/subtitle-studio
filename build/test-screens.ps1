@@ -152,6 +152,17 @@ foreach ($b in $budgets) {
     Check ("תפריט הכתוביות ב-" + $b.n + ": " + $cols + " עמודות, " + $lw + "x" + $lh) (($pm.ClientSize.Height -le $room) -and ($lw -le $b.w)) ''
     $pm.Dispose()
 }
+# ואף תיאור לא נחתך בשלוש נקודות. עד 0.8.1 הרוחב היה קבוע, ובאנגלית שלושה מכל
+# ארבעה תיאורים בראש התפריט נחתכו
+$pm = $pmT.GetConstructors()[0].Invoke(@($items, [int]350))
+$clip = @($pmT.GetMethod('Clipped', $IN).Invoke($pm, @()))
+Check 'תפריט הכתוביות: אף תיאור לא נחתך' ($clip.Count -eq 0) ($clip -join ' | ')
+$pm.Dispose()
+$ci = (TY 'MainForm').GetMethod('CueMenuItems', $IN).Invoke($main, @())
+$pm = $pmT.GetConstructors()[0].Invoke(@($ci, [int]300))
+$clip = @($pmT.GetMethod('Clipped', $IN).Invoke($pm, @()))
+Check 'תפריט הכתובית (קליק ימני): אף תיאור לא נחתך' ($clip.Count -eq 0) ($clip -join ' | ')
+$pm.Dispose()
 $main.Close(); $main.Dispose()
 
 Write-Host ""

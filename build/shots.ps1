@@ -85,13 +85,18 @@ function MenuSample
 {
     $mt = TY 'MenuItem'
     $mk = $mt.GetMethod('Make', $ST)
+    # דרך התרגום, כמו בתוכנה: עם טקסט קבוע הצילום באנגלית הראה תפריט עברי
+    $lt = (TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null)
+    function L($s) { return [string]$lt.Invoke($null, @([string]$s)) }
     $list = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($mt))
-    $list.Add($mk.Invoke($null, @([string]'פתיחת קובץ כתוביות', [string]'SRT, VTT, ASS או טקסט רגיל', [Enum]::Parse((TY 'Ico'), 'Open'), $null)))
-    $list.Add($mk.Invoke($null, @([string]'שמירת הכתוביות', [string]'לקובץ SRT ליד הסרט', [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
+    # פריטים אמיתיים מתפריט הכתוביות (MainForm.SubtitleMenuItems), עם כותרת קטע
+    $list.Add($mt.GetMethod('Group', $ST).Invoke($null, @((L 'קובץ'))))
+    $list.Add($mk.Invoke($null, @((L 'פרויקט חדש'), (L 'סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)'), [Enum]::Parse((TY 'Ico'), 'Plus'), $null)))
+    $list.Add($mk.Invoke($null, @((L 'שמירת הפרויקט'), (L 'הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך'), [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
     $list.Add($mt.GetMethod('Sep', $ST).Invoke($null, @()))
-    $list.Add($mk.Invoke($null, @([string]'בדיקת איות', [string]'', [Enum]::Parse((TY 'Ico'), 'Check'), $null)))
-    $list.Add($mk.Invoke($null, @([string]'תרגום אוטומטי', [string]'התזמונים נשמרים', [Enum]::Parse((TY 'Ico'), 'Translate'), $null)))
-    $pm = [Activator]::CreateInstance((TY 'PopupMenu'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, @($list, [int]300), $null)
+    $list.Add($mk.Invoke($null, @((L 'חיפוש בכתוביות'), (L 'לקפוץ לכתובית שמכילה מילה (Ctrl+F)'), [Enum]::Parse((TY 'Ico'), 'Search'), $null)))
+    $list.Add($mk.Invoke($null, @((L 'תרגום אוטומטי עם AI'), (L 'בוחרים שפה והכתוביות מתורגמות במקום - התזמונים נשמרים'), [Enum]::Parse((TY 'Ico'), 'Sparkles'), $null)))
+    $pm = [Activator]::CreateInstance((TY 'PopupMenu'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, @($list, [int]350), $null)
     (TY 'PopupMenu').GetField('_hover', $IN).SetValue($pm, 1)
     return $pm
 }

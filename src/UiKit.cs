@@ -1057,7 +1057,7 @@ namespace SubtitleStudio
             BackColor = Theme.Panel;
             RightToLeft = Theme.UiRtl;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
-            _colW = Theme.S(width);
+            _colW = FitWidth(items, Theme.S(width));
             Arrange(int.MaxValue);
             Deactivate += delegate { Close(); };
             // בווינדוס 11 הפינות והקו המתאר של DWM, בצבע שלנו. עד 0.8.1 גם DWM וגם
@@ -1069,6 +1069,37 @@ namespace SubtitleStudio
         private static Color MenuRim { get { return Theme.Dark ? Theme.Mix(Theme.Panel, Color.White, 0.13f) : Theme.Mix(Color.White, Color.Black, 0.17f); } }
 
         private static int HeightOf(MenuItem m) { return m.Separator ? SepH : (m.Header ? HeadRowH : RowH); }
+
+        /// <summary>רוחב העמודה: מה שנקבע, ועד רבע יותר אם תיאור לא נכנס. עד 0.8.1
+        /// הרוחב היה קבוע, ובממשק אנגלי (ארוך בכחמישית) שלושה מכל ארבעה תיאורים
+        /// בתפריט הכתוביות נחתכו בשלוש נקודות.</summary>
+        private static int FitWidth(System.Collections.Generic.List<MenuItem> items, int given)
+        {
+            int need = 0;
+            foreach (MenuItem m in items) need = Math.Max(need, TextNeed(m));
+            need += Theme.S(56) + Theme.S(4);
+            return Math.Max(given, Math.Min(need, given * 5 / 4));
+        }
+
+        /// <summary>רוחב הטקסט של פריט: הכותרת או התיאור, הרחב מביניהם.</summary>
+        private static int TextNeed(MenuItem m)
+        {
+            if (m.Separator || m.Header) return 0;
+            TextFormatFlags fl = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
+            bool desc = !string.IsNullOrEmpty(m.Desc);
+            int w = TextRenderer.MeasureText(m.Text ?? "", desc ? Theme.UiBold : Theme.Ui, Size.Empty, fl).Width;
+            if (desc) w = Math.Max(w, TextRenderer.MeasureText(m.Desc, Theme.Small, Size.Empty, fl).Width);
+            return w;
+        }
+
+        /// <summary>פריטים שהטקסט שלהם ייחתך בשלוש נקודות. לבדיקות.</summary>
+        internal System.Collections.Generic.List<string> Clipped()
+        {
+            System.Collections.Generic.List<string> r = new System.Collections.Generic.List<string>();
+            foreach (MenuItem m in _items)
+                if (TextNeed(m) > _colW - Theme.S(56)) r.Add(m.Text);
+            return r;
+        }
 
         /// <summary>מסדר את הפריטים כך שהתפריט ייכנס לגובה הנתון.
         ///
