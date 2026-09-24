@@ -8,7 +8,7 @@
 #
 #   real-sweep.ps1 -List files.txt [-Tools] [-Out dir]
 # ‏-Tools מריץ גם את כל כלי המדיה על כל קובץ (איטי). הפלט: שורה לכל בדיקה,
-# ‏OK או BAD עם הסבר, וקבצים ב-%TEMP%\ss-sweep. מקור לא נכתב לעולם.
+# ‏OK או BAD עם הסבר, וקבצים ב-D:\Claude\_ss-sweep (ליד המאגר, לא ב-C: סבב אחד הגיע ל-9GB). מקור לא נכתב לעולם.
 param([Parameter(Mandatory = $true)][string]$List, [switch]$Tools, [string]$Out = '')
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
@@ -23,7 +23,7 @@ function Pack { $a = New-Object object[] $args.Count; for ($i = 0; $i -lt $args.
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]1.25)
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
 $ffexe = (TY 'Ff').GetProperty('Exe', $ST).GetValue($null, $null)
-if (-not $Out) { $Out = Join-Path $env:TEMP 'ss-sweep' }
+if (-not $Out) { $Out = Join-Path (Split-Path $root -Parent) '_ss-sweep' }
 New-Item -ItemType Directory -Force $Out | Out-Null
 
 $script:ok = 0; $script:bad = 0
