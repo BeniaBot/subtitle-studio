@@ -37,9 +37,14 @@ function Pump([int]$ms) { $sw = [Diagnostics.Stopwatch]::StartNew(); while ($sw.
 
 function Snap($f, $file) {
     $bmp = New-Object Drawing.Bitmap $f.ClientSize.Width, $f.ClientSize.Height
+    # טקסט שנחתך ב״...״ (Theme.ClipLog). ברשימה ובבלוקים של הציר זה בכוונה - לקרוא, לא להיכשל
+    $log = New-Object 'System.Collections.Generic.List[string]'
+    (TY 'Theme').GetField('ClipLog', $ST).SetValue($null, $log)
     $f.DrawToBitmap($bmp, (New-Object Drawing.Rectangle 0, 0, $f.ClientSize.Width, $f.ClientSize.Height))
+    (TY 'Theme').GetField('ClipLog', $ST).SetValue($null, $null)
     $bmp.Save($file, [Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
     Write-Host ('  ' + (Split-Path $file -Leaf))
+    foreach ($x in $log) { Write-Host ('      ... ' + $x) -ForegroundColor Yellow }
 }
 
 function NewMain {

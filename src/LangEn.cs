@@ -167,7 +167,7 @@ namespace SubtitleStudio
             "איך כותבים כתוביות", "How to write subtitles",
             "טקסט", "Text",
             "התחלה", "Start",
-            "שניות", "Seconds",
+            "שניות", "Sec",
             "(ריק - לחצו כדי לכתוב)", "(empty - click to write)",
             "מתחיל...", "Starting...",
             "סגירה", "Close",

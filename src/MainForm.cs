@@ -1692,7 +1692,8 @@ namespace SubtitleStudio
             {
                 if (_autoTimeBtn.Visible)
                 {
-                    int aw = Math.Min(S(128), addW / 3);
+                    // לפי הטקסט: ״Time it for me״ לא נכנס ב-128 ונחתך (0.8.1)
+                    int aw = Math.Min(Math.Max(S(128), _autoTimeBtn.NeedWidth()), addW / 3);
                     _tapBar.SetBounds(S(14) + aw + S(6), addY - S(36), addW - aw - S(6), S(30));
                     _autoTimeBtn.SetBounds(S(14), addY - S(36), aw, S(30));
                 }
