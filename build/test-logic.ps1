@@ -734,5 +734,18 @@ if ($trT) {
     Check 'TrLine קיים' ($null -ne (& $T 'Ai+TrLine')) ''
 }
 
+# ---- קול ומיכל בקידוד מחדש (נמצא בסבב על קבצים אמיתיים, 24.9.2026) ----
+Write-Host 'קול ומיכל בקידוד מחדש'
+$burnT = $asm.GetType('SubtitleStudio.Burn')
+$miT = $asm.GetType('SubtitleStudio.MediaInfo'); $msT = $asm.GetType('SubtitleStudio.MediaStream')
+$mi = [Activator]::CreateInstance($miT); $st = [Activator]::CreateInstance($msT); $st.Type = 'audio'; $st.Codec = 'aac'; $mi.Streams.Add($st)
+$aa = $burnT.GetMethod('AudioArgs', [Type[]]@($miT, [string], [bool]))
+Check 'סרט שלם ל-MP4 עם AAC: הקול מועתק' (($aa.Invoke($null, @($mi, 'x.mp4', $false))) -eq '-c:a copy') ''
+Check 'קטע (קפיצה לאמצע): הקול מקודד, לא מועתק - אחרת הוא מתחיל לפני התמונה' (($aa.Invoke($null, @($mi, 'x.mp4', $true))) -match 'aac') ($aa.Invoke($null, @($mi, 'x.mp4', $true)))
+Check 'קטע ל-WEBM: הקול ב-Opus' (($aa.Invoke($null, @($mi, 'x.webm', $true))) -match 'libopus') ''
+$rp = $burnT.GetMethod('ReencodePath')
+Check 'קידוד מחדש של WEBM יוצא MP4 (WEBM לא מקבל H.264)' (($rp.Invoke($null, @('C:\a\b.webm'))) -eq 'C:\a\b.mp4') ($rp.Invoke($null, @('C:\a\b.webm')))
+Check 'MKV נשאר MKV' (($rp.Invoke($null, @('C:\a\b.mkv'))) -eq 'C:\a\b.mkv') ''
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

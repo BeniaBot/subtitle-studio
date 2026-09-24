@@ -72,15 +72,43 @@ namespace SubtitleStudio
 
         public static string AudioArgs(MediaInfo mi, string outPath)
         {
+            return AudioArgs(mi, outPath, false);
+        }
+
+        /// <summary>הקול לקובץ שהתמונה שלו מקודדת מחדש.
+        ///
+        /// ‏<paramref name="seeking"/>: הפעולה קופצת לאמצע (חיתוך מדויק, צריבה של קטע).
+        /// **אז אסור להעתיק:** העתקה מתחילה בנקודת המפתח שלפני, והקול יצא ארוך מהתמונה
+        /// ולא מסונכרן איתה. נמדד על TS אמיתי (build\real-sweep.ps1): חיתוך של 4.1
+        /// שניות יצא 9.5, עם קול שמתחיל שניות לפני התמונה.</summary>
+        public static string AudioArgs(MediaInfo mi, string outPath, bool seeking)
+        {
             string ext = Path.GetExtension(outPath).ToLowerInvariant();
             MediaStream a = mi != null ? mi.FirstAudio() : null;
             if (a == null) return "-an";
             string codec = a.Codec.ToLowerInvariant();
+            if (ext == ".webm")
+                return !seeking && (codec == "opus" || codec == "vorbis") ? "-c:a copy" : "-c:a libopus -b:a 128k";
+            if (seeking) return "-c:a aac -b:a 192k";
             if (ext == ".mp4" || ext == ".mov" || ext == ".m4v")
                 return (codec == "aac" || codec == "mp3") ? "-c:a copy" : "-c:a aac -b:a 192k";
-            if (ext == ".webm")
-                return codec == "opus" || codec == "vorbis" ? "-c:a copy" : "-c:a libopus -b:a 128k";
             return "-c:a copy";
+        }
+
+        /// <summary>האם אפשר לשים H.264 ו-AAC במיכל הזה. ‏WEBM, ‏OGG ו-MPEG-PS לא
+        /// מקבלים אותם: חיתוך מדויק של קובץ WEBM נכשל עד 0.8.1 ב״הפעולה לא הצליחה״.</summary>
+        public static bool TakesH264(string ext)
+        {
+            ext = (ext ?? "").ToLowerInvariant();
+            return !(ext == ".webm" || ext == ".ogv" || ext == ".ogg" || ext == ".mpg" || ext == ".mpeg" ||
+                     ext == ".vob" || ext == ".wmv" || ext == ".asf" || ext == ".rm" || ext == ".rmvb");
+        }
+
+        /// <summary>נתיב לקובץ שמקודד מחדש ל-H.264: אותו שם, ו-MP4 כשהמיכל המקורי לא מתאים.</summary>
+        public static string ReencodePath(string path)
+        {
+            try { return TakesH264(Path.GetExtension(path)) ? path : Path.ChangeExtension(path, ".mp4"); }
+            catch { return path; }
         }
     }
 
@@ -219,7 +247,7 @@ namespace SubtitleStudio
         {
             if (_doc.Cues.Count == 0) { Ui.Error(this, Lang.T("אין כתוביות"), Lang.T("אין מה להטמיע - הרשימה ריקה.")); return false; }
             if (_out.Text.Trim().Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור את הקובץ.")); return false; }
-            string outPath = _out.Text.Trim();
+            string outPath = FinalPath(_out.Text.Trim());
             try
             {
                 if (string.Equals(Path.GetFullPath(outPath), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))
@@ -229,6 +257,45 @@ namespace SubtitleStudio
             if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("כבר קיים קובץ בשם הזה. להחליף אותו?"), Lang.T("להחליף"), Lang.T("ביטול")))
                 return false;
 
+            // מנוע זר (הפריסה שלנו נכשלה) בלי libass/fribidi יוציא עברית
+            // הפוכה או קובץ ריק - ועדיף להגיד את זה מראש מאשר לתת למשתמש
+            // לחכות חצי שעה לקידוד ולגלות ג'יבריש.
+            if (_burn && !Ff.CanBurnHebrew)
+            {
+                Ui.Error(this, Lang.T("המנוע במחשב לא תומך בצריבה"),
+                    Lang.T("התוכנה משתמשת כרגע במנוע ffmpeg שמותקן במחשב, והוא נבנה בלי התמיכה\r\nבכתוביות ובעברית - הצריבה תצא הפוכה או ריקה.\r\n\r\nאפשר לבחור \"ערוץ כתוביות נפרד\" במקום, או לפתוח את התוכנה מחדש\r\nכדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל)."));
+                return false;
+            }
+            FfJob job = BuildJob(outPath);
+            ProgressDlg.Run(_main, job.Title, job);
+            return true;
+        }
+
+        /// <summary>השם שבאמת ייכתב. צריבה מקודדת ל-H.264, ולכן WEBM הופך ל-MP4. ערוץ
+        /// נפרד מעתיק את התמונה כמו שהיא, ו-VP8 (או קודק אחר ש-MP4 לא מקבל) הולך ל-MKV -
+        /// עד 0.8.1 ״ערוץ נפרד״ לתוך MP4 מקובץ VP8 נכשל בהודעה סתומה.</summary>
+        internal string FinalPath(string outPath)
+        {
+            if (string.IsNullOrEmpty(outPath)) return outPath;
+            if (_burn) return Burn.ReencodePath(outPath);
+            try
+            {
+                string ext = Path.GetExtension(outPath).ToLowerInvariant();
+                MediaStream v = _mi != null ? _mi.FirstVideo() : null;
+                string vc = v != null ? v.Codec.ToLowerInvariant() : "";
+                bool mp4ok = vc == "" || vc == "h264" || vc == "hevc" || vc == "mpeg4" || vc == "av1" || vc == "vp9";
+                if ((ext == ".mp4" || ext == ".m4v" || ext == ".mov") && !mp4ok) return Path.ChangeExtension(outPath, ".mkv");
+            }
+            catch { }
+            return outPath;
+        }
+
+        /// <summary>העבודה עצמה, בלי להריץ אותה. **בשביל בדיקות על קבצים אמיתיים**
+        /// (build\real-sweep.ps1): הן קוראות לזה, מריצות ובודקות את הקובץ שיצא -
+        /// כלומר את הפקודה שהתוכנה באמת בונה, ולא העתק שלה בתוך הבדיקה.</summary>
+        internal FfJob BuildJob(string outPath)
+        {
+            outPath = FinalPath(outPath);
             bool ranged = _rangeOnly.Visible && _rangeOnly.Checked;
             long a = ranged ? _inMs : 0;
             long b = ranged ? _outMs : 0;
@@ -242,15 +309,6 @@ namespace SubtitleStudio
 
             if (_burn)
             {
-                // מנוע זר (הפריסה שלנו נכשלה) בלי libass/fribidi יוציא עברית
-                // הפוכה או קובץ ריק - ועדיף להגיד את זה מראש מאשר לתת למשתמש
-                // לחכות חצי שעה לקידוד ולגלות ג'יבריש.
-                if (!Ff.CanBurnHebrew)
-                {
-                    Ui.Error(this, Lang.T("המנוע במחשב לא תומך בצריבה"),
-                        Lang.T("התוכנה משתמשת כרגע במנוע ffmpeg שמותקן במחשב, והוא נבנה בלי התמיכה\r\nבכתוביות ובעברית - הצריבה תצא הפוכה או ריקה.\r\n\r\nאפשר לבחור \"ערוץ כתוביות נפרד\" במקום, או לפתוח את התוכנה מחדש\r\nכדי שתפרוס את המנוע שלה (״על התוכנה״ מראה איזה מנוע פעיל)."));
-                    return false;
-                }
                 string dir;
                 string ass = Burn.WriteTempAss(cues, _style, _mi.Width, _mi.Height, a, out dir);
                 string video;
@@ -261,16 +319,18 @@ namespace SubtitleStudio
                     default: video = Q.MaxVideo; break;
                 }
                 StringBuilder sb = new StringBuilder();
-                if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" -to ").Append(Tc.Ff(b)).Append(" ");
+                // קפיצה לפני הקלט ואורך אחריו - לא -to לפני הקלט (ראו ToolCtx.RangeIn)
+                if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" ");
                 sb.Append("-i ").Append(Ff.Q(_mi.Path)).Append(" ");
+                if (ranged) sb.Append("-t ").Append(Tc.Ff(b - a)).Append(" ");
                 sb.Append("-vf \"subtitles=").Append(ass).Append("\" ");
                 sb.Append(video).Append(" ");
-                sb.Append(Burn.AudioArgs(_mi, outPath)).Append(" ");
+                sb.Append(Burn.AudioArgs(_mi, outPath, ranged)).Append(" ");
                 if (Path.GetExtension(outPath).ToLowerInvariant() == ".mp4") sb.Append("-movflags +faststart ");
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                ProgressDlg.Run(_main, Lang.T("צורב כתוביות בווידאו"), job);
+                job.Title = Lang.T("צורב כתוביות בווידאו");
             }
             else
             {
@@ -305,9 +365,9 @@ namespace SubtitleStudio
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                ProgressDlg.Run(_main, Lang.T("מוסיף ערוץ כתוביות"), job);
+                job.Title = Lang.T("מוסיף ערוץ כתוביות");
             }
-            return true;
+            return job;
         }
     }
 
@@ -356,7 +416,13 @@ namespace SubtitleStudio
             _fast.Text = Lang.T("חיתוך מהיר בלי קידוד מחדש (מדויק פחות בכמה עשיריות שנייה)");
             _fast.Checked = true;
             Row(_fast, 26, 8);
-            _fast.CheckedChanged += delegate { UpdateNote(); };
+            _fast.CheckedChanged += delegate
+            {
+                UpdateNote();
+                // השם המוצע הולך אחרי המתג (WEBM מהיר נשאר WEBM, מדויק יוצא MP4),
+                // כל עוד המשתמש לא הקליד שם משלו
+                if (_out.Text == _suggested) _out.Text = _suggested = Suggest();
+            };
 
             _applySubs = new Toggle();
             _applySubs.Text = Lang.T("לעדכן גם את הכתוביות שבפרויקט לפי החיתוך");
@@ -379,7 +445,9 @@ namespace SubtitleStudio
                 string name = Path.GetFileNameWithoutExtension(_mi.Path);
                 string ext = Path.GetExtension(_mi.Path);
                 if (ext.Length < 2) ext = ".mp4";
-                return Path.Combine(dir, name + (_keep ? Lang.T(" - קטע") : Lang.T(" - חתוך")) + ext);
+                string p = Path.Combine(dir, name + (_keep ? Lang.T(" - קטע") : Lang.T(" - חתוך")) + ext);
+                bool fast = _fast == null || _fast.Checked;
+                return (_keep && fast) ? p : Burn.ReencodePath(p);
             }
             catch { return ""; }
         }
@@ -391,13 +459,14 @@ namespace SubtitleStudio
             _modeCut.Checked = !keep;
             _fast.Enabled = keep;
             if (!keep) _fast.Checked = false;
-            _out.Text = Suggest();
+            _out.Text = _suggested = Suggest();
             UpdateNote();
             Restack();
             Invalidate();
         }
 
         private long _keyframe = -2;
+        private string _suggested;
 
         private void UpdateNote()
         {
@@ -417,7 +486,7 @@ namespace SubtitleStudio
 
         protected override bool OnOk()
         {
-            string outPath = _out.Text.Trim();
+            string outPath = FinalPath(_out.Text.Trim());
             if (outPath.Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור.")); return false; }
             // כמו בהטמעה ובכלים. עד 0.8.0 החיתוך לבדו לא בדק, ו״להחליף את הקובץ הקיים?״
             // על הסרט עצמו נענה ב״כן״ - והמנוע כתב על הקובץ שהוא קורא ממנו.
@@ -429,6 +498,28 @@ namespace SubtitleStudio
             catch { }
             if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("להחליף את הקובץ הקיים?"), Lang.T("להחליף"), Lang.T("ביטול"))) return false;
 
+            FfJob job = BuildJob(outPath);
+            bool ok = ProgressDlg.Run(_main, job.Title, job);
+            if (ok && _applySubs.Checked)
+            {
+                _doc.Push(Lang.T("חיתוך"));
+                _doc.ApplyRangeEdit(_a, _b, _keep);
+                _doc.RaiseChanged();
+            }
+            return true;
+        }
+
+        /// <summary>קידוד מחדש (חיתוך מדויק או הסרת קטע) כותב H.264: WEBM הופך ל-MP4.</summary>
+        internal string FinalPath(string outPath)
+        {
+            if (string.IsNullOrEmpty(outPath)) return outPath;
+            return (_keep && _fast.Checked) ? outPath : Burn.ReencodePath(outPath);
+        }
+
+        /// <summary>העבודה עצמה, בלי להריץ (ראו ExportVideoDlg.BuildJob).</summary>
+        internal FfJob BuildJob(string outPath)
+        {
+            outPath = FinalPath(outPath);
             FfJob job = new FfJob();
             job.OutputPath = outPath;
             StringBuilder sb = new StringBuilder();
@@ -436,9 +527,13 @@ namespace SubtitleStudio
             if (_keep)
             {
                 job.TotalMs = _b - _a;
-                sb.Append("-ss ").Append(Tc.Ff(_a)).Append(" -to ").Append(Tc.Ff(_b)).Append(" -i ").Append(Ff.Q(_mi.Path)).Append(" ");
-                if (_fast.Checked) sb.Append("-c copy -avoid_negative_ts make_zero ");
-                else sb.Append(Q.MaxVideo).Append(" ").Append(Burn.AudioArgs(_mi, outPath)).Append(" ");
+                if (_fast.Checked)
+                    sb.Append("-ss ").Append(Tc.Ff(_a)).Append(" -to ").Append(Tc.Ff(_b)).Append(" -i ").Append(Ff.Q(_mi.Path))
+                      .Append(" -c copy -avoid_negative_ts make_zero ");
+                else
+                    // קידוד מחדש: קפיצה לפני הקלט ואורך אחריו (ראו ToolCtx.RangeIn)
+                    sb.Append("-ss ").Append(Tc.Ff(_a)).Append(" -i ").Append(Ff.Q(_mi.Path)).Append(" -t ").Append(Tc.Ff(_b - _a)).Append(" ")
+                      .Append(Q.MaxVideo).Append(" ").Append(Burn.AudioArgs(_mi, outPath, true)).Append(" ");
                 sb.Append(Ff.Q(outPath));
             }
             else
@@ -461,14 +556,8 @@ namespace SubtitleStudio
             }
 
             job.Args = sb.ToString();
-            bool ok = ProgressDlg.Run(_main, _keep ? Lang.T("חותך את הקטע") : Lang.T("מסיר את הקטע"), job);
-            if (ok && _applySubs.Checked)
-            {
-                _doc.Push(Lang.T("חיתוך"));
-                _doc.ApplyRangeEdit(_a, _b, _keep);
-                _doc.RaiseChanged();
-            }
-            return true;
+            job.Title = _keep ? Lang.T("חותך את הקטע") : Lang.T("מסיר את הקטע");
+            return job;
         }
     }
 }

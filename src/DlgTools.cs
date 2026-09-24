@@ -21,6 +21,14 @@ namespace SubtitleStudio
         {
             return HasRange ? "-ss " + Tc.Ff(A) + " -to " + Tc.Ff(B) + " " : "";
         }
+
+        /// <summary>לפני הקלט: לאן לקפוץ. **לקידוד מחדש** - יחד עם RangeOut אחרי הקלט,
+        /// ולא ‎-to/-t לפני הקלט: בקובץ TS אמיתי אלה הזיזו את התמונה ב-5 שניות ביחס
+        /// לקול, וחיתוך של 4.1 שניות יצא 9.4 (נמדד, build\real-sweep.ps1).</summary>
+        public string RangeIn() { return HasRange ? "-ss " + Tc.Ff(A) + " " : ""; }
+
+        /// <summary>אחרי הקלט: כמה זמן לקחת.</summary>
+        public string RangeOut() { return HasRange ? "-t " + Tc.Ff(B - A) + " " : ""; }
     }
 
     internal class MediaTool
@@ -167,7 +175,7 @@ namespace SubtitleStudio
             ext.Build = delegate (ToolCtx c)
             {
                 string enc = c.Opt == 0 ? "-codec:a libmp3lame -q:a 0" : (c.Opt == 1 ? "-codec:a pcm_s16le" : "-codec:a aac -b:a 256k");
-                return c.RangeArgs() + "-i " + Ff.Q(c.In) + " -vn -sn -dn " + enc + " " + Ff.Q(c.Out);
+                return c.RangeIn() + "-i " + Ff.Q(c.In) + " " + c.RangeOut() + "-vn -sn -dn " + enc + " " + Ff.Q(c.Out);
             };
             t.Add(ext);
 
@@ -502,8 +510,8 @@ namespace SubtitleStudio
             gif.OutSuffix = "";
             gif.Build = delegate (ToolCtx c)
             {
-                return c.RangeArgs() + "-i " + Ff.Q(c.In) +
-                       " -filter_complex \"fps=15,scale=640:-1:flags=lanczos,split[s0][s1];" +
+                return c.RangeIn() + "-i " + Ff.Q(c.In) + " " + c.RangeOut() +
+                       "-filter_complex \"fps=15,scale=640:-1:flags=lanczos,split[s0][s1];" +
                        "[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=sierra2_4a\" -loop 0 " + Ff.Q(c.Out);
             };
             t.Add(gif);
@@ -732,6 +740,14 @@ namespace SubtitleStudio
             catch { }
             if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("להחליף את הקובץ הקיים?"), Lang.T("להחליף"), Lang.T("ביטול"))) return false;
 
+            FfJob job = BuildJob(outPath);
+            ProgressDlg.Run(_main, _tool.Name, job);
+            return true;
+        }
+
+        /// <summary>העבודה עצמה, בלי להריץ (ראו ExportVideoDlg.BuildJob).</summary>
+        internal FfJob BuildJob(string outPath)
+        {
             ToolCtx c = Ctx();
             c.Out = outPath;
 
@@ -745,8 +761,8 @@ namespace SubtitleStudio
             else job.Args = _tool.Build(c);
             job.OutputPath = outPath;
             job.TotalMs = c.HasRange ? (c.B - c.A) : (_mi != null ? _mi.DurationMs : 0);
-            ProgressDlg.Run(_main, _tool.Name, job);
-            return true;
+            job.Title = _tool.Name;
+            return job;
         }
     }
 }
