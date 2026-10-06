@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 86 בדיקות.
+# צפוי: 96 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -133,6 +133,7 @@ Check 'POST לנקודת התמלול' ($req.StartsWith('POST /openai/v1/audio/t
 Check 'multipart עם boundary' ($req -match '(?im)^Content-Type: multipart/form-data; boundary=----SubStudio') ''
 Check 'הדגם הראשון: whisper-large-v3' ($req -match 'name="model"\r\n\r\nwhisper-large-v3\r\n') ''
 Check 'verbose_json + זמנים לפי קטע' (($req -match 'name="response_format"\r\n\r\nverbose_json') -and ($req -match 'name="timestamp_granularities\[\]"\r\n\r\nsegment')) ''
+Check 'וגם זמן לכל מילה (0.8.3)' ($req -match 'name="timestamp_granularities\[\]"\r\n\r\nword') ''
 $pm = [regex]::Match($req, 'name="prompt"\r\n\r\n([^\r]*)\r\n')
 Check 'הרקע נשלח כרמז, חתוך ל-100 תווים' ($pm.Success -and $pm.Groups[1].Value.Length -eq 100 -and $ctx.StartsWith($pm.Groups[1].Value)) ("len=" + $pm.Groups[1].Value.Length)
 Check 'הקול עצמו בגוף, בייט-בייט' ($bytes.Length -gt $audio.Length -and $req -match 'filename="chunk\.mp3"\r\nContent-Type: audio/mpeg') ("body=" + $bytes.Length)
@@ -298,6 +299,38 @@ $pa = New-Object object[] 2; $pa[0] = $j
 $pl = @($parse.Invoke($null, $pa))
 Check 'משפט עברי ארוך עם יחס דחיסה גבוה - נשאר' (@($pl | Where-Object { $_.Start -lt 6.5 }).Count -ge 1) ("lines=" + $pl.Count)
 Check 'חזרה על אותה מילה עם אותו יחס - נזרקת' (-not ($pl | Where-Object { $_.Text -like 'אמן*' })) ''
+
+# ‏Groq: כתוביות לפי משפטים מתוך זרם המילים (0.8.3). הקטעים של Whisper חוצים משפטים, ואחרי
+# כמה עשרות שניות הזמנים שלהם בשניות שלמות - הזמנים של המילים מדויקים. המקרים מסרטון אמיתי.
+Write-Host 'Groq: כתוביות לפי משפטים מזרם המילים'
+function W($t, $s, $e) { return '{"word":"' + $t + '","start":' + $s + ',"end":' + $e + '}' }
+$segs = '{"start":0.0,"end":14.4,"text":"Lord Altman of House Open AI. Your Grace, we are close.","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},' +
+        '{"start":63.0,"end":70.0,"text":"Mr. President, our enemies across the water are making progress and I shall deliver it this year.","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}'
+$ws = @((W 'Lord' 0.0 7.68), (W 'Altman' 7.68 8.30), (W 'of' 8.30 8.66), (W 'House' 8.66 9.06), (W 'Open' 9.06 9.50), (W 'AI.' 9.50 11.64),
+        (W 'Your' 11.64 11.70), (W 'Grace,' 11.70 12.90), (W 'we' 12.90 13.00), (W 'are' 13.00 13.10), (W 'close.' 13.10 14.40),
+        (W 'Mr.' 63.50 64.92), (W 'President,' 64.92 65.48), (W 'our' 65.54 65.76), (W 'enemies' 65.76 66.22), (W 'across' 66.22 66.66), (W 'the' 66.66 66.90),
+        (W 'water' 66.90 67.20), (W 'are' 67.20 67.80), (W 'making' 67.80 68.12), (W 'progress' 68.12 68.48), (W 'and' 68.60 68.70), (W 'I' 68.70 68.80),
+        (W 'shall' 68.80 69.00), (W 'deliver' 69.00 69.30), (W 'it' 69.30 69.40), (W 'this' 69.40 69.60), (W 'year.' 69.60 70.10)) -join ','
+$pa = New-Object object[] 2; $pa[0] = '{"segments":[' + $segs + '],"words":[' + $ws + ']}'
+$gl = @($parse.Invoke($null, $pa))
+Check 'ארבע כתוביות: משפט-משפט, ומשפט ארוך בשתיים' ($gl.Count -eq 4) ("lines=" + $gl.Count + ": " + (($gl | ForEach-Object { $_.Text }) -join ' | '))
+if ($gl.Count -eq 4) {
+    Check 'קטע שחוצה משפטים מתחלק בסוף המשפט' (($gl[0].Text -eq 'Lord Altman of House Open AI.') -and ($gl[1].Text -eq 'Your Grace, we are close.')) ($gl[0].Text + ' | ' + $gl[1].Text)
+    Check 'מילה ש״נמתחה״ על השקט שלפניה מתקצרת (Lord: 0.0 -> 7.18)' ([Math]::Abs($gl[0].Start - 7.18) -lt 0.02) ("start=" + $gl[0].Start)
+    Check 'ומילה שנמתחה לתוך ההפסקה שאחריה - גם (AI.: 11.64 -> 10.10)' ([Math]::Abs($gl[0].End - 10.10) -lt 0.02) ("end=" + $gl[0].End)
+    Check '״Mr.״ לא סוגר משפט' ($gl[2].Text.StartsWith('Mr. President, our enemies')) $gl[2].Text
+    Check 'משפט ארוך מתפצל לפני ״and״, לא באמצע ביטוי' ($gl[3].Text -eq 'and I shall deliver it this year.') $gl[3].Text
+    Check 'הזמנים מהמילים, לא מהקטע ששבור לשניות שלמות (68.60, לא 63 או 70)' (([Math]::Abs($gl[3].Start - 68.60) -lt 0.02) -and ([Math]::Abs($gl[2].Start - 64.42) -lt 0.02)) ("" + $gl[2].Start + " / " + $gl[3].Start)
+}
+# קטע שנזרק כהזיה - המילים שלו נזרקות איתו
+$pa[0] = '{"segments":[{"start":0.0,"end":17.0,"text":"Thank you.","avg_logprob":-1.2,"compression_ratio":0.9,"no_speech_prob":0.17},{"start":20.0,"end":21.2,"text":"Real speech here.","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}],' +
+         '"words":[' + ((W 'Thank' 0.0 0.5), (W 'you.' 0.5 17.0), (W 'Real' 20.0 20.4), (W 'speech' 20.4 20.8), (W 'here.' 20.8 21.2) -join ',') + ']}'
+$gl = @($parse.Invoke($null, $pa))
+Check 'הזיה שנזרקה לא חוזרת דרך המילים שלה' (($gl.Count -eq 1) -and ($gl[0].Text -eq 'Real speech here.')) (($gl | ForEach-Object { $_.Text }) -join ' | ')
+# מילים שלא תואמות לטקסט - לא סומכים עליהן, וחוזרים לקטעים
+$pa[0] = '{"segments":[{"start":1.0,"end":4.0,"text":"one two three four five six","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}],"words":[' + ((W 'one' 1.0 1.2), (W 'two' 1.2 1.4) -join ',') + ']}'
+$gl = @($parse.Invoke($null, $pa))
+Check 'מילים שלא תואמות לטקסט - הקטע כמו שהוא' (($gl.Count -eq 1) -and ($gl[0].Text -eq 'one two three four five six') -and ($gl[0].Start -eq 1.0)) (($gl | ForEach-Object { "" + $_.Start + " " + $_.Text }) -join ' | ')
 
 # ================= 5. בחירת הספק =================
 Write-Host 'בחירת הספק'

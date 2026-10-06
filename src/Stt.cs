@@ -281,6 +281,8 @@ namespace SubtitleStudio
             Field(ms, boundary, "response_format", "verbose_json");
             Field(ms, boundary, "temperature", "0");
             Field(ms, boundary, "timestamp_granularities[]", "segment");
+            // זמן לכל מילה: כתובית ארוכה מתפצלת בדיוק במילה הנכונה, לא לפי מספר האותיות
+            Field(ms, boundary, "timestamp_granularities[]", "word");
             if (_lang.Length > 0) Field(ms, boundary, "language", _lang);
             string prompt = PromptFor(context);
             if (prompt.Length > 0) Field(ms, boundary, "prompt", prompt);
@@ -364,6 +366,9 @@ namespace SubtitleStudio
             if (root == null) { error = Lang.T("התמלול חזר בפורמט לא צפוי."); return null; }
 
             List<Ai.TrLine> outp = new List<Ai.TrLine>();
+            List<SttWord> words = ReadWords(root);
+            List<double[]> kept = new List<double[]>(), dropped = new List<double[]>();
+            int wp = 0;
             object segs;
             object[] arr = root.TryGetValue("segments", out segs) ? AsArray(segs) : null;
             if (arr == null)
@@ -389,22 +394,190 @@ namespace SubtitleStudio
                 double logp = Num(s, "avg_logprob", 0);
                 double comp = Num(s, "compression_ratio", 1);
                 // ‏Whisper בטוח שלא היה דיבור, וגם לא בטוח במה שכתב
-                if (noSpeech > 0.6 && logp < -0.8) continue;
+                if (noSpeech > 0.6 && logp < -0.8) { dropped.Add(new double[] { a, b }); continue; }
                 // אותה מילה שוב ושוב - לולאת הזיה מוכרת. **לא לפי compression_ratio
                 // לבד:** כל אות עברית ב-UTF-8 מתחילה באותו בייט, ולכן עברית נדחסת
                 // טוב יותר מאנגלית גם בלי שום חזרה. נמדד: משפט עברי רגיל של 205
                 // תווים = 1.85, ובאנגלית 113 תווים = 1.28. קטע ארוך של Whisper
                 // היה מתקרב לסף ונזרק בשקט. לכן דורשים גם מעט מילים שונות.
-                if (comp > 2.4 && Repetitive(text)) continue;
+                if (comp > 2.4 && Repetitive(text)) { dropped.Add(new double[] { a, b }); continue; }
                 // משפט רפאים שנמתח על כמה שניות לא נאמר באמת: ״תודה רבה״ לוקחת שנייה.
                 // עד 0.8.1 הוא נזרק רק כש-no_speech גבוה, ועל דרשה ברורה Whisper החזיר
                 // ״תודה רבה״ אחת על 30 השניות הראשונות, עם no_speech נמוך (נמדד בסבב)
-                if (IsPhantom(text) && (noSpeech > 0.2 || b - a > 3.0)) continue;
+                if (IsPhantom(text) && (noSpeech > 0.2 || b - a > 3.0)) { dropped.Add(new double[] { a, b }); continue; }
                 // ומעט מאוד טקסט על קטע ארוך - הזיה, לא דיבור (דיבור הוא 8-15 תווים לשנייה)
-                if (b - a >= 8.0 && Letters(text) / (b - a) < 1.0) continue;
+                if (b - a >= 8.0 && Letters(text) / (b - a) < 1.0) { dropped.Add(new double[] { a, b }); continue; }
+                kept.Add(new double[] { a, b, text.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length });
                 foreach (Ai.TrLine ln in SplitLong(a, b, text)) outp.Add(ln);
             }
+            List<SttWord> byWords = WordsOfKept(words, kept, dropped);
+            return byWords != null ? FromWords(byWords) : outp;
+        }
+
+        /// <summary>המילים של הקטעים שנשארו, או null אם אי אפשר לסמוך עליהן.
+        ///
+        /// ‏**לא לפי זמני הקטעים:** אחרי כמה עשרות שניות Whisper מחזיר לקטעים זמנים בשניות
+        /// שלמות (63.00, ‏64.00...), בזמן שלמילים יש זמנים מדויקים (נמצא על סרטון אמיתי,
+        /// 0.8.3). לכן נזרקות רק מילים שנופלות בתוך קטע שנזרק (הזיה), וההשוואה היא בין סך
+        /// המילים לסך הטקסט - לא קטע מול קטע.</summary>
+        internal static List<SttWord> WordsOfKept(List<SttWord> words, List<double[]> kept, List<double[]> dropped)
+        {
+            if (words == null || words.Count == 0 || kept.Count == 0) return null;
+            List<SttWord> r = new List<SttWord>();
+            int tokens = 0;
+            foreach (double[] k in kept) tokens += (int)k[2];
+            foreach (SttWord w in words)
+            {
+                double mid = (w.Start + w.End) / 2;
+                bool inDropped = false;
+                foreach (double[] d in dropped) if (mid >= d[0] && mid <= d[1]) { inDropped = true; break; }
+                if (!inDropped) r.Add(w);
+            }
+            if (r.Count == 0 || Math.Abs(r.Count - tokens) > Math.Max(2, tokens / 20)) return null;
+            return r;
+        }
+
+        /// <summary>מילה אחת מהתשובה, עם הזמנים שלה.</summary>
+        internal class SttWord
+        {
+            public double Start, End;
+            public string Text = "";
+        }
+
+        private const int MaxLineChars2 = 84;
+        private const double MaxCueSec = 7.0, PauseSec = 1.5;
+
+        /// <summary>כתוביות לפי **משפטים**, מתוך זרם המילים.
+        ///
+        /// ‏**למה לא הקטעים של Whisper:** הוא מחלק לפי חלונות פנימיים שלו, לא לפי משפטים -
+        /// קטע של 12 שניות שנגמר ב-״Mr.״ והבא מתחיל ב-״President״. כל פיצול של קטע כזה (לפי
+        /// אותיות, וגם לפי מילים) מתחיל מחלוקה גרועה. עד 0.8.3 ״Your Grace, we are close״
+        /// התחילה ב-4.8 שניות ונאמרה ב-11.6 (נמדד על סרטון אמיתי). כאן כל משפט הוא כתובית,
+        /// עם הזמנים של המילה הראשונה והאחרונה שלו; משפט ארוך מ-84 תווים או 7 שניות מתפצל -
+        /// **אחרי שנאסף כולו** - בפסיק, לפני מילת חיבור, או ברווח הקרוב לאמצע. כתוביות קצרות
+        /// מדי מתאחדות אחר כך בסידור (‏Qa.Tidy).</summary>
+        internal static List<Ai.TrLine> FromWords(List<SttWord> input)
+        {
+            List<SttWord> ws = Unstretch(input);
+            List<Ai.TrLine> outp = new List<Ai.TrLine>();
+            List<SttWord> cur = new List<SttWord>();
+            foreach (SttWord w in ws)
+            {
+                // הפסקה ארוכה באמצע משפט - בכל זאת כתובית חדשה
+                if (cur.Count > 0 && w.Start - cur[cur.Count - 1].End > PauseSec) { SplitEmit(outp, cur); cur = new List<SttWord>(); }
+                cur.Add(w);
+                // סוף משפט - או ״משפט״ בלי פיסוק שכבר ארוך מאוד: Whisper בעברית לפעמים בלי נקודות בכלל
+                if (EndsSentence(w.Text) || JoinedLength(cur) > 3 * MaxLineChars2 || w.End - cur[0].Start > 3 * MaxCueSec)
+                {
+                    SplitEmit(outp, cur);
+                    cur = new List<SttWord>();
+                }
+            }
+            SplitEmit(outp, cur);
             return outp;
+        }
+
+        /// <summary>‏Whisper ״מותח״ מילה שליד שקט על פני כל השקט: ״Lord״ מ-0.0 עד 7.7, ״AI.״ מ-9.5
+        /// עד 11.6. מילה של יותר משנייה כמעט אף פעם לא נאמרת כך. מילה עם סימן פיסוק בסופה נמתחה
+        /// לתוך ההפסקה **שאחריה** (״AI.״, ״Grace,״); מילה בלי - לתוך זו **שלפניה** (״Lord״, וגם
+        /// ״Mr.״, שהנקודה שלו לא סוגרת משפט).</summary>
+        internal static List<SttWord> Unstretch(List<SttWord> input)
+        {
+            List<SttWord> r = new List<SttWord>(input.Count);
+            foreach (SttWord w in input)
+            {
+                SttWord c = new SttWord();
+                c.Start = w.Start; c.End = w.End; c.Text = w.Text;
+                if (c.End - c.Start > 1.0)
+                {
+                    string t = c.Text.TrimEnd(Wrappers);
+                    char last = t.Length > 0 ? t[t.Length - 1] : ' ';
+                    bool pauseAfter = ",;:?!…".IndexOf(last) >= 0 || (last == '.' && EndsSentence(c.Text));
+                    if (pauseAfter) c.End = c.Start + 0.6;
+                    else c.Start = c.End - 0.5;
+                }
+                r.Add(c);
+            }
+            return r;
+        }
+
+        /// <summary>משפט שלא נכנס בכתובית אחת מתפצל, ושוב, עד שכל חלק נכנס.</summary>
+        private static void SplitEmit(List<Ai.TrLine> outp, List<SttWord> part)
+        {
+            if (part.Count == 0) return;
+            if (part.Count == 1 || (JoinedLength(part) <= MaxLineChars2 && part[part.Count - 1].End - part[0].Start <= MaxCueSec))
+            {
+                Emit(outp, part);
+                return;
+            }
+            int k = BestBreak(part);
+            SplitEmit(outp, part.GetRange(0, k + 1));
+            SplitEmit(outp, part.GetRange(k + 1, part.Count - k - 1));
+        }
+
+        private static void Emit(List<Ai.TrLine> outp, List<SttWord> part)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (SttWord w in part) { if (sb.Length > 0) sb.Append(' '); sb.Append(w.Text); }
+            Ai.TrLine ln = new Ai.TrLine();
+            ln.Start = part[0].Start;
+            ln.End = Math.Max(part[part.Count - 1].End, ln.Start + 0.3);
+            ln.Text = sb.ToString();
+            outp.Add(ln);
+        }
+
+        private static int JoinedLength(List<SttWord> ws)
+        {
+            int n = ws.Count - 1;
+            foreach (SttWord w in ws) n += w.Text.Length;
+            return n;
+        }
+
+        /// <summary>מרכאות וסוגריים שיכולים לבוא אחרי סוף משפט, או לפני תחילת מילה.</summary>
+        private static readonly char[] Wrappers = new char[] { '"', '\'', '״', ')', ']', '(', '[', '“', '”', '‘', '’' };
+
+        /// <summary>סוף משפט: נקודה, סימן שאלה או קריאה בסוף המילה (אחרי מרכאות וסוגריים) -
+        /// אבל לא בקיצור כמו ״Mr.״ או ״J.״.</summary>
+        internal static bool EndsSentence(string word)
+        {
+            string w = (word ?? "").TrimEnd(Wrappers);
+            if (w.Length == 0) return false;
+            char last = w[w.Length - 1];
+            if ("?!…".IndexOf(last) >= 0) return true;
+            if (last != '.') return false;
+            if (w.EndsWith("..")) return true;
+            string core = w.TrimEnd('.').TrimStart(Wrappers);
+            if (core.Length == 1 && char.IsLetter(core[0])) return false;
+            switch (core.ToLowerInvariant())
+            {
+                case "mr": case "mrs": case "ms": case "dr": case "st": case "jr": case "sr": case "vs":
+                case "prof": case "rev": case "gen": case "lt": case "col": case "sgt": case "mt": case "no":
+                case "etc": case "e.g": case "i.e":
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>איפה לחתוך משפט ארוך מדי: הקרוב לאמצע, עם עדיפות לפסיק ולמילת חיבור, ובלי
+        /// להשאיר חלק של פחות מעשרה תווים. מחזיר את האינדקס של המילה האחרונה בחלק הראשון.</summary>
+        private static int BestBreak(List<SttWord> ws)
+        {
+            int total = JoinedLength(ws), best = (ws.Count - 2) / 2, pos = 0;
+            double bestScore = double.MaxValue;
+            for (int k = 0; k < ws.Count - 1; k++)
+            {
+                pos += ws[k].Text.Length + (k > 0 ? 1 : 0);
+                if (pos < 10 || total - pos - 1 < 10) continue;
+                string t = ws[k].Text, nx = ws[k + 1].Text.ToLowerInvariant();
+                double penalty;
+                if (t.Length > 0 && ",;:".IndexOf(t[t.Length - 1]) >= 0) penalty = 0;
+                else if (nx == "and" || nx == "but" || nx == "or" || nx == "so" || nx == "because" ||
+                         nx == "אבל" || nx == "או" || nx == "כי" || nx == "אז" || nx.StartsWith("ו")) penalty = 0.12;
+                else penalty = 0.30;
+                double score = Math.Abs(pos - total / 2.0) / total + penalty;
+                if (score < bestScore) { bestScore = score; best = k; }
+            }
+            return best;
         }
 
         /// <summary>פחות מחצי מהמילים שונות, בקטע של שש מילים לפחות.
@@ -437,9 +610,31 @@ namespace SubtitleStudio
             return false;
         }
 
+        /// <summary>המילים עם הזמנים שלהן, אם השירות החזיר אותן (‏timestamp_granularities=word).</summary>
+        internal static List<SttWord> ReadWords(Dictionary<string, object> root)
+        {
+            List<SttWord> r = new List<SttWord>();
+            object wo;
+            object[] arr = root != null && root.TryGetValue("words", out wo) ? AsArray(wo) : null;
+            if (arr == null) return r;
+            foreach (object o in arr)
+            {
+                Dictionary<string, object> w = o as Dictionary<string, object>;
+                if (w == null) continue;
+                double a = Num(w, "start", -1), b = Num(w, "end", -1);
+                string t = (Str(w, "word") ?? "").Trim();
+                if (a < 0 || b < a || t.Length == 0) continue;
+                SttWord sw = new SttWord();
+                sw.Start = a; sw.End = b; sw.Text = t;
+                r.Add(sw);
+            }
+            return r;
+        }
+
         /// <summary>קטע של Whisper יכול להיות משפט של 15 שניות, וכתובית כזאת לא
         /// נקראת. מפצלים לפי סימני פיסוק, ואם אין - לפי מילים, והזמן מתחלק לפי
-        /// מספר התווים. גס, אבל התזמון עובר אחר כך ״הצמדה לדיבור״ לפי פס הקול.</summary>
+        /// מספר התווים. **רק כשאין זמן לכל מילה** (‏FromWords) - גס, וההצמדה לדיבור
+        /// מתקנת אחר כך מה שאפשר.</summary>
         internal static List<Ai.TrLine> SplitLong(double start, double end, string text)
         {
             const int MaxChars = 84;

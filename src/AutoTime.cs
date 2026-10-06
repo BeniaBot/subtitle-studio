@@ -112,6 +112,16 @@ namespace SubtitleStudio
             return gaps;
         }
 
+        /// <summary>השתיקות בחלון, עם סף שנמדד סביבו (‎±15 שניות). מוזיקה ורעש משתנים לאורך
+        /// סרט, וסף אחד לכל הקובץ מפספס הפסקות בקטע רועש. ‏<paramref name="ch"/> - מ-PickChannel.</summary>
+        public static List<Gap> LocalGaps(byte[] ch, long fromMs, long toMs)
+        {
+            if (ch == null || toMs <= fromMs) return new List<Gap>();
+            int a = (int)Math.Max(0, (fromMs - 15000) / Waveform.PeriodMs);
+            int b = (int)Math.Min(ch.Length, (toMs + 15000) / Waveform.PeriodMs);
+            return FindGaps(ch, Math.Max(0, fromMs), toMs, Threshold(ch, a, b));
+        }
+
         /// <summary>‏RMS עמיד לקליקים ולכן עדיף - אבל הוא נשמר בבייט לינארי.
         /// בהקלטה שקטה (דיבור סביב ‎-40dB) כל הדיבור נדחס לערכים 1-3, והסף
         /// מאבד משמעות. השיא גבוה בערך פי שלושה מה-RMS ולכן שומר רזולוציה

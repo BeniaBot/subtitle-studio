@@ -221,6 +221,47 @@ else {
     Remove-Item $wav, $tmp -Force -ErrorAction SilentlyContinue
 }
 
+
+# ================= ההצמדה לדיבור אחרי תמלול (0.8.3) =================
+# עד 0.8.3 כל כתובית ״התרחבה״ מהאמצע שלה בסף קבוע, וסרטון עם מוזיקה ברקע יצא עם
+# ארבע כתוביות שזזו בשנייה. הכלל עכשיו: מזיזים גבול רק כשהוא במקום הלא נכון.
+Write-Host ''
+Write-Host 'ההצמדה לדיבור אחרי תמלול'
+$snap = (T 'Transcribe').GetMethod('SnapToSpeech', $ST)
+$waveT = T 'Waveform'
+function NewWave($arr, $durMs) { $w = [Activator]::CreateInstance($waveT); $w.Rms = $arr; $w.Peak = $arr; $w.DurationMs = [long]$durMs; $w.Ready = $true; return $w }
+function CuesAt($pairs) { $l = [Activator]::CreateInstance($listT); foreach ($p in $pairs) { [void]$listT.GetMethod('Add').Invoke($l, (Pack ($ctor.Invoke(@([long]$p[0], [long]$p[1], [string]'x'))))) }; return ,$l }
+# דיבור: 7.2-10.0, ‏11.6-14.3, ‏14.8-16.4 (רצפת רעש 3, דיבור 60)
+$speech = @(@(7200,10000), @(11600,14300), @(14800,16400))
+$wv = NewWave (Track $speech 20000 3 60) 20000
+# 1. התחלה בתוך שקט (Whisper: השורה הראשונה מתחילה ב-0); 2. התחלה 300ms אחרי תחילת הדיבור
+# וסוף מוקדם באמצע דיבור; 3. זמנים מדויקים - לא זזים
+$cs = CuesAt @(@(0, 9900), @(11900, 13700), @(14800, 16400))
+[void]$snap.Invoke($null, (Pack $cs $wv))
+Check 'התחלה בתוך שקט זזה לתחילת הדיבור, גם 7 שניות קדימה' ([Math]::Abs($fS.GetValue($cs[0]) - (7200 - 120)) -le 20) ("start=" + $fS.GetValue($cs[0]))
+Check 'התחלה קצת אחרי שהדיבור התחיל חוזרת אליו' ([Math]::Abs($fS.GetValue($cs[1]) - (11600 - 120)) -le 20) ("start=" + $fS.GetValue($cs[1]))
+Check 'סוף באמצע דיבור זז לשקט הבא' ([Math]::Abs($fE.GetValue($cs[1]) - (14300 + 180)) -le 20) ("end=" + $fE.GetValue($cs[1]))
+Check 'כתובית שמתחילה בדיוק עם הדיבור מקבלת רק ריפוד של 120ms לפניו, והסוף לא זז' (([Math]::Abs($fS.GetValue($cs[2]) - 14680) -le 20) -and ($fE.GetValue($cs[2]) -eq 16400)) ("" + $fS.GetValue($cs[2]) + "-" + $fE.GetValue($cs[2]))
+# סוף שנמתח עמוק לתוך השקט (Whisper ״מותח״ מילה אחרונה) חוזר לסוף הדיבור; סוף קרוב - נשאר
+$cs = CuesAt @(@(7200, 11400), @(11600, 14600))
+[void]$snap.Invoke($null, (Pack $cs $wv))
+Check 'סוף עמוק בתוך שקט חוזר לסוף הדיבור' ([Math]::Abs($fE.GetValue($cs[0]) - (10000 + 180)) -le 20) ("end=" + $fE.GetValue($cs[0]))
+Check 'סוף קרוב לסוף הדיבור נשאר' ($fE.GetValue($cs[1]) -eq 14600) ("end=" + $fE.GetValue($cs[1]))
+# הפסקה באמצע הכתובית לא ״גונבת״ את ההתחלה (כך זזה ״2 מיליון יחידות״ בשנייה)
+$wv2 = NewWave (Track @(@(2000,3200), @(3500,5000)) 8000 3 60) 8000
+$cs = CuesAt @(,@(1950, 5000))
+[void]$snap.Invoke($null, (Pack $cs $wv2))
+Check 'הפסקה באמצע הכתובית לא מזיזה את ההתחלה' ([Math]::Abs($fS.GetValue($cs[0]) - 1950) -le 130) ("start=" + $fS.GetValue($cs[0]))
+# מוזיקה רצופה, בלי שום שקט: שום גבול לא זז (עד 0.8.3 זה מה שהזיז בשנייה)
+$flat = Track @() 20000 50 50
+$cs = CuesAt @(@(11900, 13700), @(14800, 16400))
+[void]$snap.Invoke($null, (Pack $cs (NewWave $flat 20000)))
+Check 'בלי שקט בכלל - לא זז כלום' (($fS.GetValue($cs[0]) -eq 11900) -and ($fE.GetValue($cs[0]) -eq 13700) -and ($fS.GetValue($cs[1]) -eq 14800)) ("" + $fS.GetValue($cs[0]) + "-" + $fE.GetValue($cs[0]))
+# סוף הקובץ: הדיבור נמשך עד הסוף
+$wv3 = NewWave (Track @(,@(1000,6000)) 6000 3 60) 6000
+$cs = CuesAt @(,@(1000, 5300))
+[void]$snap.Invoke($null, (Pack $cs $wv3))
+Check 'כתובית אחרונה שנגמרה באמצע דיבור - עד סוף הקובץ' ($fE.GetValue($cs[0]) -eq 6000) ("end=" + $fE.GetValue($cs[0]))
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

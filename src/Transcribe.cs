@@ -607,25 +607,71 @@ namespace SubtitleStudio
             return x.Substring(0, min) == y.Substring(0, min);
         }
 
-        /// <summary>מהדק את הזמנים לגבולות דיבור אמיתיים בפס הקול.
+        /// <summary>מתקן גבול של כתובית **רק כשהוא במקום הלא נכון ביחס לדיבור**: התחלה בתוך
+        /// שקט זזה לתחילת הדיבור (‏Whisper מתחיל לפעמים את השורה הראשונה בתחילת הקובץ);
+        /// התחלה מעט אחרי שהדיבור התחיל חוזרת אליו; סוף באמצע דיבור זז לשקט הבא (המודל נוטה
+        /// לסגור מוקדם). גבול שכבר בשקט, או רחוק מכל שקט - לא זז.
         ///
-        /// המודל נוטה לסגור כתובית מוקדם מדי - נמדד ממוצע 0.56 שניות
-        /// ועד 1.18. פס הקול כבר בנוי אצלנו, אז אפשר לתקן בלי עוד בקשה.</summary>
+        /// **עד 0.8.3** כל כתובית ״התרחבה״ מהאמצע שלה עד שקט בסף קבוע. עם מוזיקה ברקע השקט
+        /// נמצא במקום הלא נכון, ואם באמצע הכתובית הייתה הפסקה - ההתחלה קפצה אליה. נמדד על
+        /// סרטון אמיתי: הזמנים של המודל סטו ב-0.09 שניות בממוצע, ואחרי ״ההצמדה״ ב-0.23, וארבע
+        /// כתוביות זזו בשנייה. כאן השקט נמדד בסף שמותאם להקלטה סביב כל כתובית
+        /// (‏<see cref="AutoTime.LocalGaps"/>). על דיבור עם הטיות ידועות השגיאה בסוף ירדה מ-0.47
+        /// ל-0.23 שניות (נקי וברעש) ול-0.29 (מוזיקה), ועל הזמנים המדויקים של הסרטון לא הוזקה.</summary>
         public static int SnapToSpeech(List<Cue> cues, Waveform wave)
         {
             if (cues == null || wave == null || !wave.Ready || wave.Failed) return 0;
+            byte[] ch = AutoTime.PickChannel(wave.Rms, wave.Peak, wave.DurationMs);
+            if (ch == null) return 0;
+            List<Cue> order = new List<Cue>(cues);
+            order.Sort(delegate (Cue x, Cue y) { return x.Start.CompareTo(y.Start); });
             int fixedCount = 0;
-            foreach (Cue c in cues)
+            for (int i = 0; i < order.Count; i++)
             {
-                long a, b;
-                long mid = c.Start + (c.End - c.Start) / 2;
-                if (!wave.FindSpeechEdges(mid, out a, out b)) continue;
-                // רק תיקון קטן. אם הגלאי מצא משהו רחוק, הוא כנראה תפס
-                // אמירה אחרת ולא את זו.
-                if (Math.Abs(a - c.Start) < 1200 && a < c.End) { c.Start = a; fixedCount++; }
-                if (Math.Abs(b - c.End) < 1500 && b > c.Start) { c.End = b; fixedCount++; }
+                Cue c = order[i];
+                if (c.Untimed) continue;
+                long prevEnd = i > 0 ? order[i - 1].End : 0;
+                long nextStart = i + 1 < order.Count ? order[i + 1].Start : long.MaxValue;
+                List<AutoTime.Gap> gaps = AutoTime.LocalGaps(ch, c.Start - 2500, c.End + 2500);
+                long s = SnapStart(c.Start, c.End, prevEnd, gaps);
+                long e = SnapEnd(c.End, nextStart, wave.DurationMs, gaps);
+                if (e < s + 300) e = Math.Max(c.End, s + 300);
+                if (s == c.Start && e == c.End) continue;
+                c.Start = s;
+                c.End = e;
+                fixedCount++;
             }
             return fixedCount;
+        }
+
+        /// <summary>התחלה: בתוך שקט - קדימה לתחילת הדיבור (בלי הגבלת מרחק, אבל רק אם הדיבור
+        /// מתחיל לפני הסוף שהמודל נתן; אחרת אולי זה דיבור חלש שהגלאי לא שמע); בתוך דיבור, עד
+        /// חצי שנייה אחרי שקט - אחורה אליו.</summary>
+        internal static long SnapStart(long s, long end, long prevEnd, List<AutoTime.Gap> gaps)
+        {
+            foreach (AutoTime.Gap g in gaps)
+                if (g.Start <= s && s < g.End)
+                    return g.End < end ? Math.Max(s, g.End - AutoTime.LeadMs) : s;
+            AutoTime.Gap best = null;
+            foreach (AutoTime.Gap g in gaps)
+                if (g.End <= s && s - g.End <= 500 && g.End >= prevEnd) best = g;
+            return best != null ? Math.Max(prevEnd, best.End - AutoTime.LeadMs) : s;
+        }
+
+        /// <summary>סוף: באמצע דיבור - עד השקט הבא, אם הוא תוך 1.2 שניות ולפני הכתובית הבאה
+        /// (ואם הקובץ נגמר לפני כן - עד סופו); בתוך שקט - נשאר, אלא אם הוא עמוק בתוכו
+        /// (‏Whisper ״מותח״ את המילה האחרונה לתוך ההפסקה): אז חוזר לסוף הדיבור, והסידור
+        /// (‏Qa.Tidy) מוסיף השהיה וזמן קריאה כמו לכל כתובית.</summary>
+        internal static long SnapEnd(long e, long nextStart, long durMs, List<AutoTime.Gap> gaps)
+        {
+            foreach (AutoTime.Gap g in gaps)
+                if (g.Start <= e && e < g.End)
+                    return e - g.Start > 700 ? g.Start + AutoTime.TailMs : e;
+            foreach (AutoTime.Gap g in gaps)
+                if (g.Start >= e)
+                    return g.Start - e <= 1200 && g.Start < nextStart ? g.Start + AutoTime.TailMs : e;
+            if (durMs > e && durMs - e <= 1200 && nextStart == long.MaxValue) return durMs;
+            return e;
         }
     }
 }
