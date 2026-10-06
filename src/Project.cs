@@ -143,6 +143,7 @@ namespace SubtitleStudio
                   .Append(", \"end\": ").Append(q.End.ToString(CultureInfo.InvariantCulture))
                   .Append(", \"text\": ").Append(Str(q.Text));
                 if (q.Untimed) sb.Append(", \"untimed\": true");
+                if (!string.IsNullOrEmpty(q.Doubt)) sb.Append(", \"doubt\": ").Append(Str(q.Doubt));
                 if (!string.IsNullOrEmpty(q.Style)) sb.Append(", \"style\": ").Append(Str(q.Style));
                 if (!string.IsNullOrEmpty(q.Actor)) sb.Append(", \"actor\": ").Append(Str(q.Actor));
                 sb.Append(" }");
@@ -316,6 +317,7 @@ namespace SubtitleStudio
                     if (b < a) b = a;
                     Cue q = new Cue(a, b, S(c, "text") ?? "");
                     q.Untimed = B(c, "untimed", false);
+                q.Doubt = S(c, "doubt") ?? "";
                     q.Style = S(c, "style") ?? "";
                     q.Actor = S(c, "actor") ?? "";
                     d.Cues.Add(q);

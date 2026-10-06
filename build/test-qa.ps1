@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 78 בדיקות.
+# צפוי: 82 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -331,6 +331,20 @@ Check 'פיצול לפי זמן הדיבור: ״and I shall״ מתחיל קרו�
 $d10 = NewDoc @(,@(0, 7500, 'Aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aa. Bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bb.'))
 [void]$mSplit.Invoke($null, (Pack $d10.Cues (GapsFn @(,@(3500, 4000)))))
 Check 'והפסקה ממש במקום הצפוי - הפיצול נופל בתוכה' ($d10.Cues.Count -eq 2 -and $d10.Cues[0].End -eq 3680 -and $d10.Cues[1].Start -eq 3880) ((@($d10.Cues) | ForEach-Object { '' + $_.Start + '-' + $_.End }) -join ' / ')
+# מילה שהמודל לא היה בטוח בה (0.8.3)
+$du = NewDoc @(@(1000, 3000, 'Only house Anthropic!'), @(4000, 6000, 'שורה רגילה.'))
+$du.Cues[0].Doubt = 'Anthropic'
+Check 'מילה לא בטוחה מופיעה כבעיה, עם המילה' ((Has $du 0 'Unsure') -and -not (Has $du 1 'Unsure')) ((Kinds $du 0) -join ',')
+$ux = @(Find $du | Where-Object { [string]$_.Kind -eq 'Unsure' })[0]
+Check 'וההסבר נוקב במילה' ([string]$qaT.GetMethod('Explain', [Reflection.BindingFlags]'Public,Static').Invoke($null, (Pack $ux)) -match 'Anthropic') ''
+$dm = NewDoc @(@(68900, 69480, 'I have heard.'), @(69720, 70480, 'Bigly.'))
+$dm.Cues[1].Doubt = 'Bigly'
+[void]$mLeft.Invoke($null, (Pack $dm.Cues))
+Check 'שתי כתוביות שמתאחדות - הסימון נשמר' ($dm.Cues.Count -eq 1 -and $dm.Cues[0].Doubt -eq 'Bigly') ($dm.Cues[0].Doubt)
+$ds = NewDoc @(,@(20440, 28320, $long))
+$ds.Cues[0].Doubt = 'deliver'
+[void]$mSplit.Invoke($null, (Pack $ds.Cues $null))
+Check 'כתובית שמתפצלת - הסימון עובר לחלק שבו המילה' ($ds.Cues.Count -eq 2 -and $ds.Cues[0].Doubt -eq '' -and $ds.Cues[1].Doubt -eq 'deliver') ($ds.Cues[0].Doubt + ' / ' + $ds.Cues[1].Doubt)
 Check 'סידור שני לא משנה כלום (יציב)' ($again.Merged -eq 0 -and $again.Split -eq 0 -and $again.Rewrapped -eq 0) ("merged=" + $again.Merged + " split=" + $again.Split)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)

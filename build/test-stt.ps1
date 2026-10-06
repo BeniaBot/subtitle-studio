@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 96 בדיקות.
+# צפוי: 100 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -331,6 +331,17 @@ Check 'הזיה שנזרקה לא חוזרת דרך המילים שלה' (($gl.C
 $pa[0] = '{"segments":[{"start":1.0,"end":4.0,"text":"one two three four five six","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}],"words":[' + ((W 'one' 1.0 1.2), (W 'two' 1.2 1.4) -join ',') + ']}'
 $gl = @($parse.Invoke($null, $pa))
 Check 'מילים שלא תואמות לטקסט - הקטע כמו שהוא' (($gl.Count -eq 1) -and ($gl[0].Text -eq 'one two three four five six') -and ($gl[0].Start -eq 1.0)) (($gl | ForEach-Object { "" + $_.Start + " " + $_.Text }) -join ' | ')
+
+# מילה שהמודל לא בטוח בה (0.8.3): ⟦...⟧ יורד מהטקסט ונשמר בכתובית
+Write-Host 'מילים שהמודל לא בטוח בהן'
+$mk = (T 'Transcribe').GetMethod('MakeCue', $SF)
+$c1 = $mk.Invoke($null, @([long]57520, [long]59340, [string]'Only house ⟦Anthropic⟧!'))
+Check 'הסימון יורד מהטקסט' ($c1.Text -eq 'Only house Anthropic!') $c1.Text
+Check 'והמילה נשמרת בכתובית' ($c1.Doubt -eq 'Anthropic') $c1.Doubt
+$c2 = $mk.Invoke($null, @([long]0, [long]1000, [string]'⟦Dots⟧ is a mere ⟦Grokbot⟧ clone ⟧'))
+Check 'כמה מילים, וסימן יתום נמחק' (($c2.Text -eq 'Dots is a mere Grokbot clone') -and ($c2.Doubt -eq 'Dots|Grokbot')) ($c2.Text + ' / ' + $c2.Doubt)
+$c3 = $mk.Invoke($null, @([long]0, [long]1000, [string]'שורה רגילה'))
+Check 'בלי סימון - בלי כלום' (($c3.Text -eq 'שורה רגילה') -and ($c3.Doubt -eq '')) ''
 
 # ================= 5. בחירת הספק =================
 Write-Host 'בחירת הספק'

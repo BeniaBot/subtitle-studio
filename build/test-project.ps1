@@ -11,7 +11,7 @@
 # 4. **בתוך החלון**: פתיחה אמיתית, בלי טעינת SRT שיושב ליד הסרט, סרט
 #    חסר, מה שואלים ביציאה, גיבוי ושחזור.
 #
-# צפוי: 105 בדיקות. **פחות מזה = משהו דולג.**
+# צפוי: 106 בדיקות. **פחות מזה = משהו דולג.**
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
@@ -57,6 +57,7 @@ foreach ($x in $nasty) {
     $d.Cues.Add($c); $t += 2000
 }
 $d.Cues[1].Untimed = $true
+$d.Cues[0].Doubt = 'Anthropic|Grokbot'
 $d.Cues[2].Style = 'Main'
 $d.Cues[3].Actor = 'רב #1 ו-50%'
 $d.MediaPath = 'D:\שיעורים\שיעור #3 (100%)\סרט.mp4'
@@ -88,6 +89,7 @@ for ($i = 0; $i -lt $nasty.Count; $i++) { if ($e.Cues[$i].Text -ne $nasty[$i]) {
 Check 'כל הטקסטים זהים, כולל התווים הקשים' $sameText ''
 Check 'זמנים' ($e.Cues[3].Start -eq 7000 -and $e.Cues[3].End -eq 8500) ''
 Check 'שורה בלי תזמון נשארת בלי תזמון' ($e.Cues[1].Untimed -and -not $e.Cues[0].Untimed) ''
+Check 'מילים שהמודל לא היה בטוח בהן נשמרות בפרויקט (0.8.3)' (($e.Cues[0].Doubt -eq 'Anthropic|Grokbot') -and ($e.Cues[1].Doubt -eq '')) ($e.Cues[0].Doubt)
 Check 'סגנון ודובר של כתובית' ($e.Cues[2].Style -eq 'Main' -and $e.Cues[3].Actor -eq 'רב #1 ו-50%') ''
 Check 'הסרט: נתיב, יחסי, גודל, תאריך' ($e.MediaPath -eq $d.MediaPath -and $e.MediaRelative -eq $d.MediaRelative -and $e.MediaSize -eq 123456789012 -and $e.MediaModified -eq 638617000000000000) ''
 Check 'קובץ הכתוביות' ($e.SubtitlesPath -eq $d.SubtitlesPath -and $e.SubtitlesRelative -eq 'כתוביות.srt') ''

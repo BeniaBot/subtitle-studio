@@ -18,6 +18,9 @@ namespace SubtitleStudio
         /// <summary>הטקסט הגיע בלי תזמון אמיתי - הזמנים כאן הם הערכה בלבד,
         /// עד שהמשתמש יתזמן אותם לפי הסרט. משפיע רק על התצוגה ועל מצב התזמון.</summary>
         public bool Untimed;
+        /// <summary>מילים שהמודל סימן בתמלול שהוא לא בטוח בהן, מופרדות ב-|. ריק = אין. יורד
+        /// כשעורכים את הטקסט: מי שעורך את השורה - הקשיב לה.</summary>
+        public string Doubt = "";
 
         public long Duration { get { return End - Start; } }
 
@@ -27,7 +30,7 @@ namespace SubtitleStudio
         public Cue Clone()
         {
             Cue c = new Cue(Start, End, Text);
-            c.Style = Style; c.Actor = Actor; c.Selected = Selected; c.Untimed = Untimed;
+            c.Style = Style; c.Actor = Actor; c.Selected = Selected; c.Untimed = Untimed; c.Doubt = Doubt;
             return c;
         }
 

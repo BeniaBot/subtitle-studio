@@ -1147,6 +1147,9 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 לסדר ולהמשיך	Tidy and continue
 להמשיך בלי לסדר	Continue as is
 סידור לפני צריבה	Tidy before burning
+השאר נכונות - להסיר את הסימון	The rest are correct - remove the marks
+אחרי שהקשבתם · Ctrl+Z מבטל	After you have listened · Ctrl+Z undoes it
+הסרת הסימון ״לא בטוח״	Removing the 'not sure' marks
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 
@@ -1216,6 +1219,12 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 שברים אוחדו עם ההמשך שלהם	fragments joined to what follows them
 כתובית ארוכה אחת פוצלה	One long subtitle split
 כתוביות ארוכות פוצלו	long subtitles split
+עם מילה לא בטוחה	with a word the model wasn't sure of
+עם מילים לא בטוחות	with words the model wasn't sure of
+המודל לא היה בטוח מה נאמר	The model wasn't sure what was said
+בתמלול, המודל לא היה בטוח במשהו בשורה הזאת. כדאי להקשיב לה.	When transcribing, the model wasn't sure about something in this line. Worth listening to it.
+״{0}״ ו-״{1}״{2}	"{0}" and "{1}"{2}
+בתמלול, המודל לא היה בטוח לגבי {0}. כדאי להקשיב לשורה ולתקן אם צריך - עריכה מסירה את הסימון.	When transcribing, the model wasn't sure about {0}. Worth listening to the line and fixing it if needed - editing removes the mark.
 # ---- Runtime.cs ----
 לא הצלחתי להכין את מנוע הווידאו:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.	Couldn't set up the video engine:\n\n{0}\n\nFolder: {1}\n\nYou can also just put an ffmpeg.exe file next to the program.
 אין מה למחוק - המנוע לא נפרס.	Nothing to delete - the engine wasn't set up.

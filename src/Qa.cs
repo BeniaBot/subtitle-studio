@@ -20,6 +20,8 @@ namespace SubtitleStudio
         ManyLines,
         /// <summary>מילה שאולי כתובה לא נכון (רק כשהמילון מותקן ודלוק).</summary>
         Spelling,
+        /// <summary>מילה שהמודל סימן בתמלול שהוא לא בטוח בה (‏Cue.Doubt).</summary>
+        Unsure,
         /// <summary>בלי טקסט.</summary>
         Empty
     }
@@ -141,6 +143,13 @@ namespace SubtitleStudio
                     r[r.Count - 1].Words = bad;
                 }
             }
+
+            // מילים שהמודל לא היה בטוח בהן בתמלול: אין תיקון אוטומטי - צריך להקשיב
+            if (!string.IsNullOrEmpty(c.Doubt))
+            {
+                Add(r, i, c, IssueKind.Unsure, false);
+                r[r.Count - 1].Words = DoubtWords(c.Doubt);
+            }
         }
 
         private static void Add(List<Issue> r, int i, Cue c, IssueKind k, bool severe)
@@ -162,6 +171,42 @@ namespace SubtitleStudio
             return r;
         }
 
+        // ---------- מילים שהמודל לא היה בטוח בהן ----------
+
+        /// <summary>המילים מתוך Cue.Doubt.</summary>
+        internal static List<string> DoubtWords(string doubt)
+        {
+            List<string> r = new List<string>();
+            foreach (string w in (doubt ?? "").Split('|'))
+            {
+                string t = w.Trim();
+                if (t.Length > 0 && !r.Contains(t)) r.Add(t);
+            }
+            return r;
+        }
+
+        /// <summary>שתי כתוביות שמתאחדות - הסימונים של שתיהן.</summary>
+        internal static string JoinDoubt(string a, string b)
+        {
+            List<string> r = DoubtWords(a);
+            foreach (string w in DoubtWords(b)) if (!r.Contains(w)) r.Add(w);
+            return string.Join("|", r.ToArray());
+        }
+
+        /// <summary>כתובית שמתפצלת: לכל חלק - המילים שנמצאות בטקסט שלו, וגם אלה שלא נמצאות באף
+        /// אחד (למשל אחרי תרגום, כשהמילה המקורית כבר לא בטקסט): עדיף סימון מיותר מסימון שאבד.</summary>
+        internal static string DoubtIn(string doubt, string text, string other)
+        {
+            List<string> r = new List<string>();
+            string t = (text ?? "").ToLowerInvariant(), o = (other ?? "").ToLowerInvariant();
+            foreach (string w in DoubtWords(doubt))
+            {
+                string lw = w.ToLowerInvariant();
+                if (t.Contains(lw) || !o.Contains(lw)) r.Add(w);
+            }
+            return string.Join("|", r.ToArray());
+        }
+
         // ---------- מילים ----------
 
         /// <summary>שם קצר לסוג, עם מספר: ״3 חופפות״. ‏n=1 בלי מספר.</summary>
@@ -177,6 +222,7 @@ namespace SubtitleStudio
                 case IssueKind.LongLine: one = Lang.T("עם שורה ארוכה מדי"); many = Lang.T("עם שורה ארוכה מדי"); break;
                 case IssueKind.ManyLines: one = Lang.T("עם יותר משתי שורות"); many = Lang.T("עם יותר משתי שורות"); break;
                 case IssueKind.Spelling: one = Lang.T("עם מילה שאולי שגויה"); many = Lang.T("עם מילים שאולי שגויות"); break;
+                case IssueKind.Unsure: one = Lang.T("עם מילה לא בטוחה"); many = Lang.T("עם מילים לא בטוחות"); break;
                 default: one = Lang.T("ריקה"); many = Lang.T("ריקות"); break;
             }
             return n == 1 ? Lang.F("כתובית אחת {0}", one) : Lang.F("{0} כתוביות {1}", Theme.Ltr(n.ToString(CultureInfo.InvariantCulture)), many);
@@ -194,6 +240,7 @@ namespace SubtitleStudio
                 case IssueKind.LongLine: return Lang.T("יוצאות מהמסך בטלפון");
                 case IssueKind.ManyLines: return Lang.T("מכסות את התמונה");
                 case IssueKind.Spelling: return Lang.T("אולי שגיאת כתיב");
+                case IssueKind.Unsure: return Lang.T("המודל לא היה בטוח מה נאמר");
                 default: return Lang.T("אין בהן טקסט");
             }
         }
@@ -226,6 +273,14 @@ namespace SubtitleStudio
                             return Lang.F("״{0}״ אולי כתובה לא נכון{1} קליק ימני על השורה מציע תיקון.", w[0], (sug.Count > 0 ? Lang.F(" - אולי ״{0}״?", sug[0]) : "."));
                         }
                         return Lang.F("״{0}״ ו-״{1}״{2} אולי כתובות לא נכון. קליק ימני על השורה מציע תיקון.", w[0], w[1], (w.Count > 2 ? Lang.T(" ועוד") : ""));
+                    }
+                case IssueKind.Unsure:
+                    {
+                        List<string> w = x.Words ?? new List<string>();
+                        if (w.Count == 0) return Lang.T("בתמלול, המודל לא היה בטוח במשהו בשורה הזאת. כדאי להקשיב לה.");
+                        string words = w.Count == 1 ? Lang.F("״{0}״", w[0])
+                            : Lang.F("״{0}״ ו-״{1}״{2}", w[0], w[1], (w.Count > 2 ? Lang.T(" ועוד") : ""));
+                        return Lang.F("בתמלול, המודל לא היה בטוח לגבי {0}. כדאי להקשיב לשורה ולתקן אם צריך - עריכה מסירה את הסימון.", words);
                     }
                 default:
                     return Lang.T("אין בה טקסט. אפשר לכתוב, או למחוק אותה.");
@@ -445,6 +500,7 @@ namespace SubtitleStudio
                     if (joined == null) continue;
                     a.Text = joined;
                     a.End = b.End;
+                    a.Doubt = JoinDoubt(a.Doubt, b.Doubt);
                     cues.Remove(b);
                     n++;
                     i = Math.Max(-1, Math.Min(i, j) - 1);
@@ -489,12 +545,16 @@ namespace SubtitleStudio
                 {
                     c.Text = head + "\n" + rest;
                     c.End = nx.End;
+                    c.Doubt = JoinDoubt(c.Doubt, nx.Doubt);
                     cues.RemoveAt(i + 1);
                 }
                 else
                 {
+                    string d = c.Doubt;
                     c.Text = head;
+                    c.Doubt = DoubtIn(d, head, tail);
                     nx.Text = rest;              // שורה ארוכה מדי תישבר בשלב השורות
+                    nx.Doubt = JoinDoubt(DoubtIn(d, tail, head), nx.Doubt);
                 }
                 n++;
             }
@@ -548,6 +608,7 @@ namespace SubtitleStudio
                 if (joined.Length > MaxLineChars * MaxLines || nx.End - c.Start > MaxDurMs) continue;
                 nx.Text = joined;
                 nx.Start = c.Start;
+                nx.Doubt = JoinDoubt(c.Doubt, nx.Doubt);
                 cues.RemoveAt(i);
                 i--;
                 n++;
@@ -586,6 +647,8 @@ namespace SubtitleStudio
                 Cue second = c.Clone();
                 c.Text = a; c.End = firstEnd;
                 second.Text = b; second.Start = secondStart;
+                c.Doubt = DoubtIn(second.Doubt, a, b);
+                second.Doubt = DoubtIn(second.Doubt, b, a);
                 cues.Insert(i + 1, second);
                 n++;
                 i--;                    // אולי גם החלק הראשון עדיין ארוך מדי

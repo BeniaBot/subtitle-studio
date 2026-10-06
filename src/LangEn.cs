@@ -1114,6 +1114,9 @@ namespace SubtitleStudio
             "לסדר ולהמשיך", "Tidy and continue",
             "להמשיך בלי לסדר", "Continue as is",
             "סידור לפני צריבה", "Tidy before burning",
+            "השאר נכונות - להסיר את הסימון", "The rest are correct - remove the marks",
+            "אחרי שהקשבתם · Ctrl+Z מבטל", "After you have listened · Ctrl+Z undoes it",
+            "הסרת הסימון ״לא בטוח״", "Removing the 'not sure' marks",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1175,6 +1178,12 @@ namespace SubtitleStudio
             "שברים אוחדו עם ההמשך שלהם", "fragments joined to what follows them",
             "כתובית ארוכה אחת פוצלה", "One long subtitle split",
             "כתוביות ארוכות פוצלו", "long subtitles split",
+            "עם מילה לא בטוחה", "with a word the model wasn't sure of",
+            "עם מילים לא בטוחות", "with words the model wasn't sure of",
+            "המודל לא היה בטוח מה נאמר", "The model wasn't sure what was said",
+            "בתמלול, המודל לא היה בטוח במשהו בשורה הזאת. כדאי להקשיב לה.", "When transcribing, the model wasn't sure about something in this line. Worth listening to it.",
+            "״{0}״ ו-״{1}״{2}", "\"{0}\" and \"{1}\"{2}",
+            "בתמלול, המודל לא היה בטוח לגבי {0}. כדאי להקשיב לשורה ולתקן אם צריך - עריכה מסירה את הסימון.", "When transcribing, the model wasn't sure about {0}. Worth listening to the line and fixing it if needed - editing removes the mark.",
             "לא הצלחתי להכין את מנוע הווידאו:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.", "Couldn't set up the video engine:\n\n{0}\n\nFolder: {1}\n\nYou can also just put an ffmpeg.exe file next to the program.",
             "אין מה למחוק - המנוע לא נפרס.", "Nothing to delete - the engine wasn't set up.",
             "המנוע נמחק מ:\n{0}\nהוא ייפרס מחדש בהפעלה הבאה.", "The engine was deleted from:\n{0}\nIt will be set up again at the next start.",
@@ -1204,6 +1213,8 @@ namespace SubtitleStudio
             "התשובה חזרה בלי זמנים.", "The answer came back without times.",
             " · מודגש", " · bold",
             " · רקע מלא", " · solid box",
+        };
+        private static readonly string[] P4 = new string[] {
             "{0} כתוביות · התקרבו כדי לערוך אותן", "{0} subtitles · zoom in to edit them",
             "עריכת תזמון", "Edit timing",
             "הוספת כתובית", "Add subtitle",
@@ -1213,8 +1224,6 @@ namespace SubtitleStudio
             "אפשר גם לגרור כאן", "You can also drag it here",
             "כניסה", "In",
             "יציאה", "Out",
-        };
-        private static readonly string[] P4 = new string[] {
             "מנוע הווידאו לא זמין.", "The video engine isn't available.",
             "לא הצלחתי לקרוא את אורך הקובץ.", "Couldn't read the length of the file.",
             "מתמלל {0} מתוך {1}", "Transcribing {0} of {1}",

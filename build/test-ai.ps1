@@ -49,7 +49,7 @@ if ($WithTools) {
 if ($Translate) {
     $strList = [Activator]::CreateInstance([System.Collections.Generic.List``1].MakeGenericType([string]))
     foreach ($t in @("שלום לכולם", "מה שלומך היום?", "נתראה בשבוע הבא")) { $strList.Add($t) }
-    $tr = $ai.GetMethod("Translate", $NP -bor $PB -bor $ST)
+    $tr = $ai.GetMethods($NP -bor $PB -bor $ST) | Where-Object { $_.Name -eq "Translate" -and $_.GetParameters().Count -eq 4 }
     $errRef = [Type]::GetType("System.String").MakeByRefType()
     $params = New-Object object[] 4
     $params[0] = $strList; $params[1] = "אנגלית"; $params[2] = ""; $params[3] = $null

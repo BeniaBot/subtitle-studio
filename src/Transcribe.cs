@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace SubtitleStudio
@@ -226,7 +227,7 @@ namespace SubtitleStudio
                 // שורה שנמשכת אל תוך החפיפה של הקטע הבא תיתפס שם שוב - Dedupe מטפל
                 if (b > durationMs) b = durationMs;
                 if (b <= a) continue;
-                all.Add(new Cue(a, b, ln.Text));
+                all.Add(MakeCue(a, b, ln.Text));
                 kept++;
             }
             if (loose.Count == 0) return kept;
@@ -242,13 +243,40 @@ namespace SubtitleStudio
             foreach (Ai.TrLine ln in loose)
             {
                 double len = Ai.ReadingSec(ln.Text) * scale;
-                Cue c = new Cue((long)Math.Round(t * 1000), (long)Math.Round((t + len) * 1000), ln.Text);
+                Cue c = MakeCue((long)Math.Round(t * 1000), (long)Math.Round((t + len) * 1000), ln.Text);
                 c.Untimed = true;
                 all.Add(c);
                 kept++;
                 t += len + gap;
             }
             return kept;
+        }
+
+        /// <summary>כתובית משורה של המודל. ⟦מילה⟧ = המודל לא בטוח בה: הסימון יורד מהטקסט
+        /// ונשמר ב-Cue.Doubt, ובדיקת השגיאות מראה אותו (״מילה לא בטוחה״).</summary>
+        internal static Cue MakeCue(long a, long b, string text)
+        {
+            string doubt;
+            Cue c = new Cue(a, b, TakeDoubts(text, out doubt));
+            c.Doubt = doubt;
+            return c;
+        }
+
+        internal static string TakeDoubts(string text, out string doubt)
+        {
+            doubt = "";
+            if (string.IsNullOrEmpty(text) || (text.IndexOf('\u27E6') < 0 && text.IndexOf('\u27E7') < 0)) return text;
+            List<string> words = new List<string>();
+            string r = Regex.Replace(text, "\u27E6([^\u27E6\u27E7]*)\u27E7", delegate (Match m)
+            {
+                string w = m.Groups[1].Value.Trim();
+                if (w.Length > 0 && !words.Contains(w)) words.Add(w);
+                return m.Groups[1].Value;
+            });
+            r = r.Replace("\u27E6", "").Replace("\u27E7", "");
+            while (r.Contains("  ")) r = r.Replace("  ", " ");
+            doubt = string.Join("|", words.ToArray());
+            return r.Trim();
         }
 
         /// <summary>מאחד רצף של אותה שורה שחוזרת צמוד.
@@ -268,6 +296,7 @@ namespace SubtitleStudio
                 {
                     if (c.End > p.End) p.End = c.End;
                     p.Untimed = p.Untimed && c.Untimed;
+                    p.Doubt = Qa.JoinDoubt(p.Doubt, c.Doubt);
                     continue;
                 }
                 outp.Add(c);
@@ -581,7 +610,7 @@ namespace SubtitleStudio
                 {
                     Cue p = outp[j];
                     if (c.Start >= p.End + 250) break;             // כבר רחוק מדי
-                    if (Same(p.Text, c.Text)) { dup = true; break; }
+                    if (Same(p.Text, c.Text)) { dup = true; p.Doubt = Qa.JoinDoubt(p.Doubt, c.Doubt); break; }
                 }
                 if (!dup) outp.Add(c);
             }

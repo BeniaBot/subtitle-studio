@@ -763,6 +763,7 @@ namespace SubtitleStudio
                 if (_loadingEditor || _editing == null) return;
                 if (!_textDirty) { _doc.Push(Lang.T("עריכת טקסט")); _textDirty = true; }
                 _editing.Text = _text.Text;
+                if (_editing.Doubt.Length > 0) _editing.Doubt = "";       // מי שעורך - הקשיב
                 _doc.Dirty = true;
                 if (_textEmptyHint.Visible == (_text.Text.Length > 0))
                 {
@@ -3186,7 +3187,27 @@ namespace SubtitleStudio
                         delegate { TurnSpellOff(); }));
                     break;
                 }
+            foreach (Issue x in all)
+                if (x.Kind == IssueKind.Unsure)
+                {
+                    items.Add(MenuItem.Make(Lang.T("השאר נכונות - להסיר את הסימון"), Lang.T("אחרי שהקשבתם · Ctrl+Z מבטל"), Ico.Check,
+                        delegate { ClearDoubts(); }));
+                    break;
+                }
             return items;
+        }
+
+        /// <summary>מסיר את כל סימוני ״מילה לא בטוחה״ - המשתמש הקשיב, והשאר נכונות.</summary>
+        internal void ClearDoubts()
+        {
+            _doc.Push(Lang.T("הסרת הסימון ״לא בטוח״"));
+            int n = 0;
+            foreach (Cue c in _doc.Cues) if (c.Doubt.Length > 0) { c.Doubt = ""; n++; }
+            if (n == 0) { _doc.DropLastUndo(); return; }
+            _doc.Dirty = true;
+            _doc.RaiseChanged();
+            _list.Invalidate();
+            RefreshQa(true);
         }
 
         /// <summary>הבעיה הבאה מהסוג הזה, אחרי הכתובית שנבחרה. בסוף חוזרים להתחלה.</summary>

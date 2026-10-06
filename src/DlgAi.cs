@@ -309,6 +309,7 @@ namespace SubtitleStudio
             Thread t = new Thread(delegate ()
             {
                 List<string> all = new List<string>();
+                List<string[]> prev = new List<string[]>();           // ההמשכיות בין המנות
                 int done = 0;
                 for (int i = 0; i < _cues.Count && !_cancel; i += BatchSize)
                 {
@@ -318,7 +319,7 @@ namespace SubtitleStudio
 
                     string err = null;
                     List<string> res = null;
-                    try { res = Ai.Translate(batch, _lang, _context, out err); }
+                    try { res = Ai.Translate(batch, _lang, _context, prev, out err); }
                     catch (Exception ex) { err = ex.Message; Ai.Log("חריגה בתרגום: " + ex); }
                     if (res == null)
                     {
@@ -328,6 +329,8 @@ namespace SubtitleStudio
                         return;
                     }
                     all.AddRange(res);
+                    for (int j = 0; j < batch.Count && j < res.Count; j++) prev.Add(new string[] { batch[j], res[j] });
+                    if (prev.Count > 12) prev.RemoveRange(0, prev.Count - 12);
                     done += n;
                     int pct = (int)(done * 100.0 / Math.Max(1, _cues.Count));
                     try
