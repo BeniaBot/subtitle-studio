@@ -1875,7 +1875,7 @@ namespace SubtitleStudio
             if (_hintLbl == null) return;
             string hint;
             if (_mi == null)
-                hint = Lang.T("מתחילים כאן: לחצו ״פתיחת קובץ״, או פשוט גררו קובץ לתוך החלון.");
+                hint = Lang.T("מתחילים כאן: לחצו ״פתיחה״, או פשוט גררו קובץ לתוך החלון.");
             else if (_doc.Cues.Count == 0)
                 hint = Lang.T("עצרו את הסרט איפה שהדיבור מתחיל, ולחצו על הכפתור הכחול ״כתובית חדשה כאן״.");
             else if (_tl.InPoint >= 0 || _tl.OutPoint >= 0)
@@ -2395,7 +2395,7 @@ namespace SubtitleStudio
             long pos = _engine.Position;
             if (pos <= _editing.Start + 100 || pos >= _editing.End - 100)
             {
-                Ui.Info(this, Lang.T("הסמן לא בתוך הכתובית"), Lang.T("הזיזו את הסמן על הציר לאמצע הכתובית, ואז לחצו ״פיצול לשתיים״."));
+                Ui.Info(this, Lang.T("הסמן לא בתוך הכתובית"), Lang.T("הזיזו את הסמן על הציר לאמצע הכתובית, ואז ״עוד ← לחלק לשתי כתוביות״."));
                 return;
             }
             _doc.Push(Lang.T("פיצול"));
@@ -2424,7 +2424,7 @@ namespace SubtitleStudio
             List<Cue> sel = _doc.SelectedCues();
             if (sel.Count < 2)
             {
-                Ui.Info(this, Lang.T("צריך שתיים לפחות"), Lang.T("סמנו שתי כתוביות או יותר (החזיקו Ctrl ולחצו עליהן), ואז ״איחוד״."));
+                Ui.Info(this, Lang.T("צריך שתיים לפחות"), Lang.T("סמנו שתי כתוביות או יותר (החזיקו Ctrl ולחצו עליהן), ואז ״עוד ← לחבר כתוביות לאחת״."));
                 return;
             }
             _doc.Push(Lang.T("איחוד"));
@@ -3012,7 +3012,7 @@ namespace SubtitleStudio
             if (_tl.InPoint < 0 && _tl.OutPoint < 0)
             {
                 Ui.Info(this, Lang.T("קודם מסמנים קטע"),
-                    Lang.T("כך חותכים:\n1. הזיזו את הסמן על הציר לנקודת ההתחלה ולחצו ״סימון התחלה״.\n2. הזיזו לנקודת הסיום ולחצו ״סימון סוף״.\n3. חזרו לכאן - הקטע המסומן יהיה מוכן לחיתוך."));
+                    Lang.T("כך חותכים:\n1. הזיזו את הסמן על הציר לנקודת ההתחלה ולחצו ״תחילת קטע״.\n2. הזיזו לנקודת הסיום ולחצו ״סוף קטע״.\n3. חזרו לכאן - הקטע המסומן יהיה מוכן לחיתוך."));
                 return;
             }
             TrimDlg d = new TrimDlg(this, _mi, _doc, a, b);

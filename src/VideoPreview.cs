@@ -15,7 +15,7 @@ namespace SubtitleStudio
         public bool HasMedia = false;
         public bool AudioOnly = false;
         public string Placeholder = Lang.T("גררו לכאן סרט");
-        public string Placeholder2 = Lang.T("או לחצו למעלה על ״פתיחת סרט״");
+        public string Placeholder2 = Lang.T("או לחצו למעלה על ״פתיחה״");
         public double AspectW = 16, AspectH = 9;
         public event EventHandler Clicked;
 

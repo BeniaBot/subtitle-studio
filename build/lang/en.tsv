@@ -105,7 +105,7 @@
 לצרף	Add to them
 יצירה מטקסט	Made from text
 נוצרו {0} כתוביות{1}	Made {0} subtitles{1}
-. התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן לפי הסרט״ ולסמן כל משפט	. The timing is an estimate - the user can click “Time to the video” and mark each sentence
+. התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן בלחיצה״ ולסמן כל משפט, או על ״לתזמן לבד״	. The timing is an estimate - the user can click “click to time” and mark each sentence, or “Time it for me”
 חלון השליפה נסגר בלי לטעון כתוביות	The extraction window was closed without loading subtitles
 נשלפו כתוביות מתוך הסרט. סך הכול {0}	Subtitles were extracted from the video. {0} in total
 נשמר{0}	Saved{0}
@@ -299,7 +299,7 @@
 נמצא ערוץ כתוביות אחד	One subtitle track found
 נמצאו {0} ערוצי כתוביות	{0} subtitle tracks found
 אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש.	Subtitles “burned” into the picture can't be extracted - they have to be typed again.
-אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחת קובץ״.	You can also load an outside subtitle file with the “Open file” button.
+אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחה״.	You can also load an outside subtitle file with the “Open” button.
 איזה ערוץ?	Which track?
 ״פתיחה לעריכה״ מביאה את הכתוביות לתוך התוכנה - אפשר לתרגם, לתקן תזמון ולהטמיע מחדש.	“Open for editing” brings the subtitles into the program - you can translate them, fix the timing and embed them again.
 פתיחה לעריכה	Open for editing
@@ -965,7 +965,7 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 ציר הזמן	Timeline
 יצירת הסרט	Make the video
 הכתוביות שלי  ·  {0}	My subtitles  ·  {0}
-מתחילים כאן: לחצו ״פתיחת קובץ״, או פשוט גררו קובץ לתוך החלון.	Start here: click “Open file”, or just drag a file into the window.
+מתחילים כאן: לחצו ״פתיחה״, או פשוט גררו קובץ לתוך החלון.	Start here: click “Open”, or just drag a file into the window.
 עצרו את הסרט איפה שהדיבור מתחיל, ולחצו על הכפתור הכחול ״כתובית חדשה כאן״.	Stop the video where the speech begins, and click the blue “New subtitle here” button.
 קטע מסומן: {0} עד {1}   ·   ״הסרט ← חיתוך קטע״ כדי לחתוך אותו.	Marked section: {0} to {1}   ·   “Video → Trim a section” to trim it.
 טיפ: גררו בלוק על הציר כדי להזיז אותו, משכו את הקצה כדי להאריך, ולחצו עליו פעמיים כדי לערוך.	Tip: drag a block on the timeline to move it, pull its edge to make it longer, and double-click it to edit.
@@ -1024,10 +1024,10 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 קביעת סיום	Set the end
 בחרו כתובית ומקמו את הסמן במקום שבו לפצל.	Choose a subtitle and put the cursor where to split.
 הסמן לא בתוך הכתובית	The cursor isn't inside the subtitle
-הזיזו את הסמן על הציר לאמצע הכתובית, ואז לחצו ״פיצול לשתיים״.	Move the cursor on the timeline into the middle of the subtitle, then click “Split in two”.
+הזיזו את הסמן על הציר לאמצע הכתובית, ואז ״עוד ← לחלק לשתי כתוביות״.	Move the cursor on the timeline into the middle of the subtitle, then “More → Split into two subtitles”.
 פיצול	Split
 צריך שתיים לפחות	At least two are needed
-סמנו שתי כתוביות או יותר (החזיקו Ctrl ולחצו עליהן), ואז ״איחוד״.	Select two or more subtitles (hold Ctrl and click them), then “Merge”.
+סמנו שתי כתוביות או יותר (החזיקו Ctrl ולחצו עליהן), ואז ״עוד ← לחבר כתוביות לאחת״.	Select two or more subtitles (hold Ctrl and click them), then “More → Join subtitles into one”.
 איחוד	Merge
 הזזה קטנה	Small shift
 קובצי וידאו ואודיו|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus|כל הקבצים|*.*	Video and audio files|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus|All files|*.*
@@ -1085,7 +1085,7 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 פתחו קודם קובץ וידאו.	Open a video file first.
 צריך לפחות כתובית אחת כדי להטמיע.	At least one subtitle is needed to embed.
 קודם מסמנים קטע	Mark a section first
-כך חותכים:\n1. הזיזו את הסמן על הציר לנקודת ההתחלה ולחצו ״סימון התחלה״.\n2. הזיזו לנקודת הסיום ולחצו ״סימון סוף״.\n3. חזרו לכאן - הקטע המסומן יהיה מוכן לחיתוך.	How to trim:\n1. Move the cursor on the timeline to the start point and click “Mark start”.\n2. Move to the end point and click “Mark end”.\n3. Come back here - the marked section will be ready to trim.
+כך חותכים:\n1. הזיזו את הסמן על הציר לנקודת ההתחלה ולחצו ״תחילת קטע״.\n2. הזיזו לנקודת הסיום ולחצו ״סוף קטע״.\n3. חזרו לכאן - הקטע המסומן יהיה מוכן לחיתוך.	How to trim:\n1. Move the cursor on the timeline to the start point and click “Section start”.\n2. Move to the end point and click “Section end”.\n3. Come back here - the marked section will be ready to trim.
 אורך: 	Length: 
      גודל: 	     Size: 
 מה יש בקובץ	What's in the file
@@ -1360,7 +1360,7 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 
 # ---- VideoPreview.cs ----
 גררו לכאן סרט	Drag a video here
-או לחצו למעלה על ״פתיחת סרט״	or click “Open” at the top
+או לחצו למעלה על ״פתיחה״	or click “Open” at the top
 קובץ אודיו בלבד	Audio file only
 
 # ---- no longer in the source (kept in case it comes back) ----

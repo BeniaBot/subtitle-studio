@@ -376,7 +376,7 @@ namespace SubtitleStudio
             if (_subs.Count == 0)
             {
                 Lbl l = Hint(Lang.T("אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש.") +
-                    Environment.NewLine + Lang.T("אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחת קובץ״."));
+                    Environment.NewLine + Lang.T("אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחה״."));
                 Row(l, 60, 8);
                 Buttons(Lang.T("סגירה"), Ico.Close, null);
                 return;

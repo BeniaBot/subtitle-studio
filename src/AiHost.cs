@@ -719,7 +719,7 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             AiRefresh();
             SyncAfterDocChange();
-            r["done"] = Lang.F("נוצרו {0} כתוביות{1}", made.Count, (o.MarkUntimed ? Lang.T(". התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן לפי הסרט״ ולסמן כל משפט") : ""));
+            r["done"] = Lang.F("נוצרו {0} כתוביות{1}", made.Count, (o.MarkUntimed ? Lang.T(". התזמון הוא הערכה - המשתמש יכול ללחוץ על ״לתזמן בלחיצה״ ולסמן כל משפט, או על ״לתזמן לבד״") : ""));
             r["total"] = _doc.Cues.Count;
             return r;
         }
