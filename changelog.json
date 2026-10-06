@@ -2,6 +2,37 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.4",
+      "date": "2026-10-06",
+      "items": [
+        {
+          "t": "major",
+          "s": "שני דוברים כבר לא מתאחדים למשפט אחד: התמלול מבחין בין דוברים, וכשהם חולקים כתובית - שורה לכל אחד, עם מקף",
+          "en": "Two speakers no longer merge into one sentence: transcription tells speakers apart, and when they share a subtitle - a line each, with a dash"
+        },
+        {
+          "t": "major",
+          "s": "לפני צריבה, התוכנה מראה מילה שהמודל לא היה בטוח בה - אפשר להקשיב לה לפני שנצרבת לתמיד",
+          "en": "Before burning, the program points out a word the model wasn't sure of - you can listen to it before it is burned for good"
+        },
+        {
+          "t": "feature",
+          "s": "שם שהמודל לא שמע טוב נשאר כפי שנשמע ומסומן - הוא כבר לא מוחלף בשם אחר מהסרט",
+          "en": "A name the model didn't hear well stays as heard and is marked - it is no longer replaced by another name from the video"
+        },
+        {
+          "t": "fix",
+          "s": "כשהמכסה של הדגם הרגיל של גוגל נגמרת, התוכנה לא נשארת על דגם הגיבוי גם בימים הבאים, ואומרת שהזמנים שלו פחות מדויקים",
+          "en": "When the usual Google model's quota runs out, the program no longer stays on the backup model on the following days, and says its timing is less accurate"
+        },
+        {
+          "t": "fix",
+          "s": "משפט קצר של מילה אחת נשאר משפט נפרד, ופנייה כמו ״אדוני הנשיא,״ לא נדבקת למשפט שאחריה",
+          "en": "A one-word sentence stays separate, and an address like \"Mr. President,\" no longer sticks to the next sentence"
+        }
+      ]
+    },
+    {
       "v": "0.8.3",
       "date": "2026-10-06",
       "items": [
