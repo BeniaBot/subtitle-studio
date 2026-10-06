@@ -2,6 +2,47 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.2",
+      "date": "2026-10-06",
+      "items": [
+        {
+          "t": "major",
+          "s": "צריבה: שורה בעברית עם מילה באנגלית יצאה בסדר מילים הפוך. תוקן",
+          "en": "Burning: a Hebrew line with an English word came out in reverse word order. Fixed"
+        },
+        {
+          "t": "major",
+          "s": "כתוביות אוטומטיות מסודרות לקריאה: מוארכות עד שאפשר לקרוא, שברי משפט מתאחדים, וארוכות מתפצלות. ולפני צריבה התוכנה מציעה לסדר",
+          "en": "Automatic subtitles are tidied for reading: lengthened until they can be read, sentence fragments joined, long ones split. And before burning, the program offers to tidy"
+        },
+        {
+          "t": "feature",
+          "s": "תמלול ותרגום: שמות לא נעלמים, והתרגום שומר על הטון. מה שכותבים ב״רקע על התוכן״ עובר גם לתרגום",
+          "en": "Transcription and translation: names no longer vanish, and the translation keeps the tone. What you write in \"About the content\" carries over to the translation"
+        },
+        {
+          "t": "feature",
+          "s": "סרט עם כתוביות צרובות שוקל בערך חצי, בלי הבדל שרואים",
+          "en": "A video with burned subtitles weighs about half, with no visible difference"
+        },
+        {
+          "t": "feature",
+          "s": "הכתובית בולטת גם על רקע בהיר: מתאר עבה יותר וצל",
+          "en": "Subtitles stand out on bright backgrounds too: a thicker outline and a shadow"
+        },
+        {
+          "t": "fix",
+          "s": "התצוגה בתוך התוכנה מראה את הכתובית בגודל ובעובי שייצרבו בפועל",
+          "en": "The preview shows the subtitle at the size and thickness that will actually be burned"
+        },
+        {
+          "t": "fix",
+          "s": "ההגדרות נשמרות כבר כשפותחים קובץ, לא רק ביציאה",
+          "en": "Settings are saved as soon as a file is opened, not only on exit"
+        }
+      ]
+    },
+    {
       "v": "0.8.1",
       "date": "2026-09-24",
       "items": [
