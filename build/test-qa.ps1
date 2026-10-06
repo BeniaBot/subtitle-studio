@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 93 בדיקות.
+# צפוי: 95 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -357,6 +357,15 @@ $dsp = NewDoc @(@(64400, 65000, 'אדוני הנשיא.'), @(65100, 68500, 'או
 $dsp.Cues[0].Actor = '1'; $dsp.Cues[1].Actor = '2'
 [void]$mLeft.Invoke($null, (Pack $dsp.Cues))
 Check 'שני דוברים בכתובית אחת: שורה לכל אחד, עם מקף' ($dsp.Cues.Count -eq 1 -and ($dsp.Cues[0].Text -replace "`r?`n", '|') -eq '- אדוני הנשיא.|- אויבינו מעבר לים מתקדמים.') ((@($dsp.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+# המודל ממספר דוברים מחדש בכל קטע של דקה (0.8.5): ״1״ בקטע 3 ו״2״ בקטע 4 יכולים להיות אותו אדם
+$dch = NewDoc @(@(64400, 65000, 'שמעתי.'), @(65100, 68500, 'ואני אומר לכם שזה נכון.'))
+$dch.Cues[0].Actor = '3:1'; $dch.Cues[1].Actor = '4:2'
+[void]$mLeft.Invoke($null, (Pack $dch.Cues))
+Check 'דוברים משני קטעים שונים - לא דו-שיח (המספור לא משותף)' ($dch.Cues.Count -eq 1 -and -not $dch.Cues[0].Text.StartsWith('-')) ((@($dch.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+$dch2 = NewDoc @(@(64400, 65000, 'שמעתי.'), @(65100, 68500, 'ואני אומר לכם שזה נכון.'))
+$dch2.Cues[0].Actor = '3:1'; $dch2.Cues[1].Actor = '3:2'
+[void]$mLeft.Invoke($null, (Pack $dch2.Cues))
+Check 'ובתוך אותו קטע - כן דו-שיח' ($dch2.Cues.Count -eq 1 -and $dch2.Cues[0].Text.StartsWith('- ')) ((@($dch2.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
 $dsp2 = NewDoc @(@(81410, 83540, 'Our capacity is limited. So,'), @(84460, 86210, 'who''s paying in advance?'))
 $dsp2.Cues[0].Actor = '1'; $dsp2.Cues[1].Actor = '2'
 [void]$mTidy3.Invoke($null, (Pack $dsp2 $true $false))

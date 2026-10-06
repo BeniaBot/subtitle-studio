@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 108 בדיקות.
+# צפוי: 109 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -359,7 +359,10 @@ $lt2 = [Collections.Generic.List``1].MakeGenericType((T 'Ai+TrLine')); $lines2 =
 $ac = (T 'Transcribe').GetMethod('AddChunk', $SF)
 $aa = New-Object object[] 6; $aa[0] = $allC; $aa[1] = $lines2; $aa[2] = [int]0; $aa[3] = [double]0; $aa[4] = [int]180; $aa[5] = [long]94000
 [void]$ac.Invoke($null, $aa)
-Check 'והכתובית יודעת מי הדובר' (($allC.Count -eq 2) -and ($allC[0].Actor -eq '1') -and ($allC[1].Actor -eq '2')) (($allC | ForEach-Object { $_.Actor }) -join ',')
+Check 'והכתובית יודעת מי הדובר, ובאיזה קטע (המספור מתחיל מחדש בכל קטע)' (($allC.Count -eq 2) -and ($allC[0].Actor -eq '0:1') -and ($allC[1].Actor -eq '0:2')) (($allC | ForEach-Object { $_.Actor }) -join ',')
+$allC.Clear(); $aa[2] = [int]3; $aa[3] = [double]165; $aa[5] = [long]400000
+[void]$ac.Invoke($null, $aa)
+Check 'בקטע הרביעי: ״3:1״' (($allC.Count -ge 1) -and ($allC[0].Actor -eq '3:1')) (($allC | ForEach-Object { $_.Actor }) -join ',')
 
 # ================= 5. בחירת הספק =================
 Write-Host 'בחירת הספק'

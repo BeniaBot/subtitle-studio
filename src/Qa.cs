@@ -538,10 +538,24 @@ namespace SubtitleStudio
             first.Actor = string.Join("|", actors.ToArray());
         }
 
-        /// <summary>שני דוברים שונים (לפי Cue.Actor - מהתמלול, או מקובץ ASS). דובר לא ידוע - לא נחשב שונה.</summary>
+        /// <summary>שני דוברים שונים (לפי Cue.Actor - מהתמלול, או מקובץ ASS). דובר לא ידוע - לא נחשב שונה.
+        /// מהתמלול הדובר הוא ״קטע:מספר״ (‏Transcribe.Speaker), והמספור מתחיל מחדש בכל קטע: דוברים
+        /// משני קטעים שונים לא ידועים זה ביחס לזה, ולכן לא ״שונים״.</summary>
         internal static bool DifferentSpeakers(Cue a, Cue b)
         {
-            return !string.IsNullOrEmpty(a.Actor) && !string.IsNullOrEmpty(b.Actor) && a.Actor != b.Actor;
+            string x = a.Actor ?? "", y = b.Actor ?? "";
+            if (x.Length == 0 || y.Length == 0 || x == y) return false;
+            string cx = SpeakerChunk(x), cy = SpeakerChunk(y);
+            return cx == null || cy == null || cx == cy;
+        }
+
+        /// <summary>הקטע של דובר מהתמלול (״3״ מתוך ״3:1״ או ״3:1|3:2״), או null - שם מקובץ ASS.</summary>
+        private static string SpeakerChunk(string actor)
+        {
+            int k = actor.IndexOf(':');
+            if (k <= 0) return null;
+            for (int i = 0; i < k; i++) if (!char.IsDigit(actor[i])) return null;
+            return actor.Substring(0, k);
         }
 
         /// <summary>כתובית של דו-שיח: שורה שמתחילה במקף.</summary>

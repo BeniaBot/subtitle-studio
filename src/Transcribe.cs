@@ -232,7 +232,7 @@ namespace SubtitleStudio
                 if (b > durationMs) b = durationMs;
                 if (b <= a) continue;
                 Cue made = MakeCue(a, b, ln.Text);
-                made.Actor = ln.Speaker ?? "";
+                made.Actor = Speaker(index, ln.Speaker);
                 all.Add(made);
                 kept++;
             }
@@ -250,13 +250,23 @@ namespace SubtitleStudio
             {
                 double len = Ai.ReadingSec(ln.Text) * scale;
                 Cue c = MakeCue((long)Math.Round(t * 1000), (long)Math.Round((t + len) * 1000), ln.Text);
-                c.Actor = ln.Speaker ?? "";
+                c.Actor = Speaker(index, ln.Speaker);
                 c.Untimed = true;
                 all.Add(c);
                 kept++;
                 t += len + gap;
             }
             return kept;
+        }
+
+        /// <summary>הדובר של שורה, עם מספר הקטע: ״3:1״. **המודל ממספר את הדוברים מחדש בכל קטע** (כל
+        /// דקה נשלחת לבד), ו״1״ בקטע אחד יכול להיות ״2״ בבא. בלי הקטע, הסידור ראה ״דוברים שונים״
+        /// בגבול שבין שני קטעים - וחסם איחוד, או הפך משפט של אדם אחד לדו-שיח עם מקפים. ‏Qa משווה
+        /// דוברים רק בתוך אותו קטע (<see cref="Qa.DifferentSpeakers"/>).</summary>
+        internal static string Speaker(int chunk, string sp)
+        {
+            sp = (sp ?? "").Trim();
+            return sp.Length == 0 ? "" : chunk.ToString(CultureInfo.InvariantCulture) + ":" + sp;
         }
 
         /// <summary>כתובית משורה של המודל. ⟦מילה⟧ = המודל לא בטוח בה: הסימון יורד מהטקסט
@@ -510,6 +520,7 @@ namespace SubtitleStudio
                 foreach (Ai.TrLine t in got)
                 {
                     if (t.HasTime) { t.Start += subStart; t.End += subStart; }
+                    t.Speaker = "";              // בקשה אחרת - מספור דוברים אחר, ולכן לא ידוע
                     outp.Add(t);
                 }
                 return outp;
@@ -527,6 +538,7 @@ namespace SubtitleStudio
             {
                 if (!t.HasTime || subStart + t.Start < mainEnd - 0.5) continue;
                 t.Start += subStart; t.End += subStart;
+                t.Speaker = "";
                 outp.Add(t);
             }
             return outp;
