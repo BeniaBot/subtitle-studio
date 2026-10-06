@@ -113,6 +113,10 @@ namespace SubtitleStudio
                 while (Recent.Count > 6) Recent.RemoveAt(Recent.Count - 1);
             }
             catch { }
+            // ‏**נשמר מיד, לא רק בסגירה.** ב-0.8.1 משתמש עבד רבע שעה, סגר כרגיל, והקובץ לא
+            // נכתב - לא בסגירה ולא בשום שלב. הסיבה לא נמצאה (כל שחזור שמר כמו שצריך), ולכן
+            // לפחות פתיחת קובץ כבר שומרת את מה שיש
+            SaveAll();
         }
 
         /// <summary>למה השמירה האחרונה נכשלה; ריק אם הצליחה. עד 0.8.1 כל כישלון נבלע
@@ -234,7 +238,9 @@ namespace SubtitleStudio
                         case "box": s.OpaqueBox = v == "1"; break;
                         case "align": s.Alignment = (int)D(v, 2); break;
                         case "marginv": s.MarginVPct = D(v, s.MarginVPct); break;
-                        case "outline": s.OutlineWidth = D(v, s.OutlineWidth); break;
+                        // ‏2.2 היה ברירת המחדל עד 0.8.2, ונשמר אצל כולם גם בלי שנגעו בו. מי שלא שינה -
+                        // מקבל את ברירת המחדל החדשה, הקריאה יותר
+                        case "outline": { double o = D(v, s.OutlineWidth); if (Math.Abs(o - 2.2) > 0.001) s.OutlineWidth = o; } break;
                         case "primary": s.Primary = Color.FromArgb((int)D(v, s.Primary.ToArgb())); break;
                         case "outlinecol": s.Outline = Color.FromArgb((int)D(v, s.Outline.ToArgb())); break;
                         case "recent": if (v.Length > 0 && Recent.Count < 6) Recent.Add(v); break;

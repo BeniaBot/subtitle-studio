@@ -6,7 +6,7 @@
 # את כל הקובץ, כך שחלון שני שלא הכיר את המפתח מחק אותו בשמירה הבאה שלו.
 #
 # הכול על קובץ זמני (Settings.FileOverride) - ההגדרות של המשתמש לא נגעות.
-# צפוי: 9 בדיקות.
+# צפוי: 14 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Security
@@ -68,6 +68,19 @@ Check 'אין קובץ בכלל (התקנה חדשה): לזהות לפי המח�
 $S.GetField('LangChoice', $ST).SetValue($null, [string]'en'); SaveAll
 Check 'בחירה בהגדרות נשמרת, ונקראת בהפעלה הבאה' (((Get-Content $ini -Encoding UTF8) -contains 'lang=en') -and $peek.Invoke($null, @()) -eq 'en') ''
 $S.GetField('LangChoice', $ST).SetValue($null, $null)
+
+# 4ב. פתיחת קובץ שומרת מיד (0.8.2): ב-0.8.1 הקובץ לא נכתב בכלל בסשן של רבע שעה
+[IO.File]::Delete($ini)
+[void]$S.GetMethod('AddRecent', $ST).Invoke($null, @([string]'C:\סרטים\דוגמה.mp4'))
+Check 'פתיחת קובץ כותבת את ההגדרות מיד, לא רק בסגירה' ((Test-Path $ini) -and ((Get-Content $ini -Encoding UTF8) -contains 'recent=C:\סרטים\דוגמה.mp4')) ''
+
+# 4ג. המתאר: ‏2.2 היה ברירת המחדל עד 0.8.2 ונשמר אצל כולם. מי שלא שינה מקבל את החדשה
+$load = $S.GetMethod('Load', $ST)
+[IO.File]::WriteAllText($ini, "outline=2.2`r`n", (New-Object Text.UTF8Encoding $true))
+$o1 = $load.Invoke($null, @()).OutlineWidth
+[IO.File]::WriteAllText($ini, "outline=4.5`r`n", (New-Object Text.UTF8Encoding $true))
+$o2 = $load.Invoke($null, @()).OutlineWidth
+Check 'מתאר 2.2 (ברירת המחדל הישנה) עולה לחדשה, ומתאר שנבחר נשאר' (($o1 -eq 3.0) -and ($o2 -eq 4.5)) "2.2 -> $o1, 4.5 -> $o2"
 
 # 5. וההגדרות האמיתיות לא נגעו
 $after = if (Test-Path $realIni) { (Get-FileHash $realIni).Hash } else { '' }

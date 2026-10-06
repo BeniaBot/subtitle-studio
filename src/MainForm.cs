@@ -133,6 +133,8 @@ namespace SubtitleStudio
             FormClosing += delegate (object s, FormClosingEventArgs e)
             {
                 Settings.SaveAll();   // עוצמה ומהירות, גם אם לא נגעו בעיצוב
+                // שורה אחת ביומן: אם ההגדרות שוב ״לא נשמרו״, נדע אם הסגירה בכלל הגיעה לכאן
+                Ai.Log(Settings.LastError.Length == 0 ? "סגירה: ההגדרות נשמרו" : "סגירה: ההגדרות לא נשמרו - " + Settings.LastError);
                 // בבדיקות אין מי שיענה על ״לשמור?״, והחלון היה נתקע לנצח
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 string kind = ExitSaveKind();
