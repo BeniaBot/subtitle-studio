@@ -586,14 +586,18 @@ namespace SubtitleStudio
             lock (_exhausted) return _exhausted.ContainsKey(model);
         }
 
-        /// <summary>הדגם ענה. מעבר נשמר כמועדף רק אם הקודמים לא קיימים - לא אם הם עמוסים או מיצו מכסה.</summary>
+        /// <summary>הדגם ענה. **רק דגם שהקודמים לו לא קיימים בחשבון מחליף את הדגם הפעיל** (ונשמר כמועדף).
+        /// מכסה דקתית ועומס חולפים תוך רגע, והבקשה הבאה מנסה שוב את הרגיל; מכסה יומית - הדגם כבר
+        /// מסומן (‏MarkExhausted) ומדלגים עליו בלי לבזבז בקשה. עד 0.8.5 עומס של רגע השאיר את התוכנה
+        /// על דגם הגיבוי עד סוף הסשן - ובדגמי הגיבוי הזמנים בתמלול סטו בשנייה (נמדד, 6.10.2026).</summary>
         private static void Switched(string model, bool onlyMissing)
         {
             LastModelUsed = model;
             if (model == Model) return;
-            Log("עברנו לדגם " + model);
+            Log("ענה הדגם " + model);
+            if (!onlyMissing) return;
             Model = model;
-            if (onlyMissing) Preferred = model;
+            Preferred = model;
         }
 
         private static void MarkExhausted(string model)

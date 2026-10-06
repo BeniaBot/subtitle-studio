@@ -6,7 +6,7 @@
 # את כל הקובץ, כך שחלון שני שלא הכיר את המפתח מחק אותו בשמירה הבאה שלו.
 #
 # הכול על קובץ זמני (Settings.FileOverride) - ההגדרות של המשתמש לא נגעות.
-# צפוי: 18 בדיקות.
+# צפוי: 19 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Security
@@ -86,7 +86,9 @@ Check 'מתאר 2.2 (ברירת המחדל הישנה) עולה לחדשה, ומ
 $A2 = TY 'Ai'; $sw = $A2.GetMethod('Switched', $ST)
 $A2.GetField('Model', $ST).SetValue($null, [string]'gemini-2.5-flash'); $A2.GetField('Preferred', $ST).SetValue($null, [string]'gemini-2.5-flash')
 [void]$sw.Invoke($null, @([string]'gemini-3-flash-preview', $false))
-Check 'מעבר בגלל מכסה: הדגם הפעיל מתחלף, המועדף לא' (($A2.GetField('Model', $ST).GetValue($null) -eq 'gemini-3-flash-preview') -and ($A2.GetField('Preferred', $ST).GetValue($null) -eq 'gemini-2.5-flash')) ''
+# ‏0.8.5: גם הדגם הפעיל לא מתחלף - הבקשה הבאה מנסה שוב את הרגיל (עד אז עומס של רגע השאיר את כל הסשן על הגיבוי)
+Check 'מעבר בגלל מכסה או עומס: הבקשה הבאה חוזרת לדגם הרגיל, והמועדף לא משתנה' (($A2.GetField('Model', $ST).GetValue($null) -eq 'gemini-2.5-flash') -and ($A2.GetField('Preferred', $ST).GetValue($null) -eq 'gemini-2.5-flash')) ([string]$A2.GetField('Model', $ST).GetValue($null))
+Check 'ומי ענה - ידוע (בשביל ההודעה ״חלק מהתמלול נעשה בדגם אחר״)' ($A2.GetField('LastModelUsed', $ST).GetValue($null) -eq 'gemini-3-flash-preview') ''
 SaveAll
 Check 'ובהגדרות נשמר המועדף, לא הגיבוי' ((Get-Content $ini -Encoding UTF8) -contains 'aimodel=gemini-2.5-flash') ''
 [void]$sw.Invoke($null, @([string]'gemini-flash-latest', $true))
