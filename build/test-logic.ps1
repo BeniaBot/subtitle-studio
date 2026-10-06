@@ -767,5 +767,27 @@ Check 'סרטון שוכב לא עומד' (-not $pm.Invoke($null, @($wide))) ''
 Check '480p של סרטון עומד: הצלע הקצרה (הרוחב) יורדת ל-480' (($ss.Invoke($null, @($tall, 480))) -eq 'scale=480:-2') ($ss.Invoke($null, @($tall, 480)))
 Check '720p של סרטון קטן: לא מגדילים' (($ss.Invoke($null, @($tiny, 720))) -eq '') ($ss.Invoke($null, @($tiny, 720)))
 
+# ---- תקרת קצב בצריבה (0.8.2: סרט של 9 מגה יצא 24) ----
+Write-Host 'תקרת קצב בצריבה'
+$rc = $burnT.GetMethod('RateCap', [Reflection.BindingFlags]'NonPublic,Public,Static')
+function NewMi($w, $h, $fps, $vKbps, $sizeBytes, $durSec) {
+    $m = [Activator]::CreateInstance($miT); $m.Width = $w; $m.Height = $h; $m.Fps = $fps; $m.SizeBytes = $sizeBytes; $m.DurationSec = $durSec
+    $v = [Activator]::CreateInstance($msT); $v.Type = 'video'; $v.Codec = 'h264'; $v.BitRate = [long]($vKbps * 1000); $m.Streams.Add($v)
+    $a = [Activator]::CreateInstance($msT); $a.Type = 'audio'; $a.Codec = 'aac'; $m.Streams.Add($a)
+    return $m
+}
+# הסרטון האמיתי: 720p, ‏23.98, תמונה ב-687k. פי 1.5 = 1031k, והריצפה לפי הפיקסלים (1105k) גבוהה יותר
+$real = NewMi 1280 720 23.98 687 0 94
+Eq 'הסרטון האמיתי, איכות מקסימלית: הריצפה לפי הפיקסלים' ($rc.Invoke($null, @($real, 0))) '-maxrate 1105k -bufsize 2210k'
+$hd = NewMi 1920 1080 30 12000 0 60
+Eq 'מקור איכותי, איכות מקסימלית: פי 1.5' ($rc.Invoke($null, @($hd, 0))) '-maxrate 18000k -bufsize 36000k'
+Eq 'מאוזן: עד גודל המקור' ($rc.Invoke($null, @($hd, 1))) '-maxrate 12000k -bufsize 24000k'
+Eq 'הכי קטן: 0.7 מהמקור' ($rc.Invoke($null, @($hd, 2))) '-maxrate 8400k -bufsize 16800k'
+# MKV לא מדווח קצב לערוץ: מגודל הקובץ פחות הקול (128k כשלא ידוע)
+$mkv = NewMi 1920 1080 30 0 104857600 100
+Eq 'MKV בלי קצב לערוץ: לפי גודל הקובץ' ($rc.Invoke($null, @($mkv, 0))) '-maxrate 12391k -bufsize 24782k'
+$none = NewMi 1920 1080 30 0 0 100
+Eq 'אין מידע על המקור: בלי תקרה' ($rc.Invoke($null, @($none, 0))) ''
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

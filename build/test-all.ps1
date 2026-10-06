@@ -1,4 +1,4 @@
-# test-all.ps1 - every test package, each with the check count it must reach.
+﻿# test-all.ps1 - every test package, each with the check count it must reach.
 # "Green with fewer checks is not green" (CLAUDE.md): a package that passes with
 # fewer checks than expected, times out, or crashes counts as a failure.
 # A stuck package is usually a .NET crash dialog - hang-report.ps1 prints it.
@@ -8,7 +8,7 @@ param([string]$Only = '', [int]$Timeout = 900)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $expect = [ordered]@{
-    'logic' = 192; 'autotime' = 21; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
+    'logic' = 198; 'autotime' = 21; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 45; 'layout' = 95; 'project' = 105; 'screens' = 34
     'fuzz' = 11; 'long' = 15; 'stt' = 86; 'errors' = 36; 'buttons' = 12
     'source' = 7; 'qa' = 72; 'spell' = 59; 'release' = 42; 'settings' = 12; 'subs' = 24

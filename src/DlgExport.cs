@@ -21,6 +21,41 @@ namespace SubtitleStudio
 
     internal static class Burn
     {
+        /// <summary>תקרת קצב לצריבה, יחסית למקור: ״איכות מקסימלית״ עד פי 1.5 מהמקור,
+        /// ״מאוזן״ עד גודל המקור, ״הכי קטן״ עד 0.7 ממנו. ריצפה לפי מספר הפיקסלים, כדי שמקור
+        /// דחוס מאוד לא ייחנק. ריק = אין מספיק מידע על המקור, ואז בלי תקרה.
+        /// **עד 0.8.2** הצריבה הייתה רק לפי איכות (crf 16), והיא משחזרת בנאמנות גם את רעש
+        /// הדחיסה של המקור: סרט של 9 מגה יצא 24. בתקרה של פי 1.5 הוא יוצא 13, והטקסט
+        /// בהגדלה לא נבדל (נבדק על סרטון אמיתי; דמיון למקור 0.993 מול 0.996).</summary>
+        internal static string RateCap(MediaInfo mi, int quality)
+        {
+            if (mi == null || mi.Width <= 0 || mi.Height <= 0) return "";
+            long src = SourceVideoBitrate(mi);
+            if (src <= 0) return "";
+            double k = quality == 0 ? 1.5 : (quality == 1 ? 1.0 : 0.7);
+            double bpp = quality == 0 ? 0.05 : (quality == 1 ? 0.035 : 0.025);
+            double fps = mi.Fps > 1 && mi.Fps <= 120 ? mi.Fps : 25;
+            double cap = Math.Max(src * k, mi.Width * (double)mi.Height * fps * bpp);
+            long kb = (long)Math.Ceiling(cap / 1000);
+            return "-maxrate " + kb + "k -bufsize " + (kb * 2) + "k";
+        }
+
+        /// <summary>קצב התמונה במקור. מ-ffmpeg אם הוא מדווח (MP4), ואחרת מגודל הקובץ
+        /// פחות הקול (MKV ו-WEBM לא מדווחים קצב לכל ערוץ). ‏0 = לא ידוע.</summary>
+        internal static long SourceVideoBitrate(MediaInfo mi)
+        {
+            MediaStream v = mi.FirstVideo();
+            if (v == null) return 0;
+            if (v.BitRate > 0) return v.BitRate;
+            if (mi.SizeBytes <= 0 || mi.DurationSec < 1) return 0;
+            long total = (long)(mi.SizeBytes * 8.0 / mi.DurationSec);
+            long audio = 0;
+            foreach (MediaStream s in mi.Streams)
+                if (s.Type == "audio") audio += s.BitRate > 0 ? s.BitRate : 128000;
+            long r = total - audio;
+            return r > total / 4 ? r : 0;
+        }
+
         /// <summary>כותב קובץ ASS זמני בשם קצר באנגלית (מונע בעיות נתיב ב-ffmpeg).</summary>
         public static string WriteTempAss(List<Cue> cues, SubStyle st, int vw, int vh, long shiftMs, out string dir)
         {
@@ -383,6 +418,8 @@ namespace SubtitleStudio
                 if (ranged) sb.Append("-t ").Append(Tc.Ff(b - a)).Append(" ");
                 sb.Append("-vf \"subtitles=").Append(ass).Append("\" ");
                 sb.Append(video).Append(" ");
+                string cap = Burn.RateCap(_mi, _quality.SelectedIndex);
+                if (cap.Length > 0) sb.Append(cap).Append(" ");
                 sb.Append(Burn.AudioArgs(_mi, outPath, ranged)).Append(" ");
                 if (Path.GetExtension(outPath).ToLowerInvariant() == ".mp4") sb.Append("-movflags +faststart ");
                 sb.Append(Ff.Q(outPath));
