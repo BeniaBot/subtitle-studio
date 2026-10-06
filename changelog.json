@@ -2,6 +2,37 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.3",
+      "date": "2026-10-06",
+      "items": [
+        {
+          "t": "major",
+          "s": "תזמון מדויק אחרי תמלול: הכתוביות כבר לא זזות בשנייה כשיש מוזיקה ברקע, ומשפט ארוך מתפצל במקום שבו הוא נאמר",
+          "en": "Accurate timing after transcription: subtitles no longer shift by a second when there is background music, and a long sentence splits where it is said"
+        },
+        {
+          "t": "major",
+          "s": "תמלול דרך Groq: כתובית לכל משפט, בזמנים של המילים עצמן - גם באמצע ובסוף של סרט ארוך",
+          "en": "Transcription through Groq: a subtitle per sentence, timed by the words themselves - also in the middle and end of a long video"
+        },
+        {
+          "t": "feature",
+          "s": "מילה שהמודל לא היה בטוח בה מסומנת לבדיקה, עם ההסבר מה לא היה ברור (בתמלול דרך גוגל)",
+          "en": "A word the model wasn't sure of is marked for checking, with what was unclear (when transcribing through Google)"
+        },
+        {
+          "t": "feature",
+          "s": "מילה כמו ״אז,״ שנשארה בסוף כתובית עוברת למשפט שהיא פותחת, ושני משפטים קצרים - שורה לכל אחד",
+          "en": "A word like \"so,\" left at the end of a subtitle moves to the sentence it opens, and two short sentences get a line each"
+        },
+        {
+          "t": "feature",
+          "s": "תרגום: תארים לפי המשלב (״הוד מעלתך״ ולא ״אדוני״), שמות עקביים לאורך כל הסרט, ובלי ניקוד מיותר",
+          "en": "Translation: titles by register (\"Your Grace\" is not \"my lord\"), names consistent through the whole video, and no stray vowel marks"
+        }
+      ]
+    },
+    {
       "v": "0.8.2",
       "date": "2026-10-06",
       "items": [
