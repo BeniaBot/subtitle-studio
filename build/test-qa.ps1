@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 82 בדיקות.
+# צפוי: 84 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -331,6 +331,14 @@ Check 'פיצול לפי זמן הדיבור: ״and I shall״ מתחיל קרו�
 $d10 = NewDoc @(,@(0, 7500, 'Aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aa. Bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bb.'))
 [void]$mSplit.Invoke($null, (Pack $d10.Cues (GapsFn @(,@(3500, 4000)))))
 Check 'והפסקה ממש במקום הצפוי - הפיצול נופל בתוכה' ($d10.Cues.Count -eq 2 -and $d10.Cues[0].End -eq 3680 -and $d10.Cues[1].Start -eq 3880) ((@($d10.Cues) | ForEach-Object { '' + $_.Start + '-' + $_.End }) -join ' / ')
+# הסרטון האמיתי: ההפסקה היחידה שנמצאה היא 25.70-26.24, וההערכה 25.19 - בפיצול בפסיק היא נלקחת
+$dr = NewDoc @(,@(20400, 28500, $long))
+[void]$mSplit.Invoke($null, (Pack $dr.Cues (GapsFn @(,@(25700, 26240)))))
+Check 'פיצול בפסיק: ההפסקה הקרובה נלקחת גם כשההערכה רחוקה ממנה בחצי שנייה' ($dr.Cues.Count -eq 2 -and $dr.Cues[0].End -eq 25880 -and $dr.Cues[1].Start -eq 26120) ((@($dr.Cues) | ForEach-Object { '' + $_.Start + '-' + $_.End }) -join ' / ')
+# ״Our capacity is limited, so,״ - מילת פתיחה אחרי פסיק, לא אחרי נקודה
+$dc = NewDoc @(@(81410, 84200, 'Our capacity is limited, so,'), @(84400, 86600, 'who''s paying in advance?'))
+[void]$mTidy3.Invoke($null, (Pack $dc $true $false))
+Check 'מילת פתיחה אחרי פסיק (״limited, so,״) - גם עוברת' ($dc.Cues.Count -eq 1 -and ($dc.Cues[0].Text -replace "`r?`n", '|') -eq 'Our capacity is limited,|so, who''s paying in advance?') ((@($dc.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
 # מילה שהמודל לא היה בטוח בה (0.8.3)
 $du = NewDoc @(@(1000, 3000, 'Only house Anthropic!'), @(4000, 6000, 'שורה רגילה.'))
 $du.Cues[0].Doubt = 'Anthropic'

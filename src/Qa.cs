@@ -561,7 +561,9 @@ namespace SubtitleStudio
             return n;
         }
 
-        /// <summary>המקום שאחרי סוף המשפט האחרון שאינו בסוף הטקסט (אחרי המילה שסוגרת אותו), או ‎-1.</summary>
+        /// <summary>איפה מתחיל השבר שבסוף הטקסט, או ‎-1: אחרי סוף המשפט האחרון שאינו בסוף הטקסט;
+        /// או, כשהמילה האחרונה היא מילת פתיחה (״so,״ ״אז,״) ולפניה פסיק - לפניה. בסרטון האמיתי
+        /// המודל כתב ״Our capacity is limited, so,״ - עם פסיק, לא נקודה.</summary>
         private static int LastSentenceEnd(string t)
         {
             int end = -1, pos = 0;
@@ -572,7 +574,26 @@ namespace SubtitleStudio
                 if (words[w].Length > 0 && OpenAiStt.EndsSentence(words[w])) end = pos;
                 pos++;                                // הרווח
             }
+            if (end < 0 && words.Length >= 2 && IsLeadIn(words[words.Length - 1]))
+            {
+                string before = words[words.Length - 2];
+                if (before.Length > 0 && ",;:".IndexOf(before[before.Length - 1]) >= 0)
+                    end = t.Length - words[words.Length - 1].Length - 1;
+            }
             return end;
+        }
+
+        /// <summary>מילה שפותחת משפט או פסוקית ולא יכולה לסיים כתובית.</summary>
+        private static bool IsLeadIn(string word)
+        {
+            string w = (word ?? "").Trim().TrimEnd(',', '.', ';', ':').ToLowerInvariant();
+            switch (w)
+            {
+                case "so": case "but": case "and": case "or": case "then": case "because": case "well": case "now":
+                case "אז": case "אבל": case "או": case "כי": case "ולכן": case "לכן": case "ואז": case "אלא":
+                    return true;
+            }
+            return false;
         }
 
         private static bool EndsWithSentence(string t)
@@ -673,13 +694,24 @@ namespace SubtitleStudio
             long speech = c.Duration;
             foreach (AutoTime.Gap g in inside) speech -= g.Len;
             long expect = AutoTime.SpeechToClock((long)(Math.Max(0, speech) * frac), c.Start, inside);
+            // ההפסקה הקרובה ביותר. בפיצול בסימן פיסוק - שם דוברים באמת עוצרים - מותר לה להיות רחוקה
+            // עד עשירית מאורך הכתובית: ההערכה לפי האותיות סוטה בערך כך. בסרטון אמיתי: ההערכה 25.19,
+            // ההפסקה האמיתית 25.70-26.24 (״...GPUs,״ | ״and I shall״ ב-26.0) - וזו הייתה היחידה
+            char last = a.Length > 0 ? a[a.Length - 1] : ' ';
+            long tol = ".,;:?!\u2026".IndexOf(last) >= 0 ? Math.Max(300, c.Duration / 10) : 300;
+            AutoTime.Gap best = null;
+            long bestDist = long.MaxValue;
             foreach (AutoTime.Gap g in inside)
-                if (expect >= g.Start - 300 && expect <= g.End + 300)
-                {
-                    firstEnd = Math.Min(g.End, g.Start + AutoTime.TailMs);
-                    secondStart = Math.Max(firstEnd, g.End - AutoTime.LeadMs);
-                    return;
-                }
+            {
+                long d = expect < g.Start ? g.Start - expect : (expect > g.End ? expect - g.End : 0);
+                if (d <= tol && d < bestDist) { best = g; bestDist = d; }
+            }
+            if (best != null)
+            {
+                firstEnd = Math.Min(best.End, best.Start + AutoTime.TailMs);
+                secondStart = Math.Max(firstEnd, best.End - AutoTime.LeadMs);
+                return;
+            }
             firstEnd = secondStart = expect;
         }
 

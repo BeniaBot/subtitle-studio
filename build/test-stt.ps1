@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 100 בדיקות.
+# צפוי: 102 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -342,6 +342,11 @@ $c2 = $mk.Invoke($null, @([long]0, [long]1000, [string]'⟦Dots⟧ is a mere ⟦
 Check 'כמה מילים, וסימן יתום נמחק' (($c2.Text -eq 'Dots is a mere Grokbot clone') -and ($c2.Doubt -eq 'Dots|Grokbot')) ($c2.Text + ' / ' + $c2.Doubt)
 $c3 = $mk.Invoke($null, @([long]0, [long]1000, [string]'שורה רגילה'))
 Check 'בלי סימון - בלי כלום' (($c3.Text -eq 'שורה רגילה') -and ($c3.Doubt -eq '')) ''
+
+# ניקוד שהמודל הוסיף בתרגום יורד; מקף נשאר (0.8.3: ״גרוקבּוֹט״)
+$sn = (T 'Ai').GetMethod('StripNiqqud', $SF)
+Check 'ניקוד שנוסף בתרגום יורד' ($sn.Invoke($null, @([string]'גרוקבּוֹט')) -eq 'גרוקבוט') ''
+Check 'מקף עברי נשאר (הוא פיסוק, לא ניקוד)' ($sn.Invoke($null, @([string]'אינטליגנציית־על')) -eq 'אינטליגנציית־על') ''
 
 # ================= 5. בחירת הספק =================
 Write-Host 'בחירת הספק'

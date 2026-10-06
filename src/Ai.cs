@@ -1065,6 +1065,26 @@ namespace SubtitleStudio
             return Translate(lines, targetLang, context, null, out error);
         }
 
+        /// <summary>ניקוד וטעמים (בלי מקף, פסק וסוף פסוק, שהם פיסוק).</summary>
+        private static bool IsNiqqud(char ch)
+        {
+            return ch >= '\u0591' && ch <= '\u05C7' && ch != '\u05BE' && ch != '\u05C0' && ch != '\u05C3' && ch != '\u05C6';
+        }
+
+        internal static bool HasNiqqud(string s)
+        {
+            foreach (char ch in s ?? "") if (IsNiqqud(ch)) return true;
+            return false;
+        }
+
+        internal static string StripNiqqud(string s)
+        {
+            if (!HasNiqqud(s)) return s;
+            StringBuilder sb = new StringBuilder(s.Length);
+            foreach (char ch in s) if (!IsNiqqud(ch)) sb.Append(ch);
+            return sb.ToString();
+        }
+
         /// <summary>כך תורגמו השורות שלפני המנה - כדי שהשמות, התארים והמשלב יישארו אותו דבר.</summary>
         internal static string PreviousBlock(List<string[]> previous)
         {
@@ -1102,8 +1122,11 @@ namespace SubtitleStudio
                 "היעד, כולל צורות נסמך ומקפים.\n" +
                 // עד 0.8.3: ״Your Grace״ ו-״my lord״ יצאו שניהם ״אדוני״, ו-״I have heard. Bigly.״ יצא
                 // ״שמעתי בגדול.״ - בלי הנקודה, והבדיחה הלכה (נמצא על סרטון אמיתי)
-                "תארים וצורות פנייה - לפי המשלב שלהם במקור (פנייה למלך אינה פנייה לאדון), ואותו תואר באותה " +
-                "צורה בכל הפריטים. פריט שיש בו כמה משפטים - שמור על אותה חלוקה ועל הפיסוק שביניהם.\n" +
+                // ההוראה הכללית לבדה לא הספיקה - ״Your Grace״ שוב יצא ״אדוני״ (נבדק). דוגמה מפורשת כן
+                "תארים וצורות פנייה - לפי המשלב שלהם במקור, ואל תאחד תארים שונים למילה אחת (למשל ״Your Grace״ " +
+                "ו-״Your Majesty״ = ״הוד מעלתך״, ״my lord״ = ״אדוני״); אותו תואר - באותה צורה בכל הפריטים. " +
+                "פריט שיש בו כמה משפטים - שמור על אותה חלוקה ועל הפיסוק שביניהם. בלי ניקוד ובלי סימני הגייה, " +
+                "אלא אם הם במקור.\n" +
                 "אל תשמיט אף שם פרטי, גם אם הוא נראה שגוי. שמות של אנשים - בתעתיק המקובל בשפת היעד; " +
                 "שמות של חברות, מוצרים ומונחים טכניים - כפי שהם נכתבים בדרך כלל בשפת היעד, ואם אין כתיב " +
                 "מקובל - באותיות המקור. אותו שם - באותה צורה בכל הפריטים.\n" +
@@ -1141,7 +1164,12 @@ namespace SubtitleStudio
                     byIndex[idx] = Convert.ToString(tv);
                 }
                 for (int i = 0; i < byIndex.Length; i++)
-                    outp.Add(byIndex[i] != null ? byIndex[i] : lines[i]);
+                {
+                    string tr = byIndex[i] != null ? byIndex[i] : lines[i];
+                    // ההוראה ״בלי ניקוד״ לא הספיקה: ״גרוקבּוט״ חזר עם דגש (נבדק פעמיים)
+                    if (!HasNiqqud(lines[i])) tr = StripNiqqud(tr);
+                    outp.Add(tr);
+                }
                 return outp;
             }
             catch (Exception ex)

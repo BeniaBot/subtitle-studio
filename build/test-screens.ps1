@@ -163,6 +163,15 @@ $pm = $pmT.GetConstructors()[0].Invoke(@($ci, [int]300))
 $clip = @($pmT.GetMethod('Clipped', $IN).Invoke($pm, @()))
 Check 'תפריט הכתובית (קליק ימני): אף תיאור לא נחתך' ($clip.Count -eq 0) ($clip -join ' | ')
 $pm.Dispose()
+# תפריט הבעיות, עם כל סוג בעיה (כולל ״מילה לא בטוחה״ של 0.8.3) - אף תיאור לא נחתך
+$mdoc.Cues.Clear()
+foreach ($r in @(@(0, 3000, 'חופפת'), @(2500, 2700, 'קצרה ומהירה מאוד מאוד מאוד'), @(4000, 12000, ('ארוכה ' * 9)), @(13000, 15000, ('שורה ' * 12)), @(16000, 18000, "א`nב`nג"), @(19000, 21000, 'בית Opnic'))) { $mdoc.Cues.Add((NewOf 'Cue' @([int64]$r[0], [int64]$r[1], [string]$r[2]))) }
+$mdoc.Cues[5].Doubt = 'Opnic'
+$qi = (TY 'MainForm').GetMethod('QaMenuItems', $IN).Invoke($main, @())
+$pm = $pmT.GetConstructors()[0].Invoke(@($qi, [int]360))
+$clip = @($pmT.GetMethod('Clipped', $IN).Invoke($pm, @()))
+Check ('תפריט הבעיות (' + $qi.Count + ' פריטים): אף תיאור לא נחתך') (($clip.Count -eq 0) -and ($qi.Count -ge 9)) ($clip -join ' | ')
+$pm.Dispose()
 $main.Close(); $main.Dispose()
 
 Write-Host ""
