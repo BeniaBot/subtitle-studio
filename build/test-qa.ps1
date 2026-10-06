@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 92 בדיקות.
+# צפוי: 93 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -257,6 +257,14 @@ $doc.Cues[0].Doubt = 'Amonic'
 $call = [Activator]::CreateInstance((T 'AiCall')); $call.Name = 'edit_cue'; $call.Args['index'] = 1; $call.Args['text'] = 'אחת מתוקנת'
 [void](Call $f 'AiEditCue' (Pack $call))
 Check 'בצ׳אט edit_cue: התיקון מסיר את הסימון של מילה לא בטוחה' ($doc.Cues[0].Text -eq 'אחת מתוקנת' -and $doc.Cues[0].Doubt -eq '') ('doubt=' + $doc.Cues[0].Doubt)
+# הקלדה בשדה הזמן נכנסת לביטול (0.8.5). עד אז Ctrl+Z דילג עליה וביטל את מה שלפניה
+$doc.ClearHistory()
+foreach ($c in $doc.Cues) { $c.Selected = ($c.Start -eq 0) }
+[void](Call $f 'LoadEditor' @())
+(Fld $f '_startF').Text = '00:00.5'
+$typed = $doc.Cues[0].Start
+$doc.Undo()
+Check 'זמן שהוקלד בשדה - Ctrl+Z מחזיר אותו' ($typed -eq 500 -and $doc.Cues[0].Start -eq 0) ("typed=$typed after undo=" + $doc.Cues[0].Start)
 
 $f.Close(); $f.Dispose(); [Windows.Forms.Application]::DoEvents()
 

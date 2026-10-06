@@ -61,6 +61,8 @@ namespace SubtitleStudio
         private Cue _editing;
         private bool _loadingEditor;
         private bool _textDirty;
+        /// <summary>שדות הזמן נערכים: צעד ביטול אחד לכל עריכה, כמו בטקסט.</summary>
+        private bool _timesDirty;
 
         public MainForm()
         {
@@ -796,6 +798,7 @@ namespace SubtitleStudio
             _startF = new Field();
             _startF.Placeholder = "0:00.0";
             _startF.Box.TextChanged += delegate { CommitTimes(); };
+            _startF.Box.Leave += delegate { EndTimesEdit(); };
             Ui.Tip.SetToolTip(_startF.Box, Lang.T("הזמן שבו הכתובית מופיעה. אפשר גם לגרור את הבלוק על הציר."));
             _editCard.Controls.Add(_startF);
 
@@ -813,6 +816,7 @@ namespace SubtitleStudio
             _endF = new Field();
             _endF.Placeholder = "0:00.0";
             _endF.Box.TextChanged += delegate { CommitTimes(); };
+            _endF.Box.Leave += delegate { EndTimesEdit(); };
             Ui.Tip.SetToolTip(_endF.Box, Lang.T("הזמן שבו הכתובית נעלמת."));
             _editCard.Controls.Add(_endF);
 
@@ -1897,6 +1901,7 @@ namespace SubtitleStudio
             _editing = c;
             _loadingEditor = true;
             _textDirty = false;
+            _timesDirty = false;
             if (c == null)
             {
                 _text.Text = "";
@@ -1964,6 +1969,8 @@ namespace SubtitleStudio
             if (e <= s) e = s + 500;
             if (_editing.Start != s || _editing.End != e)
             {
+                // עד 0.8.5 הקלדה בשדה הזמן לא נכנסה לביטול: Ctrl+Z דילג עליה וביטל את מה שלפניה
+                if (!_timesDirty) { _doc.Push(Lang.T("כוונון תזמון")); _timesDirty = true; }
                 _editing.Start = s;
                 _editing.End = e;
                 _doc.Dirty = true;
@@ -1971,6 +1978,18 @@ namespace SubtitleStudio
                 _tl.Invalidate();
                 UpdateCps();
             }
+        }
+
+        /// <summary>יציאה משדה זמן: העריכה נגמרה. ממיינים - כתובית שהזמן שלה עבר את הבאה
+        /// הייתה נשארת במקום הלא נכון ברשימה.</summary>
+        private void EndTimesEdit()
+        {
+            if (!_timesDirty) return;
+            _timesDirty = false;
+            _doc.Sort();
+            _doc.RaiseChanged();
+            _list.Invalidate();
+            _tl.Invalidate();
         }
 
         // ---------- פעולות כתוביות ----------
