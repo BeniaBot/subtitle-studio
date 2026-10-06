@@ -2768,7 +2768,7 @@ namespace SubtitleStudio
             // ואז סידור לקריאה: שברים, ארוכות, השהיה אחרי הדיבור וזמן קריאה (Qa.Tidy)
             Doc fresh = new Doc();
             fresh.Cues.AddRange(res.Cues);
-            Qa.Tidy(fresh, true);
+            Qa.Tidy(fresh, true, true, GapsFn());
 
             _doc.Push(Lang.T("תמלול אוטומטי"));
             if (replace) _doc.Cues.Clear();
@@ -2924,6 +2924,15 @@ namespace SubtitleStudio
         /// <summary>כתוביות שקשה לקרוא, רגע לפני שהן נצרבות לתמיד בתמונה. עד 0.8.2 המסלול
         /// האוטומטי (תמלול, תרגום, צריבה) לא עבר אף פעם דרך בדיקת השגיאות, וסרטון אמיתי
         /// יצא עם כתובית של 0.38 שניות. ‏false = המשתמש ביטל.</summary>
+        /// <summary>השתיקות בטווח, מפס הקול של הסרט הפתוח (לסידור); null אם הוא עוד לא מוכן.</summary>
+        private Func<long, long, List<AutoTime.Gap>> GapsFn()
+        {
+            if (_wave == null || !_wave.Ready || _wave.Failed) return null;
+            byte[] ch = AutoTime.PickChannel(_wave.Rms, _wave.Peak, _wave.DurationMs);
+            if (ch == null) return null;
+            return delegate (long a, long b) { return AutoTime.LocalGaps(ch, a, b); };
+        }
+
         private bool OfferTidyBeforeBurn()
         {
             if (Silent) return true;
@@ -2941,7 +2950,7 @@ namespace SubtitleStudio
             if (r == 0)
             {
                 _doc.Push(Lang.T("סידור לפני צריבה"));
-                QaFixResult t = Qa.Tidy(_doc, true, false);
+                QaFixResult t = Qa.Tidy(_doc, true, false, GapsFn());
                 if (t.Total == 0) _doc.DropLastUndo();
                 else _doc.RaiseChanged();
                 SyncAfterDocChange();

@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 72 בדיקות.
+# צפוי: 78 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -298,7 +298,39 @@ $again = Tidy $d $true
 # שארית שצמודה מכל צד (״בגדול.״ 0.6 שניות): מתאחדת עם השכנה, באותה שורה
 $d4 = NewDoc @(@(69280, 70320, 'שמעתי.'), @(70400, 70650, 'בגדול.'), @(71070, 72530, 'תשכח מהחברות האלה, ג''נסן.'))
 [void]$mTidy3.Invoke($null, (Pack $d4 $true $false))
-Check 'שארית צמודה מתאחדת עם השכנה: ״שמעתי. בגדול.״' ($d4.Cues.Count -eq 2 -and $d4.Cues[0].Text -eq 'שמעתי. בגדול.' -and $d4.Cues[0].End -ge 70650) ((@($d4.Cues) | ForEach-Object { $_.Text + '@' + $_.Start + '-' + $_.End }) -join ' | ')
+Check 'שארית צמודה מתאחדת עם השכנה, משפט בכל שורה: ״שמעתי.״ מעל ״בגדול.״' ($d4.Cues.Count -eq 2 -and ($d4.Cues[0].Text -replace "`r?`n", '|') -eq 'שמעתי.|בגדול.' -and $d4.Cues[0].End -ge 70650) ((@($d4.Cues) | ForEach-Object { $_.Text + '@' + $_.Start + '-' + $_.End }) -join ' | ')
+# מילת פתיחה שנשארה בסוף כתובית (״הקיבולת שלנו מוגבלת, אז,״ בסרטון האמיתי): שייכת לבאה
+$d5 = NewDoc @(@(81410, 83540, 'Our capacity is limited. So,'), @(84460, 86210, 'who''s paying in advance?'))
+[void]$mTidy3.Invoke($null, (Pack $d5 $true $false))
+Check 'מילת פתיחה בסוף כתובית: מתאחדת עם הבאה, משפט בכל שורה' ($d5.Cues.Count -eq 1 -and ($d5.Cues[0].Text -replace "`r?`n", '|') -eq 'Our capacity is limited.|So, who''s paying in advance?') ((@($d5.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+$d6 = NewDoc @(@(1000, 4000, 'This sentence is long enough to fill most of a line. But,'), @(4500, 8000, 'the next one is also long and fills almost the whole line.'))
+[void]$mTidy3.Invoke($null, (Pack $d6 $true $false))
+Check 'וכשלא נכנס יחד - מילת הפתיחה עוברת לתחילת הבאה' ($d6.Cues.Count -eq 2 -and ($d6.Cues[0].Text -replace "`r?`n", ' ') -eq 'This sentence is long enough to fill most of a line.' -and ($d6.Cues[1].Text -replace "`r?`n", ' ').StartsWith('But, the next one')) ((@($d6.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+$d7 = NewDoc @(@(1000, 3000, 'We spoke with Mr. Smith,'), @(3200, 5000, 'and he agreed.'))
+[void]$mTidy3.Invoke($null, (Pack $d7 $true $false))
+Check '״Mr.״ הוא לא סוף משפט - שום דבר לא זז' ($d7.Cues.Count -eq 2 -and $d7.Cues[0].Text -eq 'We spoke with Mr. Smith,') ((@($d7.Cues) | ForEach-Object { $_.Text }) -join ' / ')
+# שארית קצרה בלי סוף משפט מתאחדת עם הבאה, לא עם הקודמת
+$mLeft = $qaT.GetMethod('MergeLeftovers', [Reflection.BindingFlags]'NonPublic,Static')
+$d8 = NewDoc @(@(81400, 82970, 'Our capacity is limited.'), @(83170, 83530, 'So,'), @(83600, 86000, 'who''s paying in advance?'))
+[void]$mLeft.Invoke($null, (Pack $d8.Cues))
+Check 'שבר קצר (״So,״) מתאחד עם מה שאחריו' ($d8.Cues.Count -eq 2 -and $d8.Cues[1].Text -eq 'So, who''s paying in advance?' -and $d8.Cues[1].Start -eq 83170) ((@($d8.Cues) | ForEach-Object { $_.Text + '@' + $_.Start }) -join ' / ')
+# פיצול לפי זמן הדיבור: הפסקה דרמטית לפני ״million״ לא מקדימה את ״and I shall״ (נאמר ב-26.0)
+$gapT = $asm.GetType('SubtitleStudio.AutoTime+Gap'); $gapListT = [Collections.Generic.List``1].MakeGenericType($gapT)
+$funcT = [Func``3].MakeGenericType([long], [long], $gapListT)
+function GapsFn($pairs) {
+    $l = [Activator]::CreateInstance($gapListT)
+    foreach ($p in $pairs) { $g = [Activator]::CreateInstance($gapT); $g.Start = [long]$p[0]; $g.End = [long]$p[1]; [void]$gapListT.GetMethod('Add').Invoke($l, (Pack $g)) }
+    $sb = { param([long]$a, [long]$b) return ,$l }.GetNewClosure()
+    return ($sb -as $funcT)
+}
+$mSplit = $qaT.GetMethod('SplitLong', [Reflection.BindingFlags]'NonPublic,Static', $null, [Type[]]@($d8.Cues.GetType(), $funcT), $null)
+$long = 'Your grace, House Open AI humbly requests a mere million GPUs, and I shall deliver it AGI this year.'
+$d9 = NewDoc @(,@(20440, 28320, $long))
+[void]$mSplit.Invoke($null, (Pack $d9.Cues (GapsFn @(,@(24000, 24800)))))
+Check 'פיצול לפי זמן הדיבור: ״and I shall״ מתחיל קרוב ל-26.0, לא בהפסקה של 24.0' ($d9.Cues.Count -eq 2 -and $d9.Cues[1].Text.StartsWith('and I shall') -and [Math]::Abs($d9.Cues[1].Start - 25729) -le 60) ((@($d9.Cues) | ForEach-Object { $_.Text.Substring(0, 12) + '@' + $_.Start + '-' + $_.End }) -join ' / ')
+$d10 = NewDoc @(,@(0, 7500, 'Aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa aa. Bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bb.'))
+[void]$mSplit.Invoke($null, (Pack $d10.Cues (GapsFn @(,@(3500, 4000)))))
+Check 'והפסקה ממש במקום הצפוי - הפיצול נופל בתוכה' ($d10.Cues.Count -eq 2 -and $d10.Cues[0].End -eq 3680 -and $d10.Cues[1].Start -eq 3880) ((@($d10.Cues) | ForEach-Object { '' + $_.Start + '-' + $_.End }) -join ' / ')
 Check 'סידור שני לא משנה כלום (יציב)' ($again.Merged -eq 0 -and $again.Split -eq 0 -and $again.Rewrapped -eq 0) ("merged=" + $again.Merged + " split=" + $again.Split)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)

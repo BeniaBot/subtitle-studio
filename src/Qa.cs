@@ -355,13 +355,21 @@ namespace SubtitleStudio
         /// הסוף שהמודל נתן - רק אחרי תמלול, אחרת היא ניתנת פעמיים.</summary>
         public static QaFixResult Tidy(Doc doc, bool restructure, bool hang)
         {
+            return Tidy(doc, restructure, hang, null);
+        }
+
+        /// <summary><paramref name="gapsIn"/>: השתיקות בטווח זמן (מפס הקול), או null. בעזרתן כתובית
+        /// ארוכה מתפצלת לפי זמן הדיבור, ובתוך הפסקה אם יש אחת במקום.</summary>
+        public static QaFixResult Tidy(Doc doc, bool restructure, bool hang, Func<long, long, List<AutoTime.Gap>> gapsIn)
+        {
             QaFixResult res = new QaFixResult();
             if (doc == null) return res;
             doc.Sort();
             if (restructure)
             {
                 res.Merged = MergeFragments(doc.Cues);
-                res.Split = SplitLong(doc.Cues);
+                res.Merged += MoveLeadIns(doc.Cues);
+                res.Split = SplitLong(doc.Cues, gapsIn);
                 doc.Sort();
             }
 
@@ -414,8 +422,11 @@ namespace SubtitleStudio
         }
 
         /// <summary>כתובית שנשארה קצרה מדי כי היא צמודה מכל צד (״בגדול.״ - 0.6 שניות בין
-        /// ״שמעתי.״ לכתובית הבאה) מתאחדת עם השכנה הצמודה, בשורה אחת: ״שמעתי. בגדול.״.
-        /// רק כשהשכנה במרחק של עד 300ms והכול נכנס בשורה.</summary>
+        /// ״שמעתי.״ לכתובית הבאה) מתאחדת עם השכנה הצמודה (עד 300ms).
+        ///
+        /// ‏**עם מי:** שבר בלי סוף משפט (״אז,״) פותח את מה שאחריו - קודם הבאה; משפט שלם - קודם
+        /// הקודמת. **איך:** שני משפטים שלמים - כל אחד בשורה משלו (״שמעתי.״ מעל ״בגדול.״). עד
+        /// 0.8.3 הם התאחדו בשורה אחת, והתרגום בלע את הנקודה: ״שמעתי בגדול.״ - והבדיחה הלכה.</summary>
         internal static int MergeLeftovers(List<Cue> cues)
         {
             int n = 0;
@@ -423,20 +434,99 @@ namespace SubtitleStudio
             {
                 Cue c = cues[i];
                 if (c.Untimed || c.Duration >= MinDurMs) continue;
-                int j = -1;
-                if (i > 0 && !cues[i - 1].Untimed && c.Start - cues[i - 1].End <= 300) j = i - 1;
-                else if (i + 1 < cues.Count && !cues[i + 1].Untimed && cues[i + 1].Start - c.End <= 300) j = i + 1;
-                if (j < 0) continue;
-                Cue a = cues[Math.Min(i, j)], b = cues[Math.Max(i, j)];
-                string joined = a.PlainText.Trim() + " " + b.PlainText.Trim();
-                if (joined.Length > MaxLineChars || b.End - a.Start > MaxDurMs) continue;
-                a.Text = joined;
-                a.End = b.End;
-                cues.Remove(b);
-                n++;
-                i = Math.Max(-1, Math.Min(i, j) - 1);
+                bool leadIn = !EndsWithSentence(Flat(c.PlainText));
+                int[] order = leadIn ? new int[] { i + 1, i - 1 } : new int[] { i - 1, i + 1 };
+                foreach (int j in order)
+                {
+                    if (j < 0 || j >= cues.Count || cues[j].Untimed) continue;
+                    Cue a = cues[Math.Min(i, j)], b = cues[Math.Max(i, j)];
+                    if (b.Start - a.End > 300 || b.End - a.Start > MaxDurMs) continue;
+                    string joined = JoinTwo(Flat(a.PlainText), Flat(b.PlainText));
+                    if (joined == null) continue;
+                    a.Text = joined;
+                    a.End = b.End;
+                    cues.Remove(b);
+                    n++;
+                    i = Math.Max(-1, Math.Min(i, j) - 1);
+                    break;
+                }
             }
             return n;
+        }
+
+        /// <summary>שני טקסטים בכתובית אחת: שני משפטים - שורה לכל אחד; אחרת שורה אחת. ‏null אם
+        /// לא נכנס.</summary>
+        private static string JoinTwo(string a, string b)
+        {
+            if (a.Length == 0 || b.Length == 0) return null;
+            if (EndsWithSentence(a) && a.Length <= MaxLineChars && b.Length <= MaxLineChars) return a + "\n" + b;
+            string one = a + " " + b;
+            return one.Length <= MaxLineChars ? one : null;
+        }
+
+        /// <summary>שבר שפותח משפט ונשאר בסוף כתובית, אחרי סוף המשפט שלה (״הקיבולת שלנו מוגבלת.
+        /// אז,״) - שייך לכתובית הבאה. אם שתיהן נכנסות יחד (שתי שורות, 7 שניות) הן מתאחדות, כל
+        /// משפט בשורה משלו; אחרת השבר עובר לתחילת הבאה. מילת פתיחה בסוף כתובית היא טעות קלאסית
+        /// בכתוביות: הקורא רואה ״אז,״ ואין אחריו כלום (נמצא על סרטון אמיתי, 0.8.3).</summary>
+        internal static int MoveLeadIns(List<Cue> cues)
+        {
+            int n = 0;
+            for (int i = 0; i + 1 < cues.Count; i++)
+            {
+                Cue c = cues[i], nx = cues[i + 1];
+                if (c.Untimed || nx.Untimed) continue;
+                string t = Flat(c.PlainText);
+                if (t.StartsWith("-") || t.StartsWith("–")) continue;          // דו-שיח
+                int k = LastSentenceEnd(t);
+                if (k < 0) continue;
+                string head = t.Substring(0, k).Trim(), tail = t.Substring(k).Trim();
+                if (head.Length == 0 || tail.Length == 0 || EndsWithSentence(tail)) continue;
+                int words = tail.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                if (words > 2 && tail.Length > 10) continue;
+                if (nx.Start - c.End > MergeGapMs) continue;
+                string rest = tail + " " + Flat(nx.PlainText);
+                if (head.Length <= MaxLineChars && rest.Length <= MaxLineChars && nx.End - c.Start <= MaxDurMs)
+                {
+                    c.Text = head + "\n" + rest;
+                    c.End = nx.End;
+                    cues.RemoveAt(i + 1);
+                }
+                else
+                {
+                    c.Text = head;
+                    nx.Text = rest;              // שורה ארוכה מדי תישבר בשלב השורות
+                }
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>המקום שאחרי סוף המשפט האחרון שאינו בסוף הטקסט (אחרי המילה שסוגרת אותו), או ‎-1.</summary>
+        private static int LastSentenceEnd(string t)
+        {
+            int end = -1, pos = 0;
+            string[] words = t.Split(' ');
+            for (int w = 0; w < words.Length - 1; w++)
+            {
+                pos += words[w].Length;
+                if (words[w].Length > 0 && OpenAiStt.EndsSentence(words[w])) end = pos;
+                pos++;                                // הרווח
+            }
+            return end;
+        }
+
+        private static bool EndsWithSentence(string t)
+        {
+            t = (t ?? "").Trim();
+            int sp = t.LastIndexOf(' ');
+            return t.Length > 0 && OpenAiStt.EndsSentence(sp >= 0 ? t.Substring(sp + 1) : t);
+        }
+
+        private static string Flat(string s)
+        {
+            string t = (s ?? "").Replace("\r\n", " ").Replace('\n', ' ').Trim();
+            while (t.Contains("  ")) t = t.Replace("  ", " ");
+            return t;
         }
 
         /// <summary>שבר קצר בלי סוף משפט (״אז,״ ״So,״), שהבאה מתחילה מיד אחריו - מתאחד איתה.</summary>
@@ -465,9 +555,19 @@ namespace SubtitleStudio
             return n;
         }
 
-        /// <summary>כתובית ארוכה מ-7 שניות, או שלא נכנסת בשתי שורות - מתפצלת במקום טבעי
-        /// (סוף משפט, פסיק, מילת חיבור), והזמן מתחלק לפי מספר התווים.</summary>
         internal static int SplitLong(List<Cue> cues)
+        {
+            return SplitLong(cues, null);
+        }
+
+        /// <summary>כתובית ארוכה מ-7 שניות, או שלא נכנסת בשתי שורות - מתפצלת במקום טבעי
+        /// (סוף משפט, פסיק, מילת חיבור).
+        ///
+        /// ‏**הזמן:** לפי **זמן הדיבור** - החלק הראשון הוא X מהאותיות, ולכן X מהדיבור, בדילוג על
+        /// השתיקות (<see cref="AutoTime.SpeechToClock"/>); ואם יש הפסקה ממש שם - בתוכה. עד 0.8.3
+        /// הזמן התחלק לפי מספר האותיות בזמן השעון, והפסקה דרמטית של הדובר הקדימה את כל השאר:
+        /// ״מבקש בענווה מיליון יחידות GPU״ נעלם לפני ש-״GPU״ נאמר. בלי פס קול - לפי האותיות.</summary>
+        internal static int SplitLong(List<Cue> cues, Func<long, long, List<AutoTime.Gap>> gapsIn)
         {
             int n = 0;
             for (int i = 0; i < cues.Count; i++)
@@ -481,15 +581,50 @@ namespace SubtitleStudio
                 if (cut <= 0) continue;
                 string a = t.Substring(0, cut).Trim(), b = t.Substring(cut).Trim();
                 if (a.Length == 0 || b.Length == 0) continue;
-                long mid = c.Start + (long)Math.Round(c.Duration * (double)a.Length / (a.Length + b.Length));
+                long firstEnd, secondStart;
+                SplitTime(c, a, b, gapsIn, out firstEnd, out secondStart);
                 Cue second = c.Clone();
-                c.Text = a; c.End = mid;
-                second.Text = b; second.Start = mid;
+                c.Text = a; c.End = firstEnd;
+                second.Text = b; second.Start = secondStart;
                 cues.Insert(i + 1, second);
                 n++;
                 i--;                    // אולי גם החלק הראשון עדיין ארוך מדי
             }
             return n;
+        }
+
+        private static void SplitTime(Cue c, string a, string b, Func<long, long, List<AutoTime.Gap>> gapsIn,
+                                      out long firstEnd, out long secondStart)
+        {
+            List<AutoTime.Gap> inside = new List<AutoTime.Gap>();
+            if (gapsIn != null)
+                foreach (AutoTime.Gap g in gapsIn(c.Start, c.End))
+                    if (g.Start > c.Start + 100 && g.End < c.End - 100) inside.Add(g);
+            int ca = Math.Max(1, NonSpace(a)), cb = Math.Max(1, NonSpace(b));
+            double frac = ca / (double)(ca + cb);
+            if (inside.Count == 0)
+            {
+                firstEnd = secondStart = c.Start + (long)Math.Round(c.Duration * frac);
+                return;
+            }
+            long speech = c.Duration;
+            foreach (AutoTime.Gap g in inside) speech -= g.Len;
+            long expect = AutoTime.SpeechToClock((long)(Math.Max(0, speech) * frac), c.Start, inside);
+            foreach (AutoTime.Gap g in inside)
+                if (expect >= g.Start - 300 && expect <= g.End + 300)
+                {
+                    firstEnd = Math.Min(g.End, g.Start + AutoTime.TailMs);
+                    secondStart = Math.Max(firstEnd, g.End - AutoTime.LeadMs);
+                    return;
+                }
+            firstEnd = secondStart = expect;
+        }
+
+        private static int NonSpace(string s)
+        {
+            int k = 0;
+            foreach (char ch in s) if (!char.IsWhiteSpace(ch)) k++;
+            return k;
         }
 
         /// <summary>איפה לחתוך: הקרוב לאמצע, עם עדיפות לסוף משפט, אחר כך פסיק, אחר כך
