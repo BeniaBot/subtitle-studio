@@ -1850,7 +1850,9 @@ namespace SubtitleStudio
             _listCard.Invalidate();
 
             bool empty = _mi == null && _doc.Cues.Count == 0;
-            if (_hero != null && _hero.Visible != empty)
+            // גם כשמסך הפתיחה כבר גלוי מההתחלה: עד 0.8.3 הכרטיסים של מסך העבודה נשארו ״גלויים״
+            // מתחתיו, בגודל זעיר - מכוסים על המסך, אבל Tab הגיע אליהם, והצילום הראה אותם בפינה
+            if (_hero != null && (_hero.Visible != empty || _listCard.Visible == empty))
             {
                 _hero.Visible = empty;
                 _listCard.Visible = !empty;
