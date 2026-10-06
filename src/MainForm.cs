@@ -2812,21 +2812,23 @@ namespace SubtitleStudio
             _hintLbl.Text = msg;
             _hintLbl.Invalidate();
 
-            if (res.UsedFallbackModel && !res.QuotaOut)
-                Ui.Info(this, Lang.T("חלק מהתמלול נעשה בדגם אחר של גוגל"),
-                    Lang.T("הדגם הרגיל היה עמוס, או שהמכסה היומית שלו נגמרה. בדגמים האחרים הזמנים פחות מדויקים, ולכן כדאי לעבור על התזמון. המכסה מתחדשת כל יום, ואפשר גם לתמלל דרך Groq."));
-
             // חלק מהסרט לא תומלל - זה חייב להיאמר, אחרת המשתמש חושב
-            // שהתמלול שלם ומגלה חור באמצע רק בהמשך
+            // שהתמלול שלם ומגלה חור באמצע רק בהמשך. **הודעה אחת**: עד 0.8.5 ההערה על דגם הגיבוי
+            // הופיעה בחלון משלה, ומיד אחריה עוד חלון. והמספר הוא אחרי הסידור, כמו בשורת המצב
+            string title = null, body = null;
             string upTo = res.StoppedAtMs >= 0
-                ? Lang.F("תומלל עד {0} ({1} כתוביות).", Theme.Ltr(Tc.Short(res.StoppedAtMs)), Theme.Ltr(res.Cues.Count.ToString()))
-                : Lang.F("תומלל רק חלק מהסרט - {0} כתוביות.", Theme.Ltr(res.Cues.Count.ToString()));
+                ? Lang.F("תומלל עד {0} ({1} כתוביות).", Theme.Ltr(Tc.Short(res.StoppedAtMs)), Theme.Ltr(fresh.Cues.Count.ToString()))
+                : Lang.F("תומלל רק חלק מהסרט - {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
             if (res.QuotaOut)
-                Ui.Info(this, Lang.F("המכסה של {0} נגמרה באמצע", provider.Name),
-                    upTo + Environment.NewLine + QuotaAdvice(provider));
+            {
+                title = Lang.F("המכסה של {0} נגמרה באמצע", provider.Name);
+                body = upTo + Environment.NewLine + QuotaAdvice(provider);
+            }
             else if (res.StoppedAtMs >= 0 && !res.Canceled)
-                Ui.Info(this, Lang.T("התמלול נעצר באמצע"),
-                    upTo + Environment.NewLine + (res.Error ?? Lang.T("שלושה קטעים ברצף נכשלו.")));
+            {
+                title = Lang.T("התמלול נעצר באמצע");
+                body = upTo + Environment.NewLine + (res.Error ?? Lang.T("שלושה קטעים ברצף נכשלו."));
+            }
             else if (res.Gaps.Count > 0)
             {
                 // אומרים **איפה** חסר, לא רק שמשהו נכשל. בלי זה המשתמש
@@ -2834,12 +2836,19 @@ namespace SubtitleStudio
                 string where = string.Join("  ·  ", res.Gaps.ToArray());
                 if (res.Gaps.Count > 4)
                     where = Lang.F("{0}  ועוד {1}", string.Join("  ·  ", res.Gaps.GetRange(0, 4).ToArray()), Theme.Ltr((res.Gaps.Count - 4).ToString()));
-                Ui.Info(this, res.Gaps.Count == 1 ? Lang.T("קטע אחד לא תומלל") : Lang.T("כמה קטעים לא תומללו"),
-                    // גם קטע שיש בו קול ולא חזר ממנו טקסט: אולי מוזיקה, אולי דיבור שהשירות
-                    // ״לא שמע״. הבודק שקט לא מבחין ביניהם, ולכן הניסוח לא מאשים אף אחד
-                    Lang.T("בקטעים האלה לא התקבל טקסט. אם יש בהם דיבור - כדאי להשלים ידנית:") + Environment.NewLine +
-                    Theme.Ltr(where));
+                title = res.Gaps.Count == 1 ? Lang.T("קטע אחד לא תומלל") : Lang.T("כמה קטעים לא תומללו");
+                // גם קטע שיש בו קול ולא חזר ממנו טקסט: אולי מוזיקה, אולי דיבור שהשירות
+                // ״לא שמע״. הבודק שקט לא מבחין ביניהם, ולכן הניסוח לא מאשים אף אחד
+                body = Lang.T("בקטעים האלה לא התקבל טקסט. אם יש בהם דיבור - כדאי להשלים ידנית:") + Environment.NewLine +
+                    Theme.Ltr(where);
             }
+            if (res.UsedFallbackModel && !res.QuotaOut)
+            {
+                string fb = Lang.T("הדגם הרגיל היה עמוס, או שהמכסה היומית שלו נגמרה. בדגמים האחרים הזמנים פחות מדויקים, ולכן כדאי לעבור על התזמון. המכסה מתחדשת כל יום, ואפשר גם לתמלל דרך Groq.");
+                if (title == null) { title = Lang.T("חלק מהתמלול נעשה בדגם אחר של גוגל"); body = fb; }
+                else body += Environment.NewLine + Environment.NewLine + fb;
+            }
+            if (title != null) Ui.Info(this, title, body);
         }
 
         /// <summary>מה עושים כשהמכסה נגמרה - לפי השירות, ועם הצעה לשירות השני.</summary>
