@@ -349,7 +349,10 @@ namespace SubtitleStudio
             Cue q = AiCueAt(idx);
             if (q == null) { r["error"] = Lang.F("אין כתובית מספר {0}", idx); return r; }
             _doc.Push(Lang.T("עריכה מהצ'אט"));
+            string was = q.Text;
             q.Text = c.Str("text", q.Text);
+            // כמו עריכה ביד: מי שתיקן את השורה (״זה לא Amonic, זה Anthropic״) - הקשיב לה
+            if (q.Text != was) q.Doubt = "";
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = Lang.F("כתובית {0} עודכנה", idx);
@@ -541,6 +544,9 @@ namespace SubtitleStudio
             }
             _doc.Push(Lang.T("תרגום מהצ'אט"));
             for (int i = 0; i < cues.Count && i < run.Translated.Count; i++) cues[i].Text = run.Translated[i];
+            // כמו התרגום מהתפריט (מ-0.8.2): שורות ארוכות וזמן קריאה בשפה החדשה. עד 0.8.5 תרגום
+            // דרך העוזר דילג על זה, ואותן כתוביות יצאו מהירות מדי לקריאה
+            Qa.Tidy(_doc, false);
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = Lang.F("הכתוביות תורגמו ל{0}", lang);

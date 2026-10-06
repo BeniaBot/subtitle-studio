@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 91 בדיקות.
+# צפוי: 92 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -252,6 +252,11 @@ $fp = Call $f 'AiFindProblems' @()
 Check 'בצ׳אט find_problems: כמה, מאיזה סוג, והסבר' ($fp['total'] -eq 1 -and $fp['by_kind']['Overlap'] -eq 1 -and ([string]$fp['first'][0]['explain']).Length -gt 10) ("total=" + $fp['total'])
 $ft = Call $f 'AiFixTimings' @()
 Check 'ו-fix_timings משתמש באותו תיקון' ($doc.CountOverlaps() -eq 0 -and ([string]$ft['done']).Contains('נפתרה')) ([string]$ft['done'])
+# תיקון מהצ׳אט מסיר את הסימון ״לא בטוח״, כמו עריכה ביד (0.8.5)
+$doc.Cues[0].Doubt = 'Amonic'
+$call = [Activator]::CreateInstance((T 'AiCall')); $call.Name = 'edit_cue'; $call.Args['index'] = 1; $call.Args['text'] = 'אחת מתוקנת'
+[void](Call $f 'AiEditCue' (Pack $call))
+Check 'בצ׳אט edit_cue: התיקון מסיר את הסימון של מילה לא בטוחה' ($doc.Cues[0].Text -eq 'אחת מתוקנת' -and $doc.Cues[0].Doubt -eq '') ('doubt=' + $doc.Cues[0].Doubt)
 
 $f.Close(); $f.Dispose(); [Windows.Forms.Application]::DoEvents()
 
