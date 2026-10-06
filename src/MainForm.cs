@@ -2391,6 +2391,8 @@ namespace SubtitleStudio
                 int half = lines.Length / 2;
                 a.Text = string.Join("\n", lines, 0, half);
                 b.Text = string.Join("\n", lines, half, lines.Length - half);
+                a.Doubt = Qa.DoubtIn(b.Doubt, a.Text, b.Text);
+                b.Doubt = Qa.DoubtIn(b.Doubt, b.Text, a.Text);
             }
             _doc.Cues.Add(b);
             _doc.Sort();
@@ -2408,19 +2410,8 @@ namespace SubtitleStudio
             }
             _doc.Push(Lang.T("איחוד"));
             sel.Sort(delegate (Cue a, Cue b) { return a.Start.CompareTo(b.Start); });
-            Cue first = sel[0];
-            StringBuilder sb = new StringBuilder(first.Text);
-            for (int i = 1; i < sel.Count; i++)
-            {
-                if (sel[i].PlainText.Length > 0)
-                {
-                    if (sb.Length > 0) sb.Append(' ');
-                    sb.Append(sel[i].PlainText);
-                }
-                if (sel[i].End > first.End) first.End = sel[i].End;
-                _doc.Cues.Remove(sel[i]);
-            }
-            first.Text = Formats.WrapText(sb.ToString(), 42);
+            Qa.MergeInto(sel);
+            for (int i = 1; i < sel.Count; i++) _doc.Cues.Remove(sel[i]);
             _doc.Sort();
             _doc.RaiseChanged();
             LoadEditor();

@@ -513,6 +513,31 @@ namespace SubtitleStudio
             return n;
         }
 
+        /// <summary>איחוד ביד (מהתפריט או מהעוזר) של כתוביות ממוינות לתוך הראשונה, שנשארת: כל הטקסט,
+        /// עד הסוף של האחרונה. **הסימונים של מילים לא בטוחות עוברים** - עד 0.8.5 הם אבדו כאן, והשאלה
+        /// שלפני הצריבה כבר לא ידעה עליהם. ושני דוברים שונים - שורה לכל אחד עם מקף, כמו בסידור.</summary>
+        internal static void MergeInto(List<Cue> sorted)
+        {
+            if (sorted == null || sorted.Count < 2) return;
+            Cue first = sorted[0];
+            string dialogue = sorted.Count == 2 && DifferentSpeakers(sorted[0], sorted[1]) && !IsDialogue(sorted[0]) && !IsDialogue(sorted[1])
+                ? JoinDialogue(Flat(sorted[0].PlainText), Flat(sorted[1].PlainText)) : null;
+            List<string> parts = new List<string>(), actors = new List<string>();
+            string doubt = "";
+            foreach (Cue c in sorted)
+            {
+                string t = Flat(c.PlainText);
+                if (t.Length > 0) parts.Add(t);
+                doubt = JoinDoubt(doubt, c.Doubt);
+                if (c.End > first.End) first.End = c.End;
+                foreach (string a in (c.Actor ?? "").Split('|'))
+                    if (a.Length > 0 && !actors.Contains(a)) actors.Add(a);
+            }
+            first.Text = dialogue ?? Formats.WrapText(string.Join(" ", parts.ToArray()), MaxLineChars);
+            first.Doubt = doubt;
+            first.Actor = string.Join("|", actors.ToArray());
+        }
+
         /// <summary>שני דוברים שונים (לפי Cue.Actor - מהתמלול, או מקובץ ASS). דובר לא ידוע - לא נחשב שונה.</summary>
         internal static bool DifferentSpeakers(Cue a, Cue b)
         {

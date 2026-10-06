@@ -778,6 +778,8 @@ namespace SubtitleStudio
                 int half = lines.Length / 2;
                 a.Text = string.Join("\n", lines, 0, half);
                 b.Text = string.Join("\n", lines, half, lines.Length - half);
+                a.Doubt = Qa.DoubtIn(b.Doubt, a.Text, b.Text);
+                b.Doubt = Qa.DoubtIn(b.Doubt, b.Text, a.Text);
             }
             _doc.Cues.Add(b);
             _doc.Sort();
@@ -795,20 +797,8 @@ namespace SubtitleStudio
             if (_doc == null || from < 1 || to <= from || to > _doc.Cues.Count)
             { r["error"] = Lang.T("טווח לא תקין"); return r; }
             _doc.Push(Lang.T("איחוד מהצ׳אט"));
-            Cue first = _doc.Cues[from - 1];
-            System.Text.StringBuilder sb = new System.Text.StringBuilder(first.PlainText);
-            for (int i = from; i < to; i++)
-            {
-                Cue q = _doc.Cues[i];
-                if (q.End > first.End) first.End = q.End;
-                if (q.PlainText.Length > 0)
-                {
-                    if (sb.Length > 0) sb.Append(' ');
-                    sb.Append(q.PlainText);
-                }
-            }
+            Qa.MergeInto(_doc.Cues.GetRange(from - 1, to - from + 1));
             _doc.Cues.RemoveRange(from, to - from);
-            first.Text = Formats.WrapText(sb.ToString(), 42);
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();

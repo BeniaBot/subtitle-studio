@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 89 בדיקות.
+# צפוי: 91 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -374,6 +374,16 @@ $ds = NewDoc @(,@(20440, 28320, $long))
 $ds.Cues[0].Doubt = 'deliver'
 [void]$mSplit.Invoke($null, (Pack $ds.Cues $null))
 Check 'כתובית שמתפצלת - הסימון עובר לחלק שבו המילה' ($ds.Cues.Count -eq 2 -and $ds.Cues[0].Doubt -eq '' -and $ds.Cues[1].Doubt -eq 'deliver') ($ds.Cues[0].Doubt + ' / ' + $ds.Cues[1].Doubt)
+# איחוד ביד, מהתפריט או מהעוזר (0.8.5): עד אז הסימון של הכתוביות שאוחדו אבד, ושני דוברים נדבקו לשורה אחת
+$mInto = $qaT.GetMethod('MergeInto', [Reflection.BindingFlags]'NonPublic,Static')
+$dj = NewDoc @(@(1000, 2000, 'Only house'), @(2100, 3500, 'Anthropic!'))
+$dj.Cues[1].Doubt = 'Anthropic'
+[void]$mInto.Invoke($null, (Pack $dj.Cues))
+Check 'איחוד ביד: כל הטקסט, עד הסוף של האחרונה, והסימון שלה' ($dj.Cues[0].Text -eq 'Only house Anthropic!' -and $dj.Cues[0].End -eq 3500 -and $dj.Cues[0].Doubt -eq 'Anthropic') ($dj.Cues[0].Text + ' | ' + $dj.Cues[0].Doubt)
+$dk = NewDoc @(@(1000, 2000, 'אדוני הנשיא,'), @(2100, 3500, 'האויבים שלנו מתקדמים.'))
+$dk.Cues[0].Actor = '1'; $dk.Cues[1].Actor = '2'
+[void]$mInto.Invoke($null, (Pack $dk.Cues))
+Check 'איחוד ביד של שני דוברים: שורה לכל אחד, עם מקף' (($dk.Cues[0].Text -replace "`r?`n", '|') -eq '- אדוני הנשיא,|- האויבים שלנו מתקדמים.' -and $dk.Cues[0].Actor -eq '1|2') (($dk.Cues[0].Text -replace "`r?`n", '|') + ' actor=' + $dk.Cues[0].Actor)
 Check 'סידור שני לא משנה כלום (יציב)' ($again.Merged -eq 0 -and $again.Split -eq 0 -and $again.Rewrapped -eq 0) ("merged=" + $again.Merged + " split=" + $again.Split)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
