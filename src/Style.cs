@@ -17,8 +17,10 @@ namespace SubtitleStudio
         public Color Outline = Color.Black;
         public Color Shadow = Color.FromArgb(160, 0, 0, 0);
         public Color BoxColor = Color.FromArgb(160, 0, 0, 0);
-        public double OutlineWidth = 2.2;     // ביחידות ASS (יחסי ל-PlayRes)
-        public double ShadowDepth = 0.9;
+        // ביחידות ASS לסרט של 1080 שורות. עד 0.8.2: ‏2.2 ו-0.9 - בסרט של 720 זה מתאר של
+        // פיקסל וחצי וצל שלא רואים, ולבן על רקע בהיר (חול, שמיים) כמעט נעלם
+        public double OutlineWidth = 3.0;
+        public double ShadowDepth = 2.0;
         public bool OpaqueBox = false;
         public int Alignment = 2;             // 1-9 כמו מקלדת ספרות
         public double MarginVPct = 5.0;
@@ -90,7 +92,9 @@ namespace SubtitleStudio
             if (Italic) fs |= FontStyle.Italic;
             // מטמן: הציור קורה 30 פעמים בשנייה כל עוד כתובית על המסך,
             // ואין שום סיבה לבנות גופן חדש בכל פריים.
-            Font font = CachedFont(FontName, fontPx, fs);
+            // ‏**הגודל ב-ASS הוא גובה התא (עולה + יורד), לא גובה ה-em** כמו ב-GDI+. עד 0.8.2
+            // התצוגה ציירה את Arial גדול ב-12% מהצריבה, והמשתמש בחר גודל לפי תמונה לא נכונה
+            Font font = CachedFont(FontName, fontPx * EmPerCell(FontName, fs), fs);
 
             // אותו תיקון bidi שנעשה בדרך לצריבה, אחרת התצוגה המקדימה
             // מראה דבר אחד והקובץ שייצא יראה אחר - וזה הגרוע משניהם.
@@ -109,9 +113,10 @@ namespace SubtitleStudio
             else if (vAlign == 1) top = video.Y + (video.Height - totalH) / 2f;
             else top = video.Y + marginV;
 
-            float outline = (float)(OutlineWidth * video.Height / 1080.0 * 2.2);
-            if (outline < 0.5f) outline = 0.5f;
-            float shadow = (float)(ShadowDepth * video.Height / 1080.0 * 2.2);
+            // באותו יחס כמו ToAssStyleLine (‏1080 = הערך כמו שהוא). עד 0.8.2 כאן היה עוד ‎×2.2,
+            // והתצוגה הראתה מתאר עבה פי שניים ממה שנצרב
+            float outline = (float)(OutlineWidth * video.Height / 1080.0);
+            float shadow = (float)(ShadowDepth * video.Height / 1080.0);
 
             StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
             sf.FormatFlags |= StringFormatFlags.NoWrap | StringFormatFlags.DirectionRightToLeft;
@@ -136,31 +141,29 @@ namespace SubtitleStudio
                     using (SolidBrush bb = new SolidBrush(BoxColor))
                         g.FillRectangle(bb, box.X - fontPx * 0.18f, box.Y, box.Width + fontPx * 0.36f, lineH);
                 }
-                else
-                {
-                    // צל
-                    if (shadow > 0.2f)
-                        using (SolidBrush sb2 = new SolidBrush(Shadow))
-                            g.DrawString(ln, font, sb2, new RectangleF(box.X + shadow, box.Y + shadow, box.Width, lineH + 4), sf);
-                    // מתאר - ציור חוזר במעגל
-                    if (outline > 0.3f)
-                    {
-                        using (SolidBrush ob = new SolidBrush(Outline))
-                        {
-                            int steps = outline > 3 ? 16 : 8;
-                            for (int k = 0; k < steps; k++)
-                            {
-                                double a = k * 2 * Math.PI / steps;
-                                float dx = (float)Math.Cos(a) * outline;
-                                float dy = (float)Math.Sin(a) * outline;
-                                g.DrawString(ln, font, ob, new RectangleF(box.X + dx, box.Y + dy, box.Width, lineH + 4), sf);
-                            }
-                        }
-                    }
-                }
 
-                using (SolidBrush pb = new SolidBrush(Primary))
-                    g.DrawString(ln, font, pb, new RectangleF(box.X, box.Y, box.Width, lineH + 4), sf);
+                // ‏**כמו libass: צורת האותיות, מתאר שהוא קו סביבה, וצל שהוא כל הצורה הזאת מוזזת.**
+                // עד 0.8.2 המתאר היה העתקים מוזזים במעגל, והצל היה רק האותיות - מתחת למתאר
+                // הוא לא נראה בכלל, בזמן שבצריבה הוא כן
+                using (GraphicsPath path = new GraphicsPath())
+                {
+                    path.AddString(ln, font.FontFamily, (int)font.Style, font.Size,
+                        new RectangleF(box.X, box.Y, box.Width, lineH + 4), sf);
+                    if (!OpaqueBox)
+                    {
+                        if (shadow > 0.2f)
+                        {
+                            using (Matrix m = new Matrix()) { m.Translate(shadow, shadow); path.Transform(m); }
+                            using (SolidBrush sb2 = new SolidBrush(Shadow)) g.FillPath(sb2, path);
+                            if (outline > 0.3f)
+                                using (Pen sp = new Pen(Shadow, outline * 2)) { sp.LineJoin = LineJoin.Round; g.DrawPath(sp, path); }
+                            using (Matrix m = new Matrix()) { m.Translate(-shadow, -shadow); path.Transform(m); }
+                        }
+                        if (outline > 0.3f)
+                            using (Pen op = new Pen(Outline, outline * 2)) { op.LineJoin = LineJoin.Round; g.DrawPath(op, path); }
+                    }
+                    using (SolidBrush pb = new SolidBrush(Primary)) g.FillPath(pb, path);
+                }
             }
 
             sf.Dispose();
@@ -170,6 +173,28 @@ namespace SubtitleStudio
 
         private static readonly System.Collections.Generic.Dictionary<string, Font> _fontCache =
             new System.Collections.Generic.Dictionary<string, Font>();
+        private static readonly System.Collections.Generic.Dictionary<string, float> _emPerCell =
+            new System.Collections.Generic.Dictionary<string, float>();
+
+        /// <summary>כמה em יש בגובה התא של הגופן. ‏Arial: ‏0.895.</summary>
+        private static float EmPerCell(string name, FontStyle style)
+        {
+            string key = name + "|" + (int)style;
+            float r;
+            lock (_emPerCell) { if (_emPerCell.TryGetValue(key, out r)) return r; }
+            r = 1f;
+            try
+            {
+                FontFamily ff = CachedFont(name, 20, style).FontFamily;
+                FontStyle s = ff.IsStyleAvailable(style) ? style : FontStyle.Regular;
+                int cell = ff.GetCellAscent(s) + ff.GetCellDescent(s);
+                if (cell > 0) r = ff.GetEmHeight(s) / (float)cell;
+                if (r < 0.5f || r > 1.2f) r = 1f;
+            }
+            catch { r = 1f; }
+            lock (_emPerCell) _emPerCell[key] = r;
+            return r;
+        }
 
         /// <summary>גופן מהמטמון. הוא חי כל חיי התהליך בכוונה - יש בו
         /// לכל היותר כמה עשרות ערכים, וזה זול מלבנות אחד לכל פריים.</summary>
