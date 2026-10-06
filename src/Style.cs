@@ -63,7 +63,12 @@ namespace SubtitleStudio
                 Math.Round(mh).ToString(CultureInfo.InvariantCulture),
                 Math.Round(mh).ToString(CultureInfo.InvariantCulture),
                 Math.Round(mv).ToString(CultureInfo.InvariantCulture),
-                "177"   // Hebrew charset
+                // ‏**‎-1, לא 177.** ב-libass רק ‎-1 מזהה את כיוון השורה לפי התו הראשון; כל ערך
+                // אחר כופה בסיס משמאל לימין. עברית נקייה לא נפגעה מזה, אבל שורה עם מילה
+                // באנגלית נצרבה בסדר הפוך: ״לורד אלטמן מבית Open AI.״ יצא עם ״Open AI.״
+                // בקצה הימני (נמצא על סרטון אמיתי, 0.8.2). העוגנים של Formats.RtlFix נשארים:
+                // הם קובעים את התו הראשון, ומכאן את הכיוון
+                "-1"
             };
             return "Style: " + string.Join(",", f);
         }

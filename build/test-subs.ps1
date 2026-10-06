@@ -3,7 +3,7 @@
 # תגיות עיצוב, ‏WebVTT עם הגדרות, ‏ASS מעוצב, ‏MicroDVD. בודק שהטקסט שחזר הוא
 # הטקסט שנכתב, בלי שאריות תגיות - ושהשמירה חזרה משמרת אותו.
 # **נולד מבאג** (24.9.2026): כל קידוד ישן נחשב עברית, ו״Déjà vu״ נפתח כ-״Dיjא vu״.
-# צפוי: 21 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
+# צפוי: 24 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -90,6 +90,42 @@ foreach ($fmt in 'Srt', 'Vtt', 'Ass') {
     $times = @($back.Cues | ForEach-Object { '{0}-{1}' -f $_.Start, $_.End }) -join ' '
     Rep ('roundtrip ' + $fmt) ($same -and $times -eq '1000-3000 4000-6500 7000-9000') $times
 }
+
+# ---- צריבה: סדר המילים בשורה עברית עם אנגלית (0.8.2) ----
+# עד 0.8.2 הסגנון נכתב עם Encoding=177, ו-libass כופה אז בסיס משמאל לימין: ״לורד אלטמן מבית
+# Open AI.״ נצרב עם ״Open AI.״ בקצה הימני (נמצא על סרטון אמיתי). צורבים את מה שהתוכנה מייצרת,
+# ומשווים לייחוס שנכון בכל מקרה: כל שורה עטופה ב-RLE...PDF. ובקרה: עם 177 הישן - חייב להיות שונה.
+[void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
+$ffx = [string](TY 'Ff').GetProperty('Exe', $ST).GetValue($null, $null)
+$cueT = TY 'Cue'
+$list = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($cueT))
+foreach ($ln in @('לורד אלטמן מבית Open AI.', 'הוא לא בונה AGI, הוא גונב לי פיצ''רים.', 'Open AI מבקש מיליון GPU, ואני אספק AGI השנה.')) {
+    $list.Add([Activator]::CreateInstance($cueT, @([int64]0, [int64]5000, [string]$ln)))
+}
+$appAss = [string](TY 'Formats').GetMethod('ToAss', $ST).Invoke($null, @($list, [Activator]::CreateInstance((TY 'SubStyle')), [int]1280, [int]720))
+$rle = [string][char]0x202B; $pdf = [string][char]0x202C
+$refAss = [regex]::Replace($appAss, '(?m)^(Style: .*),[^,\r\n]*(\r?)$', '$1,177$2')
+$refAss = [regex]::Replace($refAss, '(?m)^(Dialogue: (?:[^,]*,){9})(.*)$', { param($m) $m.Groups[1].Value + $rle + $m.Groups[2].Value.TrimEnd("`r") + $pdf })
+$oldAss = [regex]::Replace($appAss, '(?m)^(Style: .*),[^,\r\n]*(\r?)$', '$1,177$2')
+function BurnAss($name, $text) {
+    [IO.File]::WriteAllText((Join-Path $dir "$name.ass"), $text, (New-Object Text.UTF8Encoding $true))
+    Push-Location $dir
+    & $ffx -hide_banner -loglevel error -y -f lavfi -i 'color=c=0x404850:s=1280x720:d=1' -vf "subtitles=$name.ass" -frames:v 1 "$name.png"
+    Pop-Location
+    return (Join-Path $dir "$name.png")
+}
+function PixDiff($a, $b) {   # לא Diff: זה כינוי מובנה של Compare-Object, והוא גובר על פונקציה
+    $x = [Drawing.Bitmap]::FromFile($a); $y = [Drawing.Bitmap]::FromFile($b); $n = 0
+    for ($j = 0; $j -lt $x.Height; $j += 2) { for ($i = 0; $i -lt $x.Width; $i += 2) {
+        $p = $x.GetPixel($i, $j); $q = $y.GetPixel($i, $j)
+        if ([Math]::Abs($p.R - $q.R) + [Math]::Abs($p.G - $q.G) + [Math]::Abs($p.B - $q.B) -gt 90) { $n++ } } }
+    $x.Dispose(); $y.Dispose(); return $n
+}
+$pa = BurnAss 'bidi-app' $appAss; $pr = BurnAss 'bidi-ref' $refAss; $po = BurnAss 'bidi-old' $oldAss
+$dApp = PixDiff $pa $pr; $dOld = PixDiff $po $pr
+Rep 'burn: Hebrew+English word order' ($dApp -lt 40) ("differs from the reference in $dApp sampled pixels")
+Rep 'burn: the old style would fail here' ($dOld -gt 400) ("old Encoding=177 differs in $dOld")
+Rep 'burn: style asks libass to detect direction' ($appAss -match '(?m)^Style: .*,-1\r?$') ''
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }
