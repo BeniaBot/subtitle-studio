@@ -1051,6 +1051,8 @@ namespace SubtitleStudio
             {
                 _doc.Push(Lang.T("תרגום אוטומטי"));
                 for (int i = 0; i < cues.Count && i < run.Translated.Count; i++) cues[i].Text = run.Translated[i];
+                // הטקסט השתנה, וזמן הקריאה איתו: שורות ארוכות וכתוביות שמהירות מדי בשפה החדשה
+                Qa.Tidy(_doc, false);
                 _doc.Dirty = true;
                 _doc.RaiseChanged();
                 LoadEditor();
@@ -1070,6 +1072,10 @@ namespace SubtitleStudio
                     if (i < run.Translated.Count) c.Text = run.Translated[i];
                     copy.Add(c);
                 }
+                Doc tidy = new Doc();
+                tidy.Cues.AddRange(copy);
+                Qa.Tidy(tidy, false);
+                copy = tidy.Cues;
                 SaveFileDialog sd = new SaveFileDialog();
                 sd.Filter = "SubRip (*.srt)|*.srt|WebVTT (*.vtt)|*.vtt|ASS (*.ass)|*.ass";
                 try
@@ -2745,23 +2751,28 @@ namespace SubtitleStudio
                 return;
             }
 
-            _doc.Push(Lang.T("תמלול אוטומטי"));
-            if (replace) _doc.Cues.Clear();
-            _doc.Cues.AddRange(res.Cues);
-            _doc.Sort();
-
             // המודל נוטה לסגור כתובית מוקדם מדי. פס הקול כבר בנוי אצלנו,
-            // אז מהדקים לגבולות דיבור אמיתיים בלי עוד בקשת רשת.
+            // אז מהדקים לגבולות דיבור אמיתיים בלי עוד בקשת רשת. ‏**רק החדשות** -
+            // עד 0.8.2 גם כתוביות קיימות שהמשתמש תזמן ביד הוזזו, כשהתמלול נוסף אליהן.
             int snapped = 0;
             if (_wave != null && _wave.Ready && !_wave.Failed)
-                snapped = Transcribe.SnapToSpeech(_doc.Cues, _wave);
+                snapped = Transcribe.SnapToSpeech(res.Cues, _wave);
 
+            // ואז סידור לקריאה: שברים, ארוכות, השהיה אחרי הדיבור וזמן קריאה (Qa.Tidy)
+            Doc fresh = new Doc();
+            fresh.Cues.AddRange(res.Cues);
+            Qa.Tidy(fresh, true);
+
+            _doc.Push(Lang.T("תמלול אוטומטי"));
+            if (replace) _doc.Cues.Clear();
+            _doc.Cues.AddRange(fresh.Cues);
+            _doc.Sort();
             _doc.FixOverlaps(80);
             _doc.Dirty = true;
             _doc.RaiseChanged();
             SyncAfterDocChange();
 
-            string msg = Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(res.Cues.Count.ToString()));
+            string msg = Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
             if (res.Canceled) msg = Lang.F("נעצר. {0}", msg);
             msg += Lang.T("  כדאי לעבור ולתקן.  לביטול - Ctrl+Z.");
             _hintLbl.Text = msg;
@@ -2902,10 +2913,43 @@ namespace SubtitleStudio
         }
 
         // ---------- פעולות גדולות ----------
+
+        /// <summary>כתוביות שקשה לקרוא, רגע לפני שהן נצרבות לתמיד בתמונה. עד 0.8.2 המסלול
+        /// האוטומטי (תמלול, תרגום, צריבה) לא עבר אף פעם דרך בדיקת השגיאות, וסרטון אמיתי
+        /// יצא עם כתובית של 0.38 שניות. ‏false = המשתמש ביטל.</summary>
+        private bool OfferTidyBeforeBurn()
+        {
+            if (Silent) return true;
+            HashSet<int> hard = new HashSet<int>();
+            foreach (Issue x in Qa.Find(_doc))
+                if (x.Kind == IssueKind.TooFast || x.Kind == IssueKind.TooShort ||
+                    x.Kind == IssueKind.Overlap || x.Kind == IssueKind.LongLine) hard.Add(x.Index);
+            if (hard.Count == 0) return true;
+            string body = hard.Count == 1
+                ? Lang.T("כתובית אחת קשה לקריאה: מהירה מדי, קצרה מדי או רחבה מדי למסך. אחרי הצריבה כבר אי אפשר לתקן אותה.")
+                : Lang.F("{0} כתוביות קשות לקריאה: מהירות מדי, קצרות מדי או רחבות מדי למסך. אחרי הצריבה כבר אי אפשר לתקן אותן.", Theme.Ltr(hard.Count.ToString(CultureInfo.InvariantCulture)));
+            int r = Ui.Msg(this, Lang.T("לסדר לפני הצריבה?"), body + Environment.NewLine + Lang.T("הסידור מאריך ומפצל לפי הצורך, ואפשר לבטל אותו ב-Ctrl+Z."),
+                Ico.Question, Lang.T("לסדר ולהמשיך"), Lang.T("להמשיך בלי לסדר"), Lang.T("ביטול"));
+            if (r == 2 || r < 0) return false;
+            if (r == 0)
+            {
+                _doc.Push(Lang.T("סידור לפני צריבה"));
+                QaFixResult t = Qa.Tidy(_doc, true, false);
+                if (t.Total == 0) _doc.DropLastUndo();
+                else _doc.RaiseChanged();
+                SyncAfterDocChange();
+                RefreshQa(true);
+                _hintLbl.Text = Qa.Summary(t);
+                _hintLbl.Invalidate();
+            }
+            return true;
+        }
+
         private void ExportVideo()
         {
             if (_mi == null) { Ui.Info(this, Lang.T("אין סרט פתוח"), Lang.T("פתחו קודם קובץ וידאו.")); return; }
             if (_doc.Cues.Count == 0) { Ui.Info(this, Lang.T("אין כתוביות"), Lang.T("צריך לפחות כתובית אחת כדי להטמיע.")); return; }
+            if (!OfferTidyBeforeBurn()) return;
             ExportVideoDlg d = new ExportVideoDlg(this, _doc, _mi, _style, _tl.InPoint, _tl.OutPoint);
             d.ShowDialog(this);
             d.Dispose();

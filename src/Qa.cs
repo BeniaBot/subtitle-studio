@@ -39,7 +39,9 @@ namespace SubtitleStudio
     internal class QaFixResult
     {
         public int Overlaps, Extended, Shortened, Rewrapped, Removed, Cleaned;
-        public int Total { get { return Overlaps + Extended + Shortened + Rewrapped + Removed; } }
+        /// <summary>‏Tidy בלבד: שברים שאוחדו עם הבאה, וכתוביות ארוכות שפוצלו.</summary>
+        public int Merged, Split;
+        public int Total { get { return Overlaps + Extended + Shortened + Rewrapped + Removed + Merged + Split; } }
         /// <summary>מה שנשאר אחרי התיקון ולא ניתן לתקן אוטומטית.</summary>
         public List<Issue> Left = new List<Issue>();
     }
@@ -319,6 +321,208 @@ namespace SubtitleStudio
             return res;
         }
 
+        // ---------- סידור אחרי מכונה ----------
+
+        /// <summary>קצב היעד בסידור: נמוך מסף הבעיה (20), כדי שיהיה נוח ולא רק ״לא בעיה״.</summary>
+        public const double TidyCps = 15;
+        /// <summary>כמה הכתובית נשארת אחרי הסוף שהמודל נתן, כשיש מקום.</summary>
+        public const long HangMs = 600;
+        /// <summary>כמה מותר להקדים התחלה, כשאין מקום להאריך את הסוף.</summary>
+        public const long EarlyMs = 500;
+        /// <summary>שבר שמתאחד עם הבאה: עד הרווח הזה.</summary>
+        public const long MergeGapMs = 1200;
+
+        /// <summary>סידור אוטומטי לכתוביות שנוצרו במכונה: אחרי תמלול
+        /// (<paramref name="fromTranscript"/>), ואחרי תרגום - כי הטקסט השתנה.
+        ///
+        /// **למה לא FixAll:** הוא מקצר כל כתובית שארוכה מ-7 שניות, וזה חותך משפט שעוד
+        /// נאמר; הוא לא מאחד שבר כמו ״אז,״ עם ההמשך שלו; והוא לא נוגע בהתחלה. נמצא על
+        /// סרטון אמיתי (0.8.2): 12 מתוך 29 כתוביות מהירות מדי, ״דוטס הוא רק שיבוט של
+        /// ברוקבוט״ על המסך 0.38 שניות מתוך 1.9 שבהן נאמר, ״אז,״ לבד, ומשפט של 8.8
+        /// שניות בשורה אחת לרוחב כל התמונה.
+        ///
+        /// הסדר: איחוד שברים ופיצול ארוכות (רק אחרי תמלול), שבירת שורות, חפיפות,
+        /// השהיה קצרה אחרי הדיבור (רק אחרי תמלול - בתרגום היא כבר שם), ואז זמן קריאה:
+        /// קודם מאריכים את הסוף לתוך המקום הפנוי, ורק אם לא הספיק - מקדימים מעט את
+        /// ההתחלה.</summary>
+        public static QaFixResult Tidy(Doc doc, bool fromTranscript)
+        {
+            return Tidy(doc, fromTranscript, fromTranscript);
+        }
+
+        /// <summary><paramref name="restructure"/>: איחוד שברים, פיצול ארוכות, ואיחוד של
+        /// כתובית שנשארה קצרה מדי עם השכנה שצמודה אליה. <paramref name="hang"/>: השהיה אחרי
+        /// הסוף שהמודל נתן - רק אחרי תמלול, אחרת היא ניתנת פעמיים.</summary>
+        public static QaFixResult Tidy(Doc doc, bool restructure, bool hang)
+        {
+            QaFixResult res = new QaFixResult();
+            if (doc == null) return res;
+            doc.Sort();
+            if (restructure)
+            {
+                res.Merged = MergeFragments(doc.Cues);
+                res.Split = SplitLong(doc.Cues);
+                doc.Sort();
+            }
+
+            // שורות: כמו ב-FixAll - רק כשיש שורה ארוכה, רק אם נכנס בשתיים, לא בדו-שיח
+            foreach (Cue c in doc.Cues)
+            {
+                List<string> lines = Lines(c.Text);
+                bool tooWide = false, dialog = false;
+                foreach (string l in lines)
+                {
+                    if (l.Length > MaxLineChars) tooWide = true;
+                    if (l.StartsWith("-") || l.StartsWith("–")) dialog = true;
+                }
+                if (!tooWide || dialog) continue;
+                string flat = c.PlainText;
+                while (flat.Contains("  ")) flat = flat.Replace("  ", " ");
+                if (flat.Length > MaxLineChars * MaxLines) continue;
+                string w = Formats.WrapText(flat, MaxLineChars);
+                bool fits = Lines(w).Count <= MaxLines;
+                foreach (string l in Lines(w)) if (l.Length > MaxLineChars) fits = false;
+                if (fits && w != c.Text) { c.Text = w; res.Rewrapped++; }
+            }
+
+            res.Overlaps = doc.CountOverlaps();
+            doc.FixOverlaps(GapMs);
+
+            List<Cue> cues = doc.Cues;
+            for (int i = 0; i < cues.Count; i++)
+            {
+                Cue c = cues[i];
+                if (c.Untimed) continue;
+                long next = i + 1 < cues.Count && !cues[i + 1].Untimed ? cues[i + 1].Start - GapMs : long.MaxValue;
+                long prev = i > 0 && !cues[i - 1].Untimed ? cues[i - 1].End + GapMs : 0;
+                long need = Math.Max(FixMinDurMs, (long)Math.Ceiling(c.CharCount / TidyCps * 1000.0));
+                need = Math.Min(need, MaxDurMs);
+                long want = Math.Max(hang ? c.End + HangMs : c.End, c.Start + need);
+                long end = Math.Min(want, next);
+                bool moved = false;
+                if (end > c.End) { c.End = end; moved = true; }
+                if (c.End - c.Start < need)
+                {
+                    long start = Math.Max(prev, c.Start - Math.Min(EarlyMs, need - (c.End - c.Start)));
+                    if (start < c.Start) { c.Start = Math.Max(0, start); moved = true; }
+                }
+                if (moved) res.Extended++;
+            }
+            if (restructure) res.Merged += MergeLeftovers(cues);
+            res.Left = Find(doc);
+            return res;
+        }
+
+        /// <summary>כתובית שנשארה קצרה מדי כי היא צמודה מכל צד (״בגדול.״ - 0.6 שניות בין
+        /// ״שמעתי.״ לכתובית הבאה) מתאחדת עם השכנה הצמודה, בשורה אחת: ״שמעתי. בגדול.״.
+        /// רק כשהשכנה במרחק של עד 300ms והכול נכנס בשורה.</summary>
+        internal static int MergeLeftovers(List<Cue> cues)
+        {
+            int n = 0;
+            for (int i = 0; i < cues.Count; i++)
+            {
+                Cue c = cues[i];
+                if (c.Untimed || c.Duration >= MinDurMs) continue;
+                int j = -1;
+                if (i > 0 && !cues[i - 1].Untimed && c.Start - cues[i - 1].End <= 300) j = i - 1;
+                else if (i + 1 < cues.Count && !cues[i + 1].Untimed && cues[i + 1].Start - c.End <= 300) j = i + 1;
+                if (j < 0) continue;
+                Cue a = cues[Math.Min(i, j)], b = cues[Math.Max(i, j)];
+                string joined = a.PlainText.Trim() + " " + b.PlainText.Trim();
+                if (joined.Length > MaxLineChars || b.End - a.Start > MaxDurMs) continue;
+                a.Text = joined;
+                a.End = b.End;
+                cues.Remove(b);
+                n++;
+                i = Math.Max(-1, Math.Min(i, j) - 1);
+            }
+            return n;
+        }
+
+        /// <summary>שבר קצר בלי סוף משפט (״אז,״ ״So,״), שהבאה מתחילה מיד אחריו - מתאחד איתה.</summary>
+        internal static int MergeFragments(List<Cue> cues)
+        {
+            int n = 0;
+            for (int i = 0; i + 1 < cues.Count; i++)
+            {
+                Cue c = cues[i], nx = cues[i + 1];
+                if (c.Untimed || nx.Untimed) continue;
+                string t = c.PlainText.Trim();
+                if (t.Length == 0) continue;
+                char last = t[t.Length - 1];
+                if (".?!…״\")".IndexOf(last) >= 0) continue;
+                int words = t.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                if (words > 2 && t.Length > 8) continue;
+                if (nx.Start - c.End > MergeGapMs) continue;
+                string joined = t + " " + nx.PlainText.Trim();
+                if (joined.Length > MaxLineChars * MaxLines || nx.End - c.Start > MaxDurMs) continue;
+                nx.Text = joined;
+                nx.Start = c.Start;
+                cues.RemoveAt(i);
+                i--;
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>כתובית ארוכה מ-7 שניות, או שלא נכנסת בשתי שורות - מתפצלת במקום טבעי
+        /// (סוף משפט, פסיק, מילת חיבור), והזמן מתחלק לפי מספר התווים.</summary>
+        internal static int SplitLong(List<Cue> cues)
+        {
+            int n = 0;
+            for (int i = 0; i < cues.Count; i++)
+            {
+                Cue c = cues[i];
+                if (c.Untimed) continue;
+                string t = c.PlainText.Trim();
+                while (t.Contains("  ")) t = t.Replace("  ", " ");
+                if (c.Duration <= MaxDurMs && t.Length <= MaxLineChars * MaxLines) continue;
+                int cut = SplitPoint(t);
+                if (cut <= 0) continue;
+                string a = t.Substring(0, cut).Trim(), b = t.Substring(cut).Trim();
+                if (a.Length == 0 || b.Length == 0) continue;
+                long mid = c.Start + (long)Math.Round(c.Duration * (double)a.Length / (a.Length + b.Length));
+                Cue second = c.Clone();
+                c.Text = a; c.End = mid;
+                second.Text = b; second.Start = mid;
+                cues.Insert(i + 1, second);
+                n++;
+                i--;                    // אולי גם החלק הראשון עדיין ארוך מדי
+            }
+            return n;
+        }
+
+        /// <summary>איפה לחתוך: הקרוב לאמצע, עם עדיפות לסוף משפט, אחר כך פסיק, אחר כך
+        /// מילת חיבור, ובלית ברירה רווח. ‏-1 אם אין מקום סביר.</summary>
+        internal static int SplitPoint(string t)
+        {
+            int mid = t.Length / 2, best = -1;
+            double bestScore = double.MaxValue;
+            for (int i = 1; i < t.Length - 1; i++)
+            {
+                if (t[i] != ' ') continue;
+                char p = t[i - 1];
+                double penalty;
+                if (".?!…".IndexOf(p) >= 0) penalty = 0;
+                else if (",;:".IndexOf(p) >= 0) penalty = 0.10;
+                else if (StartsConjunction(t, i + 1)) penalty = 0.15;
+                else penalty = 0.30;
+                double score = Math.Abs(i - mid) / (double)t.Length + penalty;
+                // לא משאירים חלק קטנטן
+                if (i < 8 || t.Length - i < 8) continue;
+                if (score < bestScore) { bestScore = score; best = i; }
+            }
+            return best;
+        }
+
+        private static bool StartsConjunction(string t, int at)
+        {
+            foreach (string w in new string[] { "and ", "but ", "or ", "so ", "because ", "אבל ", "או ", "כי ", "אז " })
+                if (string.Compare(t, at, w, 0, w.Length, StringComparison.OrdinalIgnoreCase) == 0) return true;
+            // ״ו״ החיבור בעברית צמודה למילה
+            return at < t.Length && t[at] == 'ו';
+        }
+
         private static List<string> CleanLines(string text)
         {
             List<string> r = new List<string>();
@@ -340,6 +544,8 @@ namespace SubtitleStudio
             if (r.Shortened > 0) done.Add(Count(r.Shortened, Lang.T("כתובית אחת קוצרה"), Lang.T("כתוביות קוצרו")));
             if (r.Rewrapped > 0) done.Add(Count(r.Rewrapped, Lang.T("כתובית אחת סודרה בשתי שורות"), Lang.T("כתוביות סודרו בשתי שורות")));
             if (r.Removed > 0) done.Add(Count(r.Removed, Lang.T("כתובית ריקה אחת נמחקה"), Lang.T("כתוביות ריקות נמחקו")));
+            if (r.Merged > 0) done.Add(Count(r.Merged, Lang.T("שבר אחד אוחד עם ההמשך שלו"), Lang.T("שברים אוחדו עם ההמשך שלהם")));
+            if (r.Split > 0) done.Add(Count(r.Split, Lang.T("כתובית ארוכה אחת פוצלה"), Lang.T("כתוביות ארוכות פוצלו")));
             string s = done.Count == 0 ? Lang.T("לא היה מה לתקן אוטומטית.") : string.Join("  ·  ", done.ToArray()) + ".";
             if (r.Left.Count > 0)
                 s += Lang.F(" {0} שצריך לתקן ביד.", (r.Left.Count == 1 ? Lang.T("נשארה בעיה אחת") : Lang.F("נשארו {0} בעיות", Theme.Ltr(r.Left.Count.ToString(CultureInfo.InvariantCulture)))));

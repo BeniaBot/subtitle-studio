@@ -1107,6 +1107,13 @@ namespace SubtitleStudio
             "לאתר את הסרט", "Find the video",
             "להמשיך בלי הסרט", "Go on without the video",
             "איפה הסרט?", "Where is the video?",
+            "כתובית אחת קשה לקריאה: מהירה מדי, קצרה מדי או רחבה מדי למסך. אחרי הצריבה כבר אי אפשר לתקן אותה.", "One subtitle is hard to read: too fast, too short or too wide for the screen. Once burned, it can't be fixed.",
+            "{0} כתוביות קשות לקריאה: מהירות מדי, קצרות מדי או רחבות מדי למסך. אחרי הצריבה כבר אי אפשר לתקן אותן.", "{0} subtitles are hard to read: too fast, too short or too wide for the screen. Once burned, they can't be fixed.",
+            "לסדר לפני הצריבה?", "Tidy them before burning?",
+            "הסידור מאריך ומפצל לפי הצורך, ואפשר לבטל אותו ב-Ctrl+Z.", "Tidying lengthens and splits where needed, and Ctrl+Z undoes it.",
+            "לסדר ולהמשיך", "Tidy and continue",
+            "להמשיך בלי לסדר", "Continue as is",
+            "סידור לפני צריבה", "Tidy before burning",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1164,6 +1171,10 @@ namespace SubtitleStudio
             "נשארה בעיה אחת", "One problem left",
             "נשארו {0} בעיות", "{0} problems left",
             "{0}  לביטול - Ctrl+Z.", "{0}  To undo - Ctrl+Z.",
+            "שבר אחד אוחד עם ההמשך שלו", "One fragment joined to what follows it",
+            "שברים אוחדו עם ההמשך שלהם", "fragments joined to what follows them",
+            "כתובית ארוכה אחת פוצלה", "One long subtitle split",
+            "כתוביות ארוכות פוצלו", "long subtitles split",
             "לא הצלחתי להכין את מנוע הווידאו:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.", "Couldn't set up the video engine:\n\n{0}\n\nFolder: {1}\n\nYou can also just put an ffmpeg.exe file next to the program.",
             "אין מה למחוק - המנוע לא נפרס.", "Nothing to delete - the engine wasn't set up.",
             "המנוע נמחק מ:\n{0}\nהוא ייפרס מחדש בהפעלה הבאה.", "The engine was deleted from:\n{0}\nIt will be set up again at the next start.",
@@ -1202,6 +1213,8 @@ namespace SubtitleStudio
             "אפשר גם לגרור כאן", "You can also drag it here",
             "כניסה", "In",
             "יציאה", "Out",
+        };
+        private static readonly string[] P4 = new string[] {
             "מנוע הווידאו לא זמין.", "The video engine isn't available.",
             "לא הצלחתי לקרוא את אורך הקובץ.", "Couldn't read the length of the file.",
             "מתמלל {0} מתוך {1}", "Transcribing {0} of {1}",
@@ -1213,8 +1226,6 @@ namespace SubtitleStudio
             "תשובה לא מובנת מהמאגר: {0}", "The repository sent an answer that couldn't be understood: {0}",
             "תשובה לא מובנת מהמאגר.", "The repository sent an answer that couldn't be understood.",
             "לא נמצאה גרסה במאגר.", "No version was found in the repository.",
-        };
-        private static readonly string[] P4 = new string[] {
             "אין קובץ להורדה", "No file to download",
             "בשחרור הזה לא צורף קובץ.", "No file was attached to this release.",
             "העדכון מגיע כמתקין", "The update comes as an installer",

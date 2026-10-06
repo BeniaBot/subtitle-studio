@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 60 בדיקות.
+# צפוי: 72 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -254,6 +254,52 @@ $ft = Call $f 'AiFixTimings' @()
 Check 'ו-fix_timings משתמש באותו תיקון' ($doc.CountOverlaps() -eq 0 -and ([string]$ft['done']).Contains('נפתרה')) ([string]$ft['done'])
 
 $f.Close(); $f.Dispose(); [Windows.Forms.Application]::DoEvents()
+
+# ---- סידור אחרי מכונה (Qa.Tidy, 0.8.2) ----
+# המקרים מסרטון אמיתי: תמלול + תרגום + צריבה של 94 שניות. הזמנים כאן הם הזמנים שיצאו שם.
+Write-Host 'סידור אחרי תמלול ותרגום'
+$mTidy = $qaT.GetMethod('Tidy', $SF, $null, [Type[]]@($docT, [bool]), $null)
+$mTidy3 = $qaT.GetMethod('Tidy', $SF, $null, [Type[]]@($docT, [bool], [bool]), $null)
+function Tidy($doc, [bool]$fromTranscript) { return $mTidy.Invoke($null, (Pack $doc $fromTranscript)) }
+$long = 'Your Grace, House Open AI humbly requests a mere million GPUs and I shall deliver it AGI this year.'
+$d = NewDoc @(
+    @(30530, 32240, 'He''s not building AGI, he''s stealing my features.'),
+    @(35410, 35790, 'Dots is a mere Grokbot clone.'),
+    @(36910, 37620, 'Slander!'),
+    @(19560, 28360, $long),
+    @(83120, 83580, 'So,'),
+    @(84460, 85590, 'who''s paying in advance?'))
+$tr = Tidy $d $true
+$cs = @($d.Cues)
+$so = @($cs | Where-Object { $_.Text -like 'So,*' })
+Check 'שבר ״So,״ מתאחד עם ההמשך שלו, מתחילת השבר' ($so.Count -eq 1 -and $so[0].Text -eq 'So, who''s paying in advance?' -and $so[0].Start -eq 83120) (($so | ForEach-Object { $_.Text + '@' + $_.Start }) -join ' | ')
+$parts = @($cs | Where-Object { $_.Start -ge 19000 -and $_.Start -lt 29000 })
+$joined = (($parts | ForEach-Object { $_.Text -replace '\r?\n', ' ' }) -join ' ')
+$maxDur = ($parts | ForEach-Object { $_.End - $_.Start } | Measure-Object -Maximum).Maximum
+Check 'משפט של 8.8 שניות מתפצל, בלי לאבד מילה, וכל חלק עד 7 שניות' ($parts.Count -eq 2 -and $joined -eq $long -and $maxDur -le 7000) ("parts=" + $parts.Count + " max=" + $maxDur + " | " + (($parts | ForEach-Object { $_.Text -replace '\r?\n', ' ' }) -join ' / '))
+Check 'והחיתוך במקום טבעי (לא באמצע ״mere million״)' ($parts.Count -eq 2 -and -not ($parts[0].Text -replace '\r?\n', ' ').EndsWith('mere')) ($parts[0].Text -replace '\r?\n', ' ')
+$dots = @($cs | Where-Object { $_.Text -like 'Dots*' })[0]
+$prevEnd = @($cs | Where-Object { $_.Text -like 'He*' })[0].End
+Check 'כתובית של 0.38 שניות: לפחות 1.4 שניות על המסך' ($dots.End - $dots.Start -ge 1400) ("{0}-{1}" -f $dots.Start, $dots.End)
+Check 'בלי לגעת בכתובית הבאה (שני פריימים רווח)' ($dots.End -le 36910 - 80) ($dots.End)
+Check 'וההתחלה הוקדמה לכל היותר בחצי שנייה' ($dots.Start -ge 35410 - 500 -and $dots.Start -gt $prevEnd) ("start=" + $dots.Start + " prevEnd=" + $prevEnd)
+Check 'אין חפיפות אחרי הסידור' ($d.CountOverlaps() -eq 0) ''
+$fast = @(Find $d | Where-Object { [string]$_.Kind -eq 'TooFast' -or [string]$_.Kind -eq 'TooShort' })
+Check 'אף כתובית לא מהירה מדי ולא קצרה מדי' ($fast.Count -eq 0) (($fast | ForEach-Object { [string]$_.Kind + '@' + $_.Index }) -join ', ')
+# בתרגום: אין השהיה נוספת - היא כבר ניתנה בתמלול. רק זמן קריאה ושורות
+$d2 = NewDoc @(@(1000, 4000, 'הייתם קרובים במשך שלושה חורפים.'), @(9000, 11000, 'אז תאר לעצמך כמה קרובים אנחנו עכשיו.'))
+[void](Tidy $d2 $false)
+Check 'בתרגום: כתובית שנקראת בנוחות לא מוארכת' ($d2.Cues[0].End -eq 4000) ($d2.Cues[0].End)
+$d3 = NewDoc (,@(0, 7000, 'הוד מעלתך, בית Open AI מבקש מיליון מעבדי GPU, ואני אספק AGI השנה.'))
+[void](Tidy $d3 $false)
+$l3 = @($d3.Cues[0].Text -split '\r?\n')
+Check 'שורה של 68 תווים נשברת לשתיים מאוזנות' ($l3.Count -eq 2 -and ($l3 | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum -le 42) (($l3) -join ' / ')
+$again = Tidy $d $true
+# שארית שצמודה מכל צד (״בגדול.״ 0.6 שניות): מתאחדת עם השכנה, באותה שורה
+$d4 = NewDoc @(@(69280, 70320, 'שמעתי.'), @(70400, 70650, 'בגדול.'), @(71070, 72530, 'תשכח מהחברות האלה, ג''נסן.'))
+[void]$mTidy3.Invoke($null, (Pack $d4 $true $false))
+Check 'שארית צמודה מתאחדת עם השכנה: ״שמעתי. בגדול.״' ($d4.Cues.Count -eq 2 -and $d4.Cues[0].Text -eq 'שמעתי. בגדול.' -and $d4.Cues[0].End -ge 70650) ((@($d4.Cues) | ForEach-Object { $_.Text + '@' + $_.Start + '-' + $_.End }) -join ' | ')
+Check 'סידור שני לא משנה כלום (יציב)' ($again.Merged -eq 0 -and $again.Split -eq 0 -and $again.Rewrapped -eq 0) ("merged=" + $again.Merged + " split=" + $again.Split)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }
