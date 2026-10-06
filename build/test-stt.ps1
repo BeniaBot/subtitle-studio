@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 104 בדיקות.
+# צפוי: 108 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -491,6 +491,33 @@ Check 'שיר: המודל דילג - השורות החדשות נכנסות לח
 $out = $merge.Invoke($null, (Pack (Lines @(@(10.0, 14.0, 'שורה'), @(18.0, 22.0, 'תבטיח לי'))) (Lines @(@(1.0, 4.0, 'תבטיח לי'), @(5.0, 8.0, 'משהו חדש'))) 25.0 $true 56.1))
 $still = $out[1]
 Check 'פזמון שחוזר בזנב (עוגן אחד) לא נחשב להתכווצות: שום זמן לא נמתח' ($still.Start -eq 18.0 -and $out.Count -eq 4) ('start=' + $still.Start + ' count=' + $out.Count)
+
+# ================= סגירת חלון באמצע עבודה (0.8.5) =================
+# עד 0.8.5 ‏× או Esc סגרו את החלון, והתמלול או התרגום המשיכו ברקע עד הסוף - צרכו מכסה, והתוצאה נזרקה
+Write-Host 'סגירה באמצע'
+Add-Type -AssemblyName System.Windows.Forms
+$IF = [Reflection.BindingFlags]'NonPublic,Public,Instance'
+function Closing($dlg) {
+    $e = New-Object System.Windows.Forms.FormClosingEventArgs ([System.Windows.Forms.CloseReason]::UserClosing), $false
+    [void]$dlg.GetType().GetMethod('OnFormClosing', $IF).Invoke($dlg, (Pack $e))
+    return $e.Cancel
+}
+$run = [Activator]::CreateInstance((T 'TranscribeRunDlg'), (Pack (NewProvider 1) 'x.mp3' ([long]60000) ''))
+$c1 = Closing $run
+$stop1 = $run.GetType().GetField('_cancel', $IF).GetValue($run)
+Check 'תמלול: ‏× ראשון = ״עצירה״ - החלון נשאר עד שמה שתומלל חוזר' ($c1 -eq $true -and $stop1 -eq $true) ("cancel=$c1 stop=$stop1")
+$c2 = Closing $run
+Check 'תמלול: ‏× שני סוגר מיד' ($c2 -eq $false) "cancel=$c2"
+$run.Dispose()
+$run = [Activator]::CreateInstance((T 'TranscribeRunDlg'), (Pack (NewProvider 1) 'x.mp3' ([long]60000) ''))
+$run.GetType().GetField('_finished', $IF).SetValue($run, $true)
+Check 'תמלול: כשהעבודה נגמרה - נסגר כרגיל' ((Closing $run) -eq $false) ''
+$run.Dispose()
+$tl = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType((T 'Cue')))
+$ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl 'עברית' ''))
+[void](Closing $ai)
+Check 'תרגום: ‏× עוצר את העבודה ברקע' ($ai.GetType().GetField('_cancel', $IF).GetValue($ai) -eq $true) ''
+$ai.Dispose()
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ""

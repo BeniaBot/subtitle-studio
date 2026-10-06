@@ -299,6 +299,7 @@ namespace SubtitleStudio
         private readonly long _dur;
         private readonly ISttProvider _provider;
         private volatile bool _cancel;
+        private bool _finished;
 
         public Transcribe.Result Result;
 
@@ -323,13 +324,28 @@ namespace SubtitleStudio
             Btn cancel = new Btn();
             cancel.Text = Lang.T("עצירה");
             cancel.Kind = BtnKind.Ghost;
-            cancel.Click += delegate { _cancel = true; _stat.Text = Lang.T("עוצר…"); _stat.Invalidate(); };
+            cancel.Click += delegate { Stop(); };
             Row(cancel, 40, 0);
             Y += Theme.S(6);
             ClientSize = new Size(ClientSize.Width, Y);
             Controls.Add(CloseButton());
 
+            // ‏×‏ או Esc באמצע = ״עצירה״: מה שתומלל נשמר. עד 0.8.5 החלון נסגר והתמלול המשיך
+            // ברקע עד הסוף - צרך מכסה, והתוצאה נזרקה. לחיצה שנייה סוגרת מיד.
+            FormClosing += delegate (object s, FormClosingEventArgs e)
+            {
+                if (_finished || _cancel) { _cancel = true; return; }
+                e.Cancel = true;
+                Stop();
+            };
             Shown += delegate { Start(); };
+        }
+
+        private void Stop()
+        {
+            _cancel = true;
+            _stat.Text = Lang.T("עוצר…");
+            _stat.Invalidate();
         }
 
         private void Start()
@@ -367,6 +383,7 @@ namespace SubtitleStudio
                 {
                     BeginInvoke((MethodInvoker)delegate
                     {
+                        _finished = true;
                         Ok = r != null && r.Cues.Count > 0;
                         Close();
                     });

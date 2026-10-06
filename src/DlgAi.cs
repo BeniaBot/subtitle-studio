@@ -301,6 +301,9 @@ namespace SubtitleStudio
             ClientSize = new Size(ClientSize.Width, Y);
             Controls.Add(CloseButton());
 
+            // ‏×‏ או Esc = ״ביטול״. עד 0.8.5 החלון נסגר והתרגום המשיך ברקע עד הסוף - צרך מכסה,
+            // והתוצאה נזרקה
+            FormClosing += delegate { _cancel = true; };
             Shown += delegate { Start(); };
         }
 
