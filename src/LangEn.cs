@@ -693,6 +693,7 @@ namespace SubtitleStudio
             "אפשר לעצור בכל רגע - מה שכבר תומלל יישאר.", "You can stop at any moment - what's already transcribed stays.",
             "עצירה", "Stop",
             "עוצר…", "Stopping…",
+            "מפתח חינמי · מכסה קטנה", "Free key · small quota",
             "יש גרסה חדשה: {0}", "A new version is out: {0}",
             "הגרסה שלכם היא {0}", "Your version is {0}",
             "אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה תיסגר ותיפתח מחדש לבד.", "You can update now - it takes a few seconds, and the program will close and reopen by itself.",
@@ -910,9 +911,9 @@ namespace SubtitleStudio
             "המילון נטען…", "Loading the dictionary…",
             "{0} · לחיצה קופצת", "{0} · click to jump",
             "כתובית אחת עם מילה חשודה", "One subtitle with a suspicious word",
-            "{0} כתוביות עם מילים חשודות", "{0} subtitles with suspicious words",
         };
         private static readonly string[] P3 = new string[] {
+            "{0} כתוביות עם מילים חשודות", "{0} subtitles with suspicious words",
             "בדיקת האיות דלוקה. עוד רגע המילים החשודות יסומנו ברשימה.", "Spell check is on. In a moment the suspicious words will be marked in the list.",
             "המילון עוד נטען. עוד רגע המילים החשודות יסומנו ברשימה.", "The dictionary is still loading. In a moment the suspicious words will be marked in the list.",
             "אין עדיין כתוביות לבדוק.", "There are no subtitles to check yet.",
@@ -1212,9 +1213,9 @@ namespace SubtitleStudio
             "אפשר להמשיך בעוד כ-{0} שעות.", "You can go on in about {0} hours.",
             "אפשר להמשיך מחר.", "You can go on tomorrow.",
             "לא הוגדר מפתח ל", "No key is set for",
-            "המפתח של {0} לא תקין, או שפג תוקפו.", "The {0} key isn't valid, or it has expired.",
         };
         private static readonly string[] P4 = new string[] {
+            "המפתח של {0} לא תקין, או שפג תוקפו.", "The {0} key isn't valid, or it has expired.",
             "המכסה של {0} נגמרה לעכשיו.", "The {0} quota has run out for now.",
             "קטע השמע גדול מדי לשירות.", "The audio section is too big for the service.",
             "השרת של {0} לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.", "The {0} server isn't available right now. You can try again in a few minutes.",

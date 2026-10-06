@@ -1832,6 +1832,7 @@ namespace SubtitleStudio
             _projectPath = null;
             _mi = null;
             _mediaPath = null;
+            _contentContext = "";
             Formats.VideoFps = 0;
             _video.HasMedia = false;
             _video.ClearFrame();
@@ -2592,6 +2593,9 @@ namespace SubtitleStudio
                     Cursor = Cursors.Default;
                     return;
                 }
+                // הרקע (שמות, מונחים) שייך לסרט: סרט אחר לא מקבל את השמות של הקודם, שהמודל היה
+                // ״מתקן״ אליהם מילים - בדיוק הטעות של שם שהוחלף בשם אחר (0.8.4)
+                if (!string.Equals(path, _mediaPath, StringComparison.OrdinalIgnoreCase)) _contentContext = "";
                 _mediaPath = path;
                 if (!fromProject)
                 {
@@ -2741,7 +2745,7 @@ namespace SubtitleStudio
                 return;
             }
             // בלי בדיקת מפתח כאן: החלון שואל איפה לתמלל, ומחבר את השירות שנבחר
-            TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count);
+            TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count, _contentContext);
             d.ShowDialog(this);
             bool ok = d.Ok;
             string ctx = d.Context;

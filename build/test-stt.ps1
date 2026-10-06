@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 109 בדיקות.
+# צפוי: 110 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -521,6 +521,13 @@ $ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl 'עברית' ''))
 [void](Closing $ai)
 Check 'תרגום: ‏× עוצר את העבודה ברקע' ($ai.GetType().GetField('_cancel', $IF).GetValue($ai) -eq $true) ''
 $ai.Dispose()
+# חלון התמלול (0.8.5): ״המפתח שכבר יש לכם״ רק למי שיש; והרקע מהתמלול הקודם של אותו סרט כבר בשדה
+$mi0 = [Activator]::CreateInstance((T 'MediaInfo')); $mi0.DurationSec = 60
+(T 'Ai').GetField('Key', $SF).SetValue($null, '')
+$td = [Activator]::CreateInstance((T 'TranscribeDlg'), (Pack $mi0 ([int]0) 'שיעור של הרב כהן'))
+$gsub = [string]$td.GetType().GetField('_optGoogle', $IF).GetValue($td).Sub
+Check 'תמלול: בלי מפתח לגוגל - לא ״המפתח שכבר יש לכם״; והרקע הקודם כבר בשדה' ($gsub -notmatch 'שכבר יש' -and $td.Context -eq 'שיעור של הרב כהן') ($gsub + ' | ' + $td.Context)
+$td.Dispose()
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ""

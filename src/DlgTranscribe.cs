@@ -24,7 +24,11 @@ namespace SubtitleStudio
         public bool ReplaceExisting { get { return _replace.Visible && _replace.Checked; } }
         public ISttProvider Provider { get { return _choice == "groq" ? (ISttProvider)Stt.Groq : Stt.Gemini; } }
 
-        public TranscribeDlg(MediaInfo mi, int existingCues) : base(Lang.T("תמלול אוטומטי"), Ico.Sparkles, 620)
+        public TranscribeDlg(MediaInfo mi, int existingCues) : this(mi, existingCues, "") { }
+
+        /// <summary><paramref name="context"/>: הרקע מהתמלול הקודם של אותו סרט. מי שמתמלל שוב (התוצאה לא
+        /// הייתה טובה) לא צריך לכתוב את השמות מחדש.</summary>
+        public TranscribeDlg(MediaInfo mi, int existingCues, string context) : base(Lang.T("תמלול אוטומטי"), Ico.Sparkles, 620)
         {
             _mi = mi;
             Subtitle = Lang.T("התוכנה מקשיבה לסרט וכותבת את הכתוביות");
@@ -37,7 +41,8 @@ namespace SubtitleStudio
             int half = (ContentW - gapX) / 2;
             _optGoogle = new Btn();
             _optGoogle.Text = Lang.T("גוגל");
-            _optGoogle.Sub = Lang.T("המפתח שכבר יש לכם · מכסה קטנה");
+            // ״המפתח שכבר יש לכם״ רק למי שיש. עד 0.8.5 זה נכתב גם למי שעוד לא חיבר את גוגל
+            _optGoogle.Sub = Ai.HasKey ? Lang.T("המפתח שכבר יש לכם · מכסה קטנה") : Lang.T("מפתח חינמי · מכסה קטנה");
             _optGoogle.Icon = Ico.Sparkles;
             _optGoogle.Kind = BtnKind.Subtle;
             _optGoogle.Radio = true;
@@ -90,6 +95,7 @@ namespace SubtitleStudio
             Section(Lang.T("רקע על התוכן (לא חובה)"));
             _context = new Field();
             _context.Placeholder = Lang.T("למשל: שיעור בגמרא · שמות הדוברים · מונחים מיוחדים");
+            if (!string.IsNullOrEmpty(context)) _context.Text = context;
             Row(_context, 40, 4);
             // שם שהמודל לא מכיר יוצא משובש או נעלם. כאן אפשר להגיד לו מראש - וזה עובר גם לתרגום
             Lbl ch = Hint(Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."));
