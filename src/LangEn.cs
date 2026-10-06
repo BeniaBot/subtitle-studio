@@ -1131,6 +1131,9 @@ namespace SubtitleStudio
             "מהתחלת הכתובית", "From the start of the subtitle",
             "נכון - להסיר את הסימון", "Correct - remove the mark",
             "נשמע כמו שכתוב · Ctrl+Z מבטל", "Sounds as written · Ctrl+Z undoes",
+            "כתובית אחת לא תורגמה", "One subtitle was not translated",
+            "{0} כתוביות לא תורגמו", "{0} subtitles were not translated",
+            "המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב.", "The model skipped them even on a second try, and they stayed in the original language. You can translate them by hand, or translate again.",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1210,11 +1213,11 @@ namespace SubtitleStudio
             "המילון שירד פגום. נסו שוב.", "The downloaded dictionary is damaged. Try again.",
             "המילון שירד פגום, או שהוחלף בשרת. נסו שוב.", "The downloaded dictionary is damaged, or it was replaced on the server. Try again.",
             "המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.", "The dictionary wasn't found on the server. Update the program and try again.",
+        };
+        private static readonly string[] P4 = new string[] {
             "המכסה החינמית של גוגל נגמרה להיום.", "Google's free quota has run out for today.",
             "המכסה החינמית של {0} נגמרה לעכשיו. {1}", "The {0} free quota has run out for now. {1}",
             "אפשר לנסות שוב בעוד כמה דקות.", "You can try again in a few minutes.",
-        };
-        private static readonly string[] P4 = new string[] {
             "אפשר לנסות שוב עכשיו.", "You can try again now.",
             "אפשר להמשיך בעוד כ-{0} דקות.", "You can go on in about {0} minutes.",
             "אפשר להמשיך בעוד כ-{0} שעות.", "You can go on in about {0} hours.",

@@ -1073,6 +1073,7 @@ namespace SubtitleStudio
                 _hintLbl.Text = Lang.F("הכתוביות תורגמו ל{0}. לביטול - Ctrl+Z.", d.Target);
                 _hintLbl.Flash();
                 UpdateHint();
+                TellUntranslated(run.Untranslated);
             }
             else
             {
@@ -1106,9 +1107,19 @@ namespace SubtitleStudio
                         _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
                     _hintLbl.Text = Lang.F("נשמר: {0}", Theme.FileName(System.IO.Path.GetFileName(sd.FileName)));
                     _hintLbl.Flash();
+                    TellUntranslated(run.Untranslated);
                 }
                 catch (Exception ex) { Ui.Error(this, Lang.T("לא נשמר"), ErrorText.Of(ex)); }
             }
+        }
+
+        /// <summary>כתוביות שהמודל דילג עליהן נשארות בשפת המקור - וזה חייב להיאמר, אחרת שורה באנגלית
+        /// מתגלה רק בסרט הצרוב.</summary>
+        private void TellUntranslated(int n)
+        {
+            if (n <= 0) return;
+            Ui.Info(this, n == 1 ? Lang.T("כתובית אחת לא תורגמה") : Lang.F("{0} כתוביות לא תורגמו", Theme.Ltr(n.ToString(CultureInfo.InvariantCulture))),
+                Lang.T("המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב."));
         }
 
         /// <summary>אותן פעולות, במיקום של עכבר.</summary>

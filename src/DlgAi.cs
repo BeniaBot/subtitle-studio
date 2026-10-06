@@ -307,6 +307,8 @@ namespace SubtitleStudio
         private volatile bool _cancel;
         public List<string> Translated;
         public string Error;
+        /// <summary>כמה כתוביות נשארו בשפת המקור - המודל דילג עליהן גם בניסיון החוזר.</summary>
+        public int Untranslated;
 
         private const int BatchSize = 40;
 
@@ -360,6 +362,7 @@ namespace SubtitleStudio
                         return;
                     }
                     all.AddRange(res);
+                    Untranslated += Ai.LastMissing;
                     for (int j = 0; j < batch.Count && j < res.Count; j++) prev.Add(new string[] { batch[j], res[j] });
                     if (prev.Count > 12) prev.RemoveRange(0, prev.Count - 12);
                     done += n;

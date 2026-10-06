@@ -1137,11 +1137,50 @@ namespace SubtitleStudio
         /// <summary><paramref name="previous"/>: זוגות [מקור, תרגום] מהשורות שתורגמו ממש לפני המנה הזאת.
         /// תרגום ארוך נשלח במנות של 40, ועד 0.8.3 כל מנה לא ידעה כלום על הקודמת: שם או תואר
         /// יכלו להיכתב אחרת באמצע הסרט.</summary>
+        /// <summary>כמה פריטים בתרגום האחרון נשארו בשפת המקור (המודל דילג עליהם גם בניסיון השני).</summary>
+        public static int LastMissing;
+
         public static List<string> Translate(List<string> lines, string targetLang, string context, List<string[]> previous, out string error)
         {
             error = null;
+            LastMissing = 0;
             List<string> outp = new List<string>();
             if (lines == null || lines.Count == 0) return outp;
+            string[] byIndex = TranslateOnce(lines, targetLang, context, previous, out error);
+            if (byIndex == null) return null;
+            for (int i = 0; i < byIndex.Length; i++)
+                if (byIndex[i] == null && (lines[i] ?? "").Trim().Length == 0) byIndex[i] = lines[i] ?? "";
+
+            // פריט שהמודל דילג עליו (או איחד עם השכן) - עוד ניסיון אחד, רק עליו. עד 0.8.5 הוא נשאר בשקט
+            // בשפת המקור: שורה באנגלית באמצע כתוביות בעברית, בלי שמישהו אמר
+            List<int> miss = new List<int>();
+            for (int i = 0; i < byIndex.Length; i++) if (byIndex[i] == null) miss.Add(i);
+            if (miss.Count > 0 && miss.Count < lines.Count)
+            {
+                List<string> again = new List<string>();
+                foreach (int k in miss) again.Add(lines[k]);
+                string e2;
+                string[] got = TranslateOnce(again, targetLang, context, previous, out e2);
+                if (got != null)
+                    for (int j = 0; j < miss.Count; j++) if (got[j] != null) byIndex[miss[j]] = got[j];
+            }
+
+            for (int i = 0; i < byIndex.Length; i++)
+            {
+                if (byIndex[i] == null) LastMissing++;
+                string tr = byIndex[i] != null ? byIndex[i] : lines[i];
+                // ההוראה ״בלי ניקוד״ לא הספיקה: ״גרוקבּוט״ חזר עם דגש (נבדק פעמיים)
+                if (!HasNiqqud(lines[i])) tr = StripNiqqud(tr);
+                outp.Add(tr);
+            }
+            if (LastMissing > 0) Log("תרגום: " + LastMissing + " פריטים נשארו בשפת המקור");
+            return outp;
+        }
+
+        /// <summary>בקשה אחת: התרגום לפי מספר הפריט, ו-null בפריט שלא חזר. ‏null כולו - כישלון.</summary>
+        private static string[] TranslateOnce(List<string> lines, string targetLang, string context, List<string[]> previous, out string error)
+        {
+            error = null;
 
             List<object> items = new List<object>();
             for (int i = 0; i < lines.Count; i++)
@@ -1181,41 +1220,49 @@ namespace SubtitleStudio
 
             AiReply r = Send(sys, h, null, true);
             if (!r.Ok) { error = r.Error; return null; }
+            string[] res = ParseTranslation(r.Text, lines.Count);
+            if (res == null) error = Lang.T("התרגום חזר בפורמט לא צפוי.");
+            return res;
+        }
 
+        /// <summary>התשובה של המודל - תרגום לכל מספר פריט, null בפריט שלא חזר. ‏null - לא מערך.
+        ///
+        /// **מספור מ-1:** אם אין פריט 0 ויש פריט N, המודל ספר מאחת. בלי התיקון כל שורה הייתה מקבלת את
+        /// התרגום של השורה שלפניה - בשקט, לאורך כל המנה.</summary>
+        internal static string[] ParseTranslation(string reply, int count)
+        {
             try
             {
-                string txt = r.Text.Trim();
+                string txt = (reply ?? "").Trim();
                 int a = txt.IndexOf('[');
                 int b = txt.LastIndexOf(']');
                 if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
                 System.Collections.IList arr = Arr(Ser().DeserializeObject(txt));
-                if (arr == null) { error = Lang.T("התרגום חזר בפורמט לא צפוי."); return null; }
-                string[] byIndex = new string[lines.Count];
+                if (arr == null) return null;
+                List<KeyValuePair<int, string>> got = new List<KeyValuePair<int, string>>();
+                bool zero = false, last = false;
                 foreach (object o in arr)
                 {
                     Dictionary<string, object> d = o as Dictionary<string, object>;
                     if (d == null) continue;
                     object iv, tv;
-                    if (!d.TryGetValue("i", out iv) || !d.TryGetValue("t", out tv)) continue;
+                    if (!d.TryGetValue("i", out iv) || !d.TryGetValue("t", out tv) || tv == null) continue;
                     int idx;
                     if (!int.TryParse(Convert.ToString(iv, CultureInfo.InvariantCulture), out idx)) continue;
-                    if (idx < 0 || idx >= byIndex.Length) continue;
-                    byIndex[idx] = Convert.ToString(tv);
+                    if (idx == 0) zero = true;
+                    if (idx == count) last = true;
+                    got.Add(new KeyValuePair<int, string>(idx, Convert.ToString(tv, CultureInfo.InvariantCulture)));
                 }
-                for (int i = 0; i < byIndex.Length; i++)
+                int shift = !zero && last ? 1 : 0;
+                string[] byIndex = new string[count];
+                foreach (KeyValuePair<int, string> p in got)
                 {
-                    string tr = byIndex[i] != null ? byIndex[i] : lines[i];
-                    // ההוראה ״בלי ניקוד״ לא הספיקה: ״גרוקבּוט״ חזר עם דגש (נבדק פעמיים)
-                    if (!HasNiqqud(lines[i])) tr = StripNiqqud(tr);
-                    outp.Add(tr);
+                    int idx = p.Key - shift;
+                    if (idx >= 0 && idx < count && p.Value.Trim().Length > 0) byIndex[idx] = p.Value;
                 }
-                return outp;
+                return byIndex;
             }
-            catch (Exception ex)
-            {
-                error = Lang.F("התרגום חזר בפורמט לא צפוי: {0}", ex.Message);
-                return null;
-            }
+            catch { return null; }
         }
     }
 }

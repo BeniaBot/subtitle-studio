@@ -1164,6 +1164,9 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 מהתחלת הכתובית	From the start of the subtitle
 נכון - להסיר את הסימון	Correct - remove the mark
 נשמע כמו שכתוב · Ctrl+Z מבטל	Sounds as written · Ctrl+Z undoes
+כתובית אחת לא תורגמה	One subtitle was not translated
+{0} כתוביות לא תורגמו	{0} subtitles were not translated
+המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב.	The model skipped them even on a second try, and they stayed in the original language. You can translate them by hand, or translate again.
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 

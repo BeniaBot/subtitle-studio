@@ -550,6 +550,7 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = Lang.F("הכתוביות תורגמו ל{0}", lang);
+            if (run.Untranslated > 0) r["untranslated"] = run.Untranslated;
             return r;
         }
 
