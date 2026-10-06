@@ -3,7 +3,7 @@
 # תגיות עיצוב, ‏WebVTT עם הגדרות, ‏ASS מעוצב, ‏MicroDVD. בודק שהטקסט שחזר הוא
 # הטקסט שנכתב, בלי שאריות תגיות - ושהשמירה חזרה משמרת אותו.
 # **נולד מבאג** (24.9.2026): כל קידוד ישן נחשב עברית, ו״Déjà vu״ נפתח כ-״Dיjא vu״.
-# צפוי: 24 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
+# צפוי: 26 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -126,6 +126,35 @@ $dApp = PixDiff $pa $pr; $dOld = PixDiff $po $pr
 Rep 'burn: Hebrew+English word order' ($dApp -lt 40) ("differs from the reference in $dApp sampled pixels")
 Rep 'burn: the old style would fail here' ($dOld -gt 400) ("old Encoding=177 differs in $dOld")
 Rep 'burn: style asks libass to detect direction' ($appAss -match '(?m)^Style: .*,-1\r?$') ''
+
+# ---- ערוץ נפרד בקובץ שכבר יש בו כתוביות (0.8.5) ----
+# עד 0.8.5 ״לשמור גם ערוצי כתוביות שכבר קיימים״ כתב את השפה, השם ו״ברירת מחדל״ על הערוץ הישן
+# (‏s:0), והחדש יצא בלי שם ובלי סימון; וכל ערוץ ישן קודד לפורמט שלנו (ערוץ תמונה הפיל את הפעולה).
+function ProbeIt($p) { return (TY 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$p)) }
+$oldSrt = Join-Path $dir 'old-track.srt'
+[IO.File]::WriteAllText($oldSrt, "1`r`n00:00:00,500 --> 00:00:02,000`r`nOld English track`r`n", $u8)
+foreach ($ext in '.mkv', '.mp4') {
+    $base = Join-Path $dir ('with-track' + $ext)
+    $sc = if ($ext -eq '.mkv') { 'ass' } else { 'mov_text' }
+    & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'color=c=0x404850:s=320x240:d=3' -f lavfi -i 'sine=d=3' -i $oldSrt -map 0 -map 1 -map 2 -c:v libx264 -c:a aac -c:s $sc -metadata:s:s:0 language=eng -disposition:s:0 default -t 3 $base
+    $mi = ProbeIt $base
+    $doc = [Activator]::CreateInstance((TY 'Doc'))
+    $dc = (TY 'Doc').GetField('Cues', $IN).GetValue($doc)
+    $dc.Add([Activator]::CreateInstance($cueT, @([int64]500, [int64]2500, [string]'כתובית חדשה')))
+    $dlg = [Activator]::CreateInstance((TY 'ExportVideoDlg'), @($null, $doc, $mi, [Activator]::CreateInstance((TY 'SubStyle')), [long]-1, [long]-1))
+    [void]$dlg.GetType().GetMethod('SetMode', $IN).Invoke($dlg, @($false))
+    $dlg.GetType().GetField('_keepExisting', $IN).GetValue($dlg).Checked = $true
+    $o = Join-Path $dir ('soft-out' + $ext)
+    if ([IO.File]::Exists($o)) { [IO.File]::Delete($o) }
+    $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $dlg.Dispose()
+    $argv = New-Object object[] 5; $argv[0] = $ffx; $argv[1] = [string]$job.Args; $argv[4] = [string]$job.WorkDir
+    [void](TY 'Ff').GetMethod('RunSync', $ST).Invoke($null, $argv)
+    $subs = @((ProbeIt $job.OutputPath).Streams | Where-Object { $_.Type -eq 'subtitle' })
+    $mine = if ($subs.Count -gt 0) { $subs[$subs.Count - 1] } else { $null }
+    # ‏MP4 שומר את השם כ-handler, ו-ffmpeg לא מחזיר אותו כ-title - השם נבדק רק ב-MKV
+    $good = $subs.Count -eq 2 -and $mine.Language -eq 'heb' -and ($ext -ne '.mkv' -or $mine.Title -eq 'עברית') -and $mine.Default -and -not $subs[0].Default -and $subs[0].Language -eq 'eng'
+    Rep ('soft track beside an old one ' + $ext) $good (($subs | ForEach-Object { '{0}:{1}:{2}:{3}' -f $_.Codec, $_.Language, $_.Title, $(if ($_.Default) { 'default' } else { '-' }) }) -join '  ')
+}
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }

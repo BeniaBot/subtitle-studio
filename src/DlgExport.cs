@@ -446,18 +446,37 @@ namespace SubtitleStudio
                 sb.Append(Burn.CopyInputFlags(_mi));
                 if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" -to ").Append(Tc.Ff(b)).Append(" ");
                 sb.Append("-i ").Append(Ff.Q(_mi.Path)).Append(" -i ").Append(Ff.Q(subFile)).Append(" ");
-                if (_keepExisting.Checked) sb.Append("-map 0 -map 1 ");
+                // ‏**הערוץ שלנו אחרון**, ולכן המספר שלו בין ערוצי הכתוביות בפלט הוא כמה ערוצים ישנים
+                // נשארו. עד 0.8.5 השפה, השם ו״ברירת מחדל״ נכתבו תמיד על ערוץ 0 - כלומר על הישן, והחדש
+                // יצא בלי שם ובלי סימון. וכל ערוץ ישן קודד מחדש לפורמט שלנו: ערוץ תמונה (PGS/DVD)
+                // הפיל את כל הפעולה.
+                int ours = 0;
+                StringBuilder olds = new StringBuilder();
+                if (_keepExisting.Checked)
+                {
+                    sb.Append("-map 0 ");
+                    List<MediaStream> subs = _mi.Subtitles();
+                    for (int k = 0; k < subs.Count; k++)
+                    {
+                        if (subs[k].IsImageSubtitle && ext != ".mkv") { sb.Append("-map -0:s:").Append(k).Append(" "); continue; }
+                        // טקסט עובר לפורמט של המיכל (mov_text לא נכנס ל-MKV, ‏subrip לא ל-MP4); תמונה - כמו שהיא
+                        if (!subs[k].IsImageSubtitle) olds.Append("-c:s:").Append(ours).Append(" ").Append(codec).Append(" ");
+                        ours++;
+                    }
+                    sb.Append("-map 1 ");
+                }
                 else sb.Append("-map 0:v -map 0:a? -map 1 ");
-                sb.Append("-c copy -c:s ").Append(codec).Append(" ");
-                sb.Append("-metadata:s:s:0 language=").Append(lang).Append(" ");
-                sb.Append("-metadata:s:s:0 title=\"").Append(_lang.Text).Append("\" ");
+                string me = ours.ToString(CultureInfo.InvariantCulture);
+                sb.Append("-c copy ").Append(olds).Append("-c:s:").Append(me).Append(" ").Append(codec).Append(" ");
+                sb.Append("-metadata:s:s:").Append(me).Append(" language=").Append(lang).Append(" ");
+                sb.Append("-metadata:s:s:").Append(me).Append(" title=\"").Append(_lang.Text).Append("\" ");
                 // **קודם מנקים את הדגל מכל ערוצי הכתוביות, ורק אז
                 // מסמנים את שלנו.** ‏ffmpeg מעתיק דיספוזיציות מהקלט,
                 // ולכן קובץ שכבר היה בו ערוץ ברירת-מחדל יצא עם שניים -
                 // והנגן בוחר את הראשון, כלומר את הישן. זו הסיבה שהמתג
                 // הזה נראה כאילו הוא לא עושה כלום.
                 if (_defaultTrack.Checked)
-                    sb.Append("-disposition:s 0 -disposition:s:0 default ");
+                    sb.Append("-disposition:s 0 -disposition:s:").Append(me).Append(" default ");
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
