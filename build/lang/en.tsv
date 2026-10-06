@@ -1167,6 +1167,9 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 כתובית אחת לא תורגמה	One subtitle was not translated
 {0} כתוביות לא תורגמו	{0} subtitles were not translated
 המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב.	The model skipped them even on a second try, and they stayed in the original language. You can translate them by hand, or translate again.
+{0}\nאולי הוא הועבר, נמחק, או שהכונן שלו לא מחובר.	{0}\nPerhaps it was moved, deleted, or its drive is not connected.
+הקובץ לא נמצא	File not found
+להסיר מהרשימה	Remove from the list
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 

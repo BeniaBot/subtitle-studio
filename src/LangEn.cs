@@ -1134,6 +1134,9 @@ namespace SubtitleStudio
             "כתובית אחת לא תורגמה", "One subtitle was not translated",
             "{0} כתוביות לא תורגמו", "{0} subtitles were not translated",
             "המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב.", "The model skipped them even on a second try, and they stayed in the original language. You can translate them by hand, or translate again.",
+            "{0}\nאולי הוא הועבר, נמחק, או שהכונן שלו לא מחובר.", "{0}\nPerhaps it was moved, deleted, or its drive is not connected.",
+            "הקובץ לא נמצא", "File not found",
+            "להסיר מהרשימה", "Remove from the list",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1210,11 +1213,11 @@ namespace SubtitleStudio
             "נפרס אל תיקיית המשתמש", "Set up in the user folder",
             "מאתר מעברי סצנה", "Finding scene changes",
             "ההורדה בוטלה.", "The download was cancelled.",
+        };
+        private static readonly string[] P4 = new string[] {
             "המילון שירד פגום. נסו שוב.", "The downloaded dictionary is damaged. Try again.",
             "המילון שירד פגום, או שהוחלף בשרת. נסו שוב.", "The downloaded dictionary is damaged, or it was replaced on the server. Try again.",
             "המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.", "The dictionary wasn't found on the server. Update the program and try again.",
-        };
-        private static readonly string[] P4 = new string[] {
             "המכסה החינמית של גוגל נגמרה להיום.", "Google's free quota has run out for today.",
             "המכסה החינמית של {0} נגמרה לעכשיו. {1}", "The {0} free quota has run out for now. {1}",
             "אפשר לנסות שוב בעוד כמה דקות.", "You can try again in a few minutes.",

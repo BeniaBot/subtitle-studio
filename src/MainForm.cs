@@ -2576,11 +2576,27 @@ namespace SubtitleStudio
 
         private void OpenAny(string path)
         {
+            // קובץ שכבר לא שם - מהרשימה במסך הפתיחה (שמסמנת ״הקובץ לא נמצא״), או מגרירה. עד 0.8.5
+            // סרט כזה פשוט לא נפתח, בלי מילה, והשורה נשארה ברשימה לתמיד
+            if (!File.Exists(path)) { MissingFile(path); return; }
             string ext = Path.GetExtension(path).ToLowerInvariant();
             if (ext == Project.Extension) { OpenProject(path); return; }
             if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".sub" || ext == ".txt")
                 ImportSubs(path);
             else OpenMedia(path);
+        }
+
+        /// <summary>אומר שהקובץ לא נמצא, ומציע להוריד אותו מרשימת האחרונים.</summary>
+        private void MissingFile(string path)
+        {
+            string body = Lang.F("{0}\nאולי הוא הועבר, נמחק, או שהכונן שלו לא מחובר.", Theme.FileName(Path.GetFileName(path)));
+            bool listed = false;
+            foreach (string p in Settings.Recent) if (string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) listed = true;
+            if (!listed) { Ui.Error(this, Lang.T("הקובץ לא נמצא"), body); return; }
+            if (Ui.Msg(this, Lang.T("הקובץ לא נמצא"), body, Ico.Warning, Lang.T("להסיר מהרשימה"), Lang.T("סגירה")) != 0) return;
+            Settings.Recent.RemoveAll(delegate (string p) { return string.Equals(p, path, StringComparison.OrdinalIgnoreCase); });
+            Settings.SaveAll();
+            if (_hero != null) { _hero.Recent = Settings.Recent; _hero.Invalidate(); }
         }
 
         private void OpenMedia(string path) { OpenMediaCore(path, false); }
