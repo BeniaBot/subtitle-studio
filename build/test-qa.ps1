@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 95 בדיקות.
+# צפוי: 96 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -265,6 +265,12 @@ foreach ($c in $doc.Cues) { $c.Selected = ($c.Start -eq 0) }
 $typed = $doc.Cues[0].Start
 $doc.Undo()
 Check 'זמן שהוקלד בשדה - Ctrl+Z מחזיר אותו' ($typed -eq 500 -and $doc.Cues[0].Start -eq 0) ("typed=$typed after undo=" + $doc.Cues[0].Start)
+# חלון התרגום נפתח על השפה ההגיונית (0.8.5). עד אז תמיד ״אנגלית״, גם לסרטון באנגלית
+$tdlg = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (NewDoc @(@(0, 2000, 'Our enemies are making progress.'), @(2500, 4000, 'שלום'))) ''))
+$selEn = $tdlg.GetType().GetField('_lang', $IF).GetValue($tdlg).SelectedIndex; $tdlg.Dispose()
+$tdlg = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (NewDoc @(,@(0, 2000, 'האויבים שלנו מתקדמים.'))) ''))
+$selHe = $tdlg.GetType().GetField('_lang', $IF).GetValue($tdlg).SelectedIndex; $tdlg.Dispose()
+Check 'תרגום: כתוביות באנגלית - נפתח על ״עברית״; עבריות - על ״אנגלית״' ($selEn -eq 0 -and $selHe -eq 1) "en->$selEn he->$selHe"
 
 $f.Close(); $f.Dispose(); [Windows.Forms.Application]::DoEvents()
 

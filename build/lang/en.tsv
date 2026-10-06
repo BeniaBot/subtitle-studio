@@ -219,7 +219,7 @@
 פורטוגזית	Portuguese
 אמהרית	Amharic
 תרגום הכתוביות	Translate the subtitles
-התזמונים נשארים בדיוק כמו שהם	The timing stays exactly as it is
+כל כתובית נשארת במקומה בסרט	Each subtitle stays in its place in the video
 לאיזו שפה לתרגם	Which language to translate into
 מה לעשות עם התוצאה	What to do with the result
 להחליף את הכתוביות הקיימות	Replace the current subtitles
@@ -232,6 +232,7 @@
 השאירו את החלון פתוח	Keep this window open
 מתחבר...	Connecting...
 תורגמו {0} מתוך {1} כתוביות	Translated {0} of {1} subtitles
+יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.	{0} subtitles will be translated into a new file. The subtitles here will not change.
 
 # ---- DlgChat.cs ----
 תרגם את הכתוביות לאנגלית	Translate the subtitles into Spanish

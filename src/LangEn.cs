@@ -213,7 +213,7 @@ namespace SubtitleStudio
             "פורטוגזית", "Portuguese",
             "אמהרית", "Amharic",
             "תרגום הכתוביות", "Translate the subtitles",
-            "התזמונים נשארים בדיוק כמו שהם", "The timing stays exactly as it is",
+            "כל כתובית נשארת במקומה בסרט", "Each subtitle stays in its place in the video",
             "לאיזו שפה לתרגם", "Which language to translate into",
             "מה לעשות עם התוצאה", "What to do with the result",
             "להחליף את הכתוביות הקיימות", "Replace the current subtitles",
@@ -226,6 +226,7 @@ namespace SubtitleStudio
             "השאירו את החלון פתוח", "Keep this window open",
             "מתחבר...", "Connecting...",
             "תורגמו {0} מתוך {1} כתוביות", "Translated {0} of {1} subtitles",
+            "יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.", "{0} subtitles will be translated into a new file. The subtitles here will not change.",
             "תרגם את הכתוביות לאנגלית", "Translate the subtitles into Spanish",
             "תקן חפיפות וכתוביות קצרות מדי", "Fix overlaps and subtitles that are too short",
             "כל הכתוביות מאחרות בחצי שנייה", "All the subtitles are half a second late",
@@ -306,9 +307,9 @@ namespace SubtitleStudio
             "לא נמצאו כתוביות בערוץ הזה.", "No subtitles were found in this track.",
             "לא הצליח", "Didn't work",
             "עיצוב הכתוביות", "Subtitle style",
-            "כך ייראו הכתוביות בסרט הסופי", "How the subtitles will look in the final video",
         };
         private static readonly string[] P1 = new string[] {
+            "כך ייראו הכתוביות בסרט הסופי", "How the subtitles will look in the final video",
             "גופן וגודל", "Font and size",
             "מודגש", "Bold",
             "רקע מלא במקום מתאר", "Solid box instead of an outline",
@@ -608,9 +609,9 @@ namespace SubtitleStudio
             "פתיחה וסגירה רכות מתוך שחור - נראה הרבה יותר מקצועי", "A soft open and close from black - looks far more professional",
             " שנ׳", " sec",
             "אורך הדהייה", "Fade length",
-            " - עם דהייה", " - faded",
         };
         private static readonly string[] P2 = new string[] {
+            " - עם דהייה", " - faded",
             "הכנה לשליחה בוואטסאפ", "Prepare for messaging apps",
             "מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום", "720p, fully phone compatible - a small file that opens anywhere",
             " - לוואטסאפ", " - for phones",
@@ -910,9 +911,9 @@ namespace SubtitleStudio
             "{0} · לחיצה קופצת", "{0} · click to jump",
             "כתובית אחת עם מילה חשודה", "One subtitle with a suspicious word",
             "{0} כתוביות עם מילים חשודות", "{0} subtitles with suspicious words",
-            "בדיקת האיות דלוקה. עוד רגע המילים החשודות יסומנו ברשימה.", "Spell check is on. In a moment the suspicious words will be marked in the list.",
         };
         private static readonly string[] P3 = new string[] {
+            "בדיקת האיות דלוקה. עוד רגע המילים החשודות יסומנו ברשימה.", "Spell check is on. In a moment the suspicious words will be marked in the list.",
             "המילון עוד נטען. עוד רגע המילים החשודות יסומנו ברשימה.", "The dictionary is still loading. In a moment the suspicious words will be marked in the list.",
             "אין עדיין כתוביות לבדוק.", "There are no subtitles to check yet.",
             "לא נמצאו מילים שאולי כתובות לא נכון.", "No words that may be misspelled were found.",
@@ -1212,9 +1213,9 @@ namespace SubtitleStudio
             "אפשר להמשיך מחר.", "You can go on tomorrow.",
             "לא הוגדר מפתח ל", "No key is set for",
             "המפתח של {0} לא תקין, או שפג תוקפו.", "The {0} key isn't valid, or it has expired.",
-            "המכסה של {0} נגמרה לעכשיו.", "The {0} quota has run out for now.",
         };
         private static readonly string[] P4 = new string[] {
+            "המכסה של {0} נגמרה לעכשיו.", "The {0} quota has run out for now.",
             "קטע השמע גדול מדי לשירות.", "The audio section is too big for the service.",
             "השרת של {0} לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.", "The {0} server isn't available right now. You can try again in a few minutes.",
             "אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת.", "No internet connection, or the service is blocked on this network.",

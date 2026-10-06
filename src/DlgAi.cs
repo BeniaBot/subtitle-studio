@@ -231,18 +231,22 @@ namespace SubtitleStudio
         public AiTranslateDlg(Doc doc, string context) : base(Lang.T("תרגום הכתוביות"), Ico.Translate, 560)
         {
             _doc = doc;
-            Subtitle = Lang.T("התזמונים נשארים בדיוק כמו שהם");
+            // עד 0.8.5: ״התזמונים נשארים בדיוק כמו שהם״ - אבל מ-0.8.2 תרגום ארוך מקבל עוד זמן קריאה
+            Subtitle = Lang.T("כל כתובית נשארת במקומה בסרט");
 
             Section(Lang.T("לאיזו שפה לתרגם"));
             _lang = new Combo();
             _lang.Items.AddRange(Langs);
-            _lang.SelectedIndex = 1;
+            // כתוביות בשפה זרה מתורגמות כמעט תמיד לעברית; עבריות - לאנגלית. עד 0.8.5 החלון נפתח תמיד
+            // על ״אנגלית״, וגם מי שתרגם סרטון באנגלית לעברית היה צריך לזכור להחליף
+            _lang.SelectedIndex = MostlyHebrew(doc) ? 1 : 0;
             Row(_lang, 40, 12);
 
             Section(Lang.T("מה לעשות עם התוצאה"));
             _mode = new Combo();
             _mode.Items.AddRange(new string[] { Lang.T("להחליף את הכתוביות הקיימות"), Lang.T("לשמור לקובץ חדש בלי לגעת בקיימות") });
             _mode.SelectedIndex = 0;
+            _mode.SelectedIndexChanged += delegate { UpdateInfo(); };
             Row(_mode, 40, 12);
 
             Section(Lang.T("רקע על התוכן (לא חובה)"));
@@ -251,12 +255,36 @@ namespace SubtitleStudio
             if (!string.IsNullOrEmpty(context)) _context.Text = context;
             Row(_context, 40, 10);
 
-            _info = Hint(doc != null
-                ? Lang.F("יתורגמו {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", Theme.Ltr(doc.Cues.Count.ToString()))
-                : "");
+            _info = Hint("");
+            UpdateInfo();
             Row(_info, 36, 2);
 
             Buttons(Lang.T("תרגמו"), Ico.Sparkles, Lang.T("ביטול"));
+        }
+
+        /// <summary>״אפשר לבטל ב-Ctrl+Z״ רק כשהתרגום מחליף את הכתוביות כאן; לקובץ חדש - אין מה לבטל.</summary>
+        private void UpdateInfo()
+        {
+            if (_doc == null || _info == null) return;
+            string n = Theme.Ltr(_doc.Cues.Count.ToString());
+            _info.Text = _mode.SelectedIndex == 0
+                ? Lang.F("יתורגמו {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", n)
+                : Lang.F("יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.", n);
+            _info.Invalidate();
+        }
+
+        /// <summary>רוב האותיות בכתוביות עבריות.</summary>
+        internal static bool MostlyHebrew(Doc doc)
+        {
+            int he = 0, other = 0;
+            if (doc != null)
+                foreach (Cue c in doc.Cues)
+                    foreach (char ch in c.Text ?? "")
+                    {
+                        if (ch >= 'א' && ch <= 'ת') he++;
+                        else if (char.IsLetter(ch)) other++;
+                    }
+            return he > other;
         }
 
         public string Target { get { return Langs[Math.Max(0, _lang.SelectedIndex)]; } }
