@@ -225,7 +225,10 @@ namespace SubtitleStudio
             Lang.T("עברית"), Lang.T("אנגלית"), Lang.T("ערבית"), Lang.T("רוסית"), Lang.T("צרפתית"), Lang.T("ספרדית"), Lang.T("יידיש"), Lang.T("גרמנית"), Lang.T("פורטוגזית"), Lang.T("אמהרית")
         };
 
-        public AiTranslateDlg(Doc doc) : base(Lang.T("תרגום הכתוביות"), Ico.Translate, 560)
+        public AiTranslateDlg(Doc doc) : this(doc, null) { }
+
+        /// <summary><paramref name="context"/>: הרקע שנכתב בתמלול, כדי שהשמות שם ייכתבו נכון גם בתרגום.</summary>
+        public AiTranslateDlg(Doc doc, string context) : base(Lang.T("תרגום הכתוביות"), Ico.Translate, 560)
         {
             _doc = doc;
             Subtitle = Lang.T("התזמונים נשארים בדיוק כמו שהם");
@@ -245,6 +248,7 @@ namespace SubtitleStudio
             Section(Lang.T("רקע על התוכן (לא חובה)"));
             _context = new Field();
             _context.Placeholder = Lang.T("למשל: שיעור בהלכה · הרצאה טכנית · סרטון שיווקי");
+            if (!string.IsNullOrEmpty(context)) _context.Text = context;
             Row(_context, 40, 10);
 
             _info = Hint(doc != null

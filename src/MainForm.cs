@@ -1024,6 +1024,9 @@ namespace SubtitleStudio
         }
 
 
+        /// <summary>הרקע על התוכן (שמות, מונחים) שנכתב בתמלול או בתרגום האחרון - עובר הלאה.</summary>
+        private string _contentContext = "";
+
         /// <summary>תרגום כל הכתוביות בכמה קליקים.</summary>
         private void AiTranslate()
         {
@@ -1034,9 +1037,10 @@ namespace SubtitleStudio
             }
             if (!EnsureAiKey()) return;
 
-            AiTranslateDlg d = new AiTranslateDlg(_doc);
+            AiTranslateDlg d = new AiTranslateDlg(_doc, _contentContext);
             d.ShowDialog(this);
             if (!d.Ok) return;
+            _contentContext = d.Context;
 
             List<Cue> cues = new List<Cue>(_doc.Cues);
             AiRunDlg run = new AiRunDlg(cues, d.Target, d.Context);
@@ -2726,6 +2730,7 @@ namespace SubtitleStudio
             d.ShowDialog(this);
             bool ok = d.Ok;
             string ctx = d.Context;
+            _contentContext = ctx;
             bool replace = d.ReplaceExisting;
             ISttProvider provider = d.Provider;
             d.Dispose();

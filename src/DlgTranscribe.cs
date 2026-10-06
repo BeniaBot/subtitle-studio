@@ -89,9 +89,10 @@ namespace SubtitleStudio
 
             Section(Lang.T("רקע על התוכן (לא חובה)"));
             _context = new Field();
-            _context.Placeholder = Lang.T("למשל: שיעור בגמרא · הרצאה רפואית · ראיון");
+            _context.Placeholder = Lang.T("למשל: שיעור בגמרא · שמות הדוברים · מונחים מיוחדים");
             Row(_context, 40, 4);
-            Lbl ch = Hint(Lang.T("עוזר לזהות שמות ומונחים נכון."));
+            // שם שהמודל לא מכיר יוצא משובש או נעלם. כאן אפשר להגיד לו מראש - וזה עובר גם לתרגום
+            Lbl ch = Hint(Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."));
             Row(ch, 22, 8);
 
             Buttons(Lang.T("להתחיל בתמלול"), Ico.Sparkles, Lang.T("ביטול"));
