@@ -1149,8 +1149,18 @@ namespace SubtitleStudio
                     items.Add(MenuItem.Make(Lang.T("להוסיף למילון"), Lang.T("המילה תיחשב נכונה מעכשיו, בכל הכתוביות"), Ico.Plus,
                         delegate { AddToDictionary(word); }));
                 }
-                if (items.Count > 0) items.Add(MenuItem.Group(Lang.T("הכתובית")));
             }
+            // מילה שהמודל לא היה בטוח בה: להשמיע, ולהסיר את הסימון כשהיא נכונה. עד 0.8.5 הדרך היחידה
+            // להסיר סימון משורה אחת הייתה לערוך אותה - גם כשלא היה מה לתקן
+            if (c != null && !string.IsNullOrEmpty(c.Doubt))
+            {
+                items.Add(MenuItem.Group(Lang.F("המודל לא היה בטוח: ״{0}״", string.Join("״, ״", Qa.DoubtWords(c.Doubt).ToArray()))));
+                if (_mi != null)
+                    items.Add(MenuItem.Make(Lang.T("להשמיע את השורה"), Lang.T("מהתחלת הכתובית"), Ico.Play, delegate { PlayCue(c); }));
+                items.Add(MenuItem.Make(Lang.T("נכון - להסיר את הסימון"), Lang.T("נשמע כמו שכתוב · Ctrl+Z מבטל"), Ico.Check,
+                    delegate { ClearDoubt(c); }));
+            }
+            if (items.Count > 0) items.Add(MenuItem.Group(Lang.T("הכתובית")));
             items.Add(MenuItem.Make(Lang.T("לחלק לשתי כתוביות"), Lang.T("מחלק במקום שבו נמצא הסמן"), Ico.Split,
                 delegate { SplitCue(); }));
             items.Add(MenuItem.Make(Lang.T("לחבר כתוביות לאחת"), Lang.T("מאחד את המסומנות"), Ico.Merge,
@@ -2969,7 +2979,8 @@ namespace SubtitleStudio
                     : Lang.F("ב-{0} כתוביות יש מילים שהמודל לא היה בטוח בהן. אחרי הצריבה כבר אי אפשר לתקן.", Theme.Ltr(unsure.Count.ToString(CultureInfo.InvariantCulture)));
                 int u = Ui.Msg(this, Lang.T("להקשיב לפני הצריבה?"), ask, Ico.Question,
                     Lang.T("להקשיב קודם"), Lang.T("להמשיך בכל זאת"), Lang.T("ביטול"));
-                if (u == 0) { JumpToIssue(IssueKind.Unsure); return false; }
+                // ״להקשיב קודם״ - ומיד שומעים. עד 0.8.5 התוכנה רק קפצה לשורה, והמשתמש היה צריך לנחש שעכשיו מנגנים
+                if (u == 0) { JumpToIssue(IssueKind.Unsure); PlayCue(_editing); return false; }
                 if (u != 1) return false;
             }
             HashSet<int> hard = new HashSet<int>();
@@ -3225,14 +3236,14 @@ namespace SubtitleStudio
             foreach (Issue x in all)
                 if (x.Kind == IssueKind.Unsure)
                 {
-                    items.Add(MenuItem.Make(Lang.T("השאר נכונות - להסיר את הסימון"), Lang.T("אחרי שהקשבתם · Ctrl+Z מבטל"), Ico.Check,
+                    items.Add(MenuItem.Make(Lang.T("בדקתי - להסיר את כל הסימונים"), Lang.T("אחרי שהקשבתם · Ctrl+Z מבטל"), Ico.Check,
                         delegate { ClearDoubts(); }));
                     break;
                 }
             return items;
         }
 
-        /// <summary>מסיר את כל סימוני ״מילה לא בטוחה״ - המשתמש הקשיב, והשאר נכונות.</summary>
+        /// <summary>מסיר את כל סימוני ״מילה לא בטוחה״ - המשתמש הקשיב, והמילים נכונות.</summary>
         internal void ClearDoubts()
         {
             _doc.Push(Lang.T("הסרת הסימון ״לא בטוח״"));
@@ -3243,6 +3254,25 @@ namespace SubtitleStudio
             _doc.RaiseChanged();
             _list.Invalidate();
             RefreshQa(true);
+        }
+
+        /// <summary>סימון ״לא בטוח״ של כתובית אחת - מהקליק הימני, אחרי שהמשתמש הקשיב.</summary>
+        internal void ClearDoubt(Cue c)
+        {
+            if (c == null || string.IsNullOrEmpty(c.Doubt) || !_doc.Cues.Contains(c)) return;
+            _doc.Push(Lang.T("הסרת הסימון ״לא בטוח״"));
+            c.Doubt = "";
+            _doc.RaiseChanged();
+            _list.Invalidate();
+            RefreshQa(true);
+        }
+
+        /// <summary>מנגן מהתחלת הכתובית - כדי לשמוע מה באמת נאמר.</summary>
+        internal void PlayCue(Cue c)
+        {
+            if (_mi == null || c == null) return;
+            Seek(c.Start);
+            _engine.Play();
         }
 
         /// <summary>הבעיה הבאה מהסוג הזה, אחרי הכתובית שנבחרה. בסוף חוזרים להתחלה.</summary>

@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 96 בדיקות.
+# צפוי: 98 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -271,6 +271,16 @@ $selEn = $tdlg.GetType().GetField('_lang', $IF).GetValue($tdlg).SelectedIndex; $
 $tdlg = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (NewDoc @(,@(0, 2000, 'האויבים שלנו מתקדמים.'))) ''))
 $selHe = $tdlg.GetType().GetField('_lang', $IF).GetValue($tdlg).SelectedIndex; $tdlg.Dispose()
 Check 'תרגום: כתוביות באנגלית - נפתח על ״עברית״; עבריות - על ״אנגלית״' ($selEn -eq 0 -and $selHe -eq 1) "en->$selEn he->$selHe"
+# מילה לא בטוחה בקליק ימני (0.8.5): עד אז הדרך היחידה להסיר סימון משורה אחת הייתה לערוך אותה
+$doc.ClearHistory()
+foreach ($c in $doc.Cues) { $c.Selected = ($c.Start -eq 0) }
+$doc.Cues[0].Doubt = 'Amonic'
+[void](Call $f 'LoadEditor' @())
+$cm = @($formT.GetMethod('CueMenuItems', $IF).Invoke($f, @()))
+$clear = @($cm | Where-Object { $_.Text -eq 'נכון - להסיר את הסימון' })
+Check 'קליק ימני על שורה עם מילה לא בטוחה: המילה, ו״נכון - להסיר את הסימון״' ($clear.Count -eq 1 -and (@($cm | Where-Object { $_.Header -and $_.Text.Contains('Amonic') }).Count -eq 1)) (($cm | ForEach-Object { $_.Text }) -join ' | ')
+if ($clear.Count -eq 1) { $clear[0].Click.Invoke($null, [EventArgs]::Empty) }
+Check 'והלחיצה מסירה את הסימון, עם Ctrl+Z' ($doc.Cues[0].Doubt -eq '' -and $doc.CanUndo) ('doubt=' + $doc.Cues[0].Doubt)
 
 $f.Close(); $f.Dispose(); [Windows.Forms.Application]::DoEvents()
 
