@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 102 בדיקות.
+# צפוי: 104 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -347,6 +347,19 @@ Check 'בלי סימון - בלי כלום' (($c3.Text -eq 'שורה רגילה'
 $sn = (T 'Ai').GetMethod('StripNiqqud', $SF)
 Check 'ניקוד שנוסף בתרגום יורד' ($sn.Invoke($null, @([string]'גרוקבּוֹט')) -eq 'גרוקבוט') ''
 Check 'מקף עברי נשאר (הוא פיסוק, לא ניקוד)' ($sn.Invoke($null, @([string]'אינטליגנציית־על')) -eq 'אינטליגנציית־על') ''
+
+# דוברים (0.8.4): המודל מציין דובר לכל שורה, והוא עובר לכתובית
+Write-Host 'דוברים'
+$ptl = (T 'Ai').GetMethod('ParseTrLines', $SF)
+$pa2 = New-Object object[] 2; $pa2[0] = '[{"s":64.4,"e":65.0,"sp":1,"t":"Mr. President."},{"s":65.1,"e":68.5,"sp":2,"t":"Our enemies are making progress."}]'
+$sl = @($ptl.Invoke($null, $pa2))
+Check 'מספר הדובר נקרא מהתשובה' (($sl.Count -eq 2) -and ($sl[0].Speaker -eq '1') -and ($sl[1].Speaker -eq '2')) (($sl | ForEach-Object { $_.Speaker }) -join ',')
+$allT = [Collections.Generic.List``1].MakeGenericType((T 'Cue')); $allC = [Activator]::CreateInstance($allT)
+$lt2 = [Collections.Generic.List``1].MakeGenericType((T 'Ai+TrLine')); $lines2 = [Activator]::CreateInstance($lt2); foreach ($x in $sl) { [void]$lt2.GetMethod('Add').Invoke($lines2, (Pack $x)) }
+$ac = (T 'Transcribe').GetMethod('AddChunk', $SF)
+$aa = New-Object object[] 6; $aa[0] = $allC; $aa[1] = $lines2; $aa[2] = [int]0; $aa[3] = [double]0; $aa[4] = [int]180; $aa[5] = [long]94000
+[void]$ac.Invoke($null, $aa)
+Check 'והכתובית יודעת מי הדובר' (($allC.Count -eq 2) -and ($allC[0].Actor -eq '1') -and ($allC[1].Actor -eq '2')) (($allC | ForEach-Object { $_.Actor }) -join ',')
 
 # ================= 5. בחירת הספק =================
 Write-Host 'בחירת הספק'

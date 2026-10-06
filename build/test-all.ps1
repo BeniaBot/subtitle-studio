@@ -10,8 +10,8 @@ $here = $PSScriptRoot
 $expect = [ordered]@{
     'logic' = 198; 'autotime' = 30; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 45; 'layout' = 95; 'project' = 106; 'screens' = 35
-    'fuzz' = 11; 'long' = 15; 'stt' = 102; 'errors' = 36; 'buttons' = 12
-    'source' = 7; 'qa' = 84; 'spell' = 59; 'release' = 42; 'settings' = 14; 'subs' = 24
+    'fuzz' = 11; 'long' = 15; 'stt' = 104; 'errors' = 36; 'buttons' = 12
+    'source' = 7; 'qa' = 89; 'spell' = 59; 'release' = 42; 'settings' = 18; 'subs' = 24
     # name@en = the same package with -Lang en: the whole layout is mirrored there
     'buttons@en' = 12; 'layout@en' = 95; 'screens@en' = 35
 }

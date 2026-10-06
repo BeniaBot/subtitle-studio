@@ -6,7 +6,7 @@
 # את כל הקובץ, כך שחלון שני שלא הכיר את המפתח מחק אותו בשמירה הבאה שלו.
 #
 # הכול על קובץ זמני (Settings.FileOverride) - ההגדרות של המשתמש לא נגעות.
-# צפוי: 14 בדיקות.
+# צפוי: 18 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Security
@@ -81,6 +81,20 @@ $o1 = $load.Invoke($null, @()).OutlineWidth
 [IO.File]::WriteAllText($ini, "outline=4.5`r`n", (New-Object Text.UTF8Encoding $true))
 $o2 = $load.Invoke($null, @()).OutlineWidth
 Check 'מתאר 2.2 (ברירת המחדל הישנה) עולה לחדשה, ומתאר שנבחר נשאר' (($o1 -eq 3.0) -and ($o2 -eq 4.5)) "2.2 -> $o1, 4.5 -> $o2"
+
+# 4ד. הדגם המועדף (0.8.4): מעבר בגלל מכסה או עומס לא נשמר; רק מעבר בגלל דגם שלא קיים
+$A2 = TY 'Ai'; $sw = $A2.GetMethod('Switched', $ST)
+$A2.GetField('Model', $ST).SetValue($null, [string]'gemini-2.5-flash'); $A2.GetField('Preferred', $ST).SetValue($null, [string]'gemini-2.5-flash')
+[void]$sw.Invoke($null, @([string]'gemini-3-flash-preview', $false))
+Check 'מעבר בגלל מכסה: הדגם הפעיל מתחלף, המועדף לא' (($A2.GetField('Model', $ST).GetValue($null) -eq 'gemini-3-flash-preview') -and ($A2.GetField('Preferred', $ST).GetValue($null) -eq 'gemini-2.5-flash')) ''
+SaveAll
+Check 'ובהגדרות נשמר המועדף, לא הגיבוי' ((Get-Content $ini -Encoding UTF8) -contains 'aimodel=gemini-2.5-flash') ''
+[void]$sw.Invoke($null, @([string]'gemini-flash-latest', $true))
+Check 'מעבר כי הדגם לא קיים בחשבון - נשמר כמועדף' ($A2.GetField('Preferred', $ST).GetValue($null) -eq 'gemini-flash-latest') ''
+[IO.File]::WriteAllText($ini, "aimodel=gemini-3-flash-preview`r`n", (New-Object Text.UTF8Encoding $true))
+$A2.GetField('Preferred', $ST).SetValue($null, [string]'gemini-flash-latest'); $A2.GetField('Model', $ST).SetValue($null, [string]'gemini-flash-latest')
+[void]$S.GetMethod('Load', $ST).Invoke($null, @())
+Check 'דגם גיבוי שגרסה קודמת שמרה - חוזר לברירת המחדל' (($A2.GetField('Model', $ST).GetValue($null) -eq 'gemini-flash-latest')) ([string]$A2.GetField('Model', $ST).GetValue($null))
 
 # 5. וההגדרות האמיתיות לא נגעו
 $after = if (Test-Path $realIni) { (Get-FileHash $realIni).Hash } else { '' }

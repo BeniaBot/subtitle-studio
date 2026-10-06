@@ -496,11 +496,14 @@ namespace SubtitleStudio
                     if (j < 0 || j >= cues.Count || cues[j].Untimed) continue;
                     Cue a = cues[Math.Min(i, j)], b = cues[Math.Max(i, j)];
                     if (b.Start - a.End > 300 || b.End - a.Start > MaxDurMs) continue;
-                    string joined = JoinTwo(Flat(a.PlainText), Flat(b.PlainText));
+                    if (IsDialogue(a) || IsDialogue(b)) continue;
+                    bool two = DifferentSpeakers(a, b);
+                    string joined = two ? JoinDialogue(Flat(a.PlainText), Flat(b.PlainText)) : JoinTwo(Flat(a.PlainText), Flat(b.PlainText));
                     if (joined == null) continue;
                     a.Text = joined;
                     a.End = b.End;
                     a.Doubt = JoinDoubt(a.Doubt, b.Doubt);
+                    if (two) a.Actor = a.Actor + "|" + b.Actor;
                     cues.Remove(b);
                     n++;
                     i = Math.Max(-1, Math.Min(i, j) - 1);
@@ -508,6 +511,27 @@ namespace SubtitleStudio
                 }
             }
             return n;
+        }
+
+        /// <summary>שני דוברים שונים (לפי Cue.Actor - מהתמלול, או מקובץ ASS). דובר לא ידוע - לא נחשב שונה.</summary>
+        internal static bool DifferentSpeakers(Cue a, Cue b)
+        {
+            return !string.IsNullOrEmpty(a.Actor) && !string.IsNullOrEmpty(b.Actor) && a.Actor != b.Actor;
+        }
+
+        /// <summary>כתובית של דו-שיח: שורה שמתחילה במקף.</summary>
+        internal static bool IsDialogue(Cue c)
+        {
+            foreach (string l in Lines(c.Text)) if (l.StartsWith("-") || l.StartsWith("–")) return true;
+            return false;
+        }
+
+        /// <summary>שני דוברים בכתובית אחת - שורה לכל אחד, ובתחילתה מקף (הצורה המקובלת). עד 0.8.4
+        /// ״אדוני הנשיא״ של אחד ו״אויבינו מעבר לים מתקדמים״ של אחר נראו כמשפט אחד. ‏null אם לא נכנס.</summary>
+        private static string JoinDialogue(string a, string b)
+        {
+            if (a.Length == 0 || b.Length == 0 || a.Length + 2 > MaxLineChars || b.Length + 2 > MaxLineChars) return null;
+            return "- " + a + "\n- " + b;
         }
 
         /// <summary>שני טקסטים בכתובית אחת: שני משפטים - שורה לכל אחד; אחרת שורה אחת. ‏null אם
@@ -530,7 +554,7 @@ namespace SubtitleStudio
             for (int i = 0; i + 1 < cues.Count; i++)
             {
                 Cue c = cues[i], nx = cues[i + 1];
-                if (c.Untimed || nx.Untimed) continue;
+                if (c.Untimed || nx.Untimed || DifferentSpeakers(c, nx)) continue;
                 string t = Flat(c.PlainText);
                 if (t.StartsWith("-") || t.StartsWith("–")) continue;          // דו-שיח
                 int k = LastSentenceEnd(t);
@@ -617,13 +641,15 @@ namespace SubtitleStudio
             for (int i = 0; i + 1 < cues.Count; i++)
             {
                 Cue c = cues[i], nx = cues[i + 1];
-                if (c.Untimed || nx.Untimed) continue;
+                if (c.Untimed || nx.Untimed || DifferentSpeakers(c, nx)) continue;
                 string t = c.PlainText.Trim();
                 if (t.Length == 0) continue;
                 char last = t[t.Length - 1];
                 if (".?!…״\")".IndexOf(last) >= 0) continue;
-                int words = t.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                if (words > 2 && t.Length > 8) continue;
+                // רק מילה אחת, או שבר שמתחיל במילת פתיחה (״And so,״). עד 0.8.4 כל שבר של עד שתי מילים
+                // התאחד, וגם ״Mr. President,״ - שהמודל הפריד כי אמר אותו אדם אחר - נדבק למשפט שאחריו
+                string[] fw = t.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (!(fw.Length == 1 || (fw.Length == 2 && IsLeadIn(fw[0])))) continue;
                 if (nx.Start - c.End > MergeGapMs) continue;
                 string joined = t + " " + nx.PlainText.Trim();
                 if (joined.Length > MaxLineChars * MaxLines || nx.End - c.Start > MaxDurMs) continue;
@@ -655,7 +681,7 @@ namespace SubtitleStudio
             for (int i = 0; i < cues.Count; i++)
             {
                 Cue c = cues[i];
-                if (c.Untimed) continue;
+                if (c.Untimed || IsDialogue(c)) continue;
                 string t = c.PlainText.Trim();
                 while (t.Contains("  ")) t = t.Replace("  ", " ");
                 if (c.Duration <= MaxDurMs && t.Length <= MaxLineChars * MaxLines) continue;

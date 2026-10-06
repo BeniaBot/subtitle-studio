@@ -87,6 +87,13 @@ namespace SubtitleStudio
         /// <summary>‏"latest" ולא שם עם מספר גרסה: הוא לא מתיישן, והוא לא
         /// זה שנמדד אצלו 20 בקשות ליום בלבד.</summary>
         public static string Model = "gemini-flash-latest";
+        /// <summary>הדגם שנשמר בהגדרות, ושממנו כל הפעלה מתחילה. ‏Model הוא הדגם הפעיל בסשן.
+        /// **עד 0.8.4 מעבר בגלל מכסה נשמר כאן**, והתוכנה נשארה על דגם הגיבוי גם אחרי שהמכסה
+        /// התחדשה - ובדגמי הגיבוי הזמנים של התמלול סטו בשנייה (נמדד, 6.10.2026). עכשיו נשמר
+        /// רק מעבר בגלל שם דגם שלא קיים בחשבון.</summary>
+        public static string Preferred = "gemini-flash-latest";
+        /// <summary>הדגם שענה בבקשה האחרונה שהצליחה.</summary>
+        public static string LastModelUsed = "";
         public static string Key = "";
         public static string LastError = "";
 
@@ -218,6 +225,7 @@ namespace SubtitleStudio
 
             bool logged = false;
             bool anyTried = false;
+            bool onlyMissing = true;          // כל הדגמים שנכשלו לפני ההצלחה פשוט לא קיימים
             foreach (string model in tryModels)
             {
                 // דגם שכבר ידוע שמיצה את המכסה היומית - אין טעם לבזבז
@@ -234,7 +242,7 @@ namespace SubtitleStudio
                 }
                 if (Post(Endpoint(model), json, out reply, out err))
                 {
-                    if (model != Model) { Log("עברנו לדגם " + model); Model = model; }
+                    Switched(model, onlyMissing);
                     break;
                 }
 
@@ -249,7 +257,7 @@ namespace SubtitleStudio
                     json = BuildBody(system, history, tools, jsonOut, model);
                     if (Post(Endpoint(model), json, out reply, out err))
                     {
-                        if (model != Model) { Log("עברנו לדגם " + model); Model = model; }
+                        Switched(model, onlyMissing);
                         break;
                     }
                 }
@@ -268,6 +276,7 @@ namespace SubtitleStudio
                             LastHttpCode == 502 || LastHttpCode == 504;
 
                 if (!notFound && !quotaGone && !busy) break;         // שגיאה אמיתית
+                if (!notFound) onlyMissing = false;
                 if (busy) Log("הדגם " + model + " עמוס - מנסים דגם אחר");
                 if (quotaGone)
                 {
@@ -577,6 +586,16 @@ namespace SubtitleStudio
             lock (_exhausted) return _exhausted.ContainsKey(model);
         }
 
+        /// <summary>הדגם ענה. מעבר נשמר כמועדף רק אם הקודמים לא קיימים - לא אם הם עמוסים או מיצו מכסה.</summary>
+        private static void Switched(string model, bool onlyMissing)
+        {
+            LastModelUsed = model;
+            if (model == Model) return;
+            Log("עברנו לדגם " + model);
+            Model = model;
+            if (onlyMissing) Preferred = model;
+        }
+
         private static void MarkExhausted(string model)
         {
             lock (_exhausted) _exhausted[model] = true;
@@ -804,6 +823,8 @@ namespace SubtitleStudio
         {
             public double Start, End;
             public string Text = "";
+            /// <summary>מספר הדובר שהמודל זיהה (״1״, ״2״...), או ריק.</summary>
+            public string Speaker = "";
             /// <summary>לשורה יש זמן שהצלחנו לקרוא. בלי זמן היא **לא נזרקת**: היא נשמרת
             /// כ״זמן משוער״ (≈), בדיוק כמו אחרי יבוא טקסט.</summary>
             public bool HasTime { get { return !double.IsNaN(Start); } }
@@ -830,13 +851,22 @@ namespace SubtitleStudio
                 "שם או מילה שאתה לא בטוח בהם - כתוב כפי שנשמע, בכתיב הסביר ביותר, ועטוף בסימנים ⟦ ⟧ " +
                 "(למשל: ⟦מילה⟧). רק מה שבאמת לא ברור; לעולם אל תשמיט שם. " +
                 "שמות של אנשים, חברות ומוצרים - בכתיב המקובל שלהם.\n" +
+                // עד 0.8.4: ״Only House Anthropic!״ יצא ״Only House Open AI״ - שם שלא נשמע הוחלף בשם
+                // שמופיע קודם בסרט, ושורת המחץ התהפכה (נמצא על סרטון אמיתי)
+                "לעולם אל תחליף שם שלא שמעת בבירור בשם אחר - גם לא בשם שמופיע במקום אחר בהקלטה או שאתה " +
+                "מכיר. כתוב את מה שנשמע, וסמן ⟦ ⟧.\n" +
+                // עד 0.8.4: ״Mr. President. Our enemies...״ של שני אנשים יצא משפט אחד עם פסיק
+                "כל שורה של דובר אחד בלבד: כשאדם אחר מתחיל לדבר - שורה חדשה, גם אם זה נשמע כהמשך משפט. " +
+                "ציין בשדה sp את מספר הדובר (1, 2, 3...) - אותו אדם, אותו מספר לאורך כל הקטע.\n" +
+                "משפט קצר שנאמר לבד, אחרי הפסקה - גם מילה אחת - הוא משפט נפרד עם פיסוק משלו; אל תצמיד " +
+                "אותו למשפט שלפניו.\n" +
                 // עד 0.8.3: ״חלק לשורות קצרות״ בלי מספר. המודל החזיר משפט של 8 שניות, והתוכנה
                 // חילקה אותו לפי מספר האותיות - והכתובית השנייה הופיעה שנייה לפני שנאמרה
                 "פסק כרגיל. כל שורה: משפט אחד, או חלק ממשפט ארוך - עד כ-7 שניות ועד כ-80 תווים, " +
                 "עם הזמנים שלה; משפט ארוך - חלק בהפסקה טבעית של הדובר.\n" +
                 "אל תסיים שורה במילה שפותחת את המשפט הבא (למשל So, But, אז, אבל) - היא שייכת לשורה הבאה.\n" +
                 (string.IsNullOrEmpty(context) ? "" : "רקע על התוכן: " + context + "\n") +
-                "החזר אך ורק מערך JSON: [{\"s\":0.00,\"e\":2.50,\"t\":\"...\"}]\n" +
+                "החזר אך ורק מערך JSON: [{\"s\":0.00,\"e\":2.50,\"sp\":1,\"t\":\"...\"}]\n" +
                 "‏s ו-e הם **מספרים** בשניות מתחילת קובץ השמע הזה (למשל 65.5), לא 1:05.\n" +
                 "כל שורה פעם אחת: אל תחזור על אותה שורה ברצף אלא אם היא באמת נשמעת שוב.\n" +
                 "אם אין דיבור כלל - החזר [].";
@@ -983,6 +1013,9 @@ namespace SubtitleStudio
                     ln.End = TimeOf(d, "e", "end", "to", "stop", "end_time", "endTime");
                     ln.Text = TextOf(d, "t", "text", "line", "content");
                     if (ln.Text.Length == 0) continue;
+                    object sp;
+                    if ((d.TryGetValue("sp", out sp) || d.TryGetValue("speaker", out sp)) && sp != null)
+                        ln.Speaker = Convert.ToString(sp, CultureInfo.InvariantCulture).Trim();
                     if (ln.HasTime && (double.IsNaN(ln.End) || ln.End <= ln.Start))
                         ln.End = ln.Start + ReadingSec(ln.Text);
                     outp.Add(ln);
@@ -1127,7 +1160,9 @@ namespace SubtitleStudio
                 "ו-״Your Majesty״ = ״הוד מעלתך״, ״my lord״ = ״אדוני״); אותו תואר - באותה צורה בכל הפריטים. " +
                 "פריט שיש בו כמה משפטים - שמור על אותה חלוקה ועל הפיסוק שביניהם. בלי ניקוד ובלי סימני הגייה, " +
                 "אלא אם הם במקור.\n" +
-                "אל תשמיט אף שם פרטי, גם אם הוא נראה שגוי. שמות של אנשים - בתעתיק המקובל בשפת היעד; " +
+                "אל תשמיט אף שם פרטי, גם אם הוא נראה שגוי - ואל תחליף אותו בשם אחר, גם לא בשם שמופיע " +
+                "בפריטים אחרים: שם שאתה לא מכיר נשאר כפי שהוא (או בתעתיק שלו). שורה שמתחילה במקף (שני " +
+                "דוברים) - שמור על המקף בתחילת אותה שורה. שמות של אנשים - בתעתיק המקובל בשפת היעד; " +
                 "שמות של חברות, מוצרים ומונחים טכניים - כפי שהם נכתבים בדרך כלל בשפת היעד, ואם אין כתיב " +
                 "מקובל - באותיות המקור. אותו שם - באותה צורה בכל הפריטים.\n" +
                 (string.IsNullOrEmpty(context) ? "" : "רקע על התוכן: " + context + "\n") +

@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 84 בדיקות.
+# צפוי: 89 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -339,6 +339,27 @@ Check 'פיצול בפסיק: ההפסקה הקרובה נלקחת גם כשהה
 $dc = NewDoc @(@(81410, 84200, 'Our capacity is limited, so,'), @(84400, 86600, 'who''s paying in advance?'))
 [void]$mTidy3.Invoke($null, (Pack $dc $true $false))
 Check 'מילת פתיחה אחרי פסיק (״limited, so,״) - גם עוברת' ($dc.Cues.Count -eq 1 -and ($dc.Cues[0].Text -replace "`r?`n", '|') -eq 'Our capacity is limited,|so, who''s paying in advance?') ((@($dc.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+# שני דוברים (0.8.4): לא מתאחדים כמשפט אחד; כתובית קצרה של דובר אחד ליד של אחר - דו-שיח עם מקפים
+$dsp = NewDoc @(@(64400, 65000, 'אדוני הנשיא.'), @(65100, 68500, 'אויבינו מעבר לים מתקדמים.'))
+$dsp.Cues[0].Actor = '1'; $dsp.Cues[1].Actor = '2'
+[void]$mLeft.Invoke($null, (Pack $dsp.Cues))
+Check 'שני דוברים בכתובית אחת: שורה לכל אחד, עם מקף' ($dsp.Cues.Count -eq 1 -and ($dsp.Cues[0].Text -replace "`r?`n", '|') -eq '- אדוני הנשיא.|- אויבינו מעבר לים מתקדמים.') ((@($dsp.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+$dsp2 = NewDoc @(@(81410, 83540, 'Our capacity is limited. So,'), @(84460, 86210, 'who''s paying in advance?'))
+$dsp2.Cues[0].Actor = '1'; $dsp2.Cues[1].Actor = '2'
+[void]$mTidy3.Invoke($null, (Pack $dsp2 $true $false))
+Check 'מילת פתיחה לא עוברת לדובר אחר' ($dsp2.Cues.Count -eq 2 -and $dsp2.Cues[0].Text -eq 'Our capacity is limited. So,') ((@($dsp2.Cues) | ForEach-Object { $_.Text -replace "`r?`n", '|' }) -join ' / ')
+$dsp3 = NewDoc @(@(1000, 1400, 'So,'), @(1600, 3000, 'who is paying?'))
+$dsp3.Cues[0].Actor = '1'; $dsp3.Cues[1].Actor = '2'
+$mFrag = $qaT.GetMethod('MergeFragments', [Reflection.BindingFlags]'NonPublic,Static')
+[void]$mFrag.Invoke($null, (Pack $dsp3.Cues))
+Check 'שבר של דובר אחד לא מתאחד עם משפט של אחר' ($dsp3.Cues.Count -eq 2) ((@($dsp3.Cues) | ForEach-Object { $_.Text }) -join ' / ')
+# פנייה (״Mr. President,״) שהמודל הפריד - לא מתאחדת עם המשפט שאחריה (0.8.4); ״So,״ כן
+$dv = NewDoc @(@(64100, 65400, 'Mr. President,'), @(65500, 68800, 'our enemies across the water are making progress.'))
+[void]$mFrag.Invoke($null, (Pack $dv.Cues))
+Check 'פנייה שהמודל הפריד נשארת לבד' ($dv.Cues.Count -eq 2) ((@($dv.Cues) | ForEach-Object { $_.Text }) -join ' / ')
+$dv2 = NewDoc @(@(1000, 1400, 'And so,'), @(1600, 3000, 'we continue.'))
+[void]$mFrag.Invoke($null, (Pack $dv2.Cues))
+Check 'שבר שמתחיל במילת פתיחה (״And so,״) - כן מתאחד' ($dv2.Cues.Count -eq 1 -and $dv2.Cues[0].Text -eq 'And so, we continue.') ((@($dv2.Cues) | ForEach-Object { $_.Text }) -join ' / ')
 # מילה שהמודל לא היה בטוח בה (0.8.3)
 $du = NewDoc @(@(1000, 3000, 'Only house Anthropic!'), @(4000, 6000, 'שורה רגילה.'))
 $du.Cues[0].Doubt = 'Anthropic'

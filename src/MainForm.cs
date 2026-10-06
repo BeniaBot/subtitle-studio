@@ -2788,6 +2788,10 @@ namespace SubtitleStudio
             _hintLbl.Text = msg;
             _hintLbl.Invalidate();
 
+            if (res.UsedFallbackModel && !res.QuotaOut)
+                Ui.Info(this, Lang.T("חלק מהתמלול נעשה בדגם אחר של גוגל"),
+                    Lang.T("הדגם הרגיל היה עמוס, או שהמכסה היומית שלו נגמרה. בדגמים האחרים הזמנים פחות מדויקים, ולכן כדאי לעבור על התזמון. המכסה מתחדשת כל יום, ואפשר גם לתמלל דרך Groq."));
+
             // חלק מהסרט לא תומלל - זה חייב להיאמר, אחרת המשתמש חושב
             // שהתמלול שלם ומגלה חור באמצע רק בהמשך
             string upTo = res.StoppedAtMs >= 0
@@ -2939,6 +2943,21 @@ namespace SubtitleStudio
         private bool OfferTidyBeforeBurn()
         {
             if (Silent) return true;
+            // מילים שהמודל לא היה בטוח בהן: אחרי הצריבה אי אפשר לתקן, וזה בדיוק הרגע להקשיב. עד
+            // 0.8.4 ההצעה כאן דיברה רק על קריאוּת, ושם שהוחלף (״רק בית Open AI״) נצרב בלי שמישהו שם לב
+            List<Issue> unsure = new List<Issue>();
+            foreach (Issue x in Qa.Find(_doc)) if (x.Kind == IssueKind.Unsure) unsure.Add(x);
+            if (unsure.Count > 0)
+            {
+                List<string> w = unsure[0].Words ?? new List<string>();
+                string ask = unsure.Count == 1
+                    ? Lang.F("בכתובית אחת יש מילה שהמודל לא היה בטוח בה{0}. אחרי הצריבה כבר אי אפשר לתקן.", (w.Count > 0 ? ": " + Lang.F("״{0}״", w[0]) : ""))
+                    : Lang.F("ב-{0} כתוביות יש מילים שהמודל לא היה בטוח בהן. אחרי הצריבה כבר אי אפשר לתקן.", Theme.Ltr(unsure.Count.ToString(CultureInfo.InvariantCulture)));
+                int u = Ui.Msg(this, Lang.T("להקשיב לפני הצריבה?"), ask, Ico.Question,
+                    Lang.T("להקשיב קודם"), Lang.T("להמשיך בכל זאת"), Lang.T("ביטול"));
+                if (u == 0) { JumpToIssue(IssueKind.Unsure); return false; }
+                if (u != 1) return false;
+            }
             HashSet<int> hard = new HashSet<int>();
             foreach (Issue x in Qa.Find(_doc))
                 if (x.Kind == IssueKind.TooFast || x.Kind == IssueKind.TooShort ||

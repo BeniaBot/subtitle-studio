@@ -1117,6 +1117,13 @@ namespace SubtitleStudio
             "השאר נכונות - להסיר את הסימון", "The rest are correct - remove the marks",
             "אחרי שהקשבתם · Ctrl+Z מבטל", "After you have listened · Ctrl+Z undoes it",
             "הסרת הסימון ״לא בטוח״", "Removing the 'not sure' marks",
+            "בכתובית אחת יש מילה שהמודל לא היה בטוח בה{0}. אחרי הצריבה כבר אי אפשר לתקן.", "One subtitle has a word the model wasn't sure of{0}. Once burned, it can't be fixed.",
+            "ב-{0} כתוביות יש מילים שהמודל לא היה בטוח בהן. אחרי הצריבה כבר אי אפשר לתקן.", "{0} subtitles have words the model wasn't sure of. Once burned, they can't be fixed.",
+            "להקשיב לפני הצריבה?", "Listen before burning?",
+            "להקשיב קודם", "Listen first",
+            "להמשיך בכל זאת", "Continue anyway",
+            "חלק מהתמלול נעשה בדגם אחר של גוגל", "Part of the transcription used another Google model",
+            "הדגם הרגיל היה עמוס, או שהמכסה היומית שלו נגמרה. בדגמים האחרים הזמנים פחות מדויקים, ולכן כדאי לעבור על התזמון. המכסה מתחדשת כל יום, ואפשר גם לתמלל דרך Groq.", "The usual model was busy, or its daily quota ran out. The other models' timing is less accurate, so it's worth going over the timing. The quota renews every day, and you can also transcribe through Groq.",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1206,6 +1213,8 @@ namespace SubtitleStudio
             "לא הוגדר מפתח ל", "No key is set for",
             "המפתח של {0} לא תקין, או שפג תוקפו.", "The {0} key isn't valid, or it has expired.",
             "המכסה של {0} נגמרה לעכשיו.", "The {0} quota has run out for now.",
+        };
+        private static readonly string[] P4 = new string[] {
             "קטע השמע גדול מדי לשירות.", "The audio section is too big for the service.",
             "השרת של {0} לא זמין כרגע. אפשר לנסות שוב בעוד כמה דקות.", "The {0} server isn't available right now. You can try again in a few minutes.",
             "אין חיבור לאינטרנט, או שהשירות חסום ברשת הזאת.", "No internet connection, or the service is blocked on this network.",
@@ -1213,8 +1222,6 @@ namespace SubtitleStudio
             "התשובה חזרה בלי זמנים.", "The answer came back without times.",
             " · מודגש", " · bold",
             " · רקע מלא", " · solid box",
-        };
-        private static readonly string[] P4 = new string[] {
             "{0} כתוביות · התקרבו כדי לערוך אותן", "{0} subtitles · zoom in to edit them",
             "עריכת תזמון", "Edit timing",
             "הוספת כתובית", "Add subtitle",

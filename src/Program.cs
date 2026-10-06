@@ -164,7 +164,7 @@ namespace SubtitleStudio
                 sb.AppendLine("speed=" + Speed.ToString(CultureInfo.InvariantCulture));
                 // מפתח שהתהליך הזה לא הכיר ולא נגע בו - נשאר כמו שהוא בקובץ
                 sb.AppendLine("aikey=" + (string.IsNullOrEmpty(Ai.Key) && !AiKeyTouched ? OnDisk("aikey") : Ai.Protect(Ai.Key)));
-                sb.AppendLine("aimodel=" + Ai.Model);
+                sb.AppendLine("aimodel=" + Ai.Preferred);
                 sb.AppendLine("groqkey=" + (string.IsNullOrEmpty(Stt.GroqKey) && !GroqKeyTouched ? OnDisk("groqkey") : Ai.Protect(Stt.GroqKey)));
                 sb.AppendLine("stt=" + Stt.ProviderId);
                 sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
@@ -249,7 +249,11 @@ namespace SubtitleStudio
                         case "volume": Volume = Math.Max(0, Math.Min(100, (int)D(v, 80))); break;
                         case "speed": Speed = Math.Max(0.25, Math.Min(4.0, D(v, 1.0))); break;
                         case "aikey": Ai.Key = Ai.Unprotect(v); break;
-                        case "aimodel": if (v.Length > 0) Ai.Model = v; break;
+                        // עד 0.8.4 נשמר כאן גם דגם גיבוי שנבחר בגלל מכסה. דגם מהחצי השני של הרשימה
+                        // (הגיבויים) חוזר לברירת המחדל - מכסה מתחדשת כל יום
+                        case "aimodel":
+                            if (v.Length > 0 && Array.IndexOf(Ai.Models, v) < 2) { Ai.Model = v; Ai.Preferred = v; }
+                            break;
                         case "groqkey": Stt.GroqKey = Ai.Unprotect(v) ?? ""; break;
                         case "stt": Stt.ProviderId = v; break;
                         case "spell": Spell.Enabled = v != "0"; break;

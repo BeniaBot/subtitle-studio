@@ -32,6 +32,9 @@ namespace SubtitleStudio
             public string Error;
             public bool Canceled;
             public int Chunks, Failed;
+            /// <summary>חלק מהקטעים תומללו בדגם אחר של גוגל (מכסה או עומס בדגם הרגיל). בדגמי הגיבוי
+            /// הזמנים סטו בשנייה בבדיקה (6.10.2026) - המשתמש צריך לדעת.</summary>
+            public bool UsedFallbackModel;
 
             /// <summary>הטווחים שלא תומללו, בשניות. ההודעה למשתמש נשענת
             /// על זה ולא על ספירת כישלונות: קטע שנכשל בסוף הקובץ, או כזה
@@ -178,6 +181,7 @@ namespace SubtitleStudio
                 }
                 quotaStreak = 0;
                 failStreak = 0;
+                if (provider.Id == "gemini" && Ai.LastModelUsed.Length > 0 && Ai.LastModelUsed != Ai.Preferred) res.UsedFallbackModel = true;
 
                 // קול בלי כתוביות: המודל דילג, או שהזמנים שלו ״התכווצו״ (ראו Recover)
                 double clipLen = Math.Min(chunkSec, totalSec - s);
@@ -227,7 +231,9 @@ namespace SubtitleStudio
                 // שורה שנמשכת אל תוך החפיפה של הקטע הבא תיתפס שם שוב - Dedupe מטפל
                 if (b > durationMs) b = durationMs;
                 if (b <= a) continue;
-                all.Add(MakeCue(a, b, ln.Text));
+                Cue made = MakeCue(a, b, ln.Text);
+                made.Actor = ln.Speaker ?? "";
+                all.Add(made);
                 kept++;
             }
             if (loose.Count == 0) return kept;
@@ -244,6 +250,7 @@ namespace SubtitleStudio
             {
                 double len = Ai.ReadingSec(ln.Text) * scale;
                 Cue c = MakeCue((long)Math.Round(t * 1000), (long)Math.Round((t + len) * 1000), ln.Text);
+                c.Actor = ln.Speaker ?? "";
                 c.Untimed = true;
                 all.Add(c);
                 kept++;
