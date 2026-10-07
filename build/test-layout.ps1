@@ -234,7 +234,7 @@ $dialogs = @(
     @{ n = 'About';      needsMedia = $false; make = { NewOf 'AboutDlg' @() } },
     @{ n = 'AiSetup';    needsMedia = $false; make = { NewOf 'AiSetupDlg' @() } },
     @{ n = 'AiTranslate';needsMedia = $false; make = { NewOf 'AiTranslateDlg' @($doc) } },
-    @{ n = 'Trim';       needsMedia = $true;  make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },
+    @{ n = 'Trim';       needsMedia = $true;  make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
     @{ n = 'Extract';    needsMedia = $true;  make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Tools';      needsMedia = $true;  make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';     needsMedia = $true;  make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },

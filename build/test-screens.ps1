@@ -78,7 +78,7 @@ $dialogs = @(
     @{ n = 'SpellSetup';  make = { NewOf 'SpellSetupDlg' @() } },
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
-    @{ n = 'Trim';        make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },
+    @{ n = 'Trim';        make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
     @{ n = 'Extract';     make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },

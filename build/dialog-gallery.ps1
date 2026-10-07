@@ -66,7 +66,7 @@ $dialogs = @(
     @{ n = "ImportText"; make = { NewOf "ImportTextDlg" @([int64]0) } },
     @{ n = "Transcribe"; make = { NewOf "TranscribeDlg" @($mi, [int]3) } },
     @{ n = "Sync";       make = { $cues[1].Selected = $true; NewOf "SyncDlg" @($doc, [int64]7900, (NewOf "SyncState" @())) } },
-    @{ n = "Trim";       make = { NewOf "TrimDlg" @($null, $mi, $doc, [int64]5000, [int64]15000) } },
+    @{ n = "Trim";       make = { NewOf "CutDlg" @($null, $mi, $doc, $null, $null) } },
     @{ n = "Extract";    make = { NewOf "ExtractSubsDlg" @($null, $mi) } },
     @{ n = "Tools";      make = { NewOf "ToolsDlg" @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = "FitSize";    make = {

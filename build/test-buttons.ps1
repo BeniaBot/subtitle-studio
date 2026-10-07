@@ -29,7 +29,10 @@ using System; using System.Drawing; using System.Drawing.Imaging; using System.R
 public static class InkBox {
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     // מחזיר {שמאל, ימין, עליון, תחתון} של הדיו בתוך השוליים, או null אם אין
-    public static int[] Measure(Bitmap b, int m) {
+    public static int[] Measure(Bitmap b, int m) { return Measure(b, m, false); }
+    // cornerBg: הרקע הוא הפיקסל בפינה הפנימית ולא הצבע הנפוץ - בכפתור שכולו דגימת צבע (מספר הקטע בחלון
+    // החיתוך) הדגימה תופסת יותר מחצי, והרקע שמשני צדיה נמדד כ״דיו שנוגע בקצה״
+    public static int[] Measure(Bitmap b, int m, bool cornerBg) {
         int w = b.Width, h = b.Height;
         BitmapData d = b.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
         int[] px = new int[w * h];
@@ -39,6 +42,7 @@ public static class InkBox {
         for (int y = m; y < h - m; y += 2) for (int x = m; x < w - m; x += 2) { int k = px[y * w + x]; int c; hist.TryGetValue(k, out c); hist[k] = c + 1; }
         int bg = 0, best = -1;
         foreach (var kv in hist) if (kv.Value > best) { best = kv.Value; bg = kv.Key; }
+        if (cornerBg) bg = px[m * w + m];
         int L = w, R = -1, T = h, B = -1;
         for (int y = m; y < h - m; y++) for (int x = m; x < w - m; x++) {
             int p = px[y * w + x];
@@ -107,7 +111,7 @@ $forms = @(
     @{ n = 'SpellSetup';  make = { NewOf 'SpellSetupDlg' @() } },
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
-    @{ n = 'Trim';        make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },
+    @{ n = 'Trim';        make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
     @{ n = 'Extract';     make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
@@ -158,7 +162,7 @@ foreach ($f in $forms) {
         $bmp = New-Object Drawing.Bitmap $c.Width, $c.Height
         $c.DrawToBitmap($bmp, (New-Object Drawing.Rectangle 0, 0, $c.Width, $c.Height))
         $m = S 4
-        $ink = [InkBox]::Measure($bmp, $m)
+        $ink = [InkBox]::Measure($bmp, $m, ((-not $c.Swatch.IsEmpty) -and -not $c.Text))
         $bmp.Dispose()
         if ($ink -eq $null) { continue }
         $hasText = (-not $c.IconOnly) -and $c.Text

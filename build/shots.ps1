@@ -112,7 +112,7 @@ $forms = @(
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'FitSize';     make = { NewOf 'ToolRunDlg' @($null, (ToolNamed 'התאמה לגודל קובץ מבוקש'), $mi, [int64]-1, [int64]-1, [int64]0) } },
-    @{ n = 'Trim';        make = { NewOf 'TrimDlg' @($null, $mi, $doc, [int64]5000, [int64]15000) } },
+    @{ n = 'Trim';        make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },
     @{ n = 'Style';       make = { NewOf 'StyleDlg' @($style, $null) } },

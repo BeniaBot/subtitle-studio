@@ -3,7 +3,7 @@
 #
 # הבדיקות האחרות רצות על test.mp4 אחד שנוצר במעבדה. כאן: MKV עם opus, ‏MOV עם
 # PCM של 24 ביט, ‏AVI ישן, ‏WMA, ‏WAV ב-ADPCM, ‏MP3 עם תמונת עטיפה. העבודות נבנות
-# **בחלונות עצמם** (ExportVideoDlg/TrimDlg/ToolRunDlg.BuildJob), כך שנבדקת הפקודה
+# **בחלונות עצמם** (ExportVideoDlg/ToolRunDlg.BuildJob, ובחיתוך CutPlan כמו שהחלון בונה), כך שנבדקת הפקודה
 # שהתוכנה באמת מריצה - ושום חלון לא נפתח מול המשתמש.
 #
 #   real-sweep.ps1 -List files.txt [-Tools] [-Out dir]
@@ -20,6 +20,12 @@ $IN = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 function TY($n) { return $asm.GetType("SubtitleStudio.$n") }
 function NewOf($n, $argv) { return [Activator]::CreateInstance((TY $n), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $argv, $null) }
 function Pack { $a = New-Object object[] $args.Count; for ($i = 0; $i -lt $args.Count; $i++) { $a[$i] = $args[$i] }; return ,$a }
+function Pk { $a = New-Object object[] $args.Count; for ($i = 0; $i -lt $args.Count; $i++) { $v = $args[$i]; if ($null -ne $v) { $v = $v.psobject.BaseObject }; $a[$i] = $v }; return ,$a }
+function CutSecs($spec) {
+    $T = TY 'CutSection'; $l = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($T)); $id = 1
+    foreach ($x in $spec) { $c = [Activator]::CreateInstance($T); $c.Id = $id++; $c.A = [long]$x[0]; $c.B = [long]$x[1]; $c.Keep = [bool]$x[2]; [void]$l.Add($c) }
+    return ,$l
+}
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]1.25)
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
 $ffexe = (TY 'Ff').GetProperty('Exe', $ST).GetValue($null, $null)
@@ -152,24 +158,39 @@ foreach ($f in $files) {
             Rep $name ('soft ' + $ext) ($subs.Count -ge 1 -and $allText -eq 3 -and (Near $mo.DurationSec $dur 1.0)) ('subtitle streams {0} ({1})  texts back {2}/3  dur {3:0.00}/{4:0.00}' -f $subs.Count, (($subs | ForEach-Object { $_.Codec + ':' + $_.Language }) -join ','), $allText, $mo.DurationSec, $dur)
         }
 
-        # ---- חיתוך: לשמור קטע (מהיר ומדויק), ולהסיר קטע ----
-        $a = [long]($dur * 1000 * 0.3); $b = [long]($dur * 1000 * 0.3 + [Math]::Min(8000, $dur * 250))
-        foreach ($mode in 'fast', 'exact', 'cut') {
-            if ($mode -eq 'cut' -and ($dur -gt 400 -or $big)) { continue }
-            if ($mode -eq 'exact' -and ($dur -gt 400 -or $big)) { continue }
-            $dlg = NewOf 'TrimDlg' @($null, $mi, $doc, $a, $b)
-            if ($mode -eq 'cut') { [void]$dlg.GetType().GetMethod('SetMode', $IN).Invoke($dlg, @($false)) }
-            $fast = $dlg.GetType().GetField('_fast', $IN).GetValue($dlg); $fast.Checked = ($mode -eq 'fast')
-            $o = Join-Path $Out ($tag + '-trim-' + $mode + [IO.Path]::GetExtension($f))
-            $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $dlg.Dispose(); $o = $job.OutputPath
+    }
+
+    # ---- חיתוך: חלון הקטעים. העבודה נבנית כמו ש-CutDlg.OnOk בונה אותה (CutPlan.Kept/FinalPath/BuildJob) ----
+    # לשמור קטע (מהיר ומדויק), להסיר קטע, ושני קטעים לשמירה עם הסרה בתוך הראשון. קובץ קול - תמיד העתקה, באותו פורמט.
+    if ($dur -le 400 -and -not $big) {
+        $D = [long]$mi.DurationMs
+        $a = [long]($D * 0.3); $b = [long]($D * 0.3 + [Math]::Min(8000, $D / 4))
+        $c0 = [long]($D * 0.6); $c1 = [long]($D * 0.6 + [Math]::Min(6000, $D / 5))
+        $r0 = [long]($a + ($b - $a) / 4); $r1 = [long]($a + ($b - $a) / 2)
+        $plans = @(
+            @{ n = 'fast';  fast = $true;  spec = @(,@($a, $b, $true));                                 want = ($b - $a) },
+            @{ n = 'exact'; fast = $false; spec = @(,@($a, $b, $true));                                 want = ($b - $a) },
+            @{ n = 'cut';   fast = $false; spec = @(,@($a, $b, $false));                                want = ($D - ($b - $a)) },
+            @{ n = 'multi'; fast = $false; spec = @(@($a, $b, $true), @($r0, $r1, $false), @($c0, $c1, $true)); want = (($b - $a) - ($r1 - $r0) + ($c1 - $c0)) })
+        foreach ($pl in $plans) {
+            if ($pl.n -eq 'exact' -and -not $vid) { continue }        # בקובץ קול אין מצב מדויק - תמיד העתקה
+            $secs = CutSecs $pl.spec
+            $kept = (TY 'CutPlan').GetMethod('Kept', $ST).Invoke($null, (Pk $secs $D))
+            $items = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($kept.GetType()))
+            [void]$items.Add($kept)
+            $o = (TY 'CutPlan').GetMethod('FinalPath', $ST).Invoke($null, (Pk $mi ([string](Join-Path $Out ($tag + '-trim-' + $pl.n + [IO.Path]::GetExtension($f)))) ([bool]$pl.fast)))
+            $outs = New-Object 'Collections.Generic.List[string]'; $outs.Add($o)
+            $job = (TY 'CutPlan').GetMethod('BuildJob', $ST).Invoke($null, (Pk $mi $items $outs ([bool]$pl.fast)))
             $err = RunJob $job
-            if ($err) { Rep $name ('trim ' + $mode) $false $err; continue }
+            if ($err) { Rep $name ('trim ' + $pl.n) $false $err; continue }
             $mo = Probe $o
-            $want = if ($mode -eq 'cut') { $dur - ($b - $a) / 1000.0 } else { ($b - $a) / 1000.0 }
-            # חיתוך מהיר מתחיל בפריים המפתח שלפני: עד כמה שניות יותר - זה מה שהחלון מזהיר עליו
-            $tol = if ($mode -eq 'fast') { 10.0 } else { 0.6 }
+            $want = $pl.want / 1000.0
+            # חיתוך מהיר מתחיל בפריים המפתח שלפני: עד כמה שניות יותר - זה מה שהחלון מזהיר עליו.
+            # העתקה של קול: כל חיבור מוסיף פריים (MP3 - ‏26ms), ובקובץ ארוך התחילה מעוגלת לפריים
+            $tol = if ($pl.fast -and $vid) { 10.0 } else { 0.6 }
             $okD = ($mo.DurationSec -ge $want - 0.6) -and ($mo.DurationSec -le $want + $tol)
-            Rep $name ('trim ' + $mode) ($okD -and $mo.FirstVideo() -ne $null -and $mo.HasAudio -eq $mi.HasAudio) ('dur {0:0.00} want {1:0.00}  video {2} audio {3}' -f $mo.DurationSec, $want, ($mo.FirstVideo() -ne $null), $mo.HasAudio)
+            $sameFmt = $vid -or ([IO.Path]::GetExtension($o) -eq [IO.Path]::GetExtension($f))
+            Rep $name ('trim ' + $pl.n) ($okD -and $sameFmt -and (($mo.FirstVideo() -ne $null) -eq $vid) -and $mo.HasAudio -eq $mi.HasAudio) ('dur {0:0.00} want {1:0.00}  video {2} audio {3}  {4}' -f $mo.DurationSec, $want, ($mo.FirstVideo() -ne $null), $mo.HasAudio, [IO.Path]::GetFileName($o))
         }
     }
 
