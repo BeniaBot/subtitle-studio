@@ -70,7 +70,8 @@ for ($k = 0; $k -lt $n; $k++) {
 [GC]::Collect()
 $memBefore = [GC]::GetTotalMemory($true)
 $sw = [Diagnostics.Stopwatch]::StartNew()
-$res = (T 'AutoTime').GetMethod('Run', $SF).Invoke($null, (Pack $cues $wave.Rms $wave.Peak $durMs $false))
+$atRun = $null; foreach ($m in (T 'AutoTime').GetMethods($SF)) { if ($m.Name -eq 'Run' -and $m.GetParameters().Count -eq 5) { $atRun = $m } }
+$res = $atRun.Invoke($null, (Pack $cues $wave.Rms $wave.Peak $durMs $false))
 $atMs = Ms $sw
 $peakMem = [GC]::GetTotalMemory($false) - $memBefore
 Check "תוזמנו $n שורות" ($res.Timed -eq $n) ("timed=" + $res.Timed + " error=" + $res.Error)
