@@ -1768,11 +1768,22 @@ namespace SubtitleStudio
         // ================= לוגיקה =================
         private long _lastShownDuration = -1;
 
+        // ---------- לחלון החיתוך: הנגן של התוכנה, והתמונה שהוא מקבל ----------
+        /// <summary>כל פריים חדש מהנגן. מי שרוצה לשמור אותו - מעתיק.</summary>
+        internal event Action<Bitmap> FrameShown;
+        internal Bitmap CurrentFrame() { return _video.CloneFrame(); }
+        internal long PlayerPosition { get { return _engine.Position; } }
+        internal bool PlayerIsPlaying { get { return _engine.IsPlaying; } }
+        internal void PlayPlayer() { if (!_engine.IsPlaying) _engine.TogglePlay(); }
+        internal void PausePlayer() { if (_engine.IsPlaying) _engine.Pause(); }
+        internal void SeekPlayer(long ms) { Seek(ms); }
+
         private void OnTick()
         {
             if (IsDisposed || Disposing) return;
             Bitmap f = _engine.Tick();
             if (f != null) _video.SetFrame(f);
+            if (f != null && FrameShown != null) FrameShown(f);
             if (WindowState != FormWindowState.Minimized) RefreshQa(false);
 
             long pos = _engine.Position;

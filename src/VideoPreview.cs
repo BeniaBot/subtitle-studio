@@ -36,6 +36,13 @@ namespace SubtitleStudio
             Invalidate();
         }
 
+        /// <summary>עותק של הפריים שמוצג (או null) - לחלון אחר שמראה את אותה תמונה.</summary>
+        internal Bitmap CloneFrame()
+        {
+            try { return _frame != null ? new Bitmap(_frame) : null; }
+            catch { return null; }
+        }
+
         public void ClearFrame()
         {
             if (_frame != null) { _frame.Dispose(); _frame = null; }

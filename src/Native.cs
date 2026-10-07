@@ -6,6 +6,9 @@ namespace SubtitleStudio
     /// <summary>עטיפות ל-Win32 API. הכל מובנה בווינדוס - בלי שום ספרייה חיצונית.</summary>
     internal static class Native
     {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern IntPtr GetFocus();
+
         // ---------- DWM (כותרת כהה + פינות מעוגלות בווינדוס 11) ----------
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
