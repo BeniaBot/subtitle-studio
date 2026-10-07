@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.6",
+      "date": "2026-10-07",
+      "items": [
+        {
+          "t": "major",
+          "s": "עבודה על חלק מהסרט בלבד: מסמנים קטע על הציר, ותמלול, תרגום, תזמון לפי הדיבור והצמדה למעברי סצנה עובדים רק עליו - שאר העבודה נשארת כמו שהיא",
+          "en": "Working on part of the video only: mark a section on the timeline, and transcription, translation, timing by speech and scene-change snapping work only on it - the rest of the work stays as it is"
+        },
+        {
+          "t": "fix",
+          "s": "כשגוגל חוסם קטע בתמלול בלי לנמק, התוכנה מנסה דגם אחר - ודקה של סרטון כבר לא נשארת בלי כתוביות",
+          "en": "When Google blocks a part of the transcription without a reason, the program tries another model - and a minute of video no longer stays without subtitles"
+        }
+      ]
+    },
+    {
       "v": "0.8.5",
       "date": "2026-10-07",
       "items": [
