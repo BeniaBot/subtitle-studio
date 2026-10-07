@@ -226,6 +226,7 @@ namespace SubtitleStudio
             bool logged = false;
             bool anyTried = false;
             bool onlyMissing = true;          // כל הדגמים שנכשלו לפני ההצלחה פשוט לא קיימים
+            string blocked = null;            // תשובה של ״נחסם בלי סיבה״ - אם גם כל השאר ייכשלו
             foreach (string model in tryModels)
             {
                 // דגם שכבר ידוע שמיצה את המכסה היומית - אין טעם לבזבז
@@ -242,6 +243,9 @@ namespace SubtitleStudio
                 }
                 if (Post(Endpoint(model), json, out reply, out err))
                 {
+                    // גוגל חוסם לפעמים בקשה תקינה בלי לנמק (OTHER) - בדגם אחד, ובאחר היא עוברת. עד 0.8.6
+                    // זה נחשב כישלון, ודקה שלמה של סרטון נשארה בלי כתוביות (נמצא ביומן, 7.10.2026)
+                    if (BlockedOther(reply)) { Log("הדגם " + model + " חסם בלי סיבה - מנסים דגם אחר"); blocked = reply; reply = null; onlyMissing = false; continue; }
                     Switched(model, onlyMissing);
                     break;
                 }
@@ -257,6 +261,7 @@ namespace SubtitleStudio
                     json = BuildBody(system, history, tools, jsonOut, model);
                     if (Post(Endpoint(model), json, out reply, out err))
                     {
+                        if (BlockedOther(reply)) { Log("הדגם " + model + " חסם בלי סיבה - מנסים דגם אחר"); blocked = reply; reply = null; onlyMissing = false; continue; }
                         Switched(model, onlyMissing);
                         break;
                     }
@@ -297,6 +302,8 @@ namespace SubtitleStudio
                 return r;
             }
 
+            // כל הדגמים חסמו (או שהאחרים נכשלו): ההודעה היא של החסימה
+            if (reply == null && blocked != null) reply = blocked;
             if (reply == null)
             {
                 r.Error = err != null ? err : Lang.T("לא התקבלה תשובה מהשרת.");
@@ -373,6 +380,31 @@ namespace SubtitleStudio
             }
             if (r.Error != null) LastError = r.Error;
             return r;
+        }
+
+        /// <summary>התשובה היא חסימה בלי נימוק (‏OTHER) ובלי שום תוכן: על הבקשה כולה (promptFeedback), או על
+        /// התשובה (finishReason). חסימה מנומקת (SAFETY ודומיה) לא כאן - דגם אחר יחסום אותה גם.</summary>
+        internal static bool BlockedOther(string reply)
+        {
+            if (string.IsNullOrEmpty(reply) || reply.IndexOf("OTHER", StringComparison.Ordinal) < 0) return false;
+            try
+            {
+                Dictionary<string, object> root = Ser().DeserializeObject(reply) as Dictionary<string, object>;
+                if (root == null) return false;
+                object pf, br, cands;
+                Dictionary<string, object> pd = root.TryGetValue("promptFeedback", out pf) ? pf as Dictionary<string, object> : null;
+                System.Collections.IList list = root.TryGetValue("candidates", out cands) ? Arr(cands) : null;
+                if (pd != null && pd.TryGetValue("blockReason", out br) && Convert.ToString(br) == "OTHER" && (list == null || list.Count == 0))
+                    return true;
+                if (list == null || list.Count == 0) return false;
+                Dictionary<string, object> c0 = list[0] as Dictionary<string, object>;
+                if (c0 == null || FinishOf(c0) != "OTHER") return false;
+                object content, parts;
+                Dictionary<string, object> cd = c0.TryGetValue("content", out content) ? content as Dictionary<string, object> : null;
+                System.Collections.IList pl = cd != null && cd.TryGetValue("parts", out parts) ? Arr(parts) : null;
+                return pl == null || pl.Count == 0;
+            }
+            catch { return false; }
         }
 
         /// <summary>מוציא את סיבת הסיום מהמועמד הראשון.</summary>

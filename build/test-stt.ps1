@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 112 בדיקות.
+# צפוי: 114 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -354,6 +354,14 @@ $t1 = $ptr.Invoke($null, (Pack '[{"i":1,"t":"אחת"},{"i":2,"t":"שתיים"}]'
 $tm = $ptr.Invoke($null, (Pack 'הנה: [{"i":0,"t":"אחת"}]' ([int]2)))
 Check 'תרגום: מספור מ-0 כרגיל, ומספור מ-1 מתוקן' (($t0[0] -eq 'אחת') -and ($t0[1] -eq 'שתיים') -and ($t1[0] -eq 'אחת') -and ($t1[1] -eq 'שתיים')) (($t1 -join ',') + ' / ' + ($t0 -join ','))
 Check 'תרגום: פריט שחסר - מסומן כחסר (ולא מקבל את המקור בשקט)' (($tm[0] -eq 'אחת') -and ($null -eq $tm[1])) ''
+# גוגל חוסם לפעמים בלי נימוק (OTHER) - דגם אחר עובר (0.8.6). עד אז דקה שלמה נשארה בלי כתוביות
+$bo = (T 'Ai').GetMethod('BlockedOther', $SF)
+$b1 = $bo.Invoke($null, @([string]'{"promptFeedback":{"blockReason":"OTHER"}}'))
+$b2 = $bo.Invoke($null, @([string]'{"candidates":[{"finishReason":"OTHER","index":0}]}'))
+$b3 = $bo.Invoke($null, @([string]'{"promptFeedback":{"blockReason":"SAFETY"}}'))
+$b4 = $bo.Invoke($null, @([string]'{"candidates":[{"content":{"parts":[{"text":"OTHER things"}]},"finishReason":"STOP"}]}'))
+Check 'חסימה בלי נימוק (על הבקשה או על התשובה) - מנסים דגם אחר' ($b1 -and $b2) "prompt=$b1 answer=$b2"
+Check 'חסימה מנומקת, או תשובה רגילה - לא' ((-not $b3) -and (-not $b4)) "safety=$b3 normal=$b4"
 
 # דוברים (0.8.4): המודל מציין דובר לכל שורה, והוא עובר לכתובית
 Write-Host 'דוברים'
