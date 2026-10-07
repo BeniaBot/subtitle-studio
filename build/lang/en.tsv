@@ -172,6 +172,12 @@
 שניות	Sec
 (ריק - לחצו כדי לכתוב)	(empty - click to write)
 
+# ---- CutPlan.cs ----
+קובץ {0} מתוך {1}	File {0} of {1}
+חותך	Cutting
+שומר {0} קבצים	Saving {0} files
+חותך ושומר	Cutting and saving
+
 # ---- Dlg.cs ----
 מתחיל...	Starting...
 סגירה	Close
@@ -250,6 +256,59 @@
 מבקשים במילים רגילות - והוא מבצע	Ask in plain words - and it gets done
 עצרתי אחרי כמה שלבים ברצף. אפשר לבקש שוב בצורה ממוקדת יותר.	I stopped after several steps in a row. You can ask again, more specifically.
 לנסות שוב	Try again
+
+# ---- DlgCut.cs ----
+לנגן את הקטע (עוצר בסופו)	Play the section (stops at its end)
+למחוק את הקטע	Delete the section
+להראות את הקטע על פס הקול	Show the section on the waveform
+לחיצה מחליפה בין שמירה להסרה	Click to switch between keep and remove
+ההתחלה - איפה שהנגן עומד	Start - where the player is
+הסוף - איפה שהנגן עומד	End - where the player is
+מקלידים זמן (2:30, ‏150, ‏1:02:30) · חצים: שנייה · עם Shift: עשירית	Type a time (2:30, 150, 1:02:30) · Arrows: a second · With Shift: a tenth
+ניגון ועצירה (רווח)	Play and pause (Space)
+קפיצה לזמן:	Go to:
+זמן לא תקין. דוגמאות: 2:30, ‏1:02:30, ‏150	Not a valid time. Examples: 2:30, 1:02:30, 150
+כל הקובץ	Whole file
+התקרבות (Ctrl+גלגלת)	Zoom in (Ctrl+wheel)
+התרחקות	Zoom out
+לשמוע רק את מה שיישמר	Hear only what will be kept
+בניגון מדלגים על מה שיוסר - שומעים את התוצאה לפני השמירה	Playback skips what will be removed - hear the result before saving
+לחיצה על פס הקול - מעבר לנקודה · גרירה על מקום ריק - קטע חדש · גרירת קו צבעוני - הזזה · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · I/O - התחלה וסוף של הקטע הפעיל	Click: go there · Drag on empty space: new section · Drag a coloured line: move it · Wheel: scroll, Ctrl+wheel: zoom · I/O: start and end of the active section
+לשמור קטעים	Keep sections
+רק המסומנים יישמרו	Only the marked parts are kept
+להסיר קטעים	Remove sections
+המסומנים יוסרו, השאר יישמר	The marked parts go, the rest stays
+סוג	Type
+סוף	End
+אורך	Length
+אין קטעים. גוררים על פס הקול, או ״להוסיף קטע״.	No sections. Drag on the waveform, or “Add a section”.
+להוסיף קטע	Add a section
+קובץ קול: נחתך בלי קידוד מחדש, בלי שום פגיעה באיכות, ונשמר באותו פורמט.	Audio file: cut without re-encoding, with no loss of quality, and saved in the same format.
+כל קטע לקובץ נפרד	Each section to its own file
+חיתוך מהיר, בלי קידוד מחדש	Fast cut, no re-encoding
+מהיר ובלי פגיעה באיכות, אבל כל קטע מתחיל בפריים מפתח - לפעמים שנייה-שתיים לפני. לדיוק מלא - לכבות.	Fast and lossless, but each section starts at a key frame - sometimes a second or two earlier. For full accuracy, turn it off.
+לחתוך ולשמור	Cut and save
+הזמן ארוך מהקובץ - נקבע לסוף.	That's past the end of the file - set to the end.
+יישמר	Keep
+יוסר	Remove
+בלי קידוד מחדש	no re-encoding
+עם קידוד מחדש - מדויק	re-encoded - exact
+קודם מסמנים קטע.	Mark a section first.
+{0} קבצים  ·  {1}	{0} files  ·  {1}
+אורך התוצאה: {0}  ·  {1}	Result length: {0}  ·  {1}
+גוררים על פס הקול, או ״להוסיף קטע״.	Drag on the waveform, or “Add a section”.
+התוצאה ריקה: כל מה שמסומן מוסר.	The result is empty: everything marked is removed.
+לאיזו תיקייה לשמור את הקטעים?	Which folder should the sections be saved to?
+ - קטע {0}	 - section {0}
+יש כבר קבצים בשם הזה	Files with this name already exist
+{0} מהקבצים כבר קיימים בתיקייה. להחליף אותם?	{0} of the files already exist in the folder. Replace them?
+קובץ {0}|*{1}|כל הקבצים|*.*	{0} file|*{1}|All files|*.*
+ - קטעים	 - sections
+לעבור לקובץ החתוך, עם הכתוביות	Switch to the cut file, with the subtitles
+לעבור לקובץ החתוך	Switch to the cut file
+העורך יפתח את הקובץ החדש, והכתוביות יזוזו איתו: מה שבחלק שהוסר יימחק, והשאר יתקדם. קובץ הכתוביות המקורי לא יידרס - השמירה הבאה תשאל לאן.	The editor will open the new file and the subtitles will move with it: what was in a removed part is deleted, the rest moves up. The original subtitle file won't be overwritten - the next save asks where.
+העורך יפתח את הקובץ החדש - למשל כדי לתמלל אותו.	The editor will open the new file - for example, to transcribe it.
+{0}\nכבר קיים. להחליף אותו?	{0}\nalready exists. Replace it?
 
 # ---- DlgEdit.cs ----
 הזזת תזמון	Shift timing
@@ -1183,6 +1242,11 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן.	You can re-time by the speech only the subtitles inside it, or all of them.
 להצמיד רק בקטע המסומן?	Snap only in the marked section?
 אפשר להצמיד למעברי סצנה רק את הכתוביות שבתוכו, או את כולן.	You can snap to scene changes only the subtitles inside it, or all of them.
+חיתוך, המרה, עוצמת שמע ופרטי הקובץ	Cut, convert, volume and file details
+חיתוך קטעים	Cut sections
+לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול	Keep or remove sections - as many as you like, right on the waveform
+אחר כך: ״הסרט ← חיתוך קטעים״	Then: “Video → Cut sections”
+קטע מסומן: {0} עד {1}   ·   ״הסרט ← חיתוך קטעים״ כדי לחתוך אותו.	Marked section: {0} to {1}   ·   “Video → Cut sections” to cut it.
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 

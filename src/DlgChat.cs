@@ -429,7 +429,8 @@ namespace SubtitleStudio
             sb.Append("· ״יש שגיאות כתיב?״ - check_spelling. **לא לתקן לבד:** הצג את המילים החשודות עם ההצעות, ותקן ");
             sb.Append("עם fix_spelling רק מה שהמשתמש אישר. מילה שהוא אומר שהיא תקינה (שם, מונח) - add_word_to_dictionary\n");
             sb.Append("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n");
-            sb.Append("· לחתוך קטע, לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");
+            sb.Append("· לחתוך: לשמור או להסיר קטעים מהסרט או מקובץ הקול - mark_range ואז trim_video (החלון נפתח עם הקטע)\n");
+            sb.Append("· לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");
 
             sb.Append("כללי עבודה: אל תסביר איך לעשות ידנית - פשוט תעשה. ");
             sb.Append("אם יש פונקציה שמתאימה, קרא לה במקום לתאר אותה במילים. ");

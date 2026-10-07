@@ -366,7 +366,7 @@ namespace SubtitleStudio
         public bool Active;
 
         /// <summary>רוחבי העמודות, לפי הסדר מתחילת השורה (מימין בעברית).</summary>
-        internal static readonly int[] Cols = { 78, 92, 92, 30, 92, 30, 64, 30, 30 };
+        internal static readonly int[] Cols = { 40, 104, 98, 30, 98, 30, 70, 30, 30 };
         internal const int Gap = 6;
 
         public CutRow(CutSection s)
@@ -381,7 +381,7 @@ namespace SubtitleStudio
             Len = new Lbl(); Len.Font = Theme.Small; Len.Color = Theme.TextDim; Len.Numeric = true; Len.Align = StringAlignment.Center;
             Play = IconBtn(Ico.Play, Lang.T("לנגן את הקטע (עוצר בסופו)"));
             Del = IconBtn(Ico.Close, Lang.T("למחוק את הקטע"));
-            Ui.Tip.SetToolTip(Chip, Lang.T("להראות את הקטע על הגל"));
+            Ui.Tip.SetToolTip(Chip, Lang.T("להראות את הקטע על פס הקול"));
             Ui.Tip.SetToolTip(Kind, Lang.T("לחיצה מחליפה בין שמירה להסרה"));
             Ui.Tip.SetToolTip(PinA, Lang.T("ההתחלה - איפה שהנגן עומד"));
             Ui.Tip.SetToolTip(PinB, Lang.T("הסוף - איפה שהנגן עומד"));
@@ -449,7 +449,11 @@ namespace SubtitleStudio
         private readonly Btn _play, _modeKeep, _modeRemove, _add;
         private readonly Lbl _clock, _summary, _empty, _info;
         private readonly Field _jump;
-        private readonly Toggle _preview, _split, _fast, _subs;
+        private readonly Toggle _preview, _split, _fast, _open;
+        private readonly bool _hasCues;
+
+        /// <summary>אחרי חיתוך מוצלח עם ״לעבור לקובץ החתוך״: הקובץ שהעורך פותח (הכתוביות כבר הוזזו אליו).</summary>
+        internal string OpenAfter;
         private readonly ScrollHost _rows;
         private readonly VideoPreview _pic;
         private readonly Timer _timer;
@@ -461,7 +465,7 @@ namespace SubtitleStudio
         private int _activeId = -1;
 
         public CutDlg(MainForm main, MediaInfo mi, Doc doc, Waveform wave, List<CutSection> sections)
-            : base(Lang.T("חיתוך"), Ico.Scissors, 1000)
+            : base(Lang.T("חיתוך קטעים"), Ico.Scissors, 1000)
         {
             _main = main; _mi = mi; _doc = doc;
             _secs = sections ?? new List<CutSection>();
@@ -483,10 +487,11 @@ namespace SubtitleStudio
             _clock.SetBounds(Pad + W - rowH - s10 - Theme.S(190), y, Theme.S(190), rowH);
             Controls.Add(_clock);
             Lbl jl = new Lbl(); jl.Text = Lang.T("קפיצה לזמן:"); jl.Font = Theme.Small; jl.Color = Theme.TextDim; jl.Align = StringAlignment.Far;
-            int jx = _clock.Left - Theme.S(14);
+            // התווית לפני השדה בכיוון הקריאה: בעברית מימין לו (‏MirrorLayout הופך לאנגלית)
+            int jlw = Math.Max(Theme.S(60), TextRenderer.MeasureText(jl.Text, jl.Font).Width + Theme.S(4));
+            jl.SetBounds(_clock.Left - Theme.S(14) - jlw, y, jlw, rowH);
             _jump = new Field(); _jump.Ltr = true; _jump.Placeholder = "1:30:00"; _jump.Font = Theme.Small;
-            _jump.SetBounds(jx - Theme.S(100), y + s4, Theme.S(100), rowH - s8);
-            jl.SetBounds(jx - Theme.S(100) - Theme.S(94), y, Theme.S(90), rowH);
+            _jump.SetBounds(jl.Left - Theme.S(6) - Theme.S(100), y + s4, Theme.S(100), rowH - s8);
             Controls.Add(jl); Controls.Add(_jump);
             _jump.Box.KeyDown += delegate (object o, KeyEventArgs e)
             {
@@ -509,14 +514,14 @@ namespace SubtitleStudio
             zout.Click += delegate { _view.ZoomAt(2, (int)Math.Max(0, Math.Min(_view.Width, _view.X(Position())))); };
             Controls.Add(fit); Controls.Add(zin); Controls.Add(zout);
             _preview = new Toggle(); _preview.Text = Lang.T("לשמוע רק את מה שיישמר"); _preview.Font = Theme.Small;
-            _preview.SetBounds(zout.Right + Theme.S(14), y, Math.Max(Theme.S(60), jl.Left - zout.Right - Theme.S(24)), rowH);
+            _preview.SetBounds(zout.Right + Theme.S(14), y, Math.Max(Theme.S(60), _jump.Left - zout.Right - Theme.S(24)), rowH);
             Ui.Tip.SetToolTip(_preview, Lang.T("בניגון מדלגים על מה שיוסר - שומעים את התוצאה לפני השמירה"));
             Controls.Add(_preview);
             y += rowH + s10;
 
             // ---- הגל והמפה ----
             _view = new CutView(); _view.Wave = wave; _view.Duration = Math.Max(1, mi.DurationMs); _view.Sections = _secs;
-            _view.SetBounds(Pad, y, W, Theme.S(150));
+            _view.SetBounds(Pad, y, W, Theme.S(140));
             _view.CreateSection += delegate (long a, long b) { AddSection(a, b, _keepMode); };
             _view.Edited += delegate { RefreshAll(false); };
             _view.SeekTo += delegate (long t) { Seek(t); };
@@ -527,7 +532,7 @@ namespace SubtitleStudio
             _map.SetBounds(Pad, y, W, Theme.S(22));
             _view.ViewChanged += delegate { _map.Invalidate(); };
             Controls.Add(_map);
-            Lbl how = Hint(Lang.T("לחיצה על הגל - מעבר לנקודה · גרירה על מקום ריק - קטע חדש · גרירת קו צבעוני - הזזה · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · I/O - התחלה וסוף של הקטע הפעיל"));
+            Lbl how = Hint(Lang.T("לחיצה על פס הקול - מעבר לנקודה · גרירה על מקום ריק - קטע חדש · גרירת קו צבעוני - הזזה · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · I/O - התחלה וסוף של הקטע הפעיל"));
             how.SetBounds(Pad, _map.Bottom + s4, W, Theme.S(18));
             Controls.Add(how);
             y = how.Bottom + s10;
@@ -545,15 +550,15 @@ namespace SubtitleStudio
             Controls.Add(_modeKeep); Controls.Add(_modeRemove);
             int ty = y + Theme.S(46) + s8;
             // כותרות העמודות - באותם מיקומים כמו בשורות
-            string[] heads = { Lang.T("קטע"), Lang.T("סוג"), Lang.T("התחלה"), "", Lang.T("סוף"), "", Lang.T("אורך"), "", "" };
+            string[] heads = { "", Lang.T("סוג"), Lang.T("התחלה"), "", Lang.T("סוף"), "", Lang.T("אורך"), "", "" };
             int rowsW = mainW - Theme.S(14);
             int rowsX = Lang.Rtl ? mainX + Theme.S(14) : mainX;        // לפני השיקוף: פס הגלילה בצד שמאל של הטבלה
             for (int i = 0; i < heads.Length; i++)
             {
                 if (heads[i].Length == 0) continue;
                 Lbl hl = new Lbl(); hl.Text = heads[i]; hl.Font = Theme.SmallBold; hl.Color = Theme.TextDim;
-                hl.Align = i >= 2 ? StringAlignment.Center : StringAlignment.Near;
-                int colW = Theme.S(CutRow.Cols[i]) + (i == 2 || i == 4 ? Theme.S(CutRow.Gap + CutRow.Cols[i + 1]) : 0);
+                hl.Align = StringAlignment.Center;             // מעל התוכן של העמודה, שגם הוא ממורכז
+                int colW = Theme.S(CutRow.Cols[i]);
                 // בעברית: עמודה i מתחילה מימין. הכותרות הן ילדים ישירים, ו-MirrorLayout ישקף אותן
                 int cx = mainX + Theme.S(14);
                 int off = 0;
@@ -566,7 +571,7 @@ namespace SubtitleStudio
             _rows.BackColor = Theme.Panel;
             _rows.SetBounds(mainX, ty, mainW, Theme.S(140));
             Controls.Add(_rows);
-            _empty = Hint(Lang.T("אין קטעים. גוררים על הגל, או ״להוסיף קטע״."));
+            _empty = Hint(Lang.T("אין קטעים. גוררים על פס הקול, או ״להוסיף קטע״."));
             _empty.SetBounds(mainX, ty + Theme.S(10), mainW, Theme.S(22));
             _empty.Align = StringAlignment.Center;
             Controls.Add(_empty);
@@ -605,12 +610,18 @@ namespace SubtitleStudio
             _fast.Checked = true;
             _fast.Visible = !_audio;
             Ui.Tip.SetToolTip(_fast, Lang.T("מהיר ובלי פגיעה באיכות, אבל כל קטע מתחיל בפריים מפתח - לפעמים שנייה-שתיים לפני. לדיוק מלא - לכבות."));
-            _subs = SideToggle(Lang.T("לעדכן גם את הכתוביות"), sy, sideW);
-            _subs.Checked = true;
+            // **הכתוביות הולכות עם הקובץ.** עד 0.8.6 ״לעדכן גם את הכתוביות״ הזיז אותן לזמנים של הקובץ החתוך, אבל
+            // העורך נשאר על המקורי - ושמירה כתבה ליד הסרט המקורי כתוביות שלא מתאימות לו.
+            _hasCues = doc != null && doc.Cues.Count > 0;
+            _open = SideToggle(_hasCues ? Lang.T("לעבור לקובץ החתוך, עם הכתוביות") : Lang.T("לעבור לקובץ החתוך"), sy, sideW);
+            _open.Checked = _hasCues;
+            Ui.Tip.SetToolTip(_open, _hasCues
+                ? Lang.T("העורך יפתח את הקובץ החדש, והכתוביות יזוזו איתו: מה שבחלק שהוסר יימחק, והשאר יתקדם. קובץ הכתוביות המקורי לא יידרס - השמירה הבאה תשאל לאן.")
+                : Lang.T("העורך יפתח את הקובץ החדש - למשל כדי לתמלל אותו."));
             _split.CheckedChanged += delegate { RefreshAll(false); };
             _fast.CheckedChanged += delegate { RefreshAll(false); };
 
-            int bottom = Math.Max(_add.Bottom, _subs.Bottom) + s10;
+            int bottom = Math.Max(_add.Bottom, _open.Bottom) + s10;
             _summary = Label("", true, Theme.Text);
             _summary.Font = Theme.UiBold;
             _summary.SetBounds(Pad, bottom, W, Theme.S(24));
@@ -622,6 +633,8 @@ namespace SubtitleStudio
             else { _keepMode = CutPlan.HasKeep(_secs) || _secs.Count == 0; _activeId = _secs[_secs.Count - 1].Id; }
             SetMode(_keepMode, false);
             RebuildRows();
+            _view.Playhead = Position();
+            UpdateClock(_view.Playhead);
 
             _timer = new Timer();
             _timer.Interval = 30;
@@ -902,9 +915,9 @@ namespace SubtitleStudio
             {
                 CutRow r = _rowCtl[i];
                 CutSection s = r.Sec;
-                r.Chip.Text = Lang.F("קטע {0}", i + 1);
+                r.Chip.SwatchText = (i + 1).ToString(CultureInfo.InvariantCulture);
                 r.Chip.Swatch = s.Color;
-                r.Kind.Text = s.Keep ? Lang.T("לשמור") : Lang.T("להסיר");
+                r.Kind.Text = s.Keep ? Lang.T("יישמר") : Lang.T("יוסר");
                 r.Kind.Icon = s.Keep ? Ico.Check : Ico.Trash;
                 r.Kind.Tint = s.Color;
                 if (all || !r.FA.Box.Focused) r.FA.Text = Tc.Short(s.A);
@@ -915,7 +928,7 @@ namespace SubtitleStudio
             bool hasKeep = CutPlan.HasKeep(_secs);
             _split.Visible = hasKeep;
             bool split = hasKeep && _split.Checked;
-            _subs.Visible = !split && _doc != null && _doc.Cues.Count > 0;
+            _open.Visible = !split;
             if (DateTime.UtcNow > _flashUntil)
             {
                 List<long[]> kept = CutPlan.Kept(_secs, _mi.DurationMs);
@@ -975,78 +988,132 @@ namespace SubtitleStudio
 
         // ---------- שמירה ----------
 
-        protected override bool OnOk()
+        /// <summary>עבודת חיתוך מוכנה: מה נשאר, לאן, והפקודות.</summary>
+        internal sealed class CutRun
         {
-            if (_secs.Count == 0) { Ui.Info(this, Lang.T("קודם מסמנים קטע"), Lang.T("גוררים על הגל, או ״להוסיף קטע״.")); return false; }
-            List<long[]> kept = CutPlan.Kept(_secs, _mi.DurationMs);
-            if (CutPlan.Total(kept) < 100)
-            {
-                Ui.Info(this, Lang.T("אין מה לשמור"), Lang.T("התוצאה ריקה: כל מה שמסומן מוסר."));
-                return false;
-            }
-            if (_main != null && _main.PlayerIsPlaying) _main.PausePlayer();
+            public FfJob Job;
+            public List<long[]> Kept;
+            public List<string> Outs;
+            public bool Split;
+        }
+
+        /// <summary>למה אי אפשר לחתוך עכשיו: {כותרת, הסבר}, או null.</summary>
+        internal string[] Problem()
+        {
+            if (_secs.Count == 0) return new string[] { Lang.T("קודם מסמנים קטע"), Lang.T("גוררים על פס הקול, או ״להוסיף קטע״.") };
+            if (CutPlan.Total(CutPlan.Kept(_secs, _mi.DurationMs)) < 100)
+                return new string[] { Lang.T("אין מה לשמור"), Lang.T("התוצאה ריקה: כל מה שמסומן מוסר.") };
+            return null;
+        }
+
+        private bool Split { get { return _split.Visible && _split.Checked; } }
+
+        /// <summary>בונה את העבודה ליעד שנבחר (קובץ, או תיקייה בפיצול). מחזיר null עם הודעה כשאי אפשר.</summary>
+        internal CutRun Plan(string target, out string[] problem)
+        {
+            problem = null;
+            CutRun run = new CutRun();
             bool fast = _fast.Checked;
-            bool split = _split.Visible && _split.Checked;
+            run.Split = Split;
+            run.Kept = CutPlan.Kept(_secs, _mi.DurationMs);
+            run.Outs = new List<string>();
+            List<List<long[]>> items;
             string ext = Path.GetExtension(_mi.Path);
-            string name = Path.GetFileNameWithoutExtension(_mi.Path);
-            List<List<long[]>> items = new List<List<long[]>>();
-            List<string> outs = new List<string>();
-            if (split)
+            if (run.Split)
             {
-                items = CutPlan.SplitItems(_secs);
-                FolderBrowserDialog fd = new FolderBrowserDialog();
-                fd.Description = Lang.T("לאיזו תיקייה לשמור את הקטעים?");
-                try { fd.SelectedPath = Path.GetDirectoryName(_mi.Path); }
-                catch { }
-                if (fd.ShowDialog(this) != DialogResult.OK) return false;
-                int exist = 0;
+                List<int> nums = new List<int>();
+                items = CutPlan.SplitItems(_secs, nums);
+                string name = Path.GetFileNameWithoutExtension(_mi.Path);
                 for (int i = 0; i < items.Count; i++)
-                {
-                    string p = CutPlan.FinalPath(_mi, Path.Combine(fd.SelectedPath, name + Lang.F(" - קטע {0}", i + 1) + ext), fast);
-                    if (File.Exists(p)) exist++;
-                    outs.Add(p);
-                }
-                if (exist > 0 && !Ui.Confirm(this, Lang.T("יש כבר קבצים בשם הזה"),
-                        Lang.F("{0} מהקבצים כבר קיימים בתיקייה. להחליף אותם?", Theme.Ltr(exist.ToString(CultureInfo.InvariantCulture))), Lang.T("להחליף"), Lang.T("ביטול")))
-                    return false;
+                    run.Outs.Add(CutPlan.FinalPath(_mi, Path.Combine(target, name + Lang.F(" - קטע {0}", nums[i]) + ext), fast));
             }
             else
             {
-                items.Add(kept);
-                SaveFileDialog sd = new SaveFileDialog();
-                string e2 = Path.GetExtension(CutPlan.FinalPath(_mi, "x" + ext, fast));
-                sd.Filter = Lang.F("קובץ {0}|*{1}|כל הקבצים|*.*", e2.TrimStart('.').ToUpperInvariant(), e2);
-                try
-                {
-                    sd.InitialDirectory = Path.GetDirectoryName(_mi.Path);
-                    sd.FileName = name + (CutPlan.HasKeep(_secs) ? Lang.T(" - קטעים") : Lang.T(" - חתוך")) + e2;
-                }
-                catch { }
-                if (sd.ShowDialog(this) != DialogResult.OK) return false;
-                outs.Add(CutPlan.FinalPath(_mi, sd.FileName, fast));
+                items = new List<List<long[]>> { run.Kept };
+                run.Outs.Add(CutPlan.FinalPath(_mi, target, fast));
             }
-            foreach (string p in outs)
+            foreach (string o in run.Outs)
             {
-                try
-                {
-                    if (string.Equals(Path.GetFullPath(p), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))
-                    { Ui.Error(this, Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור. בחרו שם אחר.")); return false; }
-                }
+                bool same = false;
+                try { same = string.Equals(Path.GetFullPath(o), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase); }
                 catch { }
+                if (same) { problem = new string[] { Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור. בחרו שם אחר.") }; return null; }
             }
+            run.Job = CutPlan.BuildJob(_mi, items, run.Outs, fast);
+            return run;
+        }
 
-            FfJob job = CutPlan.BuildJob(_mi, items, outs, fast);
-            bool ok = ProgressDlg.Run(_main != null ? (IWin32Window)_main : this, job.Title, job);
-            if (!ok) return false;
-            if (!split && _subs.Visible && _subs.Checked && _doc != null && _doc.Cues.Count > 0)
+        /// <summary>אחרי שהעבודה הצליחה: הכתוביות זזות לזמנים של הקובץ החדש, והעורך עובר אליו.</summary>
+        internal void Finish(CutRun run)
+        {
+            if (run.Split || !_open.Checked) return;
+            if (_hasCues && _doc.Cues.Count > 0)
             {
                 _doc.Push(Lang.T("חיתוך"));
-                List<Cue> moved = CutPlan.MapCues(_doc.Cues, kept);
+                List<Cue> moved = CutPlan.MapCues(_doc.Cues, run.Kept);
                 _doc.Cues.Clear();
                 _doc.Cues.AddRange(moved);
                 _doc.RaiseChanged();
             }
+            OpenAfter = run.Outs[0];
+        }
+
+        protected override bool OnOk()
+        {
+            string[] problem = Problem();
+            if (problem != null) { Ui.Info(this, problem[0], problem[1]); return false; }
+            if (_main != null && _main.PlayerIsPlaying) _main.PausePlayer();
+            bool split = Split, fast = _fast.Checked;
+            string ext = Path.GetExtension(_mi.Path), name = Path.GetFileNameWithoutExtension(_mi.Path);
+            string e2 = Path.GetExtension(CutPlan.FinalPath(_mi, "x" + ext, fast));
+            string suggest = split ? Path.GetDirectoryName(_mi.Path)
+                : name + (CutPlan.HasKeep(_secs) ? Lang.T(" - קטעים") : Lang.T(" - חתוך")) + e2;
+            string target = Pick(split, suggest, e2);
+            if (string.IsNullOrEmpty(target)) return false;
+
+            CutRun run = Plan(target, out problem);
+            if (run == null) { Ui.Error(this, problem[0], problem[1]); return false; }
+            // קבצים שיידרסו. בקובץ אחד חלון השמירה כבר שאל - אלא אם הסיומת התחלפה בקידוד מחדש (WEBM ← MP4)
+            int exist = 0;
+            foreach (string o in run.Outs)
+                if (File.Exists(o) && (split || !string.Equals(o, target, StringComparison.OrdinalIgnoreCase))) exist++;
+            if (exist > 0)
+            {
+                string body = split
+                    ? Lang.F("{0} מהקבצים כבר קיימים בתיקייה. להחליף אותם?", Theme.Ltr(exist.ToString(CultureInfo.InvariantCulture)))
+                    : Lang.F("{0}\nכבר קיים. להחליף אותו?", Theme.FileName(Path.GetFileName(run.Outs[0])));
+                if (!Ui.Confirm(this, split ? Lang.T("יש כבר קבצים בשם הזה") : Lang.T("הקובץ קיים"), body, Lang.T("להחליף"), Lang.T("ביטול")))
+                    return false;
+            }
+            if (!ProgressDlg.Run(_main != null ? (IWin32Window)_main : this, run.Job.Title, run.Job)) return false;
+            Finish(run);
             return true;
+        }
+
+        /// <summary>חלון הבחירה: קובץ לשמירה, או תיקייה כשכל קטע נשמר לחוד.</summary>
+        private string Pick(bool split, string suggest, string ext)
+        {
+            if (split)
+            {
+                using (FolderBrowserDialog fd = new FolderBrowserDialog())
+                {
+                    fd.Description = Lang.T("לאיזו תיקייה לשמור את הקטעים?");
+                    try { fd.SelectedPath = suggest; }
+                    catch { }
+                    return fd.ShowDialog(this) == DialogResult.OK ? fd.SelectedPath : null;
+                }
+            }
+            using (SaveFileDialog sd = new SaveFileDialog())
+            {
+                sd.Filter = Lang.F("קובץ {0}|*{1}|כל הקבצים|*.*", ext.TrimStart('.').ToUpperInvariant(), ext);
+                try
+                {
+                    sd.InitialDirectory = Path.GetDirectoryName(_mi.Path);
+                    sd.FileName = suggest;
+                }
+                catch { }
+                return sd.ShowDialog(this) == DialogResult.OK ? sd.FileName : null;
+            }
         }
 
         protected override void Dispose(bool disposing)

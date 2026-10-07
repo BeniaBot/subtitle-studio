@@ -68,6 +68,8 @@ namespace SubtitleStudio
         public string Sub = null;          // שורת משנה קטנה
         public int IconSize = Theme.S(18);
         public Color Swatch = Color.Empty;
+        /// <summary>טקסט קצר בתוך הדגימה (מספר), לבן.</summary>
+        public string SwatchText = null;
         /// <summary>מוסיף חץ קטן שמסמן שהכפתור פותח תפריט.</summary>
         public bool Menu = false;
         public bool IconOnly = false;
@@ -163,11 +165,17 @@ namespace SubtitleStudio
             if (Swatch != Color.Empty)
             {
                 float sw = Theme.S(22);
-                RectangleF sr = Theme.Mir(r, new RectangleF(Width - pad - sw, (Height - sw) / 2f, sw, sw));
+                // דגימה בלי טקסט לידה (מספר הקטע בחלון החיתוך) - ממורכזת, והמספר בתוכה
+                float sx = hasText ? Width - pad - sw : (Width - sw) / 2f;
+                RectangleF sr = Theme.Mir(r, new RectangleF(sx, (Height - sw) / 2f, sw, sw));
                 Theme.FillRound(g, sr, Theme.S(5), Swatch);
                 Theme.DrawRound(g, sr, Theme.S(5), Theme.Mix(Swatch, Theme.Text, 0.5f), 1f);
-                RectangleF tr2 = Theme.Mir(r, new RectangleF(pad, 0, Width - pad * 2 - sw - Theme.S(8), Height));
-                Theme.Str(g, Text, Font, fg, tr2, Theme.SfUi);
+                if (!string.IsNullOrEmpty(SwatchText)) Theme.Str(g, SwatchText, Theme.SmallBold, Color.White, sr, Theme.SfCenter);
+                if (hasText)
+                {
+                    RectangleF tr2 = Theme.Mir(r, new RectangleF(pad, 0, Width - pad * 2 - sw - Theme.S(8), Height));
+                    Theme.Str(g, Text, Font, fg, tr2, Theme.SfUi);
+                }
                 return;
             }
             // **ממורכז או צמוד לימין.** עד 0.7.2 כל כפתור הצמיד את התוכן לימין, וכל

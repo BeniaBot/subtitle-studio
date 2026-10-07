@@ -285,7 +285,7 @@ namespace SubtitleStudio
             subsMenu.Click += delegate { ShowSubtitleMenu(subsMenu); };
 
             Btn videoMenu = AddToolbar(Lang.T("הסרט"), Ico.Film,
-                Lang.T("חיתוך קטע, המרה, עוצמת שמע ופרטי הקובץ"),
+                Lang.T("חיתוך, המרה, עוצמת שמע ופרטי הקובץ"),
                 null, BtnKind.Subtle, true, 124);
             videoMenu.Menu = true;
             videoMenu.Click += delegate { ShowVideoMenu(videoMenu); };
@@ -441,7 +441,7 @@ namespace SubtitleStudio
             List<MenuItem> items = new List<MenuItem>();
 
             items.Add(MenuItem.Group(Lang.T("עריכה")));
-            items.Add(MenuItem.Make(Lang.T("חיתוך קטע מהסרט"), Lang.T("שומר או מסיר את הקטע שסימנתם על הציר"), Ico.Scissors,
+            items.Add(MenuItem.Make(Lang.T("חיתוך קטעים"), Lang.T("לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול"), Ico.Scissors,
                 delegate { TrimMedia(); }));
 
             items.Add(MenuItem.Group(Lang.T("המרה ועיבוד")));
@@ -1330,7 +1330,7 @@ namespace SubtitleStudio
             // סימון קטע וזום עברו למקלדת ולתפריט (I / O / Ctrl+גלגלת)
             AddTl(Lang.T("תחילת קטע"), Ico.ChevronRight,
                 Lang.T("מסמן כאן את תחילת הקטע לחיתוך (I)") + Environment.NewLine +
-                Lang.T("אחר כך: ״הסרט ← חיתוך קטע״"),
+                Lang.T("אחר כך: ״הסרט ← חיתוך קטעים״"),
                 delegate { MarkIn(); }, Theme.Good, 118);
             AddTl(Lang.T("סוף קטע"), Ico.ChevronLeft, Lang.T("מסמן כאן את סוף הקטע לחיתוך (O)"),
                 delegate { MarkOut(); }, Theme.Warn, 100);
@@ -1919,7 +1919,7 @@ namespace SubtitleStudio
             else if (_doc.Cues.Count == 0)
                 hint = Lang.T("עצרו את הסרט איפה שהדיבור מתחיל, ולחצו על הכפתור הכחול ״כתובית חדשה כאן״.");
             else if (_tl.InPoint >= 0 || _tl.OutPoint >= 0)
-                hint = Lang.F("קטע מסומן: {0} עד {1}   ·   ״הסרט ← חיתוך קטע״ כדי לחתוך אותו.", Tc.Short(_tl.InPoint < 0 ? 0 : _tl.InPoint), Tc.Short(_tl.OutPoint < 0 ? _engine.DurationMs : _tl.OutPoint));
+                hint = Lang.F("קטע מסומן: {0} עד {1}   ·   ״הסרט ← חיתוך קטעים״ כדי לחתוך אותו.", Tc.Short(_tl.InPoint < 0 ? 0 : _tl.InPoint), Tc.Short(_tl.OutPoint < 0 ? _engine.DurationMs : _tl.OutPoint));
             else
                 hint = Lang.T("טיפ: גררו בלוק על הציר כדי להזיז אותו, משכו את הקצה כדי להאריך, ולחצו עליו פעמיים כדי לערוך.");
             _hintLbl.Text = hint;
@@ -3153,22 +3153,47 @@ namespace SubtitleStudio
             d.Dispose();
         }
 
+        /// <summary>הקטעים של חלון החיתוך, לסרט הפתוח: סגירה ופתיחה מחדש לא מאבדות אותם.</summary>
+        private List<CutSection> _cutSections;
+        private string _cutFor;
+
+        /// <summary>״הסרט ← חיתוך״: חלון הקטעים (0.8.7, בהשראת ״חותך שמע״). עד 0.8.6 היה כאן חלון של קטע
+        /// אחד בלבד, שדרש לסמן אותו קודם על הציר - והסרה מקובץ קול נכשלה או קודדה מחדש.</summary>
         private void TrimMedia()
         {
             if (_mi == null) return;
-            long a = _tl.InPoint, b = _tl.OutPoint;
-            if (a < 0) a = 0;
-            if (b <= a) b = _mi.DurationMs;
-            if (_tl.InPoint < 0 && _tl.OutPoint < 0)
+            if (_cutSections == null || !string.Equals(_cutFor, _mediaPath, StringComparison.OrdinalIgnoreCase))
             {
-                Ui.Info(this, Lang.T("קודם מסמנים קטע"),
-                    Lang.T("כך חותכים:\n1. הזיזו את הסמן על הציר לנקודת ההתחלה ולחצו ״תחילת קטע״.\n2. הזיזו לנקודת הסיום ולחצו ״סוף קטע״.\n3. חזרו לכאן - הקטע המסומן יהיה מוכן לחיתוך."));
-                return;
+                _cutSections = new List<CutSection>();
+                _cutFor = _mediaPath;
+                long a, b;
+                // הקטע שכבר סומן על הציר הוא הקטע הראשון
+                if (MarkedRange(out a, out b))
+                {
+                    CutSection s = new CutSection();
+                    s.Id = 1; s.A = a; s.B = b; s.Keep = true; s.Color = CutPlan.KeepColors[0];
+                    _cutSections.Add(s);
+                }
             }
-            TrimDlg d = new TrimDlg(this, _mi, _doc, a, b);
+            CutDlg d = new CutDlg(this, _mi, _doc, _wave, _cutSections);
             d.ShowDialog(this);
+            string next = d.OpenAfter;
             d.Dispose();
+            if (next != null) SwitchToCut(next);
             SyncAfterDocChange();
+        }
+
+        /// <summary>אחרי חיתוך עם ״לעבור לקובץ החתוך״: העורך פותח את הקובץ החדש, והכתוביות (שכבר הוזזו) הולכות
+        /// איתו. קובץ הכתוביות והפרויקט שייכים לסרט המקורי - השמירה הבאה שואלת לאן, ולא כותבת עליהם זמנים של
+        /// קובץ אחר.</summary>
+        private void SwitchToCut(string path)
+        {
+            if (!File.Exists(path)) return;
+            OpenMedia(path);
+            if (!string.Equals(_mediaPath, path, StringComparison.OrdinalIgnoreCase)) return;
+            _doc.FilePath = null;
+            _projectPath = null;
+            if (_doc.Cues.Count > 0) _doc.Dirty = true;
         }
 
         /// <summary>קיצור ישיר לכלי הנפוץ ביותר - הקטנה לגודל מבוקש.</summary>

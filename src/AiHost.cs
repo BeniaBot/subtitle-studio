@@ -99,7 +99,7 @@ namespace SubtitleStudio
             t.Add(new AiTool("export_video", "פותח את חלון יצירת הסרט עם הכתוביות")
                 .P("mode", "string", "burn לצריבה בתמונה, track לערוץ כתוביות נפרד"));
 
-            t.Add(new AiTool("trim_video", "פותח את חלון חיתוך הקטע המסומן"));
+            t.Add(new AiTool("trim_video", "פותח את חלון החיתוך: קטעים לשמירה או להסרה. קטע שסומן על הציר (mark_range) נכנס אליו כקטע הראשון"));
 
             t.Add(new AiTool("run_media_tool", "מפעיל כלי על קובץ הווידאו: עוצמה, המרה, דחיסה, מהירות, סיבוב, היפוך, GIF, חילוץ פס קול ועוד")
                 .P("tool", "string", "שם הכלי בדיוק כפי שהוא חוזר מ-list_media_tools. בלי שם - נפתחת רשימת הכלים"));
@@ -639,11 +639,6 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
-            if (_tl.InPoint < 0 || _tl.OutPoint <= _tl.InPoint)
-            {
-                r["error"] = Lang.T("צריך קודם לסמן קטע. אפשר להשתמש ב-mark_range.");
-                return r;
-            }
             TrimMedia();
             r["done"] = Lang.T("נפתח חלון החיתוך");
             return r;
