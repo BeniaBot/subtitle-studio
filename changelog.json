@@ -2,6 +2,47 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.5",
+      "date": "2026-10-07",
+      "items": [
+        {
+          "t": "major",
+          "s": "חלון התרגום נפתח על עברית כשהכתוביות בשפה אחרת. שורה שהתרגום דילג עליה נשלחת שוב, ואם גם אז לא תורגמה - התוכנה אומרת",
+          "en": "The translation window opens on Hebrew when the subtitles are in another language. A line the translation skipped is sent again, and if it still is not translated - the program says so"
+        },
+        {
+          "t": "major",
+          "s": "סגירת חלון התמלול באמצע עוצרת ושומרת את מה שכבר תומלל, בלי להמשיך ברקע ולבזבז מכסה",
+          "en": "Closing the transcription window midway stops and keeps what was already transcribed, instead of going on in the background and spending quota"
+        },
+        {
+          "t": "feature",
+          "s": "קליק ימני על שורה עם מילה לא בטוחה: להשמיע אותה, או לסמן שהיא נכונה. ״להקשיב קודם״ לפני הצריבה מתחיל לנגן מיד",
+          "en": "A right-click on a line with an unsure word: play it, or mark it as correct. “Listen first” before burning starts playing right away"
+        },
+        {
+          "t": "fix",
+          "s": "עומס של רגע אצל גוגל כבר לא משאיר את כל המשך התמלול על דגם הגיבוי, שהזמנים בו פחות מדויקים",
+          "en": "A moment of load at Google no longer keeps the rest of the transcription on the backup model, whose timing is less accurate"
+        },
+        {
+          "t": "fix",
+          "s": "ערוץ כתוביות נפרד בסרט שכבר יש בו כתוביות: השפה, השם והסימון ״ברירת מחדל״ נכתבים על הערוץ החדש",
+          "en": "A separate subtitle track in a video that already has one: the language, the name and the default mark go to the new track"
+        },
+        {
+          "t": "fix",
+          "s": "חיבור כתוביות ביד שומר את הסימון של מילה לא בטוחה, ושני דוברים מקבלים שורה לכל אחד",
+          "en": "Joining subtitles by hand keeps the unsure-word mark, and two speakers get a line each"
+        },
+        {
+          "t": "fix",
+          "s": "זמן שמקלידים בשדות ״מ־״ ו״עד״ מתבטל ב-Ctrl+Z, הודעות מפנות לכפתורים בשמות שלהם, וקובץ אחרון שנמחק אפשר להוריד מהרשימה",
+          "en": "A time typed into the “from” and “to” fields can be undone, messages name the buttons as they are called, and a recent file that was deleted can be removed from the list"
+        }
+      ]
+    },
+    {
       "v": "0.8.4",
       "date": "2026-10-06",
       "items": [
