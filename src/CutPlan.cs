@@ -93,7 +93,8 @@ namespace SubtitleStudio
 
         internal static bool HasKeep(List<CutSection> all)
         {
-            foreach (CutSection s in all) if (s.Keep) return true;
+            // קטע ריק (I בלי O) לא נחשב: אחרת הגל היה מעומעם כולו, והתוצאה - כל הקובץ
+            foreach (CutSection s in all) if (s.Keep && s.B > s.A) return true;
             return false;
         }
 
@@ -106,7 +107,11 @@ namespace SubtitleStudio
         }
 
         /// <summary>קובץ לכל קטע לשמירה (לפי הסדר בזמן), פחות מה שמסומן להסרה בתוכו.</summary>
-        internal static List<List<long[]>> SplitItems(List<CutSection> all)
+        internal static List<List<long[]>> SplitItems(List<CutSection> all) { return SplitItems(all, null); }
+
+        /// <summary><paramref name="numbers"/>: לכל קובץ - המספר של הקטע שלו בטבלה (1 והלאה). הקבצים נקראים
+        /// לפיו, כך ש״קטע 3״ בתיקייה הוא השורה השלישית - גם כשהקטעים לא נוספו לפי הסדר בזמן.</summary>
+        internal static List<List<long[]>> SplitItems(List<CutSection> all, List<int> numbers)
         {
             List<CutSection> keep = new List<CutSection>();
             foreach (CutSection s in all) if (s.Keep && s.B - s.A > 0) keep.Add(s);
@@ -116,7 +121,9 @@ namespace SubtitleStudio
             foreach (CutSection s in keep)
             {
                 List<long[]> r = Subtract(new List<long[]> { new long[] { s.A, s.B } }, remove);
-                if (r.Count > 0) outp.Add(r);
+                if (r.Count == 0) continue;
+                outp.Add(r);
+                if (numbers != null) numbers.Add(all.IndexOf(s) + 1);
             }
             return outp;
         }
@@ -151,12 +158,19 @@ namespace SubtitleStudio
             if (start)
             {
                 if (t <= s.B) s.A = t;
-                else { s.A = t; s.B = Math.Min(durationMs, t + len); if (s.B <= s.A) s.B = Math.Min(durationMs, s.A + 1000); }
+                else { s.A = t; s.B = Math.Min(durationMs, t + len); }
             }
             else
             {
                 if (t >= s.A) s.B = t;
                 else { s.B = t; s.A = Math.Max(0, t - len); }
+            }
+            // **לא משאירים קטע ריק** (התחלה על הסוף, קטע בלי אורך, זמן מעבר לסוף הקובץ): שנייה מהקצה שנקבע -
+            // ובקצה של הקובץ, לכיוון השני. קטע ריק לא נראה על הגל ולא חותך כלום.
+            if (s.B <= s.A)
+            {
+                if (start) { s.B = Math.Min(durationMs, s.A + 1000); if (s.B <= s.A) s.A = Math.Max(0, s.B - 1000); }
+                else { s.A = Math.Max(0, s.B - 1000); if (s.B <= s.A) s.B = Math.Min(durationMs, s.A + 1000); }
             }
         }
 
