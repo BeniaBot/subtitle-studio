@@ -2,7 +2,7 @@
 # הלוגיקה (CutPlan) מול מקרים ידועים, ואחר כך המנוע עצמו על קבצים אמיתיים שנוצרים כאן: MP3, ‏M4A, ‏WAV
 # (בלי קידוד מחדש, בפורמט המקורי) ו-MP4 (מהיר ומדויק) - ובודקים את האורך של מה שיצא.
 # אחר כך החלון עצמו, עם הנגן האמיתי: גרירה, הקלדה, מקלדת, ניגון, וחיתוך דרך החלון.
-# צפוי: 40 בדיקות.
+# צפוי: 41 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -241,6 +241,15 @@ $emptyShown = (Fld $dlg '_empty').Visible
 Reset @(,@(0, $D, $false))
 $p2 = $CD.GetMethod('Problem', $IN).Invoke($dlg, @())
 Check 'אין קטעים - ״קודם מסמנים קטע״ (והשורה הריקה מסבירה); הכול מוסר - ״אין מה לשמור״' ($p1 -ne $null -and $p1[0] -eq 'קודם מסמנים קטע' -and $emptyShown -and $p2 -ne $null -and $p2[0] -eq 'אין מה לשמור') ''
+
+# חיתוך מהיר בסרט: פריים המפתח שלפני כל תחילה נמדד ברקע (בקובץ הבדיקה - כל 2 שניות)
+$fast.Checked = $true
+Reset @(,@(11000, 20000, $true))
+$note = Fld $dlg '_kfNote'
+$sw = [Diagnostics.Stopwatch]::StartNew(); while ($note.Text -eq '' -and $sw.Elapsed.TotalSeconds -lt 15) { Pump 100 }
+$t1 = $note.Text
+$fast.Checked = $false; Pump 50
+Check 'חיתוך מהיר בסרט: נמדד פריים המפתח, ונאמר כמה מוקדם יתחיל (11.0 ← 10.0); בלי חיתוך מהיר - בלי הערה' ($t1 -match '1\.0' -and $note.Text -eq '') ($t1 + ' after ' + [Math]::Round($sw.Elapsed.TotalSeconds, 1) + 's')
 
 # ---- חיתוך אמיתי דרך החלון ----
 $planM = $CD.GetMethod('Plan', $IN); $finM = $CD.GetMethod('Finish', $IN)

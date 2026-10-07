@@ -177,6 +177,7 @@
 חותך	Cutting
 שומר {0} קבצים	Saving {0} files
 חותך ושומר	Cutting and saving
+נשמרו {0} קבצים, בתיקייה {1}	Saved {0} files, in the folder {1}
 
 # ---- Dlg.cs ----
 מתחיל...	Starting...
@@ -185,6 +186,7 @@
 יומן	Log
 הפעולה הושלמה בהצלחה	Done successfully
 הפעולה בוטלה	Cancelled
+נשמר: {0}  ·  {1}	Saved: {0}  ·  {1}
 
 # ---- DlgAi.cs ----
 נכנסים לדף של גוגל	Go to Google's page
@@ -314,6 +316,8 @@
 קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש - באיכות גבוהה, באותו פורמט.	{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded - in high quality, in the same format.
 קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.	{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded in high quality and saved as {1}.
 מדויק, בלי אובדן איכות	exact, no loss of quality
+בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״.	Without re-encoding a cut can only start at a key frame. For full accuracy, turn off “Fast cut”.
+חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון	Fast cut: a section will start up to {0} seconds before the mark
 
 # ---- DlgEdit.cs ----
 הזזת תזמון	Shift timing

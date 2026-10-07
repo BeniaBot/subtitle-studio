@@ -150,6 +150,8 @@ namespace SubtitleStudio
         /// כלי הבדיקה ב-PowerShell לא יכולים לקבל קריאה מתהליכון אחר.</summary>
         public volatile bool Done, Succeeded;
         public string OutputPath;
+        /// <summary>מה לכתוב בסוף במקום ״נשמר: שם · גודל״ של OutputPath - כשנשמרו כמה קבצים.</summary>
+        public string SavedNote;
 
         public void Cancel()
         {

@@ -447,7 +447,7 @@ namespace SubtitleStudio
         private readonly CutView _view;
         private readonly CutMap _map;
         private readonly Btn _play, _modeKeep, _modeRemove, _add;
-        private readonly Lbl _clock, _summary, _empty, _info;
+        private readonly Lbl _clock, _summary, _empty, _info, _kfNote;
         private readonly Field _jump;
         private readonly Toggle _preview, _split, _fast, _open;
         private readonly bool _hasCues;
@@ -624,8 +624,14 @@ namespace SubtitleStudio
             int bottom = Math.Max(_add.Bottom, _open.Bottom) + s10;
             _summary = Label("", true, Theme.Text);
             _summary.Font = Theme.UiBold;
-            _summary.SetBounds(Pad, bottom, W, Theme.S(24));
+            int sumW = W * 11 / 20;
+            _summary.SetBounds(Pad + W - sumW, bottom, sumW, Theme.S(24));
             Controls.Add(_summary);
+            // לצידו: כמה מוקדם יתחיל קטע בחיתוך מהיר (פריים המפתח שלפניו, נמדד ברקע) - כמו בחלון הישן
+            _kfNote = new Lbl(); _kfNote.Font = Theme.Small; _kfNote.Color = Theme.Warn; _kfNote.Align = StringAlignment.Far;
+            _kfNote.SetBounds(Pad, bottom, W - sumW - s10, Theme.S(24));
+            Ui.Tip.SetToolTip(_kfNote, Lang.T("בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״."));
+            Controls.Add(_kfNote);
             Y = _summary.Bottom + Theme.S(4);
             Buttons(Lang.T("לחתוך ולשמור"), Ico.Scissors, Lang.T("סגירה"));
 
@@ -729,8 +735,67 @@ namespace SubtitleStudio
             if (c != _lastClock) { _lastClock = c; _clock.Text = c; _clock.Invalidate(); }
         }
 
+        // ---------- פריים מפתח: כמה מוקדם יתחיל קטע בחיתוך מהיר ----------
+
+        /// <summary>תחילת חלק ← פריים המפתח שלפניה (‎-1‎ = לא נמצא).</summary>
+        private readonly Dictionary<long, long> _kf = new Dictionary<long, long>();
+        private List<long> _kfWant = new List<long>();
+        private DateTime _kfSince = DateTime.MaxValue;
+        private bool _kfBusy;
+
+        private bool KfApplies { get { return !_audio && _fast.Checked; } }
+
+        /// <summary>נמדד ברקע (‏ffmpeg מפענח עד 30 שניות לפני כל תחילה), אחד בכל פעם, ורק כשהקטעים נחו חצי שנייה -
+        /// לא בכל פיקסל של גרירה.</summary>
+        private void KfPump()
+        {
+            if (_kfBusy || !KfApplies || DateTime.UtcNow < _kfSince || !IsHandleCreated) return;
+            foreach (long t in _kfWant)
+            {
+                if (_kf.ContainsKey(t)) continue;
+                _kfBusy = true;
+                string path = _mi.Path;
+                long at = t;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    long k = Ff.NearestKeyframeBefore(path, at);
+                    try
+                    {
+                        BeginInvoke((Action)delegate
+                        {
+                            _kfBusy = false;
+                            if (IsDisposed) return;
+                            _kf[at] = k;
+                            RefreshAll(false);
+                        });
+                    }
+                    catch { }
+                });
+                return;
+            }
+        }
+
+        /// <summary>הכי מוקדם שחלק יתחיל לפני הסימון (ms), ממה שכבר נמדד. רשימה חדשה = הקטעים זזו: מחכים שינוחו.</summary>
+        private long KfLead(List<long[]> parts)
+        {
+            List<long> want = new List<long>();
+            long worst = 0;
+            foreach (long[] r in parts)
+            {
+                if (r[0] <= 0) continue;
+                want.Add(r[0]);
+                long k;
+                if (_kf.TryGetValue(r[0], out k) && k >= 0) worst = Math.Max(worst, r[0] - k);
+            }
+            bool same = want.Count == _kfWant.Count;
+            for (int i = 0; same && i < want.Count; i++) same = want[i] == _kfWant[i];
+            if (!same) { _kfWant = want; _kfSince = DateTime.UtcNow.AddMilliseconds(500); }
+            return worst;
+        }
+
         private void OnTick()
         {
+            KfPump();
             if (_main == null || IsDisposed) return;
             long t = Position();
             bool playing = _main.PlayerIsPlaying;
@@ -952,6 +1017,17 @@ namespace SubtitleStudio
             _split.Visible = hasKeep;
             bool split = hasKeep && _split.Checked;
             _open.Visible = !split;
+            string kfText = "";
+            if (KfApplies && _secs.Count > 0)
+            {
+                List<long[]> parts = new List<long[]>();
+                if (split) foreach (List<long[]> item in CutPlan.SplitItems(_secs)) parts.AddRange(item);
+                else parts = CutPlan.Kept(_secs, _mi.DurationMs);
+                long lead = KfLead(parts);
+                if (lead > 400)
+                    kfText = Lang.F("חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון", Theme.Ltr((lead / 1000.0).ToString("0.0", CultureInfo.InvariantCulture)));
+            }
+            if (_kfNote.Text != kfText) { _kfNote.Text = kfText; _kfNote.Invalidate(); }
             if (DateTime.UtcNow > _flashUntil)
             {
                 List<long[]> kept = CutPlan.Kept(_secs, _mi.DurationMs);

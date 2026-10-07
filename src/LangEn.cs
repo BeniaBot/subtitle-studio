@@ -173,12 +173,14 @@ namespace SubtitleStudio
             "חותך", "Cutting",
             "שומר {0} קבצים", "Saving {0} files",
             "חותך ושומר", "Cutting and saving",
+            "נשמרו {0} קבצים, בתיקייה {1}", "Saved {0} files, in the folder {1}",
             "מתחיל...", "Starting...",
             "סגירה", "Close",
             "פתיחת התיקייה", "Open the folder",
             "יומן", "Log",
             "הפעולה הושלמה בהצלחה", "Done successfully",
             "הפעולה בוטלה", "Cancelled",
+            "נשמר: {0}  ·  {1}", "Saved: {0}  ·  {1}",
             "נכנסים לדף של גוגל", "Go to Google's page",
             "הכפתור למטה פותח אותו בדפדפן. צריך חשבון גוגל רגיל.", "The button below opens it in your browser. A regular Google account is enough.",
             "לוחצים ״Create API key״", "Click “Create API key”",
@@ -302,13 +304,15 @@ namespace SubtitleStudio
             "קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש - באיכות גבוהה, באותו פורמט.", "{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded - in high quality, in the same format.",
             "קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.", "{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded in high quality and saved as {1}.",
             "מדויק, בלי אובדן איכות", "exact, no loss of quality",
+            "בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״.", "Without re-encoding a cut can only start at a key frame. For full accuracy, turn off “Fast cut”.",
+            "חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון", "Fast cut: a section will start up to {0} seconds before the mark",
             "הזזת תזמון", "Shift timing",
+        };
+        private static readonly string[] P1 = new string[] {
             "מזיזים קבוצת כתוביות קדימה או אחורה", "Move a group of subtitles earlier or later",
             "על אילו כתוביות להחיל?", "Which subtitles?",
             "כל הכתוביות ({0})", "All subtitles ({0})",
             "המסומנות בלבד ({0})", "Selected only ({0})",
-        };
-        private static readonly string[] P1 = new string[] {
             "מהסמן והלאה ({0})", "From the cursor on ({0})",
             "עד הסמן", "Up to the cursor",
             "בכמה להזיז?", "Shift by how much?",
@@ -605,12 +609,12 @@ namespace SubtitleStudio
             "אותו קצב", "Same rate",
             "בחרו שני קצבים שונים.", "Choose two different rates.",
             "המרת קצב", "Frame rate conversion",
+        };
+        private static readonly string[] P2 = new string[] {
             "כל הקבצים|*.*", "All files|*.*",
             " - חדש", " - new",
             "הקובץ כבר קטן מהגודל הזה ({0}). כדי להקטין אותו באמת - לבחור גודל קטן יותר.", "The file is already smaller than this size ({0}). To really make it smaller, choose a smaller size.",
             "הגודל הזה קטן מדי לסרט באורך {0} - התוצאה תהיה מטושטשת מאוד. כדאי לבחור גודל גדול יותר או לחתוך קטע.", "This size is too small for a video {0} long - the result will be very blurry. Choose a bigger size or trim a section.",
-        };
-        private static readonly string[] P2 = new string[] {
             "איכות מתוכננת: {0} מגהביט לשנייה", "Planned quality: {0} Mbit/s",
             " + קול {0}k", " + audio {0}k",
             "  ·  הרזולוציה תרד ל-{0}p כדי לשמור על תמונה חדה", "  ·  the resolution will drop to {0}p to keep the picture sharp",
@@ -907,12 +911,12 @@ namespace SubtitleStudio
             "ניגון / עצירה (מקש הרווח)", "Play / pause (space bar)",
             "אחורה שתי שניות (חץ שמאלה, או Ctrl+חץ תוך כדי כתיבה)", "Back two seconds (left arrow, or Ctrl+arrow while typing)",
             "לכתובית הקודמת", "To the previous subtitle",
+        };
+        private static readonly string[] P3 = new string[] {
             "לכתובית הבאה (Tab)", "To the next subtitle (Tab)",
             "קדימה שתי שניות (חץ ימינה, או Ctrl+חץ תוך כדי כתיבה)", "Forward two seconds (right arrow, or Ctrl+arrow while typing)",
             "עוצמת ההשמעה בתוכנה (לא משנה את הקובץ)", "Playback volume in the program (doesn't change the file)",
             "מהירות השמעה. האטה עוזרת לתפוס בדיוק את הרגע שבו מתחיל הדיבור", "Playback speed. Slowing down helps catch the exact moment the speech starts",
-        };
-        private static readonly string[] P3 = new string[] {
             "לא משנה את הקובץ, רק את ההשמעה כאן", "Doesn't change the file, only playback here",
             "איטי יותר - נוח לתזמון מדויק", "Slower - handy for precise timing",
             "מהיר יותר - למעבר מהיר על החומר", "Faster - to go through the material quickly",
@@ -1209,12 +1213,12 @@ namespace SubtitleStudio
             "את כל הכתוביות", "All the subtitles",
             "לתזמן רק את הקטע המסומן?", "Time only the marked section?",
             "אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן.", "You can re-time by the speech only the subtitles inside it, or all of them.",
+        };
+        private static readonly string[] P4 = new string[] {
             "להצמיד רק בקטע המסומן?", "Snap only in the marked section?",
             "אפשר להצמיד למעברי סצנה רק את הכתוביות שבתוכו, או את כולן.", "You can snap to scene changes only the subtitles inside it, or all of them.",
             "חיתוך, המרה, עוצמת שמע ופרטי הקובץ", "Cut, convert, volume and file details",
             "חיתוך קטעים", "Cut sections",
-        };
-        private static readonly string[] P4 = new string[] {
             "לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול", "Keep or remove sections - as many as you like, right on the waveform",
             "אחר כך: ״הסרט ← חיתוך קטעים״", "Then: “Video → Cut sections”",
             "קטע מסומן: {0} עד {1}   ·   ״הסרט ← חיתוך קטעים״ כדי לחתוך אותו.", "Marked section: {0} to {1}   ·   “Video → Cut sections” to cut it.",

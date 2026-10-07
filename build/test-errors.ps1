@@ -219,6 +219,16 @@ $r = RunDlg "-i `"$media`" -t 1 -f null -" $false
 Check 'הצלחה' ($r.Head -eq 'הפעולה הושלמה בהצלחה') $r.Head
 $r.Dlg.Dispose()
 
+# הצלחה עם קובץ: איפה נשמר ובאיזה גודל, במקום ״הושלמה״ (0.8.7, כמו ב״חותך שמע״)
+$saved = Join-Path $work 'saved-note.mp4'
+$job = [Activator]::CreateInstance($jobT); $job.Args = "-i `"$media`" -t 1 -c copy `"$saved`""; $job.WorkDir = $work; $job.TotalMs = 1000; $job.OutputPath = $saved
+$dlg = [Activator]::CreateInstance($pdT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @('בדיקה', $job), $null)
+[void]$ffT.GetMethod('RunJob', $SF).Invoke($null, @(,$job))
+$sw = [Diagnostics.Stopwatch]::StartNew(); while (-not $job.Done -and $sw.ElapsedMilliseconds -lt 30000) { Start-Sleep -Milliseconds 50 }; Start-Sleep -Milliseconds 200
+$head = [string]$pdT.GetProperty('Headline', $IF).GetValue($dlg, $null)
+Check 'הצלחה עם קובץ: ״נשמר: שם · גודל״' ($head.StartsWith('נשמר: ') -and $head.Contains('saved-note.mp4') -and $head -match 'KB|MB') $head
+$dlg.Dispose()
+
 # כל הודעה נכנסת לשטח שלה בחלון: 476 על 44 לוגיים, באותם דגלים ש-Theme.Str מצייר
 $scale = [double](T 'Theme').GetField('Scale', $SF).GetValue($null)
 $font = (T 'Theme').GetProperty('Small', $SF).GetValue($null, $null)

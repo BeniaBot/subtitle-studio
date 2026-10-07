@@ -49,7 +49,8 @@ $secs.Clear()
 $view = (TY 'CutDlg').GetField('_view', $IN).GetValue($dlg)
 $view.FitAll()
 [void](TY 'MainForm').GetMethod('SeekPlayer', $IN).Invoke($m, @([long]($dur * 0.25)))
-for ($i = 0; $i -lt 20; $i++) { Start-Sleep -Milliseconds 50; [Windows.Forms.Application]::DoEvents() }
+# שלוש שניות: גם פריים המפתח של חיתוך מהיר נמדד ברקע
+for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 50; [Windows.Forms.Application]::DoEvents() }
 $bmp = New-Object Drawing.Bitmap $dlg.Width, $dlg.Height
 $dlg.DrawToBitmap($bmp, (New-Object Drawing.Rectangle 0, 0, $dlg.Width, $dlg.Height))
 $name = [IO.Path]::GetFileNameWithoutExtension($Media) + '-' + $(if ($Light) { 'light' } else { 'dark' }) + '-' + $Lang + '.png'

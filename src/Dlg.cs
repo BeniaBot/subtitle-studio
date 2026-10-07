@@ -405,6 +405,7 @@ namespace SubtitleStudio
         private bool _done, _success, _cancelled;
         /// <summary>ההודעה האנושית (ErrorText). היומן הגולמי נשאר מאחורי ״יומן״.</summary>
         private string _error = "";
+        private string _saved;
         internal string Headline { get { return SubText(); } }
         private Btn _cancel, _close, _openFolder, _log;
         private TextBox _logBox;
@@ -470,6 +471,18 @@ namespace SubtitleStudio
                 lock (job.Log) log = job.Log.ToString();
                 _cancelled = job.Cancelled;
                 _error = ok || _cancelled ? "" : ErrorText.Ffmpeg(log, msg);
+                // איפה נשמר ובאיזה גודל (כמו ב״חותך שמע״), ו״פתיחת התיקייה״ ממש מתחת
+                if (ok && job.SavedNote != null) _saved = job.SavedNote;
+                else if (ok && !string.IsNullOrEmpty(job.OutputPath))
+                {
+                    try
+                    {
+                        FileInfo fi = new FileInfo(job.OutputPath);
+                        if (fi.Exists && fi.Length > 0)
+                            _saved = Lang.F("נשמר: {0}  ·  {1}", Theme.FileName(fi.Name), Theme.Ltr(MediaInfo.FormatSize(fi.Length)));
+                    }
+                    catch { }
+                }
                 _success = ok; _done = true;
             };
 
@@ -515,7 +528,7 @@ namespace SubtitleStudio
         private string SubText()
         {
             if (!_done) return _status;
-            if (_success) return Lang.T("הפעולה הושלמה בהצלחה");
+            if (_success) return _saved ?? Lang.T("הפעולה הושלמה בהצלחה");
             // עד 0.7.2 ביטול הוצג כ״לא הצליח: בוטל״, באדום - כאילו משהו נשבר
             if (_cancelled || _error.Length == 0) return Lang.T("הפעולה בוטלה");
             return _error;

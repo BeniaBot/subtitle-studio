@@ -380,6 +380,12 @@ namespace SubtitleStudio
             job.TotalMs = Math.Max(1, total);
             job.OutputPath = outPaths.Count > 0 ? outPaths[0] : null;
             job.Title = items.Count > 1 ? Lang.F("שומר {0} קבצים", items.Count) : Lang.T("חותך ושומר");
+            if (items.Count > 1 && job.OutputPath != null)
+            {
+                string folder = Path.GetFileName(Path.GetDirectoryName(job.OutputPath).TrimEnd('\\'));
+                if (string.IsNullOrEmpty(folder)) folder = Path.GetDirectoryName(job.OutputPath);
+                job.SavedNote = Lang.F("נשמרו {0} קבצים, בתיקייה {1}", Theme.Ltr(items.Count.ToString(CultureInfo.InvariantCulture)), Theme.FileName(folder));
+            }
             return job;
         }
     }
