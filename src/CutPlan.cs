@@ -200,23 +200,72 @@ namespace SubtitleStudio
 
         // ---------- המנוע ----------
 
-        /// <summary>קובץ קול (בלי תמונה של ממש - תמונת עטיפה לא נחשבת): נחתך תמיד בלי קידוד מחדש.</summary>
+        /// <summary>קובץ קול (בלי תמונה של ממש - תמונת עטיפה לא נחשבת).</summary>
         internal static bool AudioOnly(MediaInfo mi)
         {
             return mi != null && mi.FirstVideo() == null;
         }
 
+        /// <summary>איך נחתך קובץ קול.</summary>
+        internal enum AudioCut { Copy, Lossless, Lossy }
+
+        /// <summary>**העתקה רק כשהיא באמת מדויקת.** MP3, ‏AAC, ‏WAV, ‏WMA - העתקה, בלי קידוד. FLAC (וכל קידוד בלי אובדן
+        /// אחר) - קידוד מחדש ל-FLAC: מדויק, ובלי אובדן. OGG/OPUS וכל השאר - קידוד מחדש באיכות גבוהה.
+        /// נמדד ב-real-sweep (7.10): העתקה של FLAC השאירה בכותרת את האורך של המקור (8 שניות ״באורך״ 1:34), ושל OGG -
+        /// חיבור שאיבד 21 שניות; כל חיבור של OPUS הוסיף שליש שנייה.</summary>
+        internal static AudioCut AudioWay(MediaInfo mi)
+        {
+            string c = AudioCodec(mi);
+            if (c == "mp3" || c == "mp2" || c == "aac" || c == "ac3" || c == "eac3" || c == "alac" ||
+                c.StartsWith("pcm_") || c.StartsWith("adpcm_") || c.StartsWith("wma")) return AudioCut.Copy;
+            if (c == "flac" || c == "ape" || c == "wavpack" || c == "tta" || c == "mlp" || c == "truehd") return AudioCut.Lossless;
+            return AudioCut.Lossy;
+        }
+
+        private static string AudioCodec(MediaInfo mi)
+        {
+            if (mi != null) foreach (MediaStream s in mi.Streams) if (s.Type == "audio") return (s.Codec ?? "").ToLowerInvariant();
+            return "";
+        }
+
+        /// <summary>הקידוד של קובץ קול שלא נחתך בהעתקה, והסיומת שמתאימה לו: באותו פורמט כשאפשר.</summary>
+        internal static string AudioCodecArgs(MediaInfo mi, out string ext)
+        {
+            string src = Path.GetExtension(mi.Path).ToLowerInvariant();
+            string c = AudioCodec(mi);
+            // ‏FLAC אחרי atrim: בלי גודל מסגרת קבוע המקודד נופל על מסגרת ראשונה של דגימה אחת (״invalid block size: 1״)
+            if (AudioWay(mi) == AudioCut.Lossless) { ext = ".flac"; return "-c:a flac -frame_size 4608"; }
+            if (c == "vorbis") { ext = src == ".oga" || src == ".mka" || src == ".webm" ? src : ".ogg"; return "-c:a libvorbis -q:a 6"; }
+            if (c == "opus") { ext = src == ".ogg" || src == ".mka" || src == ".webm" ? src : ".opus"; return "-c:a libopus -b:a 160k"; }
+            ext = ".m4a";
+            return Q.MaxAudio;
+        }
+
         /// <summary>האם השמירה תהיה בלי קידוד מחדש.</summary>
         internal static bool Copies(MediaInfo mi, bool fast)
         {
-            return AudioOnly(mi) || fast;
+            return AudioOnly(mi) ? AudioWay(mi) == AudioCut.Copy : fast;
         }
 
-        /// <summary>הסיומת של מה שנכתב: העתקה - כמו המקור; קידוד וידאו - ‏MP4 כשהמיכל לא מקבל H.264.</summary>
+        /// <summary>הסיומת של מה שנכתב: העתקה - כמו המקור; קול בקידוד - לפי הקידוד; וידאו - ‏MP4 כשהמיכל לא מקבל H.264.</summary>
         internal static string FinalPath(MediaInfo mi, string outPath, bool fast)
         {
             if (string.IsNullOrEmpty(outPath)) return outPath;
-            return Copies(mi, fast) ? outPath : Burn.ReencodePath(outPath);
+            if (Copies(mi, fast)) return outPath;
+            if (!AudioOnly(mi)) return Burn.ReencodePath(outPath);
+            string ext;
+            AudioCodecArgs(mi, out ext);
+            return string.Equals(Path.GetExtension(outPath), ext, StringComparison.OrdinalIgnoreCase) ? outPath : Path.ChangeExtension(outPath, ext);
+        }
+
+        /// <summary>תמונת העטיפה של קובץ קול נשארת (מקלט <paramref name="input"/>), במיכל שמחזיק אותה.</summary>
+        private static string Cover(MediaInfo mi, string outPath, int input)
+        {
+            string e = Path.GetExtension(outPath).ToLowerInvariant();
+            if (e != ".mp3" && e != ".m4a" && e != ".flac") return "";
+            foreach (MediaStream s in mi.Streams)
+                if (s.Type == "video") return "-map " + input.ToString(CultureInfo.InvariantCulture) + ":v:0 -c:v copy -disposition:v:0 attached_pic ";
+            return "";
         }
 
         /// <summary>העבודה לקובץ אחד מהטווחים, בלי להריץ. <paramref name="tag"/> מבדיל בין קובצי ביניים של
@@ -226,15 +275,17 @@ namespace SubtitleStudio
             List<string> steps = new List<string>();
             if (ranges == null || ranges.Count == 0) return steps;
             string src = Ff.Q(mi.Path);
+            bool audioOnly = AudioOnly(mi);
             if (Copies(mi, fast))
             {
-                // תמונת עטיפה לא נכנסת: היא ״ערוץ וידאו״ של פריים אחד, והחיבור נשבר עליה
-                string map = AudioOnly(mi) ? "-map 0:a " : "";
+                // בחלקים - בלי תמונת העטיפה (היא ״ערוץ וידאו״ של פריים אחד, והחיבור נשבר עליה); היא והתגיות (שם,
+                // אמן) חוזרות מהמקור בשלב החיבור
+                string map = audioOnly ? "-map 0:a " : "";
                 string tail = "-c copy -avoid_negative_ts make_zero ";
                 if (ranges.Count == 1)
                 {
                     steps.Add(Burn.CopyInputFlags(mi) + "-ss " + Tc.Ff(ranges[0][0]) + " -to " + Tc.Ff(ranges[0][1]) + " -i " + src + " " +
-                              map + tail + Ff.Q(outPath));
+                              map + (audioOnly ? Cover(mi, outPath, 0) : "") + tail + Ff.Q(outPath));
                     return steps;
                 }
                 string ext = Path.GetExtension(outPath);
@@ -250,18 +301,42 @@ namespace SubtitleStudio
                 }
                 string listPath = Path.Combine(tmpDir, "cut" + tag + ".txt");
                 File.WriteAllText(listPath, list.ToString(), new UTF8Encoding(false));
-                steps.Add("-f concat -safe 0 -i " + Ff.Q(listPath) + " -c copy " + Ff.Q(outPath));
+                // פרקים (ספר מוקלט, MKV) - בזמנים של המקור, שכבר לא נכונים: לא נכנסים
+                steps.Add("-f concat -safe 0 -i " + Ff.Q(listPath) + " " +
+                          (audioOnly ? "-i " + src + " -map 0:a " + Cover(mi, outPath, 1) + "-map_metadata 1 " : "") +
+                          "-map_chapters -1 -c copy " + Ff.Q(outPath));
+                return steps;
+            }
+
+            if (audioOnly)
+            {
+                // קול בקידוד מחדש: כל טווח נחתך בשרשרת, והכול מתחבר (גם טווח אחד - concat=n=1)
+                string ext;
+                string codec = AudioCodecArgs(mi, out ext);
+                StringBuilder af = new StringBuilder();
+                StringBuilder apads = new StringBuilder();
+                for (int i = 0; i < ranges.Count; i++)
+                {
+                    string n = i.ToString(CultureInfo.InvariantCulture);
+                    af.Append("[0:a]atrim=start=").Append(Tc.Ff(ranges[i][0])).Append(":end=").Append(Tc.Ff(ranges[i][1])).Append(",asetpts=PTS-STARTPTS[a").Append(n).Append("];");
+                    apads.Append("[a").Append(n).Append("]");
+                }
+                af.Append(apads).Append("concat=n=").Append(ranges.Count.ToString(CultureInfo.InvariantCulture)).Append(":v=0:a=1[a]");
+                steps.Add("-i " + src + " -filter_complex \"" + af + "\" -map \"[a]\" " + Cover(mi, outPath, 0) + codec + " -map_chapters -1 " + Ff.Q(outPath));
                 return steps;
             }
 
             // וידאו, מדויק: פקודה אחת - כל טווח נחתך בשרשרת, והכול מתחבר
             bool audio = mi.HasAudio;
+            // הערוץ של הסרט עצמו, לא ״הראשון״: בקובץ שתמונת עטיפה קודמת לו, ‎[0:v]‎ היה חותך את התמונה
+            MediaStream fv = mi.FirstVideo();
+            string vin = fv != null ? "[0:" + fv.Index.ToString(CultureInfo.InvariantCulture) + "]" : "[0:v]";
             StringBuilder f = new StringBuilder();
             StringBuilder pads = new StringBuilder();
             for (int i = 0; i < ranges.Count; i++)
             {
                 string n = i.ToString(CultureInfo.InvariantCulture);
-                f.Append("[0:v]trim=start=").Append(Tc.Ff(ranges[i][0])).Append(":end=").Append(Tc.Ff(ranges[i][1])).Append(",setpts=PTS-STARTPTS[v").Append(n).Append("];");
+                f.Append(vin).Append("trim=start=").Append(Tc.Ff(ranges[i][0])).Append(":end=").Append(Tc.Ff(ranges[i][1])).Append(",setpts=PTS-STARTPTS[v").Append(n).Append("];");
                 pads.Append("[v").Append(n).Append("]");
                 if (audio)
                 {
@@ -277,7 +352,7 @@ namespace SubtitleStudio
             sb.Append(Q.MaxVideo).Append(" ");
             if (audio) sb.Append(Q.MaxAudio).Append(" ");
             if (Path.GetExtension(outPath).ToLowerInvariant() == ".mp4") sb.Append("-movflags +faststart ");
-            sb.Append(Ff.Q(outPath));
+            sb.Append("-map_chapters -1 ").Append(Ff.Q(outPath));
             steps.Add(sb.ToString());
             return steps;
         }

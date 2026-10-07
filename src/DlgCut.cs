@@ -591,7 +591,7 @@ namespace SubtitleStudio
             _info.SetBounds(Pad, sy, sideW, Theme.S(60));
             if (_audio)
             {
-                _info.Text = Lang.T("קובץ קול: נחתך בלי קידוד מחדש, בלי שום פגיעה באיכות, ונשמר באותו פורמט.");
+                _info.Text = AudioNote(mi);
                 Controls.Add(_info);
                 sy = _info.Bottom + s8;
             }
@@ -649,6 +649,29 @@ namespace SubtitleStudio
         }
 
         // ---------- בנייה ----------
+
+        /// <summary>מה קורה לקובץ קול, לפי הפורמט שלו (CutPlan.AudioWay).</summary>
+        private static string AudioNote(MediaInfo mi)
+        {
+            string ext;
+            string name = Theme.Ltr(Path.GetExtension(mi.Path).TrimStart('.').ToUpperInvariant());
+            switch (CutPlan.AudioWay(mi))
+            {
+                case CutPlan.AudioCut.Copy:
+                    return Lang.T("קובץ קול: נחתך בלי קידוד מחדש, בלי שום פגיעה באיכות, ונשמר באותו פורמט.");
+                case CutPlan.AudioCut.Lossless:
+                    CutPlan.AudioCodecArgs(mi, out ext);
+                    return string.Equals(Path.GetExtension(mi.Path), ext, StringComparison.OrdinalIgnoreCase)
+                        ? Lang.F("קובץ {0}: נחתך בדיוק, בלי שום אובדן איכות, ונשמר באותו פורמט.", name)
+                        : Lang.F("קובץ {0}: נחתך בדיוק, בלי שום אובדן איכות, ונשמר כ-FLAC.", name);
+                default:
+                    CutPlan.AudioCodecArgs(mi, out ext);
+                    return string.Equals(Path.GetExtension(mi.Path), ext, StringComparison.OrdinalIgnoreCase)
+                        ? Lang.F("קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש - באיכות גבוהה, באותו פורמט.", name)
+                        : Lang.F("קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.",
+                                 name, Theme.Ltr(ext.TrimStart('.').ToUpperInvariant()));
+            }
+        }
 
         private Btn ZoomBtn(Ico ico, string tip)
         {
@@ -932,7 +955,9 @@ namespace SubtitleStudio
             if (DateTime.UtcNow > _flashUntil)
             {
                 List<long[]> kept = CutPlan.Kept(_secs, _mi.DurationMs);
-                string how = CutPlan.Copies(_mi, _fast.Checked) ? Lang.T("בלי קידוד מחדש") : Lang.T("עם קידוד מחדש - מדויק");
+                string how = CutPlan.Copies(_mi, _fast.Checked) ? Lang.T("בלי קידוד מחדש")
+                    : _audio && CutPlan.AudioWay(_mi) == CutPlan.AudioCut.Lossless ? Lang.T("מדויק, בלי אובדן איכות")
+                    : Lang.T("עם קידוד מחדש - מדויק");
                 _summary.Text = _secs.Count == 0 ? Lang.T("קודם מסמנים קטע.")
                     : split ? Lang.F("{0} קבצים  ·  {1}", Theme.Ltr(CutPlan.SplitItems(_secs).Count.ToString(CultureInfo.InvariantCulture)), how)
                     : Lang.F("אורך התוצאה: {0}  ·  {1}", Theme.Ltr(Tc.Short(CutPlan.Total(kept))), how);

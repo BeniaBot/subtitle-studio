@@ -2,7 +2,7 @@
 # הלוגיקה (CutPlan) מול מקרים ידועים, ואחר כך המנוע עצמו על קבצים אמיתיים שנוצרים כאן: MP3, ‏M4A, ‏WAV
 # (בלי קידוד מחדש, בפורמט המקורי) ו-MP4 (מהיר ומדויק) - ובודקים את האורך של מה שיצא.
 # אחר כך החלון עצמו, עם הנגן האמיתי: גרירה, הקלדה, מקלדת, ניגון, וחיתוך דרך החלון.
-# צפוי: 36 בדיקות.
+# צפוי: 40 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -87,6 +87,11 @@ Get-ChildItem $dir -File | ForEach-Object { [IO.File]::Delete($_.FullName) }
 & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:duration=60' -c:a aac -b:a 128k (Join-Path $dir 'src.m4a')
 & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:duration=60' -c:a pcm_s16le (Join-Path $dir 'src.wav')
 & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'testsrc=size=320x240:rate=25:duration=60' -f lavfi -i 'sine=frequency=440:duration=60' -c:v libx264 -g 50 -c:a aac -t 60 (Join-Path $dir 'src.mp4')
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:duration=60' -c:a flac (Join-Path $dir 'src.flac')
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:duration=60' -c:a libvorbis -q:a 4 (Join-Path $dir 'src.ogg')
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:duration=60' -c:a libopus -b:a 64k (Join-Path $dir 'src.opus')
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'testsrc=size=300x300:rate=1' -frames:v 1 (Join-Path $dir 'cover.png')
+& $ffx -nostdin -hide_banner -loglevel error -y -i (Join-Path $dir 'src.mp3') -i (Join-Path $dir 'cover.png') -map 0:a -map 1:v -c:a copy -c:v mjpeg -disposition:v attached_pic -metadata title=CoverTest (Join-Path $dir 'cover.mp3')
 function Probe($p) { return (T 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$p)) }
 function RunSteps($job) {
     foreach ($a in $job.Steps) {
@@ -119,6 +124,17 @@ $r = Cut (Join-Path $dir 'src.mp4') $three $true 'fast.mp4'
 Check 'mp4 מהיר - חיבור בלי קידוד (מפריים מפתח: קצת יותר)' ($r.Err -eq $null -and $r.Dur -ge 17.8 -and $r.Dur -lt 22 -and $r.Mi.HasVideo -and $r.Mi.HasAudio) ("dur=" + $r.Dur + " " + $r.Err)
 $r = Cut (Join-Path $dir 'src.mp4') $three $false 'exact.mp4'
 Check 'mp4 מדויק - בדיוק 18 שניות, עם תמונה וקול' ($r.Err -eq $null -and [Math]::Abs($r.Dur - 18) -lt 0.15 -and $r.Mi.HasVideo -and $r.Mi.HasAudio -and $r.Steps -eq 1) ("dur=" + $r.Dur + " " + $r.Err)
+
+# FLAC/OGG/OPUS: העתקה לא מדויקת בהם (FLAC השאיר בכותרת את האורך המקורי, OGG איבד 21 שניות בחיבור) - קידוד מחדש
+foreach ($ext in 'flac', 'ogg', 'opus') {
+    $r = Cut (Join-Path $dir "src.$ext") $three $false "re.$ext"
+    Check ("$ext - שלושה קטעים: מדויק (בקידוד מחדש), באותו פורמט") ($r.Err -eq $null -and [IO.Path]::GetExtension($r.Out) -eq ".$ext" -and [Math]::Abs($r.Dur - 18) -lt 0.12 -and $r.Steps -eq 1) ("dur=" + $r.Dur + " steps=" + $r.Steps + " " + $r.Err)
+}
+function Tags($p) { $ErrorActionPreference = 'Continue'; $e = (& $ffx -hide_banner -i $p 2>&1 | Out-String); return @{ Cover = ($e -match 'attached pic'); Title = ($e -match '(?m)^\s+title\s+:\s*CoverTest') } }
+$r1 = Cut (Join-Path $dir 'cover.mp3') @(,@(5000, 35000)) $false 'cover1.mp3'
+$r3 = Cut (Join-Path $dir 'cover.mp3') $three $false 'cover3.mp3'
+$t1 = Tags $r1.Out; $t3 = Tags $r3.Out
+Check 'MP3 עם תמונת עטיפה ושם: אחרי חיתוך (קטע אחד, וגם שלושה מחוברים) העטיפה והשם נשארים' ($r1.Err -eq $null -and $r3.Err -eq $null -and $t1.Cover -and $t1.Title -and $t3.Cover -and $t3.Title -and [Math]::Abs($r3.Dur - 18) -lt 0.25) ("one: cover=" + $t1.Cover + " title=" + $t1.Title + "  three: cover=" + $t3.Cover + " title=" + $t3.Title + " dur=" + $r3.Dur)
 
 # ================= החלון =================
 # החלון עם הנגן האמיתי של התוכנה, מחוץ למסך: גרירה על פס הקול, הקלדת זמנים, חצים, I/O, הכרטיסים,

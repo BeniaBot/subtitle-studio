@@ -309,6 +309,11 @@
 העורך יפתח את הקובץ החדש, והכתוביות יזוזו איתו: מה שבחלק שהוסר יימחק, והשאר יתקדם. קובץ הכתוביות המקורי לא יידרס - השמירה הבאה תשאל לאן.	The editor will open the new file and the subtitles will move with it: what was in a removed part is deleted, the rest moves up. The original subtitle file won't be overwritten - the next save asks where.
 העורך יפתח את הקובץ החדש - למשל כדי לתמלל אותו.	The editor will open the new file - for example, to transcribe it.
 {0}\nכבר קיים. להחליף אותו?	{0}\nalready exists. Replace it?
+קובץ {0}: נחתך בדיוק, בלי שום אובדן איכות, ונשמר באותו פורמט.	{0} file: cut exactly, with no loss of quality, and saved in the same format.
+קובץ {0}: נחתך בדיוק, בלי שום אובדן איכות, ונשמר כ-FLAC.	{0} file: cut exactly, with no loss of quality, and saved as FLAC.
+קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש - באיכות גבוהה, באותו פורמט.	{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded - in high quality, in the same format.
+קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.	{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded in high quality and saved as {1}.
+מדויק, בלי אובדן איכות	exact, no loss of quality
 
 # ---- DlgEdit.cs ----
 הזזת תזמון	Shift timing
@@ -516,6 +521,7 @@ Ctrl+גלגלת	Ctrl+Wheel
 איך עובדים כאן	How it works
 ארבעה שלבים, וכל הקיצורים במקום אחד	Four steps, and all the shortcuts in one place
 קיצורים ופעולות מהירות	Shortcuts and quick actions
+סימון קטע: חיתוך, תמלול ועוד	Mark a section: cut, transcribe and more
 
 # ---- DlgSettings.cs ----
 הגדרות	Settings
@@ -1247,6 +1253,9 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול	Keep or remove sections - as many as you like, right on the waveform
 אחר כך: ״הסרט ← חיתוך קטעים״	Then: “Video → Cut sections”
 קטע מסומן: {0} עד {1}   ·   ״הסרט ← חיתוך קטעים״ כדי לחתוך אותו.	Marked section: {0} to {1}   ·   “Video → Cut sections” to cut it.
+מסמן כאן את תחילת הקטע (I)	Marks the start of the section here (I)
+קטע מסומן: תמלול, תרגום ותזמון רצים רק עליו, ו״הסרט ← חיתוך קטעים״ מתחיל ממנו	With a section marked, transcription, translation and timing run on it alone, and “Video → Cut sections” starts from it
+מסמן כאן את סוף הקטע (O)	Marks the end of the section here (O)
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 
