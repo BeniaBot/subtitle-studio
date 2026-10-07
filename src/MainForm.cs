@@ -1044,12 +1044,18 @@ namespace SubtitleStudio
             }
             if (!EnsureAiKey()) return;
 
-            AiTranslateDlg d = new AiTranslateDlg(_doc, _contentContext);
+            AiTranslateDlg d = new AiTranslateDlg(_doc, _contentContext, _tl.InPoint, _tl.OutPoint, _mi != null ? _mi.DurationMs : 0);
             d.ShowDialog(this);
             if (!d.Ok) return;
             _contentContext = d.Context;
 
-            List<Cue> cues = new List<Cue>(_doc.Cues);
+            List<Cue> cues = new List<Cue>();
+            foreach (Cue c in _doc.Cues) if (d.ToMs <= d.FromMs || (c.Start >= d.FromMs && c.Start < d.ToMs)) cues.Add(c);
+            if (cues.Count == 0)
+            {
+                Ui.Info(this, Lang.T("אין מה לתרגם"), Lang.T("בקטע המסומן על הציר אין כתוביות."));
+                return;
+            }
             AiRunDlg run = new AiRunDlg(cues, d.Target, d.Context);
             run.ShowDialog(this);
             if (!run.Ok || run.Translated == null)
@@ -1062,8 +1068,9 @@ namespace SubtitleStudio
             {
                 _doc.Push(Lang.T("תרגום אוטומטי"));
                 for (int i = 0; i < cues.Count && i < run.Translated.Count; i++) cues[i].Text = run.Translated[i];
-                // הטקסט השתנה, וזמן הקריאה איתו: שורות ארוכות וכתוביות שמהירות מדי בשפה החדשה
-                Qa.Tidy(_doc, false);
+                // הטקסט השתנה, וזמן הקריאה איתו: שורות ארוכות וכתוביות שמהירות מדי בשפה החדשה. רק
+                // מה שתורגם - כתוביות מחוץ לקטע לא זזות
+                Qa.Tidy(_doc, false, false, null, cues);
                 _doc.Dirty = true;
                 _doc.RaiseChanged();
                 LoadEditor();
@@ -2095,11 +2102,21 @@ namespace SubtitleStudio
                 return;
             }
 
-            bool all = UntimedCount() == 0;
-            if (all && !Ui.Confirm(this, Lang.T("לתזמן מחדש את כל הכתוביות?"),
-                    Lang.T("כל הכתוביות כבר מתוזמנות. אם תמשיכו, הזמנים שלהן יחושבו מחדש לפי השתיקות בסרט. אפשר לבטל ב-Ctrl+Z."), Lang.T("לתזמן מחדש"), Lang.T("ביטול"))) return;
-
-            AutoTime.Result r = RunAutoTime(all, Lang.T("תזמון אוטומטי לפי הדיבור"));
+            // קטע מסומן: לתזמן מחדש רק את מה שבתוכו (0.8.6)
+            long ra, rb;
+            int which = AskRange(Lang.T("לתזמן רק את הקטע המסומן?"),
+                Lang.T("אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן."), out ra, out rb);
+            if (which < 0) return;
+            AutoTime.Result r;
+            if (which == 0)
+                r = RunAutoTime(true, Lang.T("תזמון אוטומטי לפי הדיבור"), ra, rb);
+            else
+            {
+                bool all = UntimedCount() == 0;
+                if (all && !Ui.Confirm(this, Lang.T("לתזמן מחדש את כל הכתוביות?"),
+                        Lang.T("כל הכתוביות כבר מתוזמנות. אם תמשיכו, הזמנים שלהן יחושבו מחדש לפי השתיקות בסרט. אפשר לבטל ב-Ctrl+Z."), Lang.T("לתזמן מחדש"), Lang.T("ביטול"))) return;
+                r = RunAutoTime(all, Lang.T("תזמון אוטומטי לפי הדיבור"));
+            }
             if (r.Timed == 0)
             {
                 Ui.Info(this, Lang.T("לא תוזמן כלום"), r.Error ?? Lang.T("לא נמצא דיבור ברור."));
@@ -2107,6 +2124,28 @@ namespace SubtitleStudio
             }
             Ui.Info(this, Lang.F("תוזמנו {0} כתוביות", r.Timed),
                 Lang.T("הזמנים נקבעו לפי השתיקות בסרט. כדאי לעבור ולבדוק - אם הטקסט לא תואם בדיוק את מה שנאמר, כתובית יכולה לזוז משפט אחד.\r\nאפשר לבטל ב-Ctrl+Z."));
+        }
+
+        /// <summary>הקטע שמסומן על הציר (״תחילת קטע״ / ״סוף קטע״), אם יש: סימון של התחלה בלבד - עד סוף
+        /// הסרט, של סוף בלבד - מתחילתו. קטע של פחות משנייה לא נחשב.</summary>
+        private bool MarkedRange(out long a, out long b)
+        {
+            a = 0; b = 0;
+            if (_mi == null || (_tl.InPoint < 0 && _tl.OutPoint < 0)) return false;
+            a = Math.Max(0, _tl.InPoint);
+            b = _tl.OutPoint > a ? _tl.OutPoint : _mi.DurationMs;
+            return b - a >= 1000;
+        }
+
+        /// <summary>פעולה אוטומטית בלי חלון, כשמסומן קטע: רק עליו, או על הכול? ‏0 = הקטע, 1 = הכול, ‎-1 = ביטול.
+        /// בלי קטע מסומן - 1 בלי לשאול.</summary>
+        private int AskRange(string title, string what, out long a, out long b)
+        {
+            if (!MarkedRange(out a, out b)) return 1;
+            int r = Ui.Msg(this, title,
+                Lang.F("על הציר מסומן הקטע {0}. {1}", Theme.Ltr(Tc.Short(a) + " – " + Tc.Short(b)), what),
+                Ico.Question, Lang.T("רק את הקטע"), Lang.T("את כל הכתוביות"), Lang.T("ביטול"));
+            return r == 0 || r == 1 ? r : -1;
         }
 
         /// <summary>למה אי אפשר לתזמן לפי הדיבור עכשיו: כותרת, הסבר, ו-"error"
@@ -2131,9 +2170,35 @@ namespace SubtitleStudio
         /// הביטול נמחקת, כדי ש-Ctrl+Z לא ״יבטל״ פעולה שלא קרתה.</summary>
         private AutoTime.Result RunAutoTime(bool all, string undoLabel)
         {
+            return RunAutoTime(all, undoLabel, 0, 0);
+        }
+
+        /// <summary><paramref name="toMs"/> &gt; <paramref name="fromMs"/>: רק הכתוביות שמתחילות בקטע, ובתוך
+        /// גבולותיו - מה שלפניו ואחריו לא זז.</summary>
+        private AutoTime.Result RunAutoTime(bool all, string undoLabel, long fromMs, long toMs)
+        {
             if (_tapping) StopTapping(false);
             _doc.Push(undoLabel);
-            AutoTime.Result r = AutoTime.Run(_doc.Cues, _wave.Rms, _wave.Peak, _mi.DurationMs, all);
+            AutoTime.Result r;
+            if (toMs > fromMs)
+            {
+                List<Cue> part = new List<Cue>();
+                long lo = fromMs;
+                foreach (Cue c in _doc.Cues)
+                {
+                    if (c.Start >= fromMs && c.Start < toMs) part.Add(c);
+                    else if (c.Start < fromMs && !c.Untimed) lo = Math.Max(lo, c.End);   // כתובית שנכנסת לתוך הקטע מלפניו
+                }
+                if (part.Count == 0)
+                {
+                    _doc.DropLastUndo();
+                    r = new AutoTime.Result();
+                    r.Error = Lang.T("בקטע המסומן על הציר אין כתוביות.");
+                    return r;
+                }
+                r = AutoTime.Run(part, _wave.Rms, _wave.Peak, _mi.DurationMs, all, lo, toMs);
+            }
+            else r = AutoTime.Run(_doc.Cues, _wave.Rms, _wave.Peak, _mi.DurationMs, all);
             if (r.Timed == 0)
             {
                 _doc.DropLastUndo();
@@ -2165,7 +2230,11 @@ namespace SubtitleStudio
                     Lang.T("נראה שהסרט מצולם ברצף אחד, בלי חיתוכים - אין למה להצמיד."));
                 return;
             }
-            SceneCuts.SnapResult r = ApplySceneSnap();
+            long ra, rb;
+            int which = AskRange(Lang.T("להצמיד רק בקטע המסומן?"),
+                Lang.T("אפשר להצמיד למעברי סצנה רק את הכתוביות שבתוכו, או את כולן."), out ra, out rb);
+            if (which < 0) return;
+            SceneCuts.SnapResult r = which == 0 ? ApplySceneSnap(ra, rb) : ApplySceneSnap();
             string lines = Lang.T("הקווים הדקים על ציר הזמן מסמנים את המעברים, וכשגוררים כתובית היא נצמדת אליהם.");
             if (r.Cues == 0)
             {
@@ -2212,9 +2281,23 @@ namespace SubtitleStudio
 
         private SceneCuts.SnapResult ApplySceneSnap()
         {
+            return ApplySceneSnap(0, 0);
+        }
+
+        /// <summary><paramref name="toMs"/> &gt; <paramref name="fromMs"/>: רק המעברים שבתוך הקטע. הכתוביות
+        /// כולן נשלחות, כדי שהבדיקה מול השכנות (חפיפה) תראה גם את אלה שמחוץ לקטע.</summary>
+        private SceneCuts.SnapResult ApplySceneSnap(long fromMs, long toMs)
+        {
             if (_cuts == null || _cuts.Count == 0) return new SceneCuts.SnapResult();
+            List<long> cuts = _cuts;
+            if (toMs > fromMs)
+            {
+                cuts = new List<long>();
+                foreach (long t in _cuts) if (t >= fromMs && t <= toMs) cuts.Add(t);
+                if (cuts.Count == 0) return new SceneCuts.SnapResult();
+            }
             _doc.Push(Lang.T("הצמדה למעברי סצנה"));
-            SceneCuts.SnapResult r = SceneCuts.Snap(_doc.Cues, _cuts, _mi.Fps);
+            SceneCuts.SnapResult r = SceneCuts.Snap(_doc.Cues, cuts, _mi.Fps);
             if (r.Cues == 0)
             {
                 _doc.DropLastUndo();

@@ -143,6 +143,13 @@ namespace SubtitleStudio
         /// ‏<paramref name="all"/> קובע אם לתזמן מחדש את כל הכתוביות.</summary>
         public static Result Run(List<Cue> cues, byte[] rms, byte[] peak, long durationMs, bool all)
         {
+            return Run(cues, rms, peak, durationMs, all, 0, durationMs);
+        }
+
+        /// <summary>רק בתוך <paramref name="fromMs"/>-<paramref name="toMs"/>: השורות הראשונה והאחרונה לא
+        /// יוצאות מהגבולות האלה (הקטע המסומן על הציר).</summary>
+        public static Result Run(List<Cue> cues, byte[] rms, byte[] peak, long durationMs, bool all, long fromMs, long toMs)
+        {
             Result r = new Result();
             rms = PickChannel(rms, peak, durationMs);
             if (rms == null || rms.Length < 20) { r.Error = Lang.T("פס הקול עוד לא מוכן."); return r; }
@@ -160,8 +167,8 @@ namespace SubtitleStudio
                 while (j + 1 < cues.Count && (all || cues[j + 1].Untimed)) j++;
 
                 // החלון: מסוף הכתובית המתוזמנת שלפני, עד תחילת זו שאחרי
-                long lo = i > 0 ? cues[i - 1].End : 0;
-                long hi = j + 1 < cues.Count ? cues[j + 1].Start : durationMs;
+                long lo = i > 0 ? cues[i - 1].End : Math.Max(0, fromMs);
+                long hi = j + 1 < cues.Count ? cues[j + 1].Start : Math.Min(durationMs, toMs > 0 ? toMs : durationMs);
                 if (hi - lo > MinCueMs)
                 {
                     int got = AlignRun(cues, i, j, rms, lo, hi, r.Threshold, r);

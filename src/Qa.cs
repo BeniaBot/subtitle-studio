@@ -417,6 +417,13 @@ namespace SubtitleStudio
         /// ארוכה מתפצלת לפי זמן הדיבור, ובתוך הפסקה אם יש אחת במקום.</summary>
         public static QaFixResult Tidy(Doc doc, bool restructure, bool hang, Func<long, long, List<AutoTime.Gap>> gapsIn)
         {
+            return Tidy(doc, restructure, hang, gapsIn, null);
+        }
+
+        /// <summary><paramref name="only"/>: שבירת השורות וזמני הקריאה רק בכתוביות האלה (למשל אחרי תרגום של
+        /// קטע אחד); null - בכולן. חפיפות מתוקנות בכל מקרה.</summary>
+        public static QaFixResult Tidy(Doc doc, bool restructure, bool hang, Func<long, long, List<AutoTime.Gap>> gapsIn, ICollection<Cue> only)
+        {
             QaFixResult res = new QaFixResult();
             if (doc == null) return res;
             doc.Sort();
@@ -431,6 +438,7 @@ namespace SubtitleStudio
             // שורות: כמו ב-FixAll - רק כשיש שורה ארוכה, רק אם נכנס בשתיים, לא בדו-שיח
             foreach (Cue c in doc.Cues)
             {
+                if (only != null && !only.Contains(c)) continue;
                 List<string> lines = Lines(c.Text);
                 bool tooWide = false, dialog = false;
                 foreach (string l in lines)
@@ -455,7 +463,7 @@ namespace SubtitleStudio
             for (int i = 0; i < cues.Count; i++)
             {
                 Cue c = cues[i];
-                if (c.Untimed) continue;
+                if (c.Untimed || (only != null && !only.Contains(c))) continue;
                 long next = i + 1 < cues.Count && !cues[i + 1].Untimed ? cues[i + 1].Start - GapMs : long.MaxValue;
                 long prev = i > 0 && !cues[i - 1].Untimed ? cues[i - 1].End + GapMs : 0;
                 long need = Math.Max(FixMinDurMs, (long)Math.Ceiling(c.CharCount / TidyCps * 1000.0));

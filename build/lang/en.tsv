@@ -233,6 +233,7 @@
 מתחבר...	Connecting...
 תורגמו {0} מתוך {1} כתוביות	Translated {0} of {1} subtitles
 יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.	{0} subtitles will be translated into a new file. The subtitles here will not change.
+רק הכתוביות שבקטע המסומן: {0}	Only the subtitles in the marked section: {0}
 
 # ---- DlgChat.cs ----
 תרגם את הכתוביות לאנגלית	Translate the subtitles into Spanish
@@ -1174,6 +1175,14 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 הקובץ לא נמצא	File not found
 להסיר מהרשימה	Remove from the list
 נוצרו {0} כתוביות בקטע {1}.	{0} subtitles were created in the section {1}.
+בקטע המסומן על הציר אין כתוביות.	There are no subtitles in the section marked on the timeline.
+על הציר מסומן הקטע {0}. {1}	The section {0} is marked on the timeline. {1}
+רק את הקטע	Only the section
+את כל הכתוביות	All the subtitles
+לתזמן רק את הקטע המסומן?	Time only the marked section?
+אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן.	You can re-time by the speech only the subtitles inside it, or all of them.
+להצמיד רק בקטע המסומן?	Snap only in the marked section?
+אפשר להצמיד למעברי סצנה רק את הכתוביות שבתוכו, או את כולן.	You can snap to scene changes only the subtitles inside it, or all of them.
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 

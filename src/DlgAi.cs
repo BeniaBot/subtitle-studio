@@ -216,6 +216,8 @@ namespace SubtitleStudio
         private readonly Field _context;
         private readonly Lbl _info;
         private readonly Doc _doc;
+        private readonly Toggle _range;
+        private readonly long _a, _b;
 
         public List<Cue> Result;          // הכתוביות המתורגמות
         public bool ReplaceInPlace = true;
@@ -228,7 +230,15 @@ namespace SubtitleStudio
         public AiTranslateDlg(Doc doc) : this(doc, null) { }
 
         /// <summary><paramref name="context"/>: הרקע שנכתב בתמלול, כדי שהשמות שם ייכתבו נכון גם בתרגום.</summary>
-        public AiTranslateDlg(Doc doc, string context) : base(Lang.T("תרגום הכתוביות"), Ico.Translate, 560)
+        public AiTranslateDlg(Doc doc, string context) : this(doc, context, -1, -1, 0) { }
+
+        /// <summary>הקטע לתרגום, או 0/0 - הכול.</summary>
+        public long FromMs { get { return _range.Checked ? _a : 0; } }
+        public long ToMs { get { return _range.Checked ? _b : 0; } }
+
+        /// <summary><paramref name="inMs"/>/<paramref name="outMs"/>: הקטע המסומן על הציר (‎-1 = לא סומן);
+        /// <paramref name="durationMs"/>: אורך הסרט, לקטע שסומן רק בהתחלה שלו (0 = אין סרט).</summary>
+        public AiTranslateDlg(Doc doc, string context, long inMs, long outMs, long durationMs) : base(Lang.T("תרגום הכתוביות"), Ico.Translate, 560)
         {
             _doc = doc;
             // עד 0.8.5: ״התזמונים נשארים בדיוק כמו שהם״ - אבל מ-0.8.2 תרגום ארוך מקבל עוד זמן קריאה
@@ -255,6 +265,18 @@ namespace SubtitleStudio
             if (!string.IsNullOrEmpty(context)) _context.Text = context;
             Row(_context, 40, 10);
 
+            // רק הכתוביות שבקטע המסומן על הציר - כמו בתמלול, בהטמעה ובכלים
+            _range = new Toggle();
+            _a = Math.Max(0, inMs);
+            _b = outMs > _a ? outMs : durationMs;
+            bool marked = durationMs > 0 && (inMs >= 0 || outMs >= 0) && _b - _a >= 1000;
+            _range.Enabled = marked;
+            _range.Text = marked
+                ? Lang.F("רק הכתוביות שבקטע המסומן: {0}", Theme.Ltr(Tc.Short(_a) + " – " + Tc.Short(_b)))
+                : Lang.T("רק חלק מהסרט? מסמנים אותו קודם על הציר");
+            _range.CheckedChanged += delegate { UpdateInfo(); };
+            Row(_range, 26, 8);
+
             _info = Hint("");
             UpdateInfo();
             Row(_info, 36, 2);
@@ -266,7 +288,9 @@ namespace SubtitleStudio
         private void UpdateInfo()
         {
             if (_doc == null || _info == null) return;
-            string n = Theme.Ltr(_doc.Cues.Count.ToString());
+            int count = 0;
+            foreach (Cue c in _doc.Cues) if (!_range.Checked || (c.Start >= _a && c.Start < _b)) count++;
+            string n = Theme.Ltr(count.ToString());
             _info.Text = _mode.SelectedIndex == 0
                 ? Lang.F("יתורגמו {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", n)
                 : Lang.F("יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.", n);

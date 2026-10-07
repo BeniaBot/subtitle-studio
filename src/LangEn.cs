@@ -227,6 +227,7 @@ namespace SubtitleStudio
             "מתחבר...", "Connecting...",
             "תורגמו {0} מתוך {1} כתוביות", "Translated {0} of {1} subtitles",
             "יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.", "{0} subtitles will be translated into a new file. The subtitles here will not change.",
+            "רק הכתוביות שבקטע המסומן: {0}", "Only the subtitles in the marked section: {0}",
             "תרגם את הכתוביות לאנגלית", "Translate the subtitles into Spanish",
             "תקן חפיפות וכתוביות קצרות מדי", "Fix overlaps and subtitles that are too short",
             "כל הכתוביות מאחרות בחצי שנייה", "All the subtitles are half a second late",
@@ -306,9 +307,9 @@ namespace SubtitleStudio
             "ריק", "Empty",
             "לא נמצאו כתוביות בערוץ הזה.", "No subtitles were found in this track.",
             "לא הצליח", "Didn't work",
-            "עיצוב הכתוביות", "Subtitle style",
         };
         private static readonly string[] P1 = new string[] {
+            "עיצוב הכתוביות", "Subtitle style",
             "כך ייראו הכתוביות בסרט הסופי", "How the subtitles will look in the final video",
             "גופן וגודל", "Font and size",
             "מודגש", "Bold",
@@ -608,9 +609,9 @@ namespace SubtitleStudio
             "דהייה בהתחלה ובסוף", "Fade in and out",
             "פתיחה וסגירה רכות מתוך שחור - נראה הרבה יותר מקצועי", "A soft open and close from black - looks far more professional",
             " שנ׳", " sec",
-            "אורך הדהייה", "Fade length",
         };
         private static readonly string[] P2 = new string[] {
+            "אורך הדהייה", "Fade length",
             " - עם דהייה", " - faded",
             "הכנה לשליחה בוואטסאפ", "Prepare for messaging apps",
             "מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום", "720p, fully phone compatible - a small file that opens anywhere",
@@ -910,9 +911,9 @@ namespace SubtitleStudio
             "מאחד את המסומנות", "Merges the selected ones",
             "מוחק את המסומנות (Delete)", "Deletes the selected ones (Delete)",
             "מסמנת מילים שאולי כתובות לא נכון · מילון חינמי, פעם אחת", "Marks words that may be misspelled · a free dictionary, once",
-            "כבויה · לחיצה מדליקה אותה", "Off · click to turn it on",
         };
         private static readonly string[] P3 = new string[] {
+            "כבויה · לחיצה מדליקה אותה", "Off · click to turn it on",
             "המילון נטען…", "Loading the dictionary…",
             "{0} · לחיצה קופצת", "{0} · click to jump",
             "כתובית אחת עם מילה חשודה", "One subtitle with a suspicious word",
@@ -1141,6 +1142,14 @@ namespace SubtitleStudio
             "הקובץ לא נמצא", "File not found",
             "להסיר מהרשימה", "Remove from the list",
             "נוצרו {0} כתוביות בקטע {1}.", "{0} subtitles were created in the section {1}.",
+            "בקטע המסומן על הציר אין כתוביות.", "There are no subtitles in the section marked on the timeline.",
+            "על הציר מסומן הקטע {0}. {1}", "The section {0} is marked on the timeline. {1}",
+            "רק את הקטע", "Only the section",
+            "את כל הכתוביות", "All the subtitles",
+            "לתזמן רק את הקטע המסומן?", "Time only the marked section?",
+            "אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן.", "You can re-time by the speech only the subtitles inside it, or all of them.",
+            "להצמיד רק בקטע המסומן?", "Snap only in the marked section?",
+            "אפשר להצמיד למעברי סצנה רק את הכתוביות שבתוכו, או את כולן.", "You can snap to scene changes only the subtitles inside it, or all of them.",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1204,6 +1213,8 @@ namespace SubtitleStudio
             "כתוביות ארוכות פוצלו", "long subtitles split",
             "עם מילה לא בטוחה", "with an unsure word",
             "עם מילים לא בטוחות", "with unsure words",
+        };
+        private static readonly string[] P4 = new string[] {
             "המודל לא היה בטוח מה נאמר", "The model wasn't sure what was said",
             "בתמלול, המודל לא היה בטוח במשהו בשורה הזאת. כדאי להקשיב לה.", "When transcribing, the model wasn't sure about something in this line. Worth listening to it.",
             "״{0}״ ו-״{1}״{2}", "\"{0}\" and \"{1}\"{2}",
@@ -1213,8 +1224,6 @@ namespace SubtitleStudio
             "המנוע נמחק מ:\n{0}\nהוא ייפרס מחדש בהפעלה הבאה.", "The engine was deleted from:\n{0}\nIt will be set up again at the next start.",
             "אולפן הכתוביות", "Subtitle Studio",
             "מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות", "Setting up the video engine · only once, a few seconds",
-        };
-        private static readonly string[] P4 = new string[] {
             "נפרס ליד התוכנה (מצב נייד)", "Set up next to the program (portable mode)",
             "נפרס אל תיקיית המשתמש", "Set up in the user folder",
             "מאתר מעברי סצנה", "Finding scene changes",

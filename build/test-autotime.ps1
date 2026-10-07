@@ -20,7 +20,8 @@ $at = T 'AutoTime'; $cueT = T 'Cue'
 $listT = [System.Collections.Generic.List``1].MakeGenericType($cueT)
 $ctor = $cueT.GetConstructor([Type[]]@([long],[long],[string]))
 $fS = $cueT.GetField('Start'); $fE = $cueT.GetField('End'); $fU = $cueT.GetField('Untimed')
-$run = $at.GetMethod('Run', $ST)
+$run = $null; $run7 = $null
+foreach ($m in $at.GetMethods($ST)) { if ($m.Name -eq 'Run') { if ($m.GetParameters().Count -eq 5) { $run = $m } elseif ($m.GetParameters().Count -eq 7) { $run7 = $m } } }
 $P = 10   # Waveform.PeriodMs
 
 function NewCues($texts, $untimed) {
@@ -57,6 +58,15 @@ Check 'הסף בין הרעש לדיבור' (($th -gt 3) -and ($th -lt 60)) "ס�
 $trkN = Track @(@(1000,3000),@(4000,7000)) 9000 25 70
 $thN = $at.GetMethod('Threshold', $ST).Invoke($null, (Pack $trkN 0 ([int]$trkN.Length)))
 Check 'הקלטה רועשת: הסף מעל רצפת הרעש' ($thN -gt 25) "סף=$thN"
+
+# רק בקטע המסומן (0.8.6): שתי שורות נכנסות לגושי הדיבור שבקטע 3000-8000, ולא יוצאות ממנו
+Write-Host 'רק בקטע'
+$trkR = Track @(@(500,2500),@(3200,5000),@(5800,7600),@(8400,12400)) 13500 3 60
+$cuesR = NewCues @('aaaaaaaaaaaaaaaaa','aaaaaaaaaaaaaaaaa') $false
+$res = $run7.Invoke($null, (Pack $cuesR $trkR $trkR ([long]13500) $true ([long]3000) ([long]8000)))
+$sR = Starts $cuesR
+$eR = @($cuesR | ForEach-Object { $fE.GetValue($_) })
+Check 'קטע: שתי השורות נכנסו לדיבור שבתוך הקטע - ולא לפניו או אחריו' ((Timed $res) -eq 2 -and $sR[0] -ge 3000 -and $sR[0] -lt 3600 -and $eR[1] -le 8000 -and $sR[1] -ge 5000) (($sR -join ',') + ' / ' + ($eR -join ','))
 
 Write-Host ''
 Write-Host 'ארבעה משפטים, ארבעה גושי דיבור'

@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 98 בדיקות.
+# צפוי: 100 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -271,6 +271,19 @@ $selEn = $tdlg.GetType().GetField('_lang', $IF).GetValue($tdlg).SelectedIndex; $
 $tdlg = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (NewDoc @(,@(0, 2000, 'האויבים שלנו מתקדמים.'))) ''))
 $selHe = $tdlg.GetType().GetField('_lang', $IF).GetValue($tdlg).SelectedIndex; $tdlg.Dispose()
 Check 'תרגום: כתוביות באנגלית - נפתח על ״עברית״; עבריות - על ״אנגלית״' ($selEn -eq 0 -and $selHe -eq 1) "en->$selEn he->$selHe"
+# תרגום רק של הקטע המסומן (0.8.6): המתג, הזמנים, והספירה בהסבר
+$tdoc = NewDoc @(@(0, 2000, 'one'), @(3000, 5000, 'two'), @(6000, 8000, 'three'))
+$tdlg = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack $tdoc '' ([long]2500) ([long]9000) ([long]10000)))
+$trg = $tdlg.GetType().GetField('_range', $IF).GetValue($tdlg); $trg.Checked = $true
+$tinfo = [string]$tdlg.GetType().GetField('_info', $IF).GetValue($tdlg).Text
+Check 'תרגום: קטע מסומן - רק הכתוביות שבו, וההסבר סופר אותן' ($trg.Enabled -and $tdlg.FromMs -eq 2500 -and $tdlg.ToMs -eq 9000 -and $tinfo.Contains('2')) $tinfo
+$tdlg.Dispose()
+# סידור רק של מה שתורגם: כתובית מהירה מחוץ לקטע לא זזה
+$tdoc2 = NewDoc @(@(0, 600, 'מהירה מאוד מחוץ לקטע שלא זזה'), @(3000, 3400, 'גם זו מהירה מדי, אבל בתוך הקטע'))
+$only = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT)); [void]$only.Add($tdoc2.Cues[1])
+$mTidy5 = $null; foreach ($m in $qaT.GetMethods($SF)) { if ($m.Name -eq 'Tidy' -and $m.GetParameters().Count -eq 5) { $mTidy5 = $m } }
+[void]$mTidy5.Invoke($null, (Pack $tdoc2 $false $false $null $only))
+Check 'סידור של חלק מהכתוביות: מה שבחוץ לא זז, מה שבפנים הוארך' ($tdoc2.Cues[0].End -eq 600 -and $tdoc2.Cues[1].End -gt 3400) ('' + $tdoc2.Cues[0].End + ' / ' + $tdoc2.Cues[1].End)
 # מילה לא בטוחה בקליק ימני (0.8.5): עד אז הדרך היחידה להסיר סימון משורה אחת הייתה לערוך אותה
 $doc.ClearHistory()
 foreach ($c in $doc.Cues) { $c.Selected = ($c.Start -eq 0) }
