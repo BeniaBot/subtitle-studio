@@ -14,7 +14,8 @@ namespace SubtitleStudio
     internal class TranscribeDlg : Dlg
     {
         private readonly Field _context;
-        private readonly Toggle _replace;
+        private readonly Toggle _replace, _range;
+        private readonly long _a, _b;
         private readonly MediaInfo _mi;
         private readonly Btn _optGoogle, _optGroq, _connect;
         private readonly Lbl _warn, _info;
@@ -22,13 +23,19 @@ namespace SubtitleStudio
 
         public string Context { get { return _context.Text.Trim(); } }
         public bool ReplaceExisting { get { return _replace.Visible && _replace.Checked; } }
+        /// <summary>הקטע לתמלול, או 0/0 - כל הסרט.</summary>
+        public long FromMs { get { return _range.Checked ? _a : 0; } }
+        public long ToMs { get { return _range.Checked ? _b : 0; } }
         public ISttProvider Provider { get { return _choice == "groq" ? (ISttProvider)Stt.Groq : Stt.Gemini; } }
 
         public TranscribeDlg(MediaInfo mi, int existingCues) : this(mi, existingCues, "") { }
 
         /// <summary><paramref name="context"/>: הרקע מהתמלול הקודם של אותו סרט. מי שמתמלל שוב (התוצאה לא
         /// הייתה טובה) לא צריך לכתוב את השמות מחדש.</summary>
-        public TranscribeDlg(MediaInfo mi, int existingCues, string context) : base(Lang.T("תמלול אוטומטי"), Ico.Sparkles, 620)
+        public TranscribeDlg(MediaInfo mi, int existingCues, string context) : this(mi, existingCues, context, -1, -1) { }
+
+        /// <summary><paramref name="inMs"/>/<paramref name="outMs"/>: הקטע המסומן על הציר (‎-1 = לא סומן).</summary>
+        public TranscribeDlg(MediaInfo mi, int existingCues, string context, long inMs, long outMs) : base(Lang.T("תמלול אוטומטי"), Ico.Sparkles, 620)
         {
             _mi = mi;
             Subtitle = Lang.T("התוכנה מקשיבה לסרט וכותבת את הכתוביות");
@@ -72,13 +79,26 @@ namespace SubtitleStudio
             Row(_warn, 24, 2);
             Lbl warn2 = Hint(
                 Lang.T("זו הפעולה היחידה בתוכנה ששולחת את התוכן עצמו החוצה. אם ההקלטה רגישה, עדיף לתמלל ידנית - זה עובד בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."));
-            Row(warn2, 44, 12);
+            Row(warn2, 44, 8);
 
             _info = Hint("");
+            // רק חלק מהסרט: הקטע שסומן על הציר (״תחילת קטע״ / ״סוף קטע״), כמו בהטמעה ובכלים. בלי סימון
+            // המתג כבוי ואומר איך מסמנים - כך רואים שהאפשרות קיימת
+            _range = new Toggle();
+            bool marked = mi != null && (inMs >= 0 || outMs >= 0);
+            _a = Math.Max(0, inMs);
+            _b = mi != null && outMs > _a ? outMs : (mi != null ? mi.DurationMs : 0);
+            marked = marked && _b - _a >= 2000;
+            _range.Enabled = marked;
+            _range.Text = marked
+                ? Lang.F("רק הקטע המסומן על הציר: {0}", Theme.Ltr(Tc.Short(_a) + " – " + Tc.Short(_b)))
+                : Lang.T("רק חלק מהסרט? מסמנים אותו קודם על הציר");
+            _range.CheckedChanged += delegate { Refresh_(); };
             if (mi != null)
             {
                 Section(Lang.T("הקובץ"));
-                Row(_info, 44, 12);
+                Row(_info, 44, 4);
+                Row(_range, 26, 8);
             }
 
             _replace = new Toggle();
@@ -99,7 +119,7 @@ namespace SubtitleStudio
             Row(_context, 40, 4);
             // שם שהמודל לא מכיר יוצא משובש או נעלם. כאן אפשר להגיד לו מראש - וזה עובר גם לתרגום
             Lbl ch = Hint(Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."));
-            Row(ch, 22, 8);
+            Row(ch, 22, 6);
 
             Buttons(Lang.T("להתחיל בתמלול"), Ico.Sparkles, Lang.T("ביטול"));
             Refresh_();
@@ -130,9 +150,12 @@ namespace SubtitleStudio
             _warn.Text = Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
             _warn.Invalidate();
 
+            _replace.Text = _range.Checked ? Lang.T("למחוק את הכתוביות הקיימות בקטע הזה") : Lang.T("למחוק את הכתוביות הקיימות ולהתחיל מחדש");
+            _replace.Invalidate();
+
             if (_mi != null)
             {
-                long dur = _mi.DurationMs;
+                long dur = _range.Checked ? _b - _a : _mi.DurationMs;
                 int step = Math.Max(1, p.ChunkSec - Transcribe.OverlapSec);
                 int chunks = Math.Max(1, (int)Math.Ceiling((dur / 1000.0) / step));
                 // גוגל נמדד: כ-13 שניות לקטע, כולל ההמתנה למכסה. ‏Groq **הערכה,
@@ -304,6 +327,7 @@ namespace SubtitleStudio
         private readonly string _path, _context;
         private readonly long _dur;
         private readonly ISttProvider _provider;
+        private readonly long _from, _to;
         private volatile bool _cancel;
         private bool _finished;
 
@@ -313,8 +337,13 @@ namespace SubtitleStudio
             : this(Stt.Current, path, durationMs, context) { }
 
         public TranscribeRunDlg(ISttProvider provider, string path, long durationMs, string context)
+            : this(provider, path, durationMs, context, 0, 0) { }
+
+        /// <summary><paramref name="fromMs"/>/<paramref name="toMs"/>: רק הקטע הזה (0/0 - כל הסרט).</summary>
+        public TranscribeRunDlg(ISttProvider provider, string path, long durationMs, string context, long fromMs, long toMs)
             : base(Lang.T("מתמלל..."), Ico.Sparkles, 540)
         {
+            _from = fromMs; _to = toMs;
             _provider = provider;
             _path = path; _dur = durationMs; _context = context;
             Subtitle = Lang.T("השאירו את החלון פתוח");
@@ -376,7 +405,7 @@ namespace SubtitleStudio
                             }
                             catch { }
                         },
-                        delegate { return _cancel; });
+                        delegate { return _cancel; }, _from, _to > 0 ? _to : _dur);
                 }
                 catch (Exception ex)
                 {

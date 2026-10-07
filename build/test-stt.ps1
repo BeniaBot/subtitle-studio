@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 114 בדיקות.
+# צפוי: 118 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -220,6 +220,21 @@ Check 'ואחריה חוזרים לדגם הקבוע' ($p.CurrentModel -eq 'whis
 Check 'בלי שגיאה' ($res.Error -eq $null -and $res.Failed -eq 0) ("error=" + $res.Error)
 # החור שבסוף הקטע השני נשלח שוב וחזר ריק: עד 0.8.1 הוא נבלע. עכשיו הוא חור שמדווח
 Check 'חור שגם השליחה החוזרת לא מילאה - מדווח, לא נבלע' ($res.Gaps.Count -eq 1 -and $res.Gaps[0] -match '29') ($res.Gaps -join ', ')
+
+# ================= 4. ב. רק הקטע המסומן (0.8.6) =================
+Write-Host 'רק קטע מהסרט'
+# הקטע 10-35 בקובץ של 40 שניות: קטע אחד (25 שניות), והזמנים מתחילת הקטע. שורה ״אחרי״ הקטע - נזרקת
+$cr = '{"segments":[{"start":1.0,"end":4.0,"text":"בקטע","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":22.0,"end":24.5,"text":"סוף הקטע","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01},{"start":26.0,"end":28.0,"text":"מחוץ לקטע","avg_logprob":-0.2,"compression_ratio":1,"no_speech_prob":0.01}]}'
+$s = StartServer @((Resp 200 $cr $null), (Resp 200 $none $null), (Resp 200 $none $null))
+$p = NewProvider $s.Port
+$p.Chunk = 25
+$run8 = $null
+foreach ($m in $trT.GetMethods($SF)) { if ($m.Name -eq 'Run' -and $m.GetParameters().Count -eq 8) { $run8 = $m } }
+$res = $run8.Invoke($null, (Pack $p ([string]$media) ([long]40000) ([string]'') $null $null ([long]10000) ([long]35000)))
+StopServer $s
+$texts = @($res.Cues | ForEach-Object { $_.Text + '@' + $_.Start })
+Check 'קטע: הזמנים מתחילת הקטע (10+1), ובלי מה שמחוץ לו' (($texts -join ',') -eq 'בקטע@11000,סוף הקטע@32000') ($texts -join ', ')
+Check 'קטע: נשלח קטע אחד בלבד (ושני תיקונים לחור שבתוכו)' ($res.Chunks -eq 1 -and $res.Recovered -eq 2) ("chunks=" + $res.Chunks + " recovered=" + $res.Recovered)
 
 # ================= 4א. קטע שחזר ריק כולו, ויש בו קול =================
 Write-Host 'קטע שחזר ריק, ויש בו קול'
@@ -542,6 +557,14 @@ $mi0 = [Activator]::CreateInstance((T 'MediaInfo')); $mi0.DurationSec = 60
 $td = [Activator]::CreateInstance((T 'TranscribeDlg'), (Pack $mi0 ([int]0) 'שיעור של הרב כהן'))
 $gsub = [string]$td.GetType().GetField('_optGoogle', $IF).GetValue($td).Sub
 Check 'תמלול: בלי מפתח לגוגל - לא ״המפתח שכבר יש לכם״; והרקע הקודם כבר בשדה' ($gsub -notmatch 'שכבר יש' -and $td.Context -eq 'שיעור של הרב כהן') ($gsub + ' | ' + $td.Context)
+$rg = $td.GetType().GetField('_range', $IF).GetValue($td)
+Check 'תמלול: בלי קטע מסומן - המתג ״רק חלק מהסרט״ כבוי ומסביר איך מסמנים' ((-not $rg.Enabled) -and $rg.Text -match 'מסמנים' -and $td.ToMs -eq 0) $rg.Text
+$td.Dispose()
+$td = [Activator]::CreateInstance((T 'TranscribeDlg'), (Pack $mi0 ([int]5) '' ([long]20000) ([long]45000)))
+$rg = $td.GetType().GetField('_range', $IF).GetValue($td)
+$rg.Checked = $true
+$rp = $td.GetType().GetField('_replace', $IF).GetValue($td)
+Check 'תמלול: קטע מסומן - המתג פעיל, עם הזמנים; ו״למחוק״ מדבר על הקטע בלבד' ($rg.Enabled -and $td.FromMs -eq 20000 -and $td.ToMs -eq 45000 -and $rp.Text -match 'בקטע') ($rg.Text + ' | ' + $rp.Text)
 $td.Dispose()
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

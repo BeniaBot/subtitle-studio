@@ -694,6 +694,9 @@ namespace SubtitleStudio
             "עצירה", "Stop",
             "עוצר…", "Stopping…",
             "מפתח חינמי · מכסה קטנה", "Free key · small quota",
+            "רק הקטע המסומן על הציר: {0}", "Only the section marked on the timeline: {0}",
+            "רק חלק מהסרט? מסמנים אותו קודם על הציר", "Only part of the video? Mark it on the timeline first",
+            "למחוק את הכתוביות הקיימות בקטע הזה", "Delete the existing subtitles in this section",
             "יש גרסה חדשה: {0}", "A new version is out: {0}",
             "הגרסה שלכם היא {0}", "Your version is {0}",
             "אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה תיסגר ותיפתח מחדש לבד.", "You can update now - it takes a few seconds, and the program will close and reopen by itself.",
@@ -908,11 +911,11 @@ namespace SubtitleStudio
             "מוחק את המסומנות (Delete)", "Deletes the selected ones (Delete)",
             "מסמנת מילים שאולי כתובות לא נכון · מילון חינמי, פעם אחת", "Marks words that may be misspelled · a free dictionary, once",
             "כבויה · לחיצה מדליקה אותה", "Off · click to turn it on",
+        };
+        private static readonly string[] P3 = new string[] {
             "המילון נטען…", "Loading the dictionary…",
             "{0} · לחיצה קופצת", "{0} · click to jump",
             "כתובית אחת עם מילה חשודה", "One subtitle with a suspicious word",
-        };
-        private static readonly string[] P3 = new string[] {
             "{0} כתוביות עם מילים חשודות", "{0} subtitles with suspicious words",
             "בדיקת האיות דלוקה. עוד רגע המילים החשודות יסומנו ברשימה.", "Spell check is on. In a moment the suspicious words will be marked in the list.",
             "המילון עוד נטען. עוד רגע המילים החשודות יסומנו ברשימה.", "The dictionary is still loading. In a moment the suspicious words will be marked in the list.",
@@ -1137,6 +1140,7 @@ namespace SubtitleStudio
             "{0}\nאולי הוא הועבר, נמחק, או שהכונן שלו לא מחובר.", "{0}\nPerhaps it was moved, deleted, or its drive is not connected.",
             "הקובץ לא נמצא", "File not found",
             "להסיר מהרשימה", "Remove from the list",
+            "נוצרו {0} כתוביות בקטע {1}.", "{0} subtitles were created in the section {1}.",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
@@ -1209,12 +1213,12 @@ namespace SubtitleStudio
             "המנוע נמחק מ:\n{0}\nהוא ייפרס מחדש בהפעלה הבאה.", "The engine was deleted from:\n{0}\nIt will be set up again at the next start.",
             "אולפן הכתוביות", "Subtitle Studio",
             "מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות", "Setting up the video engine · only once, a few seconds",
+        };
+        private static readonly string[] P4 = new string[] {
             "נפרס ליד התוכנה (מצב נייד)", "Set up next to the program (portable mode)",
             "נפרס אל תיקיית המשתמש", "Set up in the user folder",
             "מאתר מעברי סצנה", "Finding scene changes",
             "ההורדה בוטלה.", "The download was cancelled.",
-        };
-        private static readonly string[] P4 = new string[] {
             "המילון שירד פגום. נסו שוב.", "The downloaded dictionary is damaged. Try again.",
             "המילון שירד פגום, או שהוחלף בשרת. נסו שוב.", "The downloaded dictionary is damaged, or it was replaced on the server. Try again.",
             "המילון לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.", "The dictionary wasn't found on the server. Update the program and try again.",

@@ -2782,18 +2782,19 @@ namespace SubtitleStudio
                 return;
             }
             // בלי בדיקת מפתח כאן: החלון שואל איפה לתמלל, ומחבר את השירות שנבחר
-            TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count, _contentContext);
+            TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count, _contentContext, _tl.InPoint, _tl.OutPoint);
             d.ShowDialog(this);
             bool ok = d.Ok;
             string ctx = d.Context;
             _contentContext = ctx;
             bool replace = d.ReplaceExisting;
+            long from = d.FromMs, to = d.ToMs;
             ISttProvider provider = d.Provider;
             d.Dispose();
             if (!ok) return;
 
             _engine.Pause();
-            TranscribeRunDlg run = new TranscribeRunDlg(provider, _mediaPath, _mi.DurationMs, ctx);
+            TranscribeRunDlg run = new TranscribeRunDlg(provider, _mediaPath, _mi.DurationMs, ctx, from, to);
             run.ShowDialog(this);
             Transcribe.Result res = run.Result;
             run.Dispose();
@@ -2825,7 +2826,9 @@ namespace SubtitleStudio
             Qa.Tidy(fresh, true, true, GapsFn());
 
             _doc.Push(Lang.T("תמלול אוטומטי"));
-            if (replace) _doc.Cues.Clear();
+            // קטע: מוחקים רק את מה שמתחיל בתוכו - מה שלפניו ואחריו נשאר כמו שהוא
+            if (replace && to > from) _doc.Cues.RemoveAll(delegate (Cue c) { return c.Start >= from && c.Start < to; });
+            else if (replace) _doc.Cues.Clear();
             _doc.Cues.AddRange(fresh.Cues);
             _doc.Sort();
             _doc.FixOverlaps(80);
@@ -2833,7 +2836,9 @@ namespace SubtitleStudio
             _doc.RaiseChanged();
             SyncAfterDocChange();
 
-            string msg = Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
+            string msg = to > from
+                ? Lang.F("נוצרו {0} כתוביות בקטע {1}.", Theme.Ltr(fresh.Cues.Count.ToString()), Theme.Ltr(Tc.Short(from) + " – " + Tc.Short(to)))
+                : Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
             if (res.Canceled) msg = Lang.F("נעצר. {0}", msg);
             msg += Lang.T("  כדאי לעבור ולתקן.  לביטול - Ctrl+Z.");
             _hintLbl.Text = msg;

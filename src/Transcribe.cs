@@ -64,6 +64,14 @@ namespace SubtitleStudio
         public static Result Run(ISttProvider provider, string mediaPath, long durationMs, string context,
                                  ProgressFn progress, Func<bool> canceled)
         {
+            return Run(provider, mediaPath, durationMs, context, progress, canceled, 0, durationMs);
+        }
+
+        /// <summary>רק הקטע <paramref name="fromMs"/>-<paramref name="toMs"/> (הקטע המסומן על הציר). הקול
+        /// נחתך בגבולות הקטע, כך שהמודל לא שומע - ולא כותב - מה שמחוץ לו.</summary>
+        public static Result Run(ISttProvider provider, string mediaPath, long durationMs, string context,
+                                 ProgressFn progress, Func<bool> canceled, long fromMs, long toMs)
+        {
             Result res = new Result();
             res.ProviderName = provider.Name;
             if (!provider.HasKey) { res.Error = Theme.Pfx(Lang.T("לא הוגדר מפתח ל"), provider.Name) + "."; return res; }
@@ -72,20 +80,23 @@ namespace SubtitleStudio
 
             provider.NewFile();
             string dir = Ff.TempDir();
-            double totalSec = durationMs / 1000.0;
+            // ‏totalSec הוא סוף מה שמתמללים: סוף הקובץ, או סוף הקטע המסומן
+            long endMs = toMs > 0 ? Math.Min(toMs, durationMs) : durationMs;
+            double fromSec = Math.Max(0, Math.Min(fromMs, endMs - 1000)) / 1000.0;
+            double totalSec = endMs / 1000.0;
             int chunkSec = Math.Max(OverlapSec + 5, provider.ChunkSec);
             int step = chunkSec - OverlapSec;
             List<double> starts = new List<double>();
-            for (double s = 0; s < totalSec; s += step)
+            for (double s = fromSec; s < totalSec; s += step)
             {
                 // קטע-זנב זעיר הוא רק נזק: הקטע הקודם כבר מכסה אותו (הוא
                 // ארוך ב-OverlapSec מהצעד), כל מה שנופל בתוכו נזרק ממילא
                 // כחפיפה, והוא נספר ככישלון ומדליק אזהרה על חורים שאין.
                 // קובץ של 166 שניות ייצר קטע אחרון שמכסה **שנייה אחת**.
-                if (s > 0 && totalSec - s < OverlapSec + 3) break;
+                if (s > fromSec && totalSec - s < OverlapSec + 3) break;
                 starts.Add(s);
             }
-            if (starts.Count == 0) starts.Add(0);
+            if (starts.Count == 0) starts.Add(fromSec);
             res.Chunks = starts.Count;
 
             List<Cue> all = new List<Cue>();
@@ -97,7 +108,7 @@ namespace SubtitleStudio
                 double s = starts[i];
                 if (progress != null)
                     progress(i / (double)starts.Count,
-                             Lang.F("מתמלל {0} מתוך {1}", Tc.Short((long)(s * 1000)), Tc.Short(durationMs)));
+                             Lang.F("מתמלל {0} מתוך {1}", Tc.Short((long)(s * 1000)), Tc.Short(endMs)));
 
                 // שם קצר באנגלית ב-%TEMP%\SubStudio - אותה זהירות כמו בצריבה
                 string wav = Path.Combine(dir, "tr_" + i.ToString(CultureInfo.InvariantCulture) + ".mp3");
@@ -106,7 +117,7 @@ namespace SubtitleStudio
 
                 string args = "-y -hide_banner -v error -ss " +
                               s.ToString("0.###", CultureInfo.InvariantCulture) +
-                              " -t " + chunkSec.ToString(CultureInfo.InvariantCulture) +
+                              " -t " + Math.Min(chunkSec, totalSec - s).ToString("0.###", CultureInfo.InvariantCulture) +
                               " -i " + Ff.Q(mediaPath) +
                               " -vn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k " + Ff.Q(wav);
                 string so, se;
@@ -189,7 +200,7 @@ namespace SubtitleStudio
 
                 // קטע שהחזיר טקסט ולא נשאר ממנו כלום הוא חור, גם אם השרת ״הצליח״.
                 // עד 0.8.1 זה עבר בשקט: 57 שניות נעלמו בלי שום הודעה.
-                int kept = AddChunk(all, lines, i, s, chunkSec, durationMs);
+                int kept = AddChunk(all, lines, i, s, chunkSec, endMs);
                 if (kept == 0 && lines.Count >= 3) NoteGap(res, s, chunkSec, totalSec);
             }
 
