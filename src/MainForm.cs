@@ -1329,10 +1329,10 @@ namespace SubtitleStudio
 
             // סימון קטע וזום עברו למקלדת ולתפריט (I / O / Ctrl+גלגלת)
             AddTl(Lang.T("תחילת קטע"), Ico.ChevronRight,
-                Lang.T("מסמן כאן את תחילת הקטע לחיתוך (I)") + Environment.NewLine +
-                Lang.T("אחר כך: ״הסרט ← חיתוך קטעים״"),
+                Lang.T("מסמן כאן את תחילת הקטע (I)") + Environment.NewLine +
+                Lang.T("קטע מסומן: תמלול, תרגום ותזמון רצים רק עליו, ו״הסרט ← חיתוך קטעים״ מתחיל ממנו"),
                 delegate { MarkIn(); }, Theme.Good, 118);
-            AddTl(Lang.T("סוף קטע"), Ico.ChevronLeft, Lang.T("מסמן כאן את סוף הקטע לחיתוך (O)"),
+            AddTl(Lang.T("סוף קטע"), Ico.ChevronLeft, Lang.T("מסמן כאן את סוף הקטע (O)"),
                 delegate { MarkOut(); }, Theme.Warn, 100);
             _clearMark = AddTl("", Ico.Close, Lang.T("ניקוי הסימון שעל הציר"), delegate
             {

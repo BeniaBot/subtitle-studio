@@ -28,7 +28,7 @@ namespace SubtitleStudio
             new string[] { "Q / W", Lang.T("התחלה / סיום כאן") },
             new string[] { "Tab", Lang.T("לכתובית הבאה") },
             new string[] { "Delete", Lang.T("מחיקת המסומנות") },
-            new string[] { "I / O", Lang.T("סימון קטע לחיתוך") },
+            new string[] { "I / O", Lang.T("סימון קטע: חיתוך, תמלול ועוד") },
             new string[] { Lang.T("Ctrl+גלגלת"), Lang.T("זום בציר הזמן") },
             new string[] { Lang.T("גרירה על הציר"), Lang.T("יצירת כתובית חדשה") },
             new string[] { "Ctrl+N", Lang.T("פרויקט חדש") },
