@@ -281,6 +281,7 @@ namespace SubtitleStudio
                     p.OutputDataReceived += delegate (object s, DataReceivedEventArgs e) { if (e.Data != null) so.AppendLine(e.Data); };
                     p.ErrorDataReceived += delegate (object s, DataReceivedEventArgs e) { if (e.Data != null) se.AppendLine(e.Data); };
                     p.Start();
+                    ChildJob.Add(p);
                     p.BeginOutputReadLine();
                     p.BeginErrorReadLine();
                     p.WaitForExit();
@@ -551,6 +552,7 @@ namespace SubtitleStudio
                         p.StartInfo = Psi(Exe, "-hide_banner -nostdin -y " + args, job.WorkDir);
                         job.Proc = p;
                         p.Start();
+                        ChildJob.Add(p);
                         Thread errT = new Thread(delegate ()
                         {
                             try

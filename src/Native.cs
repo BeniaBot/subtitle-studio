@@ -148,4 +148,73 @@ namespace SubtitleStudio
 
         public const int EM_SETCUEBANNER = 0x1501;
     }
+
+    /// <summary>**כל ffmpeg שהתוכנה מפעילה נכנס ל-Job של ווינדוס שנסגר יחד איתה** (KILL_ON_JOB_CLOSE): שום תהליך לא
+    /// שורד אותה. נמצא בבדיקות (7.10): ffmpeg של פריים אחד, שהתחיל רגע לפני סגירה, נשאר תקוע בלי הורה עשר דקות -
+    /// ובמחשב של משתמש היה נשאר עד הכיבוי. מה שלא נכנס (Job מקונן נכשל) - ממשיך כמו קודם.</summary>
+    internal static class ChildJob
+    {
+        private static IntPtr _job = IntPtr.Zero;
+        private static bool _tried;
+        private static readonly object _lock = new object();
+
+        public static void Add(System.Diagnostics.Process p)
+        {
+            try
+            {
+                lock (_lock)
+                {
+                    if (!_tried)
+                    {
+                        _tried = true;
+                        IntPtr h = CreateJobObject(IntPtr.Zero, null);
+                        if (h != IntPtr.Zero)
+                        {
+                            JobExtended info = new JobExtended();
+                            info.Basic.LimitFlags = 0x2000;          // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                            int len = Marshal.SizeOf(typeof(JobExtended));
+                            IntPtr ptr = Marshal.AllocHGlobal(len);
+                            try
+                            {
+                                Marshal.StructureToPtr(info, ptr, false);
+                                if (SetInformationJobObject(h, 9, ptr, (uint)len)) _job = h;   // 9 = ExtendedLimitInformation
+                            }
+                            finally { Marshal.FreeHGlobal(ptr); }
+                        }
+                    }
+                }
+                if (_job != IntPtr.Zero && p != null) AssignProcessToJobObject(_job, p.Handle);
+            }
+            catch { }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JobBasic
+        {
+            public long PerProcessUserTimeLimit, PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass, SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JobIo { public ulong ReadOps, WriteOps, OtherOps, ReadBytes, WriteBytes, OtherBytes; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JobExtended
+        {
+            public JobBasic Basic;
+            public JobIo Io;
+            public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreateJobObject(IntPtr attrs, string name);
+        [DllImport("kernel32.dll")]
+        private static extern bool SetInformationJobObject(IntPtr job, int infoClass, IntPtr info, uint length);
+        [DllImport("kernel32.dll")]
+        private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+    }
 }

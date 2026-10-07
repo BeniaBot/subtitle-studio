@@ -2,7 +2,7 @@
 # הלוגיקה (CutPlan) מול מקרים ידועים, ואחר כך המנוע עצמו על קבצים אמיתיים שנוצרים כאן: MP3, ‏M4A, ‏WAV
 # (בלי קידוד מחדש, בפורמט המקורי) ו-MP4 (מהיר ומדויק) - ובודקים את האורך של מה שיצא.
 # אחר כך החלון עצמו, עם הנגן האמיתי: גרירה, הקלדה, מקלדת, ניגון, וחיתוך דרך החלון.
-# צפוי: 41 בדיקות.
+# צפוי: 42 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -193,6 +193,8 @@ Check 'גרירת קו: ההתחלה זזה, וגרירה מעבר לסוף מח
 Mouse $view 'OnMouseDown' ([int]$view.X(20000)); Mouse $view 'OnMouseUp' ([int]$view.X(20000))
 Pump 150
 Check 'לחיצה בלי גרירה: הנגן עובר לשם, ואין קטע חדש' ($secs.Count -eq 2 -and [Math]::Abs((PosP) - 20000) -le ($px + 50)) ('pos=' + (PosP))
+$clockTxt = [string](Fld $mainF '_timeLbl').Text
+Check 'השעון של החלון הראשי זז עם קפיצה בזמן עצירה (עד 0.8.6 נשאר על הזמן הקודם)' ($clockTxt -match '00:20\.0') $clockTxt
 
 $setMode = $CD.GetMethod('SetMode', $IN, $null, [Type[]]@([bool]), $null)
 Reset @(@(10000, 20000, $true), @(40000, 50000, $true))

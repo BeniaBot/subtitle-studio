@@ -2611,6 +2611,10 @@ namespace SubtitleStudio
             _tl.Invalidate();
             _list.Position = ms;
             _list.Invalidate();
+            // השעון כאן ולא רק ב-OnTick: שם הוא מתעדכן כשהמיקום שונה מהציר - וכאן הציר כבר קיבל אותו,
+            // אז בקפיצה בזמן עצירה (חצים, לחיצה על הציר) השעון נשאר על הזמן הקודם
+            _timeLbl.Text = ClockText(_engine.Position);
+            _timeLbl.Invalidate();
         }
 
         private void MarkIn()

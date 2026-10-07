@@ -219,6 +219,31 @@ $r = RunDlg "-i `"$media`" -t 1 -f null -" $false
 Check 'הצלחה' ($r.Head -eq 'הפעולה הושלמה בהצלחה') $r.Head
 $r.Dlg.Dispose()
 
+# **שום ffmpeg לא שורד את התוכנה** (ChildJob, 0.8.7): תהליך שמפעיל עבודה ארוכה ונופל באמצע - ה-ffmpeg שלו מת
+# איתו. עד כאן ffmpeg של פריים אחד נשאר תקוע בלי הורה עשר דקות (ונתקעה איתו בדיקה שלמה).
+$marker = 'sine=frequency=431:duration=97'
+$child = @"
+`$a = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes('$((Join-Path $root 'dist\Subtext.exe').Replace("'", "''"))'))
+`$S = [Reflection.BindingFlags]'NonPublic,Public,Static'
+[void]`$a.GetType('SubtitleStudio.Runtime').GetMethod('Prepare', `$S).Invoke(`$null, @())
+`$j = [Activator]::CreateInstance(`$a.GetType('SubtitleStudio.FfJob'))
+`$j.Args = '-re -f lavfi -i $marker -f null -'
+`$j.TotalMs = 97000
+[void]`$a.GetType('SubtitleStudio.Ff').GetMethod('RunJob', `$S).Invoke(`$null, @(,`$j))
+Start-Sleep -Milliseconds 1500
+[Environment]::Exit(0)
+"@
+$cf = Join-Path $work 'child-job.ps1'
+[IO.File]::WriteAllText($cf, $child, (New-Object Text.UTF8Encoding $true))
+$env:SUBSTUDIO_TEST = '1'
+$cp = Start-Process powershell -ArgumentList @('-NoProfile', '-File', $cf) -WindowStyle Hidden -PassThru
+$sw = [Diagnostics.Stopwatch]::StartNew(); $seen = 0
+while (-not $cp.HasExited -and $sw.Elapsed.TotalSeconds -lt 30) { $seen = [Math]::Max($seen, @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$marker*" }).Count); Start-Sleep -Milliseconds 200 }
+Start-Sleep -Milliseconds 700
+$left = @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$marker*" })
+foreach ($x in $left) { try { Stop-Process -Id $x.ProcessId -Force } catch { } }
+Check 'תהליך שנופל באמצע עבודה: ה-ffmpeg שלו נסגר איתו' ($seen -ge 1 -and $left.Count -eq 0) ("רץ: $seen, נשאר אחרי: " + $left.Count)
+
 # הצלחה עם קובץ: איפה נשמר ובאיזה גודל, במקום ״הושלמה״ (0.8.7, כמו ב״חותך שמע״)
 $saved = Join-Path $work 'saved-note.mp4'
 $job = [Activator]::CreateInstance($jobT); $job.Args = "-i `"$media`" -t 1 -c copy `"$saved`""; $job.WorkDir = $work; $job.TotalMs = 1000; $job.OutputPath = $saved

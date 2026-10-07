@@ -62,6 +62,7 @@ namespace SubtitleStudio
                 _proc = new Process();
                 _proc.StartInfo = psi;
                 _proc.Start();
+                ChildJob.Add(_proc);
 
                 Stream s = _proc.StandardOutput.BaseStream;
                 int samplesPerBucket = rate * PeriodMs / 1000;   // 80
@@ -318,6 +319,7 @@ namespace SubtitleStudio
                 _proc.StartInfo = psi;
                 try { _proc.Start(); }
                 catch { _proc = null; return; }
+                ChildJob.Add(_proc);
 
                 _feeder = new Thread(Feed);
                 _feeder.IsBackground = true;
@@ -453,6 +455,7 @@ namespace SubtitleStudio
             _proc.StartInfo = psi;
             try { _proc.Start(); }
             catch { _proc = null; return; }
+            ChildJob.Add(_proc);
 
             long start = fromMs;
             _thread = new Thread(delegate () { Reader(start); });
@@ -587,7 +590,7 @@ namespace SubtitleStudio
                 if (want < 0 || want == _served) continue;
                 Thread.Sleep(30);                 // דיבאונס בזמן גרירה
                 if (_want != want) continue;
-                Bitmap b = Grab(_path, want, _w, _h);
+                Bitmap b = Grab(_path, want, _w, _h, this);
                 if (b == null) { _served = want; continue; }
                 lock (_lock)
                 {
@@ -610,7 +613,13 @@ namespace SubtitleStudio
             }
         }
 
-        public static Bitmap Grab(string path, long ms, int w, int h)
+        /// <summary>ההרצה שבאמצע: ‏Stop הורג אותה. נמצא בבדיקה (7.10): פתיחת קובץ ומיד סגירה השאירו ffmpeg של פריים
+        /// אחד תקוע בלי הורה, והוא החזיק את ערוץ הפלט של הבדיקה עשר דקות.</summary>
+        private volatile Process _cur;
+
+        public static Bitmap Grab(string path, long ms, int w, int h) { return Grab(path, ms, w, h, null); }
+
+        private static Bitmap Grab(string path, long ms, int w, int h, FrameGrabber owner)
         {
             try
             {
@@ -626,18 +635,27 @@ namespace SubtitleStudio
                 {
                     p.StartInfo = psi;
                     p.Start();
+                    ChildJob.Add(p);
+                    if (owner != null) owner._cur = p;
                     int need = w * h * 3;
                     byte[] buf = new byte[need];
                     Stream s = p.StandardOutput.BaseStream;
                     int got = 0;
-                    while (got < need)
+                    try
                     {
-                        int n = s.Read(buf, got, need - got);
-                        if (n <= 0) break;
-                        got += n;
+                        while (got < need)
+                        {
+                            int n = s.Read(buf, got, need - got);
+                            if (n <= 0) break;
+                            got += n;
+                        }
                     }
-                    try { if (!p.HasExited) p.Kill(); }
-                    catch { }
+                    finally
+                    {
+                        if (owner != null) owner._cur = null;
+                        try { if (!p.HasExited) p.Kill(); }
+                        catch { }
+                    }
                     if (got < need) return null;
                     return VideoPipe.ToBitmap(buf, w, h);
                 }
@@ -649,6 +667,9 @@ namespace SubtitleStudio
         {
             _stop = true;
             _signal.Set();
+            Process cur = _cur;
+            try { if (cur != null && !cur.HasExited) cur.Kill(); }
+            catch { }
             if (_thread != null) { try { _thread.Join(300); } catch { } _thread = null; }
             lock (_lock)
             {
