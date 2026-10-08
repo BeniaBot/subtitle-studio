@@ -2,7 +2,10 @@
 # WITHOUT the engine) and the engine pack:
 #
 #   dist\Subtext.exe             = app + ffmpeg.pack + 64-byte trailer   (what users download)
-#   dist\Subtext-app-update.gz   = the app part alone, gzipped           (the small update, 0.8.8)
+#   dist\Subtext-app-update-<id>.gz = the app part alone, gzipped        (the small update, 0.8.8)
+#                                  <id> = first 16 hex digits of the engine id (below): an older version
+#                                  with another engine sees in the NAME that the small update cannot
+#                                  work for it, and offers the full download with its true size.
 #
 # The trailer, at the very end of the file:
 #   16 bytes  "SUBTEXT-ENGINE-1"
@@ -24,7 +27,9 @@ $root = Split-Path $PSScriptRoot -Parent
 $app = Join-Path $root 'build\payload\Subtext-app.exe'
 $pack = Join-Path $root 'build\payload\ffmpeg.pack'
 $out = Join-Path $root 'dist\Subtext.exe'
-$gz = Join-Path $root 'dist\Subtext-app-update.gz'
+# Old update files go first: one with another engine id must not be uploaded by mistake.
+Get-ChildItem (Join-Path $root 'dist') -Filter 'Subtext-app-update*.gz' -ErrorAction SilentlyContinue | ForEach-Object { [IO.File]::Delete($_.FullName) }
+$gzName = 'Subtext-app-update.gz'
 
 if (-not (Test-Path $app)) { Write-Host "[ERROR] $app is missing - compile first."; exit 1 }
 $appBytes = [IO.File]::ReadAllBytes($app)
@@ -50,17 +55,19 @@ try {
         $bw.Write([byte[]]$sha.Hash)
         $bw.Write([Int64]0)
         $bw.Flush(); $bw.Dispose()
-        $id = ([BitConverter]::ToString($sha.Hash) -replace '-', '').ToLower().Substring(0, 12)
+        $id = ([BitConverter]::ToString($sha.Hash) -replace '-', '').ToLower().Substring(0, 16)
+        $gzName = "Subtext-app-update-$id.gz"
         Write-Host ("[ok] engine attached ({0:N1} MB, id {1})" -f ($packLen / 1MB), $id)
     } else {
         Write-Host "[skip] no engine pack - dist\Subtext.exe is the app alone."
     }
 } finally { $fs.Dispose() }
 
+$gz = Join-Path $root ('dist\' + $gzName)
 $gfs = [IO.File]::Create($gz)
 try {
     $gzs = New-Object IO.Compression.GZipStream($gfs, [IO.Compression.CompressionLevel]::Optimal, $true)
     $gzs.Write($appBytes, 0, $appBytes.Length)
     $gzs.Dispose()
 } finally { $gfs.Dispose() }
-Write-Host ("[ok] app part {0:N2} MB, update file {1:N2} MB" -f ($appBytes.Length / 1MB), ((Get-Item $gz).Length / 1MB))
+Write-Host ("[ok] app part {0:N2} MB, {1} {2:N2} MB" -f ($appBytes.Length / 1MB), $gzName, ((Get-Item $gz).Length / 1MB))

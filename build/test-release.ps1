@@ -351,6 +351,13 @@ $rNoApp = NewRel 1 $gz $full; $rNoApp.AppUrl = ''
 $rNoSha = NewRel 1 $gz $full; $rNoSha.Sha256 = ''
 Check 'T_SLIM_WHEN' ($p1.Ok -and -not (Possible $rNoApp $self).Ok -and -not (Possible $rNoSha $self).Ok -and -not (Possible $r0 $junk).Ok) ("ok=" + $p1.Ok + " / " + (Possible $rNoSha $self).Why + " / " + (Possible $r0 $junk).Why)
 
+# זהות המנוע בשם הקובץ הקטן (8.10): מנוע אחר - לא מנסים בכלל, וההצעה אומרת את הגודל המלא; אותו מנוע - מנסים
+$myId = ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($pack)) -replace '-', '').ToLower()
+$rSame = NewRel 1 $gz $full; $rSame.AppEngine = $myId.Substring(0, 16)
+$rOther = NewRel 1 $gz $full; $rOther.AppEngine = '0123456789abcdef'
+$pSame = Possible $rSame $self; $pOther = Possible $rOther $self
+Check 'T_SLIM_ENGINE_NAME' ($pSame.Ok -and -not $pOther.Ok -and $pOther.Why.Contains('מנוע אחר')) ("same=" + $pSame.Ok + " other=" + $pOther.Why)
+
 # ״ביטול״ באמצע הורדה איטית: חוזרים מיד, ובלי קובץ שלם
 $fetchFile = $updT.GetMethod('FetchFile', $ST)
 $big = Rand 3000000 21
@@ -391,6 +398,14 @@ $withApp = Release @((Asset 'Subtext-app-update.gz' 480000 'BeniaBot'), (Asset '
                      (Asset 'Subtext.exe' 38000000 'BeniaBot')) '0.9.9' 'x'
 $p = DoParse $withApp
 Check 'T_PARSE_APP' ((F $p.Rel 'AppUrl') -like '*/Subtext-app-update.gz' -and (F $p.Rel 'AppSize') -eq 480000 -and (F $p.Rel 'Url') -like '*/Subtext.exe') ((F $p.Rel 'AppUrl') + ' | ' + (F $p.Rel 'Url'))
+# השם עם זהות המנוע (כך נבנה מ-8.10): הזהות נקראת, באותיות קטנות; שם עם זהות שבורה - לא הקובץ הקטן
+$withEng = Release @((Asset 'Subtext-app-update-37CE4F75859082F0.gz' 470000 'BeniaBot'), (Asset 'Subtext.exe' 29000000 'BeniaBot')) '0.9.9' 'x'
+$pe = DoParse $withEng
+$badName = Release @((Asset 'Subtext-app-update-37ce4f7585908.gz' 470000 'BeniaBot'), (Asset 'Subtext-app-update-zzzzzzzzzzzzzzzz.gz' 470000 'BeniaBot'),
+                     (Asset 'Subtext.exe' 29000000 'BeniaBot')) '0.9.9' 'x'
+$pb = DoParse $badName
+Check 'T_PARSE_APP_ENGINE' ((F $pe.Rel 'AppEngine') -eq '37ce4f75859082f0' -and (F $pe.Rel 'AppUrl') -like '*-37CE4F75859082F0.gz' -and (F $p.Rel 'AppEngine') -eq '' -and
+                            (F $pb.Rel 'AppUrl') -eq '' -and (F $pb.Rel 'Url') -like '*/Subtext.exe') ((F $pe.Rel 'AppEngine') + ' | bad=' + (F $pb.Rel 'AppUrl'))
 $noApp = Release @((Asset 'Subtext.exe' 38000000 'BeniaBot')) '0.9.9' 'x'
 Check 'T_PARSE_NOAPP' ((F (DoParse $noApp).Rel 'AppUrl') -eq '') ''
 

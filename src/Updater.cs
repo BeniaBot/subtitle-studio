@@ -69,11 +69,34 @@ namespace SubtitleStudio
             public string AppUrl = "";
             public long AppSize;
             public string AppSha256 = "";
+            /// <summary>16 התווים הראשונים של זהות המנוע בגרסה החדשה, מתוך שם הקובץ הקטן; ריק = לא ידוע.</summary>
+            public string AppEngine = "";
         }
 
-        /// <summary>**השם לא נגמר ב-exe בכוונה:** גרסאות 0.8.7 ומטה לוקחות כקובץ הנייד את ה-exe הראשון שאינו
-        /// מתקין, וקובץ עדכון בשם כזה היה מחליף אצלן את התוכנה בחצי תוכנה.</summary>
-        internal const string AppAsset = "Subtext-app-update.gz";
+        /// <summary>תחילת השם של הקובץ הקטן: ‏``Subtext-app-update-<16 תווי זהות המנוע>.gz``.
+        ///
+        /// **השם לא נגמר ב-exe בכוונה:** גרסאות 0.8.7 ומטה לוקחות כקובץ הנייד את ה-exe הראשון שאינו
+        /// מתקין, וקובץ עדכון בשם כזה היה מחליף אצלן את התוכנה בחצי תוכנה.
+        ///
+        /// **הזהות בשם:** כשהמנוע בגרסה החדשה אחר, הקטן לא יסתדר בכל מקרה. בלי הזהות ההצעה אמרה ״הורדה של
+        /// 473 KB״ - ואחרי ניסיון ונפילה ירדו 27 מגה (נמצא בצילומי test-slim-update, 8.10).</summary>
+        internal const string AppAsset = "Subtext-app-update";
+
+        /// <summary>האם זה הקובץ הקטן, ואם בשמו זהות של מנוע - מהי (באותיות קטנות).</summary>
+        internal static bool IsAppAsset(string name, out string engine)
+        {
+            engine = "";
+            if (name == null || name.Length < AppAsset.Length + 3) return false;
+            if (!name.StartsWith(AppAsset, StringComparison.OrdinalIgnoreCase) ||
+                !name.EndsWith(".gz", StringComparison.OrdinalIgnoreCase)) return false;
+            string mid = name.Substring(AppAsset.Length, name.Length - AppAsset.Length - 3);
+            if (mid.Length == 0) return true;
+            if (mid.Length != 17 || mid[0] != '-') return false;
+            for (int i = 1; i < mid.Length; i++)
+                if (!Uri.IsHexDigit(mid[i])) return false;
+            engine = mid.Substring(1).ToLowerInvariant();
+            return true;
+        }
 
         private const string GitHubApi = "https://api.github.com/repos/" + App.Repo + "/releases/latest";
 
@@ -91,6 +114,13 @@ namespace SubtitleStudio
         }
 
         private static string Api { get { return LocalApi ?? GitHubApi; } }
+
+        /// <summary>מה בדיקת הקצה-לקצה ״לוחצת״ לבד: update / cancel, או null. **רק עם LocalApi** - בלי שרת מדומה על
+        /// המחשב הזה המשתנה לא נחשב.</summary>
+        internal static string TestClick
+        {
+            get { return LocalApi != null ? Environment.GetEnvironmentVariable("SUBSTUDIO_TEST_CLICK") : null; }
+        }
 
         /// <summary>מוריד את פרטי הגרסה האחרונה. מחזיר null אם אין רשת או אין שחרור.</summary>
         public static Release Check(out string error)
@@ -160,10 +190,11 @@ namespace SubtitleStudio
                     string name = Str(a, "name");
                     string url = Str(a, "browser_download_url");
                     if (name.Length == 0 || url.Length == 0) continue;
-                    if (string.Equals(name, AppAsset, StringComparison.OrdinalIgnoreCase))
+                    string engine;
+                    if (IsAppAsset(name, out engine))
                     {
                         if (r.AppUrl.Length == 0 && IsOurDownload(url))
-                        { r.AppUrl = url; r.AppSize = Num(a, "size"); r.AppSha256 = Digest(Str(a, "digest")); }
+                        { r.AppUrl = url; r.AppSize = Num(a, "size"); r.AppSha256 = Digest(Str(a, "digest")); r.AppEngine = engine; }
                         continue;
                     }
                     if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
@@ -433,6 +464,8 @@ namespace SubtitleStudio
             if (rel.Url.Length == 0 || rel.Sha256.Length == 0) { why = "אין טביעה לקובץ המלא"; return false; }
             string id;
             if (Runtime.ReadTrailer(selfExe, out id) == null) { why = "אין מנוע בסוף הקובץ הזה"; return false; }
+            // מנוע אחר בגרסה החדשה: התוכנה החדשה + המנוע שלי ≠ הקובץ שפורסם. לא מורידים לשווא, וההצעה אומרת את הגודל האמיתי
+            if (rel.AppEngine.Length > 0 && !id.StartsWith(rel.AppEngine, StringComparison.OrdinalIgnoreCase)) { why = "מנוע אחר בגרסה החדשה"; return false; }
             if (!Runtime.CanWrite(Path.GetDirectoryName(selfExe))) { why = "אי אפשר לכתוב בתיקיית התוכנה"; return false; }
             return true;
         }
@@ -738,6 +771,14 @@ namespace SubtitleStudio
             KeyPreview = true;
             KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) DoCancel(); };
             Load += delegate { Native.SetRoundedCorners(Handle); };
+            // בדיקת הקצה-לקצה: ״ביטול״ לבד אחרי שנייה וחצי (ראו UpdateDlg)
+            if (Updater.TestClick == "cancel")
+            {
+                System.Windows.Forms.Timer auto = new System.Windows.Forms.Timer();
+                auto.Interval = 1500;
+                auto.Tick += delegate { auto.Stop(); auto.Dispose(); DoCancel(); };
+                Shown += delegate { auto.Start(); };
+            }
         }
 
         private void DoCancel()

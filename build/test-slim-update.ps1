@@ -6,8 +6,10 @@
 # בונה מהקוד הנוכחי שתי גרסאות (0.8.98 ״ישנה״, 0.8.99 ״חדשה״) עם אותו מנוע, ועוד ״חדשה״ עם מנוע אחר, ומריץ:
 #  A. עדכון רגיל: ההצעה אומרת כמה יורד, יורד **רק** הקובץ הקטן (יומן השרת), הקובץ שהוחלף זהה בדיוק לחדש,
 #     הגרסה החדשה עולה, והמנוע **לא** נפרס מחדש.
-#  B. מנוע אחר בגרסה החדשה: הקטן לא מסתדר, ונופלים להורדה המלאה - והתוצאה עדיין זהה בדיוק.
+#  B. מנוע אחר בגרסה החדשה: שם הקובץ הקטן נושא את זהות המנוע, אז הוא **לא יורד בכלל** - ישר ההורדה המלאה,
+#     וההצעה אומרת את הגודל המלא (לראות בצילום). התוצאה זהה בדיוק.
 #  C. ״ביטול״ באמצע הורדה איטית: התוכנה הישנה ממשיכה לרוץ, לא הוחלפה, ולא נשאר קובץ זמני.
+#  D. אותו מנוע אחר, אבל הקובץ הקטן בשם בלי זהות: מנסים, הקובץ שנבנה לא זהה, ונופלים להורדה המלאה.
 # מצלם ל-D:\Claude\_ss-slim\shots. משתנה הסביבה SUBSTUDIO_UPDATE_API מכוון את התוכנה לשרת - והתוכנה מקבלת
 # ממנו רק כתובת על המחשב הזה (Updater.LocalApi).
 param([switch]$Rebuild)
@@ -102,15 +104,21 @@ function FreePort { $t = New-Object System.Net.Sockets.TcpListener ([Net.IPAddre
 function Sha($f) { return (Get-FileHash $f -Algorithm SHA256).Hash }
 
 # ---- תרחיש ----
-function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$expectSlim) {
+# $expect: slim = רק הקטן; full = רק המלא; fallback = הקטן ואחריו המלא. ‏$gzAs: לפרסם את הקטן בשם אחר (ריק = השם שלו)
+function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [string]$expect, [string]$gzAs = '') {
     Log "=== $label ==="
     $relDir = Join-Path $base "rel-$label"; $appDir = Join-Path $base "app-$label"
     foreach ($d in $relDir, $appDir) { if (Test-Path $d) { cmd /c "rmdir /s /q `"$d`"" }; New-Item -ItemType Directory $d -Force | Out-Null }
     Copy-Item (Join-Path $srcNew 'dist\Subtext.exe') (Join-Path $relDir 'Subtext.exe')
-    Copy-Item (Join-Path $srcNew 'dist\Subtext-app-update.gz') (Join-Path $relDir 'Subtext-app-update.gz')
+    # השם האמיתי: Subtext-app-update-<זהות המנוע>.gz
+    $gzSrc = @(Get-ChildItem (Join-Path $srcNew 'dist') -Filter 'Subtext-app-update*.gz')
+    if ($gzSrc.Count -ne 1) { Fail ("$label : expected one update file in dist, found " + $gzSrc.Count); return }
+    $gzName = if ($gzAs) { $gzAs } else { $gzSrc[0].Name }
+    Copy-Item $gzSrc[0].FullName (Join-Path $relDir $gzName)
+    Log ("small file published as " + $gzName)
     $port = FreePort
     $dl = "http://127.0.0.1:$port/BeniaBot/subtitle-studio/releases/download/v0.8.99/"
-    $assets = foreach ($n in 'Subtext-app-update.gz', 'Subtext.exe') {
+    $assets = foreach ($n in $gzName, 'Subtext.exe') {
         $f = Join-Path $relDir $n
         '{"name":"' + $n + '","size":' + (Get-Item $f).Length + ',"digest":"sha256:' + (Sha $f).ToLower() + '","browser_download_url":"' + $dl + $n + '"}'
     }
@@ -130,6 +138,9 @@ function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$ex
     Get-ChildItem $env:TEMP -Filter 'Subtext-*' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Subtext-0.8.99*' -or $_.Name -like 'Subtext-app-0.8.99*' } | ForEach-Object { [IO.File]::Delete($_.FullName) }
 
     $env:SUBSTUDIO_UPDATE_API = "http://127.0.0.1:$port/repos/BeniaBot/subtitle-studio/releases/latest"
+    # **בלי לחיצות מדומות:** הן נבלעו כשמישהו הזיז את העכבר האמיתי (8.10). מול השרת המדומה התוכנה ״לוחצת״ לבד
+    # אחרי שנייה וחצי - ״לעדכן עכשיו״, ובתרחיש הביטול גם ״ביטול״ בחלון ההורדה (Updater.TestClick)
+    $env:SUBSTUDIO_TEST_CLICK = $(if ($cancel) { 'cancel' } else { 'update' })
     Remove-Item Env:\SUBSTUDIO_TEST -ErrorAction SilentlyContinue
     $p = Start-Process $appExe -PassThru
     Log ("old 0.8.98 started pid=" + $p.Id)
@@ -144,20 +155,19 @@ function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$ex
         # כל מנוע בתיקייה משלו: runtime\<זהות>\ffmpeg.exe
         $engine = Get-ChildItem (Join-Path $appDir 'runtime') -Recurse -Filter ffmpeg.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
         $engineTime = if ($engine -and (Test-Path $engine)) { (Get-Item $engine).LastWriteTimeUtc } else { $null }
-        Start-Sleep -Milliseconds 600
+        Start-Sleep -Milliseconds 300
         Shot $hit[0] (Join-Path $shots "$label-1-offer.png")
-        ClickBtn $hit[0] $hit[1]
-        Log "clicked 'update now'"
+        $w = [Diagnostics.Stopwatch]::StartNew()
+        while ($w.Elapsed.TotalSeconds -lt 10 -and (FindBtn $p.Id 'לעדכן עכשיו')) { Start-Sleep -Milliseconds 150 }
+        Log "the offer was accepted"
 
         if ($cancel) {
             $c = $null; $sw = [Diagnostics.Stopwatch]::StartNew()
             while ($sw.Elapsed.TotalSeconds -lt 20 -and -not $c) { Start-Sleep -Milliseconds 200; $c = FindBtn $p.Id 'ביטול' }
             if (-not $c) { Fail "$label : no download window with 'cancel'"; return }
-            Start-Sleep -Milliseconds 1200
+            Start-Sleep -Milliseconds 300
             Shot $c[0] (Join-Path $shots "$label-2-downloading.png")
-            ClickBtn $c[0] $c[1]
-            Log "clicked 'cancel'"
-            Start-Sleep -Seconds 3
+            Start-Sleep -Seconds 4
             $p.Refresh()
             $leftovers = @(Get-ChildItem $env:TEMP -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Subtext-0.8.99*' -or $_.Name -like 'Subtext-app-0.8.99*' })
             if ($p.HasExited) { Fail "$label : the program closed after cancel" }
@@ -189,13 +199,15 @@ function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$ex
             foreach ($h in [SW]::Tops([uint32]$np.ProcessId)) { Shot $h (Join-Path $shots "$label-3-after.png"); break }
         }
         $reqs = @(Get-Content $logFile -ErrorAction SilentlyContinue)
-        $gotGz = @($reqs | Where-Object { $_ -like '*Subtext-app-update.gz' }).Count -gt 0
+        $gotGz = @($reqs | Where-Object { $_ -like '*/Subtext-app-update*.gz' }).Count -gt 0
         $gotFull = @($reqs | Where-Object { $_ -like '*/Subtext.exe' }).Count -gt 0
         Log ("server: " + ($reqs -join ' | '))
-        if ($expectSlim) {
+        if ($expect -eq 'slim') {
             if (-not $gotGz -or $gotFull) { Fail "$label : expected only the small file (gz=$gotGz full=$gotFull)" }
             $engineNow = if ($engine -and (Test-Path $engine)) { (Get-Item $engine).LastWriteTimeUtc } else { $null }
             if ($engineTime -ne $null -and $engineNow -ne $engineTime) { Fail "$label : the engine was deployed again" } else { Log "engine kept (not deployed again)" }
+        } elseif ($expect -eq 'full') {
+            if ($gotGz -or -not $gotFull) { Fail "$label : expected only the full file (gz=$gotGz full=$gotFull)" }
         } else {
             if (-not $gotGz -or -not $gotFull) { Fail "$label : expected the small try and then the full file (gz=$gotGz full=$gotFull)" }
         }
@@ -206,6 +218,7 @@ function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$ex
         Start-Sleep -Milliseconds 300
         if (-not $srv.HasExited) { Stop-Process -Id $srv.Id -Force -ErrorAction SilentlyContinue }
         Remove-Item Env:\SUBSTUDIO_UPDATE_API -ErrorAction SilentlyContinue
+        Remove-Item Env:\SUBSTUDIO_TEST_CLICK -ErrorAction SilentlyContinue
     }
 }
 
@@ -218,9 +231,10 @@ try {
         $lines = @(Get-Content $ini -Encoding UTF8 | Where-Object { $_ -notmatch '^autoupdate=' }) + 'autoupdate=1'
         [IO.File]::WriteAllLines($ini, $lines, (New-Object Text.UTF8Encoding $false))
     }
-    Scenario 'A-slim' $old $new 120 $false $true
-    Scenario 'B-engine-changed' $old $newB 0 $false $false
-    Scenario 'C-cancel' $old $new 20 $true $false
+    Scenario 'A-slim' $old $new 120 $false 'slim'
+    Scenario 'B-engine-changed' $old $newB 0 $false 'full'
+    Scenario 'C-cancel' $old $new 20 $true ''
+    Scenario 'D-fallback' $old $newB 0 $false 'fallback' 'Subtext-app-update.gz'
 } finally {
     if (Test-Path $iniBak) { Copy-Item $iniBak $ini -Force }
 }

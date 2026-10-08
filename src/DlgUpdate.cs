@@ -66,6 +66,16 @@ namespace SubtitleStudio
 
             Btn ok = Buttons(Lang.T("לעדכן עכשיו"), Ico.Download, Lang.T("אחר כך"));
 
+            // בדיקת הקצה-לקצה (test-slim-update): ״לעדכן עכשיו״ לבד אחרי שנייה וחצי. לחיצה מדומה נבלעת כשמישהו
+            // מזיז את העכבר האמיתי. רק מול השרת המדומה על המחשב הזה (Updater.LocalApi) - בשום מצב אחר.
+            if (Updater.TestClick == "update" || Updater.TestClick == "cancel")
+            {
+                Timer auto = new Timer();
+                auto.Interval = 1500;
+                auto.Tick += delegate { auto.Stop(); auto.Dispose(); Ok = true; Close(); };
+                Shown += delegate { auto.Start(); };
+            }
+
             // ״היומן המלא״ מופיע רק כשבאמת קוצר משהו. כפתור שמבטיח ״עוד״
             // ומוביל לאותו תוכן בדיוק הוא הבטחה ריקה.
             if (sum != null && Shortened(sum))
