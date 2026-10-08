@@ -29,15 +29,34 @@ namespace SubtitleStudio
         /// בהגדלה לא נבדל (נבדק על סרטון אמיתי; דמיון למקור 0.993 מול 0.996).</summary>
         internal static string RateCap(MediaInfo mi, int quality)
         {
+            double k = quality == 0 ? 1.5 : (quality == 1 ? 1.0 : 0.7);
+            double bpp = quality == 0 ? 0.05 : (quality == 1 ? 0.035 : 0.025);
+            return CapFor(mi, k, bpp, 0);
+        }
+
+        /// <summary>תקרת קצב: פי <paramref name="k"/> מקצב התמונה במקור, וריצפה של <paramref name="bpp"/> ביטים לפיקסל.
+        /// ‏<paramref name="outShort"/>: הצלע הקצרה של התמונה שיוצאת (0 = כמו המקור) - בהקטנה התקרה יורדת עם מספר
+        /// הפיקסלים. ריק = אין מספיק מידע על המקור, ואז בלי תקרה.</summary>
+        internal static string CapFor(MediaInfo mi, double k, double bpp, int outShort)
+        {
             if (mi == null || mi.Width <= 0 || mi.Height <= 0) return "";
             long src = SourceVideoBitrate(mi);
             if (src <= 0) return "";
-            double k = quality == 0 ? 1.5 : (quality == 1 ? 1.0 : 0.7);
-            double bpp = quality == 0 ? 0.05 : (quality == 1 ? 0.035 : 0.025);
+            int s = ShortSide(mi);
+            double r = outShort > 0 && s > outShort ? outShort / (double)s : 1.0;
             double fps = mi.Fps > 1 && mi.Fps <= 120 ? mi.Fps : 25;
-            double cap = Math.Max(src * k, mi.Width * (double)mi.Height * fps * bpp);
+            double cap = Math.Max(src * k * r * r, mi.Width * (double)mi.Height * r * r * fps * bpp);
             long kb = (long)Math.Ceiling(cap / 1000);
             return "-maxrate " + kb + "k -bufsize " + (kb * 2) + "k";
+        }
+
+        /// <summary>״איכות מקסימלית״ לכלי הווידאו ולחיתוך המדויק: crf 16, **אבל לא יותר מפי 1.5 מהמקור** - כמו בצריבה.
+        /// עד 0.8.8 בלי תקרה, וסרטון רגיל מהרשת יצא פי 2-2.6 מהמקור (נמדד 8.10: 94 שניות, 9.4 מגה - 24.3, דמיון למקור
+        /// 0.996; עם התקרה 12.8 מגה, 0.993. על AVI ישן בקצב גבוה התקרה לא משנה כלום).</summary>
+        internal static string MaxVideoFor(MediaInfo mi, int outShort)
+        {
+            string cap = CapFor(mi, 1.5, 0.05, outShort);
+            return cap.Length > 0 ? Q.MaxVideo + " " + cap : Q.MaxVideo;
         }
 
         /// <summary>קצב התמונה במקור. מ-ffmpeg אם הוא מדווח (MP4), ואחרת מגודל הקובץ

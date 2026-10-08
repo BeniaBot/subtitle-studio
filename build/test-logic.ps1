@@ -789,5 +789,34 @@ Eq 'MKV בלי קצב לערוץ: לפי גודל הקובץ' ($rc.Invoke($null,
 $none = NewMi 1920 1080 30 0 0 100
 Eq 'אין מידע על המקור: בלי תקרה' ($rc.Invoke($null, @($none, 0))) ''
 
+# ---- תקרות בכלי הווידאו (8.10): ״איכות מקסימלית״ ניפחה סרטון מהרשת פי 2.6, ו״דחיסה״ הגדילה אותו ----
+Write-Host 'תקרות בכלי הווידאו'
+$cf = $burnT.GetMethod('CapFor', [Reflection.BindingFlags]'NonPublic,Public,Static')
+$mvf = $burnT.GetMethod('MaxVideoFor', [Reflection.BindingFlags]'NonPublic,Public,Static')
+$maxV = [string]((& $T 'Q').GetField('MaxVideo').GetValue($null))
+Eq 'דחיסה של הסרטון האמיתי: 0.7 מהמקור (687k) - מתחת למקור' ($cf.Invoke($null, @($real, [double]0.7, [double]0.015, [int]0))) '-maxrate 481k -bufsize 962k'
+Eq 'וואטסאפ מ-1080p: 0.8 מהמקור, כפול יחס הפיקסלים של 720p' ($cf.Invoke($null, @($hd, [double]0.8, [double]0.015, [int]720))) '-maxrate 4267k -bufsize 8534k'
+Eq 'כלי וידאו, איכות מקסימלית: crf 16 עם התקרה של הצריבה' ($mvf.Invoke($null, @($real, [int]0))) ($maxV + ' -maxrate 1105k -bufsize 2210k')
+Eq 'כלי וידאו בלי מידע על המקור: כמו קודם, בלי תקרה' ($mvf.Invoke($null, @($none, [int]0))) $maxV
+
+# ״הפעלה״ כבויה כשאין בה טעם (MediaTool.Block)
+$tools = $mtT.GetMethod('All', [Reflection.BindingFlags]'NonPublic,Public,Static').Invoke($null, @())
+$resTool = $null; $fitTool = $null
+# ‏$tl ולא $t: משתנים לא רגישים לרישיות, ו-$t היה דורס את $T שמחפש טיפוסים
+foreach ($tl in $tools) { if ($tl.Name -eq 'שינוי רזולוציה') { $resTool = $tl }; if ($tl.Name -eq 'התאמה לגודל קובץ מבוקש') { $fitTool = $tl } }
+function BlockOf($tool, $mi, $opt, $val) {
+    $c = [Activator]::CreateInstance($ctxT); $c.Mi = $mi; $c.Opt = $opt; $c.Val = [double]$val
+    return $tool.Block.Invoke($c)
+}
+$b720 = BlockOf $resTool $real 1 0; $b480 = BlockOf $resTool $real 2 0
+Check 'רזולוציה: 720p על סרטון של 720p - חסום ואומר למה; 480p - מותר' ($b720 -match '720' -and $b480 -eq $null) ("720=" + $b720 + " 480=" + $b480)
+$b1080 = BlockOf $resTool $hd 0 0; $b720h = BlockOf $resTool $hd 1 0
+Check 'רזולוציה: 1080p על 1080p חסום; 720p מותר' ($b1080 -ne $null -and $b720h -eq $null) ("1080=" + $b1080)
+$small = NewMi 1280 720 25 687 (9 * 1MB) 94.32; $small.HasVideo = $true; $small.HasAudio = $true
+Check 'גודל: יעד גדול מהקובץ - חסום (עד 0.8.8 יצא קובץ באותו גודל ב-480p)' ((BlockOf $fitTool $small 0 200) -ne $null -and (BlockOf $fitTool $small 0 5) -eq $null) (BlockOf $fitTool $small 0 200)
+# המעטפת של MP4 לפי האורך: 94 שניות, יעד 2.5 מגה - עד 0.8.8 יצא 2.54 (נמדד). 2.5×0.97 מגה פחות 1.5KB לשנייה = 140k לתמונה
+$p5 = Plan 94.32 720 9 2.5
+Check 'גודל: יעד קטן - המעטפת לפי האורך יורדת מהתכנון' ((F $p5 'VideoKbps') -eq 140 -and (F $p5 'AudioKbps') -eq 64) ("video=" + (F $p5 'VideoKbps') + " audio=" + (F $p5 'AudioKbps'))
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }

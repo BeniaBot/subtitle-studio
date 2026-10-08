@@ -349,7 +349,7 @@ namespace SubtitleStudio
             StringBuilder sb = new StringBuilder();
             sb.Append("-i ").Append(src).Append(" -filter_complex \"").Append(f).Append("\" -map \"[v]\" ");
             if (audio) sb.Append("-map \"[a]\" ");
-            sb.Append(Q.MaxVideo).Append(" ");
+            sb.Append(Burn.MaxVideoFor(mi, 0)).Append(" ");
             if (audio) sb.Append(Q.MaxAudio).Append(" ");
             if (Path.GetExtension(outPath).ToLowerInvariant() == ".mp4") sb.Append("-movflags +faststart ");
             sb.Append("-map_chapters -1 ").Append(Ff.Q(outPath));

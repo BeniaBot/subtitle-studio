@@ -58,6 +58,10 @@ namespace SubtitleStudio
         public string[] StepNames;
         /// <summary>שורת הסבר שמתעדכנת לפי הבחירה של המשתמש.</summary>
         public Func<ToolCtx, string> Hint;
+        /// <summary>למה אין טעם להפעיל עם הבחירה הזאת (null = אפשר). ״הפעלה״ כבויה, וההסבר במקום שורת ההסבר.
+        /// עד 0.8.8 ״התאמה לגודל״ אמרה ״הקובץ כבר קטן מהגודל הזה״ - והכפתור הפיק קובץ באותו גודל, ב-480p במקום
+        /// 720p; ו״שינוי רזולוציה״ ל-720p על סרטון של 720p קודד אותו מחדש לקובץ כבד פי 2.6 (נמדד 8.10).</summary>
+        public Func<ToolCtx, string> Block;
     }
 
     /// <summary>תוצאת החישוב של "כמה איכות נכנסת בגודל הזה".</summary>
@@ -88,6 +92,9 @@ namespace SubtitleStudio
 
     internal static class MediaTools
     {
+        /// <summary>הגובה (הצלע הקצרה) של כל אפשרות ב״שינוי רזולוציה״.</summary>
+        internal static int ResHeight(int opt) { return opt == 0 ? 1080 : opt == 1 ? 720 : opt == 2 ? 480 : 360; }
+
         /// <summary>מחשב ביט-רייט ורזולוציה שייתנו את האיכות הטובה ביותר בגודל המבוקש.</summary>
         public static FitInfo FitPlan(ToolCtx c)
         {
@@ -101,7 +108,9 @@ namespace SubtitleStudio
             f.SourceMb = c.Mi != null ? c.Mi.SizeBytes / 1024.0 / 1024.0 : 0;
             f.AlreadySmall = f.SourceMb > 0 && f.SourceMb <= f.TargetMb * 0.98;
             f.AudioKbps = c.Mi != null && c.Mi.HasAudio ? 128 : 0;
-            double usableBytes = f.TargetMb * 1024.0 * 1024.0 * 0.97;      // מרווח ביטחון למעטפת
+            // מרווח ביטחון, **ועוד המעטפת לפי האורך**: האינדקס של MP4 גדל עם מספר הפריימים, לא עם הקצב. נמדד 8.10 על
+            // 94 שניות: כ-117KB מעל התכנון בכל יעד (6, 4 ו-2.5 מגה), וביעד של 2.5 הקובץ יצא גדול מהיעד ב-1.6%
+            double usableBytes = f.TargetMb * 1024.0 * 1024.0 * 0.97 - f.DurationSec * 1500;
             double totalKbps = usableBytes * 8.0 / f.DurationSec / 1000.0;
             double videoKbps = totalKbps - f.AudioKbps;
 
@@ -256,7 +265,7 @@ namespace SubtitleStudio
                 if (c.Mi != null && !c.Mi.HasVideo)
                     return "-i " + Ff.Q(c.In) + " " + (CoverArgs(c).Length > 0 ? CoverArgs(c) : "-vn ") + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
                 if (c.Opt == 0)
-                    return "-i " + Ff.Q(c.In) + " " + Q.MaxVideo + " " + Q.MaxAudio + " -movflags +faststart " + Ff.Q(c.Out);
+                    return "-i " + Ff.Q(c.In) + " " + Burn.MaxVideoFor(c.Mi, 0) + " " + Q.MaxAudio + " -movflags +faststart " + Ff.Q(c.Out);
                 return "-i " + Ff.Q(c.In) + " -c copy " + (Path.GetExtension(c.Out).ToLowerInvariant() == ".mp4" ? "-movflags +faststart " : "") + Ff.Q(c.Out);
             };
             t.Add(conv);
@@ -272,11 +281,18 @@ namespace SubtitleStudio
             res.ParamLabel = Lang.T("גובה התמונה");
             res.NeedsVideo = true;
             res.OutSuffix = Lang.T(" - מוקטן");
+            res.Block = delegate (ToolCtx c)
+            {
+                int s = Burn.ShortSide(c.Mi);
+                return s > 0 && s <= ResHeight(c.Opt)
+                    ? Lang.F("התמונה כבר {0}p. כדי להקטין אותה - לבחור רזולוציה נמוכה יותר.", Theme.Ltr(s.ToString(CultureInfo.InvariantCulture)))
+                    : null;
+            };
             res.Build = delegate (ToolCtx c)
             {
-                int h = c.Opt == 0 ? 1080 : c.Opt == 1 ? 720 : c.Opt == 2 ? 480 : 360;
+                int h = ResHeight(c.Opt);
                 string sc = Burn.ScaleShort(c.Mi, h);
-                return "-i " + Ff.Q(c.In) + (sc.Length > 0 ? " -vf \"" + sc + "\"" : "") + " " + Q.MaxVideo + " " +
+                return "-i " + Ff.Q(c.In) + (sc.Length > 0 ? " -vf \"" + sc + "\"" : "") + " " + Burn.MaxVideoFor(c.Mi, h) + " " +
                        (c.Mi != null && c.Mi.HasAudio ? Q.MaxAudio + " " : "-an ") + Ff.Q(c.Out);
             };
             t.Add(res);
@@ -292,7 +308,11 @@ namespace SubtitleStudio
             comp.OutSuffix = Lang.T(" - דחוס");
             comp.Build = delegate (ToolCtx c)
             {
+                // **לא יותר מ-0.7 מהמקור.** עד 0.8.8 רק crf, ו״הקטנת נפח״ של סרטון רגיל מהרשת יצאה **גדולה** ממנו
+                // (נמדד 8.10: פי 1.21-1.24; עם התקרה פי 0.74-0.75, דמיון למקור 0.986-0.991)
+                string cap = Burn.CapFor(c.Mi, 0.7, 0.015, 0);
                 return "-i " + Ff.Q(c.In) + " -c:v libx264 -crf " + ((int)c.Val) + " -preset medium -pix_fmt yuv420p " +
+                       (cap.Length > 0 ? cap + " " : "") +
                        (c.Mi != null && c.Mi.HasAudio ? "-c:a aac -b:a 128k " : "-an ") + Ff.Q(c.Out);
             };
             t.Add(comp);
@@ -312,9 +332,9 @@ namespace SubtitleStudio
                 string pts = (1.0 / v).ToString("0.####", CultureInfo.InvariantCulture);
                 if (c.Mi != null && c.Mi.HasVideo && c.Mi.HasAudio)
                     return "-i " + Ff.Q(c.In) + " -filter_complex \"[0:v]setpts=" + pts + "*PTS[v];[0:a]atempo=" + vs +
-                           "[a]\" -map \"[v]\" -map \"[a]\" " + Q.MaxVideo + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
+                           "[a]\" -map \"[v]\" -map \"[a]\" " + Burn.MaxVideoFor(c.Mi, 0) + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
                 if (c.Mi != null && c.Mi.HasVideo)
-                    return "-i " + Ff.Q(c.In) + " -vf \"setpts=" + pts + "*PTS\" -an " + Q.MaxVideo + " " + Ff.Q(c.Out);
+                    return "-i " + Ff.Q(c.In) + " -vf \"setpts=" + pts + "*PTS\" -an " + Burn.MaxVideoFor(c.Mi, 0) + " " + Ff.Q(c.Out);
                 return "-i " + Ff.Q(c.In) + " -filter:a atempo=" + vs + " " + CoverArgs(c) + Ff.Q(c.Out);
             };
             t.Add(speed);
@@ -332,7 +352,7 @@ namespace SubtitleStudio
             rot.Build = delegate (ToolCtx c)
             {
                 string f = c.Opt == 0 ? "transpose=1" : c.Opt == 1 ? "transpose=2" : c.Opt == 2 ? "transpose=1,transpose=1" : "hflip";
-                return "-i " + Ff.Q(c.In) + " -vf \"" + f + "\" " + Q.MaxVideo + " " +
+                return "-i " + Ff.Q(c.In) + " -vf \"" + f + "\" " + Burn.MaxVideoFor(c.Mi, 0) + " " +
                        Burn.AudioArgs(c.Mi, c.Out) + " " + Ff.Q(c.Out);
             };
             t.Add(rot);
@@ -371,7 +391,7 @@ namespace SubtitleStudio
                 string af = c.Mi != null && c.Mi.HasAudio
                     ? " -af \"afade=t=in:st=0:d=" + ds + ",afade=t=out:st=" + os + ":d=" + ds + "\" " + Q.MaxAudio
                     : " -an";
-                return "-i " + Ff.Q(c.In) + " -vf \"" + vf + "\" " + Q.MaxVideo +
+                return "-i " + Ff.Q(c.In) + " -vf \"" + vf + "\" " + Burn.MaxVideoFor(c.Mi, 0) +
                        af + " " + Ff.Q(c.Out);
             };
             t.Add(fade);
@@ -389,8 +409,11 @@ namespace SubtitleStudio
                 // 720 על הצלע הקצרה. עד 0.8.1 הרוחב הוגבל ל-1280, וסרטון עומד של 1080×1920
                 // נשאר בגודלו - ״מקטין ל-720p״ לא הקטין כלום
                 string sc = Burn.ScaleShort(c.Mi, 720);
+                // לא יותר מ-0.8 מהמקור (אחרי ההקטנה): עד 0.8.8 סרטון של 720p מהרשת יצא גדול מהמקור (נמדד 8.10)
+                string cap = Burn.CapFor(c.Mi, 0.8, 0.015, 720);
                 return "-i " + Ff.Q(c.In) + (sc.Length > 0 ? " -vf \"" + sc + "\"" : "") +
                        " -c:v libx264 -profile:v main -level 4.0 -crf 24 -preset medium -pix_fmt yuv420p " +
+                       (cap.Length > 0 ? cap + " " : "") +
                        (c.Mi != null && c.Mi.HasAudio ? "-c:a aac -b:a 128k -ac 2 " : "-an ") +
                        "-movflags +faststart " + Ff.Q(c.Out);
             };
@@ -473,7 +496,7 @@ namespace SubtitleStudio
                 else g.Append("[v0][v1]concat=n=2:v=1:a=0[v]");
                 string maps = audio ? "-map \"[v]\" -map \"[a]\" " : "-map \"[v]\" ";
                 return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) +
-                       " -filter_complex \"" + g.ToString() + "\" " + maps + Q.MaxVideo + " " +
+                       " -filter_complex \"" + g.ToString() + "\" " + maps + Burn.MaxVideoFor(c.Mi, 0) + " " +
                        (audio ? Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(join);
@@ -532,11 +555,11 @@ namespace SubtitleStudio
                 }
                 if (c.Opt == 1 || !hasA)
                 {
-                    return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse " + Q.MaxVideo + " " +
+                    return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse " + Burn.MaxVideoFor(c.Mi, 0) + " " +
                            (hasA ? Q.MaxAudio + " " : "-an ") + Ff.Q(c.Out);
                 }
                 return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse -af areverse " +
-                       Q.MaxVideo + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
+                       Burn.MaxVideoFor(c.Mi, 0) + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
             };
             t.Add(reverse);
 
@@ -552,6 +575,7 @@ namespace SubtitleStudio
             fit.OutSuffix = Lang.T(" - מוקטן");
             fit.StepNames = new string[] { Lang.T("מעבר ראשון - ניתוח"), Lang.T("מעבר שני - קידוד") };
             fit.Hint = delegate (ToolCtx c) { return FitPlan(c).Describe(); };
+            fit.Block = delegate (ToolCtx c) { FitInfo f = FitPlan(c); return f.AlreadySmall ? f.Describe() : null; };
             fit.BuildSteps = delegate (ToolCtx c)
             {
                 FitInfo f = FitPlan(c);
@@ -586,7 +610,10 @@ namespace SubtitleStudio
                        // בתוך ריבוע של 640, בלי להגדיל: עד 0.8.1 הרוחב היה 640 תמיד, וסרטון עומד
                        // יצא GIF של 640×1403 ושל 37 מגה לשש שניות
                        "-filter_complex \"" + cut + "fps=15,scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease:flags=lanczos,split[s0][s1];" +
-                       "[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=sierra2_4a\" -loop 0 " + Ff.Q(c.Out);
+                       // פלטה ממה שזז, דיתור בתבנית קבועה, ועדכון רק של מה שהשתנה בין פריימים. עד 0.8.8 sierra2_4a: ״רעש״
+                       // על כל הפריים, ש-GIF דוחס רע. נמדד 8.10 על חמישה סרטונים אמיתיים (טלפון, רחפן, מצלמה, רשת): קטן ב-8-25%,
+                       // וגם קרוב יותר למקור בכולם; בעין - שמיים ופנים חלקים במקום מגורענים
+                       "[s0]palettegen=max_colors=256:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle\" -loop 0 " + Ff.Q(c.Out);
             };
             t.Add(gif);
 
@@ -700,6 +727,7 @@ namespace SubtitleStudio
         private Lbl _hintLbl;
         private Field _fileField;
         private Field _out;
+        private Btn _ok;
 
         public ToolRunDlg(MainForm main, MediaTool tool, MediaInfo mi, long a, long b, long pos)
             : base(tool.Name, tool.Icon, 540)
@@ -722,7 +750,7 @@ namespace SubtitleStudio
                 _slider = new Slider();
                 _slider.Min = tool.Min; _slider.Max = tool.Max; _slider.Value = tool.Def;
                 _slider.Step = tool.Step; _slider.Suffix = tool.Suffix;
-                if (tool.Hint != null) _slider.ValueChanged += delegate { UpdateHint(); };
+                if (tool.Hint != null || tool.Block != null) _slider.ValueChanged += delegate { UpdateHint(); };
                 Row(_slider, 30, 14);
             }
             else if (tool.ParamKind == 2)
@@ -730,8 +758,8 @@ namespace SubtitleStudio
                 Section(tool.ParamLabel);
                 _combo = new Combo();
                 _combo.Items.AddRange(tool.OptionsFor != null ? tool.OptionsFor(mi) : tool.Options);
-                _combo.SelectedIndex = tool.DefOption;
-                _combo.SelectedIndexChanged += delegate { UpdateOut(); };
+                _combo.SelectedIndex = FirstUsable(tool.DefOption);
+                _combo.SelectedIndexChanged += delegate { UpdateOut(); UpdateHint(); };
                 Row(_combo, 32, 14);
             }
             else if (tool.ParamKind == 3)
@@ -740,17 +768,33 @@ namespace SubtitleStudio
                 _fileField = FilePicker(Lang.T("בחרו קובץ"), "", tool.FileFilter, false);
             }
 
-            if (tool.Hint != null)
+            if (tool.Hint != null || tool.Block != null)
             {
                 _hintLbl = Hint("");
                 Row(_hintLbl, 38, 10);
             }
 
             Section(Lang.T("קובץ היעד"));
-            _out = FilePicker(Lang.T("נתיב קובץ היעד"), Suggest(tool.DefOption), Lang.T("כל הקבצים|*.*"), true);
+            _out = FilePicker(Lang.T("נתיב קובץ היעד"), Suggest(_combo != null ? _combo.SelectedIndex : tool.DefOption), Lang.T("כל הקבצים|*.*"), true);
 
-            Buttons(Lang.T("הפעלה"), Ico.Play, Lang.T("ביטול"));
+            _ok = Buttons(Lang.T("הפעלה"), Ico.Play, Lang.T("ביטול"));
             UpdateHint();
+        }
+
+        /// <summary>האפשרות הראשונה שאפשר להפעיל, החל מברירת המחדל: על סרטון של 720p ״שינוי רזולוציה״ נפתח על 480p,
+        /// ולא על 720p שאין בו טעם. אם אין כזו - ברירת המחדל, וההסבר אומר למה.</summary>
+        private int FirstUsable(int def)
+        {
+            if (_tool.Block == null || _combo == null || _combo.Items.Count == 0) return def;
+            int n = _combo.Items.Count;
+            for (int k = 0; k < n; k++)
+            {
+                int i = (def + k) % n;
+                ToolCtx c = Ctx();
+                c.Opt = i;
+                if (_tool.Block(c) == null) return i;
+            }
+            return def;
         }
 
         private ToolCtx Ctx()
@@ -771,10 +815,17 @@ namespace SubtitleStudio
 
         private void UpdateHint()
         {
-            if (_hintLbl == null || _tool.Hint == null) return;
-            _hintLbl.Text = _tool.Hint(Ctx());
+            if (_hintLbl == null) return;
+            ToolCtx c = Ctx();
+            string block = _tool.Block != null ? _tool.Block(c) : null;
+            _hintLbl.Text = block ?? (_tool.Hint != null ? _tool.Hint(c) : "");
+            _hintLbl.Color = block != null ? Theme.Warn : Theme.TextFaint;
             _hintLbl.Invalidate();
+            if (_ok != null) _ok.Enabled = block == null;
         }
+
+        /// <summary>למה אי אפשר להפעיל עכשיו, או null.</summary>
+        internal string Blocked { get { return _tool.Block != null ? _tool.Block(Ctx()) : null; } }
 
         private string Ext(int opt)
         {
@@ -817,6 +868,7 @@ namespace SubtitleStudio
 
         protected override bool OnOk()
         {
+            if (Blocked != null) return false;
             string outPath = FinalPath(_out.Text.Trim());
             if (outPath.Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור.")); return false; }
             if (_tool.ParamKind == 3 && (_fileField == null || _fileField.Text.Trim().Length == 0))

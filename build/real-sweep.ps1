@@ -6,10 +6,10 @@
 # **בחלונות עצמם** (ExportVideoDlg/ToolRunDlg.BuildJob, ובחיתוך CutPlan כמו שהחלון בונה), כך שנבדקת הפקודה
 # שהתוכנה באמת מריצה - ושום חלון לא נפתח מול המשתמש.
 #
-#   real-sweep.ps1 -List files.txt [-Tools] [-Out dir]
+#   real-sweep.ps1 -List files.txt [-Tools] [-Out dir] [-Ffmpeg path]
 # ‏-Tools מריץ גם את כל כלי המדיה על כל קובץ (איטי). הפלט: שורה לכל בדיקה,
 # ‏OK או BAD עם הסבר, וקבצים ב-D:\Claude\_ss-sweep (ליד המאגר, לא ב-C: סבב אחד הגיע ל-9GB). מקור לא נכתב לעולם.
-param([Parameter(Mandatory = $true)][string]$List, [switch]$Tools, [string]$Out = '')
+param([Parameter(Mandatory = $true)][string]$List, [switch]$Tools, [string]$Out = '', [string]$Ffmpeg = '')
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -28,6 +28,8 @@ function CutSecs($spec) {
 }
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]1.25)
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
+# ‏-Ffmpeg: מנוע אחר מזה שבתוכנה - כדי להשוות מנוע ישן לחדש על אותם קבצים, באותה בנייה (8.10: ‏9.0.1 מול 9.0.2)
+if ($Ffmpeg) { (TY 'Ff').GetField('_exe', $ST).SetValue($null, $Ffmpeg); Write-Host ('engine: ' + $Ffmpeg) }
 $ffexe = (TY 'Ff').GetProperty('Exe', $ST).GetValue($null, $null)
 if (-not $Out) { $Out = Join-Path (Split-Path $root -Parent) '_ss-sweep' }
 New-Item -ItemType Directory -Force $Out | Out-Null
@@ -210,6 +212,16 @@ foreach ($f in $files) {
                 if (-not $other) { $dlg.Dispose(); continue }
                 $ff.Text = $other
             }
+            # ״התאמה לגודל״: יעד של חצי מהמקור (בצעדים של 5 מגה, לא פחות מ-5) - כדי שהכלי באמת יעבוד, ונבדוק שנכנס
+            $slider0 = $dlg.GetType().GetField('_slider', $IN).GetValue($dlg)
+            $srcMb = (Get-Item $f).Length / 1MB
+            if ($tn -match 'גודל קובץ' -and $slider0) { $slider0.Value = [Math]::Max(5, [Math]::Floor($srcMb * 0.5 / 5) * 5) }
+            # ״הפעלה״ כבויה (MediaTool.Block, 8.10): מותר רק כשבאמת אין מה לעשות - קובץ שכבר קטן מהיעד
+            $blocked = $dlg.GetType().GetProperty('Blocked', $IN).GetValue($dlg, $null)
+            if ($blocked) {
+                $okBlock = ($tn -match 'גודל קובץ' -and $srcMb -le $slider0.Value) -or ($tn -match 'שינוי רזולוציה' -and [Math]::Min($mi.Width, $mi.Height) -le 360)
+                Rep $name ('tool ' + $ti + ' ' + $tn) $okBlock ('blocked: ' + $blocked); $dlg.Dispose(); continue
+            }
             $sugg = $dlg.GetType().GetField('_out', $IN).GetValue($dlg).Text
             $o = Join-Path $Out ($tag + '-tool' + $ti + [IO.Path]::GetExtension($sugg))
             $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $o = $job.OutputPath
@@ -225,20 +237,31 @@ foreach ($f in $files) {
             $mo = Probe $o
             $vs = Streams $mo 'video'; $as = Streams $mo 'audio'
             $d2 = $mo.DurationSec
-            $note = ('{0:0}s  {1}  dur {2:0.00}  v{3} a{4}  {5}x{6}  {7:N0} KB  opt="{8}" val={9}' -f $sw.Elapsed.TotalSeconds, [IO.Path]::GetExtension($o), $d2, $vs.Count, $as.Count, $mo.Width, $mo.Height, ((Get-Item $o).Length / 1KB), $opt, $val)
+            $ratio = (Get-Item $o).Length / [double](Get-Item $f).Length
+            $note = ('{0:0}s  {1}  dur {2:0.00}  v{3} a{4}  {5}x{6}  {7:N0} KB  x{10:0.00}  opt="{8}" val={9}' -f $sw.Elapsed.TotalSeconds, [IO.Path]::GetExtension($o), $d2, $vs.Count, $as.Count, $mo.Width, $mo.Height, ((Get-Item $o).Length / 1KB), $opt, $val, $ratio)
             $good = $true
             $rangeSec = ($b - $a) / 1000.0
             if ($tool.UseRange -and $tn -notmatch 'תמונה') { if (-not (Near $d2 $rangeSec ([Math]::Max(0.8, $rangeSec * 0.1)))) { $good = $false; $note += '  !range' } }
             elseif ($tn -match 'מהירות') { if (-not (Near $d2 ($dur / [Math]::Max(0.1, $val)) ([Math]::Max(1.0, $dur * 0.03)))) { $good = $false; $note += '  !speed-duration' } }
             elseif ($tn -match 'חיבור') { if ($d2 -lt $dur + 1) { $good = $false; $note += '  !join-too-short' } }
-            elseif ($tn -match 'תמונה') { if ($mo.Width -le 0) { $good = $false; $note += '  !no-image' } }
+            elseif ($tn -match 'תמונה') {
+                # התמונה עצמה, לא Probe: ffmpeg -i על PNG לא מחזיר מידות שהתוכנה קוראת, וזה נרשם ״!no-image״ בכל סבב עד 8.10 -
+                # אזעקת שווא קבועה שמלמדת להתעלם מאדום
+                $iw = 0; try { $img = [Drawing.Image]::FromFile($o); $iw = $img.Width; $ih = $img.Height; $img.Dispose() } catch { }
+                if ($iw -ne $mi.Width) { $good = $false; $note += '  !no-image' } else { $note += ('  image ' + $iw + 'x' + $ih) }
+            }
             elseif (-not (Near $d2 $dur ([Math]::Max(1.0, $dur * 0.02)))) { $good = $false; $note += '  !duration' }
             if ($tn -match 'חילוץ הפסקול' -and ($vs.Count -gt 0 -or $as.Count -eq 0)) { $good = $false; $note += '  !audio-only' }
             if ($tn -match 'הסרת הקול' -and $as.Count -gt 0) { $good = $false; $note += '  !still-has-audio' }
             if ($tn -match 'סיבוב' -and $opt -match '90' -and $mo.Width -ne $mi.Height) { $good = $false; $note += '  !not-rotated' }
-            if ($tn -match 'שינוי רזולוציה') { $hWant = [int]([regex]::Match($opt, '\d{3,4}').Value); if ($hWant -gt 0 -and $mo.Height -ne $hWant -and $mo.Height -ne $mi.Height) { $good = $false; $note += '  !height' } }
-            if ($tn -match 'וואטסאפ|לשליחה' -and $mo.Height -gt 720) { $good = $false; $note += '  !over-720' }
-            if ($tn -match 'גודל קובץ' -and $val -gt 0 -and ((Get-Item $o).Length / 1MB) -gt $val * 1.05) { $good = $false; $note += '  !over-target' }
+            # ״שינוי רזולוציה״ מקטין באמת (8.10: על 720p החלון נפתח על 480p, ולא מקודד 720p לקובץ כבד פי 2.6)
+            if ($tn -match 'שינוי רזולוציה') { $hWant = [int]([regex]::Match($opt, '\d{3,4}').Value); if ([Math]::Min($mo.Width, $mo.Height) -ne $hWant -or [Math]::Min($mo.Width, $mo.Height) -ge [Math]::Min($mi.Width, $mi.Height)) { $good = $false; $note += '  !height' } }
+            if ($tn -match 'וואטסאפ|לשליחה' -and [Math]::Min($mo.Width, $mo.Height) -gt 720) { $good = $false; $note += '  !over-720' }
+            # לא גדול מהמקור: ״דחיסה״ תמיד, ״וואטסאפ״ כשהמקור לא גדול מ-720p (עד 8.10 שניהם יצאו גדולים מסרטון רגיל מהרשת)
+            if ($tn -match 'דחיסה' -and $ratio -ge 1) { $good = $false; $note += '  !not-smaller' }
+            if ($tn -match 'וואטסאפ|לשליחה' -and [Math]::Min($mi.Width, $mi.Height) -le 720 -and $ratio -gt 1) { $good = $false; $note += '  !bigger' }
+            # ״שייכנס ל-X״ - בלי סובלנות: מי שצריך לעמוד במגבלה של מייל, 1% מעל זה כישלון
+            if ($tn -match 'גודל קובץ' -and $val -gt 0 -and ((Get-Item $o).Length / 1MB) -gt $val) { $good = $false; $note += '  !over-target' }
             if ($tn -match 'ערוץ שמע' -and $as.Count -ne 1) { $good = $false; $note += '  !tracks' }
             if ($vid -and -not ($tn -match 'חילוץ הפסקול|תמונה') -and $vs.Count -eq 0 -and $o -notmatch '\.(mp3|wav|m4a)$') { $good = $false; $note += '  !lost-video' }
             Rep $name $label $good $note
