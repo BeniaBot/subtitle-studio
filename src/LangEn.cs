@@ -653,6 +653,7 @@ namespace SubtitleStudio
             "שינוי רזולוציה", "Change resolution",
             "מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה", "Makes the picture smaller, at the best quality for that size",
             "גובה התמונה", "Picture height",
+            "התמונה כבר {0}p - קטנה מכל האפשרויות כאן.", "The picture is already {0}p - smaller than every option here.",
             "התמונה כבר {0}p. כדי להקטין אותה - לבחור רזולוציה נמוכה יותר.", "The picture is already {0}p. To make it smaller, pick a lower resolution.",
             " - מוקטן", " - smaller",
             "דחיסה - הקטנת נפח הקובץ", "Compress - make the file smaller",
@@ -910,9 +911,9 @@ namespace SubtitleStudio
             "הכתובית הוזזה ל-{0}.  לביטול - Ctrl+Z.", "The subtitle was moved to {0}.  To undo - Ctrl+Z.",
             "תצוגה מקדימה", "Preview",
             "לא נפתח סרט", "No video is open",
-            "ניגון / עצירה (מקש הרווח)", "Play / pause (space bar)",
         };
         private static readonly string[] P3 = new string[] {
+            "ניגון / עצירה (מקש הרווח)", "Play / pause (space bar)",
             "אחורה שתי שניות (חץ שמאלה, או Ctrl+חץ תוך כדי כתיבה)", "Back two seconds (left arrow, or Ctrl+arrow while typing)",
             "לכתובית הקודמת", "To the previous subtitle",
             "לכתובית הבאה (Tab)", "To the next subtitle (Tab)",
@@ -1212,9 +1213,9 @@ namespace SubtitleStudio
             "נוצרו {0} כתוביות בקטע {1}.", "{0} subtitles were created in the section {1}.",
             "בקטע המסומן על הציר אין כתוביות.", "There are no subtitles in the section marked on the timeline.",
             "על הציר מסומן הקטע {0}. {1}", "The section {0} is marked on the timeline. {1}",
-            "רק את הקטע", "Only the section",
         };
         private static readonly string[] P4 = new string[] {
+            "רק את הקטע", "Only the section",
             "את כל הכתוביות", "All the subtitles",
             "לתזמן רק את הקטע המסומן?", "Time only the marked section?",
             "אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן.", "You can re-time by the speech only the subtitles inside it, or all of them.",

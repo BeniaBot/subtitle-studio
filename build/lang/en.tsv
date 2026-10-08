@@ -677,6 +677,7 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 שינוי רזולוציה	Change resolution
 מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה	Makes the picture smaller, at the best quality for that size
 גובה התמונה	Picture height
+התמונה כבר {0}p - קטנה מכל האפשרויות כאן.	The picture is already {0}p - smaller than every option here.
 התמונה כבר {0}p. כדי להקטין אותה - לבחור רזולוציה נמוכה יותר.	The picture is already {0}p. To make it smaller, pick a lower resolution.
  - מוקטן	 - smaller
 דחיסה - הקטנת נפח הקובץ	Compress - make the file smaller

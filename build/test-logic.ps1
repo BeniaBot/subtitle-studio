@@ -812,6 +812,9 @@ $b720 = BlockOf $resTool $real 1 0; $b480 = BlockOf $resTool $real 2 0
 Check 'רזולוציה: 720p על סרטון של 720p - חסום ואומר למה; 480p - מותר' ($b720 -match '720' -and $b480 -eq $null) ("720=" + $b720 + " 480=" + $b480)
 $b1080 = BlockOf $resTool $hd 0 0; $b720h = BlockOf $resTool $hd 1 0
 Check 'רזולוציה: 1080p על 1080p חסום; 720p מותר' ($b1080 -ne $null -and $b720h -eq $null) ("1080=" + $b1080)
+$tiny360 = NewMi 640 360 25 400 0 60
+$bTiny = BlockOf $resTool $tiny360 3 0
+Check 'רזולוציה: 360p - קטנה מכל האפשרויות; לא ״לבחור נמוכה יותר״ שאין' ($bTiny -match 'קטנה מכל' -and $bTiny -notmatch 'לבחור') $bTiny
 $small = NewMi 1280 720 25 687 (9 * 1MB) 94.32; $small.HasVideo = $true; $small.HasAudio = $true
 Check 'גודל: יעד גדול מהקובץ - חסום (עד 0.8.8 יצא קובץ באותו גודל ב-480p)' ((BlockOf $fitTool $small 0 200) -ne $null -and (BlockOf $fitTool $small 0 5) -eq $null) (BlockOf $fitTool $small 0 200)
 # המעטפת של MP4 לפי האורך: 94 שניות, יעד 2.5 מגה - עד 0.8.8 יצא 2.54 (נמדד). 2.5×0.97 מגה פחות 1.5KB לשנייה = 140k לתמונה

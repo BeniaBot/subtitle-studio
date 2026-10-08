@@ -284,9 +284,12 @@ namespace SubtitleStudio
             res.Block = delegate (ToolCtx c)
             {
                 int s = Burn.ShortSide(c.Mi);
-                return s > 0 && s <= ResHeight(c.Opt)
-                    ? Lang.F("התמונה כבר {0}p. כדי להקטין אותה - לבחור רזולוציה נמוכה יותר.", Theme.Ltr(s.ToString(CultureInfo.InvariantCulture)))
-                    : null;
+                if (s <= 0 || s > ResHeight(c.Opt)) return null;
+                string p = Theme.Ltr(s.ToString(CultureInfo.InvariantCulture));
+                // קטנה מהאפשרות הנמוכה ביותר: ״לבחור נמוכה יותר״ היה שולח לפעולה שאין (נמצא בצילום, 8.10)
+                return s <= ResHeight(3)
+                    ? Lang.F("התמונה כבר {0}p - קטנה מכל האפשרויות כאן.", p)
+                    : Lang.F("התמונה כבר {0}p. כדי להקטין אותה - לבחור רזולוציה נמוכה יותר.", p);
             };
             res.Build = delegate (ToolCtx c)
             {
