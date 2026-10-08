@@ -215,7 +215,7 @@ if (-not (Test-Path $work)) { New-Item -ItemType Directory $work | Out-Null }
 
 function FfRun($ffArgs) {
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    & $ff -hide_banner -loglevel error -y @ffArgs 2>&1 | Out-Null
+    & $ff -hide_banner -nostdin -loglevel error -y @ffArgs 2>&1 | Out-Null
     $ErrorActionPreference = $old
 }
 

@@ -36,7 +36,7 @@ if (-not (Test-Path $audio)) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $expr = '0.25*sin(2*PI*(180+40*sin(t))*t)*lt(mod(t\,3.7)\,3.0)*lt(mod(t\,11.3)\,10.4)+0.004*(random(0)-0.5)'
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    & $ff -hide_banner -loglevel error -y -f lavfi -i ("aevalsrc='" + $expr + "':s=8000:d=" + ($hours * 3600)) -c:a aac -b:a 32k $audio 2>&1 | Out-Null
+    & $ff -hide_banner -nostdin -loglevel error -y -f lavfi -i ("aevalsrc='" + $expr + "':s=8000:d=" + ($hours * 3600)) -c:a aac -b:a 32k $audio 2>&1 | Out-Null
     $ErrorActionPreference = $old
     Write-Host ("  (נוצרה הקלטה של $hours שעות ב-" + [int]$sw.Elapsed.TotalSeconds + " שניות)")
 }

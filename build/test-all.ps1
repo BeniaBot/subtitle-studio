@@ -32,11 +32,14 @@ foreach ($n in $names) {
     $log = Join-Path $env:TEMP ('ss-testall-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.txt')
     $job = Start-Job -ArgumentList $file, $lang, $log { param($f, $l, $log)
         $a = '-NoProfile -ExecutionPolicy Bypass -File "' + $f + '"' + $(if ($l) { ' -Lang ' + $l } else { '' })
-        $p = Start-Process powershell -ArgumentList $a -RedirectStandardOutput $log -RedirectStandardError ($log + '.err') -NoNewWindow -PassThru
+        # stdin from an empty file: otherwise the package (and an ffmpeg without -nostdin in it) inherits the
+        # job's own stdin - the pipe PowerShell talks to the job over - and ffmpeg sat reading it (8.10)
+        [IO.File]::WriteAllText($log + '.in', '')
+        $p = Start-Process powershell -ArgumentList $a -RedirectStandardInput ($log + '.in') -RedirectStandardOutput $log -RedirectStandardError ($log + '.err') -NoNewWindow -PassThru
         $p.WaitForExit()
         Get-CimInstance Win32_Process -Filter ("Name='ffmpeg.exe' AND ParentProcessId=" + $p.Id) | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         $o = ''
-        foreach ($x in $log, ($log + '.err')) {
+        foreach ($x in $log, ($log + '.err'), ($log + '.in')) {
             try { $fs = New-Object IO.FileStream($x, 'Open', 'Read', 'ReadWrite'); $sr = New-Object IO.StreamReader($fs); $o += $sr.ReadToEnd(); $sr.Dispose() } catch { }
             try { [IO.File]::Delete($x) } catch { }
         }
