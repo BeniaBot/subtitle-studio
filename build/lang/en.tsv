@@ -799,6 +799,7 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 היומן המלא	Full changelog
 ובנוסף	And also
 אין פרטים על השחרור הזה.	There are no details about this release.
+אפשר לעדכן עכשיו: הורדה של {0}, והתוכנה תיסגר ותיפתח מחדש לבד.	You can update now: a {0} download, and the program will close and reopen by itself.
 
 # ---- ErrorText.cs ----
 מנוע הווידאו לא הצליח לעבד את הקובץ. הפרטים המלאים ביומן.	The video engine couldn't process the file. The full details are in the log.
@@ -1343,6 +1344,9 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות	Setting up the video engine · only once, a few seconds
 נפרס ליד התוכנה (מצב נייד)	Set up next to the program (portable mode)
 נפרס אל תיקיית המשתמש	Set up in the user folder
+מנוע הווידאו שבתוך התוכנה פגום.	The video engine inside the program is damaged.
+אין מנוע וידאו בתוך התוכנה.	There is no video engine inside the program.
+קובץ התוכנה פגום. כדאי להוריד אותו שוב.	The program file is damaged. Please download it again.
 
 # ---- SceneCuts.cs ----
 מאתר מעברי סצנה	Finding scene changes
@@ -1460,6 +1464,10 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 דילגתם על {0} ({1} ← {2}) — הנה העיקר	You skipped {0} ({1} → {2}) — here's what matters
 גרסה אחת	one version
 גרסאות	versions
+רק התוכנה - מנוע הווידאו כבר אצלכם	Only the program - you already have the video engine
+אין מנוע בסוף הקובץ הנוכחי.	The current file has no engine at its end.
+הקובץ שנבנה לא זהה לגרסה שפורסמה.	The file that was put together is not the published version.
+מבטל...	Canceling...
 
 # ---- VideoPreview.cs ----
 גררו לכאן סרט	Drag a video here

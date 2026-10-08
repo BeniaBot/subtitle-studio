@@ -129,6 +129,7 @@ namespace SubtitleStudio
                 // נמחקה בבוקר, לפני שמישהו הספיק להציע לשחזר אותה.
                 CheckRecovery();
                 Ff.CleanTemp();
+                Install.Refresh();              // אחרי עדכון קטן: מספר הגרסה ב״אפליקציות מותקנות״
                 Updates.CheckSilent(this);
             };
             ClientSizeChanged += delegate { DoLayout(); };

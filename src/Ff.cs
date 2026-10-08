@@ -681,6 +681,7 @@ namespace SubtitleStudio
             {
                 "Subtext-Setup-*.exe",          // המתקין שירד בעדכון
                 "Subtext-*.exe",                // הקובץ הנייד שירד בעדכון
+                "Subtext-app-*.gz",             // העדכון הקטן (0.8.8), אם משהו נקטע באמצע
                 "SubtitleStudio-Setup-*.exe",   // ומה שנשאר מהשם הישן
                 "SubtitleStudio-*.exe",
                 "substudio-uninstall-*.exe",    // עותק ההסרה שמוחק את עצמו

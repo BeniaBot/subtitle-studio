@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -64,9 +65,32 @@ namespace SubtitleStudio
             /// <summary>טביעת SHA-256 שגיטהאב מפרסם לכל קובץ (‎"digest": "sha256:..."‎), או ריק.</summary>
             public string Sha256 = "";
             public string SetupSha256 = "";
+            /// <summary>העדכון הקטן (0.8.8): חלק התוכנה בלבד, דחוס. ריק = לשחרור הזה אין, ומורידים הכול.</summary>
+            public string AppUrl = "";
+            public long AppSize;
+            public string AppSha256 = "";
         }
 
-        private const string Api = "https://api.github.com/repos/" + App.Repo + "/releases/latest";
+        /// <summary>**השם לא נגמר ב-exe בכוונה:** גרסאות 0.8.7 ומטה לוקחות כקובץ הנייד את ה-exe הראשון שאינו
+        /// מתקין, וקובץ עדכון בשם כזה היה מחליף אצלן את התוכנה בחצי תוכנה.</summary>
+        internal const string AppAsset = "Subtext-app-update.gz";
+
+        private const string GitHubApi = "https://api.github.com/repos/" + App.Repo + "/releases/latest";
+
+        /// <summary>שרת מדומה לבדיקת קצה-לקצה של העדכון (build\test-slim-update.ps1): **רק כתובת על המחשב הזה** -
+        /// כל דבר אחר במשתנה הסביבה פשוט לא נחשב.</summary>
+        internal static string LocalApi
+        {
+            get
+            {
+                string v = Environment.GetEnvironmentVariable("SUBSTUDIO_UPDATE_API");
+                Uri u;
+                if (string.IsNullOrEmpty(v) || !Uri.TryCreate(v, UriKind.Absolute, out u) || !u.IsLoopback) return null;
+                return v;
+            }
+        }
+
+        private static string Api { get { return LocalApi ?? GitHubApi; } }
 
         /// <summary>מוריד את פרטי הגרסה האחרונה. מחזיר null אם אין רשת או אין שחרור.</summary>
         public static Release Check(out string error)
@@ -136,6 +160,12 @@ namespace SubtitleStudio
                     string name = Str(a, "name");
                     string url = Str(a, "browser_download_url");
                     if (name.Length == 0 || url.Length == 0) continue;
+                    if (string.Equals(name, AppAsset, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (r.AppUrl.Length == 0 && IsOurDownload(url))
+                        { r.AppUrl = url; r.AppSize = Num(a, "size"); r.AppSha256 = Digest(Str(a, "digest")); }
+                        continue;
+                    }
                     if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
                     if (!IsOurDownload(url)) continue;
                     long sz = Num(a, "size");
@@ -172,6 +202,13 @@ namespace SubtitleStudio
             try
             {
                 Uri u = new Uri(url);
+                // בבדיקת קצה-לקצה: הקבצים מאותו שרת מדומה על המחשב הזה, ותו לא
+                string local = LocalApi;
+                if (local != null)
+                {
+                    Uri l = new Uri(local);
+                    return u.IsLoopback && u.Port == l.Port && u.AbsolutePath.IndexOf("/releases/download/", StringComparison.OrdinalIgnoreCase) >= 0;
+                }
                 if (u.Scheme != Uri.UriSchemeHttps) return false;
                 if (!string.Equals(u.Host, "github.com", StringComparison.OrdinalIgnoreCase) &&
                     !u.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase)) return false;
@@ -203,7 +240,31 @@ namespace SubtitleStudio
             catch { return 0; }
         }
 
-        /// <summary>מוריד את הגרסה החדשה ומחליף את ה-EXE הנוכחי (התוכנה תיסגר ותיפתח מחדש).</summary>
+        /// <summary>הורדה אחת: כמה ירד, מתוך כמה, וביטול. ״ביטול״ בחלון קוטע גם את החיבור עצמו (Abort) - בלי זה
+        /// הקריאה הבאה הייתה מחכה עד דקה.</summary>
+        internal sealed class Transfer
+        {
+            public volatile bool Cancel;
+            public HttpWebRequest Req;
+            public long Total, Got;
+            /// <summary>מורידים רק את התוכנה - מנוע הווידאו כבר אצלנו (העדכון הקטן).</summary>
+            public volatile bool Slim;
+
+            public void Abort()
+            {
+                Cancel = true;
+                try { if (Req != null) Req.Abort(); }
+                catch { }
+            }
+        }
+
+        /// <summary>מוריד את הגרסה החדשה ומחליף את ה-EXE הנוכחי (התוכנה תיסגר ותיפתח מחדש).
+        ///
+        /// **קודם העדכון הקטן** (0.8.8): רק חלק התוכנה (כ-2 מגה במקום 37), והמנוע שכבר בסוף הקובץ שלנו מודבק אליו
+        /// (`FetchSlim`). התוצאה נבדקת מול הטביעה שגיטהאב מפרסם ל-Subtext.exe, ולכן היא זהה לו בדיוק או שהיא לא
+        /// בשימוש. כל דבר שלא מסתדר (אין קובץ קטן בשחרור, מנוע אחר, אין טביעה, תיקייה שאי אפשר לכתוב בה) - ההורדה
+        /// המלאה, כמו עד עכשיו. גם עותק מותקן מתעדכן כך במקום, והגרסה החדשה מעדכנת בעצמה את רשומת ההתקנה
+        /// (`Install.Refresh`); שחרור שצריך את המתקין (מתקין או מנוע חדשים) פשוט לא מצרף את הקובץ הקטן.</summary>
         public static void DownloadAndApply(IWin32Window owner, Release rel)
         {
             string exe = Application.ExecutablePath;
@@ -230,31 +291,63 @@ namespace SubtitleStudio
                 return;
             }
 
+            string why;
+            bool trySlim = SlimPossible(rel, exe, out why);
+            if (!trySlim) Ai.Log("עדכון: הורדה מלאה - " + why);
+
             string url = useSetup ? rel.SetupUrl : rel.Url;
             string tmp = Path.Combine(Path.GetTempPath(),
                 (useSetup ? "Subtext-Setup-" : "Subtext-") + rel.Version + ".exe");
+            // הקובץ הנייד שנבנה מהעדכון הקטן (גם לעותק מותקן - הוא מוחלף במקום)
+            string tmpSlim = Path.Combine(Path.GetTempPath(), "Subtext-" + rel.Version + ".exe");
 
-            long total = useSetup ? rel.SetupSize : rel.Size;
-            long expectSize = total;
+            long expectSize = useSetup ? rel.SetupSize : rel.Size;
             string expectSha = useSetup ? rel.SetupSha256 : rel.Sha256;
-            long got = 0;
-            bool done = false;
+            Transfer tr = new Transfer();
+            tr.Slim = trySlim;
+            tr.Total = trySlim ? rel.AppSize : expectSize;
+            bool done = false, slimOk = false;
             string error = null;
 
             Thread worker = new Thread(delegate ()
             {
-                try { error = Fetch(url, tmp, expectSize, expectSha, ref total, ref got); }
+                try
+                {
+                    if (trySlim)
+                    {
+                        string e = FetchSlim(rel, exe, tmpSlim, tr);
+                        if (e == null) slimOk = true;
+                        else if (!tr.Cancel)
+                        {
+                            // לא הסתדר - הכול, כמו עד עכשיו
+                            Ai.Log("עדכון: הקטן לא הסתדר (" + e + ") - הורדה מלאה");
+                            tr.Slim = false; tr.Got = 0; tr.Total = expectSize;
+                        }
+                    }
+                    if (!slimOk && !tr.Cancel) error = FetchFile(url, tmp, expectSize, expectSha, 1000000, tr);
+                }
                 catch (Exception ex) { error = ErrorText.Of(ex); }
+                if (tr.Cancel)
+                {
+                    foreach (string f in new string[] { tmp, tmpSlim })
+                    {
+                        try { if (File.Exists(f)) File.Delete(f); }
+                        catch { }
+                    }
+                }
                 done = true;
             });
             worker.IsBackground = true;
 
             DownloadDlg dlg = new DownloadDlg(Lang.F("מוריד את הגרסה {0}", rel.Version));
+            dlg.Canceled += delegate { tr.Abort(); };
             System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
             t.Interval = 120;
             t.Tick += delegate
             {
-                dlg.SetProgress(total > 0 ? got / (double)total : 0, got, total);
+                long tot = tr.Total, got = tr.Got;
+                dlg.Note = tr.Slim ? Lang.T("רק התוכנה - מנוע הווידאו כבר אצלכם") : "";
+                dlg.SetProgress(tot > 0 ? got / (double)tot : 0, got, tot);
                 if (done) { t.Stop(); dlg.Close(); }
             };
             dlg.Shown += delegate { worker.Start(); t.Start(); };
@@ -262,13 +355,8 @@ namespace SubtitleStudio
             t.Dispose();
             dlg.Dispose();
 
-            // סגירת החלון באמצע ההורדה - הקובץ חלקי, ואסור להתקין אותו
-            if (!done)
-            {
-                try { if (File.Exists(tmp)) File.Delete(tmp); }
-                catch { }
-                return;
-            }
+            // ״ביטול״, או סגירה באמצע - הקובץ חלקי, ואסור להתקין אותו (החוט מנקה אותו בעצמו)
+            if (!done || tr.Cancel) { tr.Abort(); return; }
             if (error != null)
             {
                 Ui.Error((Form)owner, Lang.T("העדכון נכשל"), error);
@@ -280,7 +368,7 @@ namespace SubtitleStudio
             // סקריפט קטן שמחליף את הקובץ אחרי שהתוכנה נסגרת.
             // הכול בנתיבים קצרים (8.3) כי cmd קורא את הקובץ בקידוד OEM,
             // ושם התיקייה של המשתמש הוא לרוב בעברית.
-            if (useSetup)
+            if (useSetup && !slimOk)
             {
                 // המתקין עושה הכול בעצמו: ממתין שהתהליך ייסגר, מחליף, מרענן
                 // קיצורים, מעדכן את הרישום, מפעיל מחדש, ומוחק את עצמו.
@@ -303,6 +391,7 @@ namespace SubtitleStudio
                 Application.Exit();
                 return;
             }
+            string fresh = slimOk ? tmpSlim : tmp;
 
             // החלפה בלי שום סקריפט: אפשר לשנות שם ל-EXE שרץ כרגע, אז מזיזים
             // את הישן הצידה, מכניסים את החדש למקומו ומפעילים אותו. זה עוקף
@@ -314,14 +403,15 @@ namespace SubtitleStudio
                 try { if (File.Exists(old)) File.Delete(old); }
                 catch { }
                 File.Move(exe, old);
-                try { File.Move(tmp, exe); }
+                try { File.Move(fresh, exe); }
                 catch { File.Move(old, exe); throw; }     // מחזירים את הישן ונכשלים בנקי
             }
             catch (Exception ex)
             {
-                ManualUpdate((Form)owner, tmp, ex.Message);
+                ManualUpdate((Form)owner, fresh, ex.Message);
                 return;
             }
+            Ai.Log("עדכון: " + App.Version + " ← " + rel.Version + (slimOk ? " (קטן)" : " (מלא)"));
 
             try
             {
@@ -334,12 +424,83 @@ namespace SubtitleStudio
             Application.Exit();
         }
 
+        /// <summary>האם אפשר לנסות את העדכון הקטן, ואם לא - למה (ליומן).</summary>
+        internal static bool SlimPossible(Release rel, string selfExe, out string why)
+        {
+            why = "";
+            if (rel.AppUrl.Length == 0) { why = "אין בשחרור קובץ קטן"; return false; }
+            // בלי הטביעה של Subtext.exe אין איך לדעת שמה שנבנה כאן הוא בדיוק הגרסה החדשה
+            if (rel.Url.Length == 0 || rel.Sha256.Length == 0) { why = "אין טביעה לקובץ המלא"; return false; }
+            string id;
+            if (Runtime.ReadTrailer(selfExe, out id) == null) { why = "אין מנוע בסוף הקובץ הזה"; return false; }
+            if (!Runtime.CanWrite(Path.GetDirectoryName(selfExe))) { why = "אי אפשר לכתוב בתיקיית התוכנה"; return false; }
+            return true;
+        }
+
+        /// <summary>העדכון הקטן: מוריד את חלק התוכנה (דחוס), מדביק אחריו את המנוע ואת החלק האחרון מהקובץ שלנו כמו
+        /// שהם, ובודק שהתוצאה היא **בדיוק** Subtext.exe שפורסם (גודל וטביעה). מחזיר null, או למה לא - ואז אין קובץ.</summary>
+        internal static string FetchSlim(Release rel, string selfExe, string outExe, Transfer tr)
+        {
+            string gz = Path.Combine(Path.GetTempPath(), "Subtext-app-" + rel.Version + "-" + Guid.NewGuid().ToString("N").Substring(0, 6) + ".gz");
+            try
+            {
+                string e = FetchFile(rel.AppUrl, gz, rel.AppSize, rel.AppSha256, 20000, tr);
+                if (e != null) return e;
+                string id;
+                long[] eng = Runtime.ReadTrailer(selfExe, out id);
+                if (eng == null) return Lang.T("אין מנוע בסוף הקובץ הנוכחי.");
+                using (FileStream o = new FileStream(outExe, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
+                {
+                    using (FileStream gs = File.OpenRead(gz))
+                    using (GZipStream z = new GZipStream(gs, CompressionMode.Decompress))
+                        z.CopyTo(o, 1 << 20);
+                    using (FileStream s = new FileStream(selfExe, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20))
+                    {
+                        s.Seek(eng[0], SeekOrigin.Begin);
+                        s.CopyTo(o, 1 << 20);
+                    }
+                }
+                long len = new FileInfo(outExe).Length;
+                if ((rel.Size > 0 && len != rel.Size) ||
+                    !string.Equals(Sha256Of(outExe), rel.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(outExe); }
+                    catch { }
+                    // הצפוי כשהמנוע בגרסה החדשה אחר: התוכנה החדשה + המנוע הישן ≠ הקובץ שפורסם
+                    return Lang.T("הקובץ שנבנה לא זהה לגרסה שפורסמה.");
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                try { if (File.Exists(outExe)) File.Delete(outExe); }
+                catch { }
+                return ErrorText.Of(ex);
+            }
+            finally
+            {
+                try { if (File.Exists(gz)) File.Delete(gz); }
+                catch { }
+            }
+        }
+
+        /// <summary>כמו FetchFile, בלי ביטול ובלי מעקב משותף (נשאר בשביל test-release).</summary>
+        internal static string Fetch(string url, string tmp, long expectSize, string expectSha, ref long total, ref long got)
+        {
+            Transfer tr = new Transfer();
+            tr.Total = total;
+            string e = FetchFile(url, tmp, expectSize, expectSha, 1000000, tr);
+            total = tr.Total; got = tr.Got;
+            return e;
+        }
+
         /// <summary>מוריד לקובץ, ובודק שהוא בדיוק מה שפורסם: לא דף חסימה של סינון,
         /// לא קובץ שנקטע באמצע, ואותה טביעה שגיטהאב מפרסם. מחזיר null, או הודעה למשתמש.
         ///
         /// **עד 0.8.0 נבדק רק שהקובץ גדול מ-1MB.** חיבור שנפל אחרי 20MB השאיר קובץ
-        /// חתוך, והוא היה מחליף את התוכנה. נפרד כדי ש-test-release יריץ אותו מול שרת מדומה.</summary>
-        internal static string Fetch(string url, string tmp, long expectSize, string expectSha, ref long total, ref long got)
+        /// חתוך, והוא היה מחליף את התוכנה. נפרד כדי ש-test-release יריץ אותו מול שרת מדומה.
+        /// <paramref name="minSize"/>: מתחת לזה זו לא תוכנה (העדכון הקטן - הרבה פחות ממגה).</summary>
+        internal static string FetchFile(string url, string tmp, long expectSize, string expectSha, long minSize, Transfer tr)
         {
             try
             {
@@ -348,9 +509,11 @@ namespace SubtitleStudio
                 req.UserAgent = "Subtext/" + App.Version;
                 req.Timeout = 20000;
                 req.ReadWriteTimeout = 60000;
+                tr.Req = req;
+                if (tr.Cancel) return Lang.T("ההורדה בוטלה.");
                 using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
                 {
-                    if (res.ContentLength > 0) total = res.ContentLength;
+                    if (res.ContentLength > 0) tr.Total = res.ContentLength;
                     byte[] head = new byte[64];
                     int headLen = 0;
                     using (Stream src = res.GetResponseStream())
@@ -360,6 +523,7 @@ namespace SubtitleStudio
                         int n;
                         while ((n = src.Read(buf, 0, buf.Length)) > 0)
                         {
+                            if (tr.Cancel) return Lang.T("ההורדה בוטלה.");
                             if (headLen < head.Length)
                             {
                                 int k = Math.Min(n, head.Length - headLen);
@@ -367,14 +531,14 @@ namespace SubtitleStudio
                                 headLen += k;
                             }
                             dst.Write(buf, 0, n);
-                            got += n;
+                            tr.Got += n;
                         }
                     }
                     if (ErrorText.IsWebPage(res.ContentType, head, headLen)) return ErrorText.Filtered;
-                    if (res.ContentLength > 0 && got != res.ContentLength) return Lang.T("ההורדה נקטעה באמצע. אפשר לנסות שוב.");
+                    if (res.ContentLength > 0 && tr.Got != res.ContentLength) return Lang.T("ההורדה נקטעה באמצע. אפשר לנסות שוב.");
                 }
                 long len = new FileInfo(tmp).Length;
-                if (len < 1000000) return Lang.T("הקובץ שהתקבל קטן מדי - ההורדה נכשלה.");
+                if (len < minSize) return Lang.T("הקובץ שהתקבל קטן מדי - ההורדה נכשלה.");
                 if (expectSize > 0 && len != expectSize) return Lang.T("ההורדה נקטעה באמצע. אפשר לנסות שוב.");
                 if (!string.IsNullOrEmpty(expectSha) &&
                     !string.Equals(Sha256Of(tmp), expectSha, StringComparison.OrdinalIgnoreCase))
@@ -383,14 +547,17 @@ namespace SubtitleStudio
             }
             catch (WebException wex)
             {
+                if (tr.Cancel) return Lang.T("ההורדה בוטלה.");
                 return ErrorText.Web(wex, Lang.T("הקובץ לא נמצא בשרת. אפשר לנסות שוב מאוחר יותר."));
             }
             catch (IOException ioex)
             {
+                if (tr.Cancel) return Lang.T("ההורדה בוטלה.");
                 // כונן מלא נשאר כונן מלא; כל השאר כאן הוא חיבור שנפל באמצע הקריאה
                 string m = ErrorText.Of(ioex);
                 return m.StartsWith(Lang.T("הפעולה לא הצליחה.")) ? Lang.T("החיבור נותק באמצע. אפשר לנסות שוב.") : m;
             }
+            finally { tr.Req = null; }
         }
 
         internal static string Sha256Of(string path)
@@ -460,6 +627,72 @@ namespace SubtitleStudio
             return false;
         }
 
+        public const string RegUninstall = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SubtitleStudio";
+
+        /// <summary>**אחרי עדכון קטן המתקין לא רץ** (0.8.8), ולכן הגרסה החדשה מעדכנת בעצמה את מה שהוא היה כותב על
+        /// הגרסה: installed.txt, ורשומת ״אפליקציות מותקנות״. רק עותק מותקן, רק רשומה שמצביעה לתיקייה שלו, ורק כשהגרסה
+        /// הרשומה שונה. נקרא בהפעלה (לא בבדיקות).</summary>
+        public static void Refresh() { Refresh(Application.ExecutablePath, RegUninstall, RegApp); }
+
+        internal static bool Refresh(string exe, string uninstallKey, string appKey)
+        {
+            bool changed = false;
+            try
+            {
+                string dir = Path.GetDirectoryName(exe);
+                if (File.Exists(Path.Combine(dir, "portable.txt"))) return false;
+                long size = new FileInfo(exe).Length;
+                string marker = Path.Combine(dir, Marker);
+                if (File.Exists(marker))
+                {
+                    string[] lines = File.ReadAllLines(marker, Encoding.UTF8);
+                    bool ours = false, stale = false;
+                    foreach (string l in lines)
+                    {
+                        if (l.StartsWith("dir=", StringComparison.OrdinalIgnoreCase) && SameDir(l.Substring(4).Trim(), dir)) ours = true;
+                        if (l.StartsWith("version=", StringComparison.OrdinalIgnoreCase) && l.Substring(8).Trim() != App.Version) stale = true;
+                    }
+                    if (ours && stale)
+                    {
+                        for (int i = 0; i < lines.Length; i++)
+                        {
+                            if (lines[i].StartsWith("version=", StringComparison.OrdinalIgnoreCase)) lines[i] = "version=" + App.Version;
+                            else if (lines[i].StartsWith("date=", StringComparison.OrdinalIgnoreCase))
+                                lines[i] = "date=" + DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                            else if (lines[i].StartsWith("size=", StringComparison.OrdinalIgnoreCase))
+                                lines[i] = "size=" + size.ToString(CultureInfo.InvariantCulture);
+                        }
+                        File.WriteAllLines(marker, lines, Encoding.UTF8);
+                        changed = true;
+                    }
+                }
+                using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(uninstallKey, true))
+                {
+                    if (k != null && SameDir(k.GetValue("InstallLocation") as string, dir) &&
+                        (k.GetValue("DisplayVersion") as string) != App.Version)
+                    {
+                        k.SetValue("DisplayVersion", App.Version);
+                        long un = 0;
+                        try { un = new FileInfo(Path.Combine(dir, "uninstall.exe")).Length; }
+                        catch { }
+                        k.SetValue("EstimatedSize", (int)((size + un) / 1024), Microsoft.Win32.RegistryValueKind.DWord);
+                        changed = true;
+                    }
+                }
+                using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(appKey, true))
+                {
+                    if (k != null && SameDir(k.GetValue("InstallLocation") as string, dir) &&
+                        (k.GetValue("Version") as string) != App.Version)
+                    {
+                        k.SetValue("Version", App.Version);
+                        changed = true;
+                    }
+                }
+            }
+            catch { }
+            return changed;
+        }
+
         private static bool SameDir(string a, string b)
         {
             if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
@@ -473,11 +706,16 @@ namespace SubtitleStudio
         }
     }
 
-    /// <summary>חלון התקדמות להורדת עדכון.</summary>
+    /// <summary>חלון התקדמות להורדת עדכון. **עם ״ביטול״** - עד 0.8.8 לא היה איך לעצור הורדה של 37 מגה בקו איטי.</summary>
     internal class DownloadDlg : Form
     {
         private double _p;
         private string _title, _sub = "";
+        private readonly Btn _cancel;
+
+        /// <summary>שורה מתחת לגודל (״רק התוכנה - מנוע הווידאו כבר אצלכם״), או ריק.</summary>
+        public string Note = "";
+        public event EventHandler Canceled;
 
         public DownloadDlg(string title)
         {
@@ -487,9 +725,28 @@ namespace SubtitleStudio
             BackColor = Theme.Panel;
             RightToLeft = Theme.UiRtl;
             ShowInTaskbar = false;
-            ClientSize = new Size(Theme.S(430), Theme.S(150));
+            ClientSize = new Size(Theme.S(430), Theme.S(196));
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            _cancel = new Btn();
+            _cancel.Text = Lang.T("ביטול");
+            _cancel.Kind = BtnKind.Ghost;
+            int bw = Math.Max(Theme.S(110), _cancel.NeedWidth()), pad = Theme.S(24);
+            // הכפתורים בצד השמאלי בעברית, בימני באנגלית - כמו בכל חלון
+            _cancel.SetBounds(Lang.Rtl ? pad : ClientSize.Width - pad - bw, Theme.S(138), bw, Theme.S(38));
+            _cancel.Click += delegate { DoCancel(); };
+            Controls.Add(_cancel);
+            KeyPreview = true;
+            KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) DoCancel(); };
             Load += delegate { Native.SetRoundedCorners(Handle); };
+        }
+
+        private void DoCancel()
+        {
+            if (!_cancel.Enabled) return;
+            _cancel.Enabled = false;
+            _cancel.Text = Lang.T("מבטל...");
+            _cancel.Invalidate();
+            if (Canceled != null) Canceled(this, EventArgs.Empty);
         }
 
         public void SetProgress(double p, long got, long total)
@@ -513,7 +770,9 @@ namespace SubtitleStudio
             Theme.Str(g, _title, Theme.Big, Theme.Text, new RectangleF(pad, Theme.S(22), Width - pad * 2, Theme.S(26)), Theme.SfUi);
             Theme.Str(g, Theme.Ltr(_sub), Theme.Small, Theme.TextDim,
                 new RectangleF(pad, Theme.S(50), Width - pad * 2, Theme.S(20)), Theme.SfUi);
-            RectangleF bar = new RectangleF(pad, Theme.S(90), Width - pad * 2, Theme.S(12));
+            if (!string.IsNullOrEmpty(Note))
+                Theme.Str(g, Note, Theme.Small, Theme.Good, new RectangleF(pad, Theme.S(70), Width - pad * 2, Theme.S(20)), Theme.SfUi);
+            RectangleF bar = new RectangleF(pad, Theme.S(102), Width - pad * 2, Theme.S(12));
             Theme.FillRound(g, bar, bar.Height / 2, Theme.Mix(Theme.PanelAlt, Theme.Border, 0.6f));
             float w = (float)(bar.Width * Math.Max(0.02, Math.Min(1, _p)));
             // מתמלא מכיוון הקריאה, כמו חלון ההתקדמות: עד 0.8.1 תמיד משמאל, גם בעברית

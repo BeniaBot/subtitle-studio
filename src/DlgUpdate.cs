@@ -24,7 +24,18 @@ namespace SubtitleStudio
                 ? sum.Headline
                 : Lang.F("הגרסה שלכם היא {0}", App.Version);
 
-            Lbl intro = Label(Lang.T("אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה תיסגר ותיפתח מחדש לבד."), false, Theme.TextDim);
+            // כמה באמת יורד: העדכון הקטן (0.8.8) הוא חצי מגה, ההורדה המלאה כ-28. מי שבקו איטי רוצה לדעת לפני שלוחץ
+            long size = 0;
+            string why;
+            try
+            {
+                if (Updater.SlimPossible(rel, Application.ExecutablePath, out why)) size = rel.AppSize;
+                else size = Install.IsInstalled() && rel.SetupSize > 0 ? rel.SetupSize : rel.Size;
+            }
+            catch { }
+            Lbl intro = Label(size > 0
+                ? Lang.F("אפשר לעדכן עכשיו: הורדה של {0}, והתוכנה תיסגר ותיפתח מחדש לבד.", Theme.Ltr(MediaInfo.FormatSize(size)))
+                : Lang.T("אפשר לעדכן עכשיו - זה לוקח כמה שניות, והתוכנה תיסגר ותיפתח מחדש לבד."), false, Theme.TextDim);
             intro.Wrap = true;
             Row(intro, 36, 10);
 
