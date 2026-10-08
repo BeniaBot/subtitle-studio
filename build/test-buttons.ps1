@@ -118,7 +118,7 @@ $forms = @(
     # חלונות עבודה: מתחילים רק ב-Shown, ומחוץ למסך אין Shown - שום דבר לא נשלח
     @{ n = 'AiRun';       make = { NewOf 'AiRunDlg' @($dcues, [string]'English', [string]'') } },
     @{ n = 'TrRun';       make = { NewOf 'TranscribeRunDlg' @([string]$media, [int64]40000, [string]'') } },
-    @{ n = 'Download';    nobtn = $true; make = { $d = NewOf 'DownloadDlg' @([string]'Subtext 0.9.9'); $d.SetProgress(0.4, [int64]15000000, [int64]38000000); $d } },
+    @{ n = 'Download';    make = { $d = NewOf 'DownloadDlg' @([string]'Subtext 0.9.9'); $d.Note = [string](TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null).Invoke($null, @([string]'רק התוכנה - מנוע הווידאו כבר אצלכם')); $d.SetProgress(0.4, [int64]15000000, [int64]38000000); $d } },
     @{ n = 'Chat';        make = { $ch = NewOf 'AiChatForm' @($main); [void]$ch.GetType().GetMethod('Greet', $IN).Invoke($ch, @()); $ch } },
     @{ n = 'Main-1500';   make = { $main.Size = New-Object Drawing.Size 1500, 950; $main } },
     @{ n = 'Main-1000';   make = { $main.Size = New-Object Drawing.Size 1000, 700; $main } }
