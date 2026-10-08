@@ -34,7 +34,7 @@ public class CK{
 "@
 [void][CK]::SetProcessDPIAware()
 $dest = "$env:TEMP\ss-gallery"
-$p = Get-Process Subtext -ErrorAction SilentlyContinue
+$p = Get-Process Subtext -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ((Split-Path $PSScriptRoot -Parent) + '\dist\*') }
 if (-not $p) { Write-Host "not running"; exit 1 }
 $wins = [CK]::Wins([uint32]$p.Id)
 $h = $wins[[Math]::Min($WinIndex, $wins.Count - 1)]

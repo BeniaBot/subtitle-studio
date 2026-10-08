@@ -20,7 +20,7 @@ public class PM{
 "@
 [void][PM]::SetProcessDPIAware()
 $dest = "$env:TEMP\ss-gallery"
-$p = Get-Process Subtext -ErrorAction SilentlyContinue
+$p = Get-Process Subtext -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ((Split-Path $PSScriptRoot -Parent) + '\dist\*') }
 if (-not $p) { Write-Host "app not running"; exit 1 }
 $wins = [PM]::Wins([uint32]$p.Id)
 if ($wins.Count -eq 0) { Write-Host "no windows"; exit 1 }

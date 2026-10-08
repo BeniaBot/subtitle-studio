@@ -4,7 +4,7 @@ $scratch = "$env:TEMP\ss-gallery"
 $media = "$scratch\test.mp4"
 $expected = "$scratch\test - עם כתוביות צרובות.mp4"
 Remove-Item $expected -ErrorAction SilentlyContinue
-Get-Process Subtext -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process Subtext -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ((Split-Path $PSScriptRoot -Parent) + '\dist\*') } | Stop-Process -Force
 Start-Sleep -Milliseconds 400
 
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms

@@ -31,7 +31,7 @@ public class FG{
 "@
 [void][FG]::SetProcessDPIAware()
 $dest = "$env:TEMP\ss-gallery"
-$p = Get-Process Subtext -ErrorAction SilentlyContinue
+$p = Get-Process Subtext -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ((Split-Path $PSScriptRoot -Parent) + '\dist\*') }
 if (-not $p) { Write-Host "not running"; exit 1 }
 $wins = [FG]::Wins([uint32]$p.Id)
 [FG]::Focus($wins[0])

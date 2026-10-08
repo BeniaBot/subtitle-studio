@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Continue'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 
-Get-Process Subtext -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process Subtext -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ((Split-Path $PSScriptRoot -Parent) + '\dist\*') } | Stop-Process -Force
 Start-Sleep -Milliseconds 400
 Remove-Item "$env:TEMP\SubStudio-error.txt" -ErrorAction SilentlyContinue
 

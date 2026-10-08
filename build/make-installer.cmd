@@ -16,9 +16,10 @@ if not exist "%CSC%" (
   exit /b 1
 )
 
-rem  A running setup locks the output file and csc fails with CS0016.
-taskkill /f /im Subtext-Setup.exe >nul 2>&1
-taskkill /f /im Subtext.exe >nul 2>&1
+rem  A running setup locks the output file and csc fails with CS0016. Only copies started from THIS
+rem  repo's dist folder are closed - until 0.8.8 'taskkill /im Subtext.exe' also closed the user's own
+rem  installed Subtext, unsaved work and all.
+powershell -NoProfile -Command "Get-Process Subtext,Subtext-Setup -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '%CD%\dist\*' } | Stop-Process -Force"
 
 if not exist "dist\Subtext.exe" (
   echo [ERROR] dist\Subtext.exe is missing.
