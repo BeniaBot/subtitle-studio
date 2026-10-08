@@ -706,10 +706,12 @@ namespace SubtitleStudio
                                  out int code, out string reply, out string retryAfter, out string error)
         {
             code = 0; reply = null; retryAfter = null; error = null;
+            if (StopToken.Here) { error = Lang.T("נעצר."); return false; }
             try
             {
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                StopToken.Track(req);
                 req.Method = method;
                 req.UserAgent = "Subtext/" + App.Version;
                 req.Headers["Authorization"] = "Bearer " + key;
@@ -733,6 +735,7 @@ namespace SubtitleStudio
             }
             catch (WebException ex)
             {
+                if (ex.Status == WebExceptionStatus.RequestCanceled && StopToken.Here) { error = Lang.T("נעצר."); return false; }
                 HttpWebResponse res = ex.Response as HttpWebResponse;
                 if (res != null)
                 {
@@ -754,6 +757,7 @@ namespace SubtitleStudio
                 error = ex.Message;
                 return false;
             }
+            finally { StopToken.Track(null); }
         }
     }
 

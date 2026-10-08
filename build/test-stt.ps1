@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** השרת האמיתי. אחרי שיש מפתח - להריץ תמלול אמיתי אחד
 # ולתעד ב-CLAUDE.md.
-# צפוי: 118 בדיקות.
+# צפוי: 125 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -51,12 +51,19 @@ $server = {
                 if ($headEnd -ge 0 -and $ms.Length -ge $headEnd + 4 + $clen) { break }
             }
             [IO.File]::WriteAllBytes((Join-Path $logDir ("req-$k.bin")), $ms.ToArray())
+            # שרת ״תקוע״: לא עונה עד hold שניות - או עד שהלקוח מנתק (עצירה שקוטעת את הבקשה)
+            if ($resp.hold) {
+                $until = [DateTime]::UtcNow.AddSeconds($resp.hold)
+                while ([DateTime]::UtcNow -lt $until) {
+                    if ($c.Client.Poll(200000, [Net.Sockets.SelectMode]::SelectRead) -and $c.Client.Available -eq 0) { break }
+                }
+            }
             $body = [Text.Encoding]::UTF8.GetBytes($resp.body)
             $head = "HTTP/1.1 " + $resp.status + " X`r`nContent-Type: application/json`r`nContent-Length: " + $body.Length + "`r`n"
             if ($resp.retry) { $head += "retry-after: " + $resp.retry + "`r`n" }
             $head += "Connection: close`r`n`r`n"
             $hb = [Text.Encoding]::ASCII.GetBytes($head)
-            $ns.Write($hb, 0, $hb.Length); $ns.Write($body, 0, $body.Length); $ns.Flush()
+            try { $ns.Write($hb, 0, $hb.Length); $ns.Write($body, 0, $body.Length); $ns.Flush() } catch { }
             $c.Close()
         }
     } finally { $l.Stop() }
@@ -77,7 +84,7 @@ function StopServer($s) {
     foreach ($e in $s.Ps.Streams.Error) { Write-Host ("   server error: " + $e) }
     $s.Ps.Dispose()
 }
-function Resp($status, $body, $retry) { return @{ status = $status; body = $body; retry = $retry } }
+function Resp($status, $body, $retry, $hold = 0) { return @{ status = $status; body = $body; retry = $retry; hold = $hold } }
 function NewProvider($port) {
     $p = [Activator]::CreateInstance((T 'OpenAiStt'))
     $p.BaseUrl = "http://127.0.0.1:$port/openai/v1"
@@ -315,6 +322,71 @@ $pl = @($parse.Invoke($null, $pa))
 Check 'משפט עברי ארוך עם יחס דחיסה גבוה - נשאר' (@($pl | Where-Object { $_.Start -lt 6.5 }).Count -ge 1) ("lines=" + $pl.Count)
 Check 'חזרה על אותה מילה עם אותו יחס - נזרקת' (-not ($pl | Where-Object { $_.Text -like 'אמן*' })) ''
 
+# ================= 4ה. עצירה שקוטעת את הבקשה שבדרך (8.10) =================
+# בנימין: ״באמצע תמלול לחצתי על עצירה, זה כותב עוצר ולא מגיב כבר דקה״. עד 0.8.8 העצירה חיכתה לבקשה שבדרך -
+# עד שלוש דקות, ועם המתנה למכסה ומעבר בין שבעה דגמים יותר. כאן התמלול רץ בחוט משלו, כמו בחלון, עם StopToken.
+Write-Host 'עצירה שקוטעת את הבקשה שבדרך'
+$tokT = T 'StopToken'
+function StartStoppable($prov, [long]$durMs) {
+    $tok = [Activator]::CreateInstance($tokT)
+    $canceled = [Delegate]::CreateDelegate([Func[bool]], $tok, $tokT.GetProperty('Stopped').GetGetMethod())
+    $argv = Pack $prov ([string]$media) $durMs ([string]'') $null $canceled ([long]0) $durMs
+    $ps = [powershell]::Create()
+    [void]$ps.AddScript({ param($attach, $tok, $run8, $argv) [void]$attach.Invoke($null, @($tok)); return ,$run8.Invoke($null, $argv) })
+    [void]$ps.AddArgument($tokT.GetMethod('Attach', $SF)).AddArgument($tok).AddArgument($run8).AddArgument($argv)
+    $h = $ps.BeginInvoke()
+    return @{ Ps = $ps; H = $h; Tok = $tok }
+}
+function WaitReq($srv, $k, $sec) {
+    $w = [Diagnostics.Stopwatch]::StartNew()
+    while ($w.Elapsed.TotalSeconds -lt $sec -and -not (Test-Path (Join-Path $srv.Dir "req-$k.bin"))) { Start-Sleep -Milliseconds 100 }
+    return (Test-Path (Join-Path $srv.Dir "req-$k.bin"))
+}
+function StopAndWait($job) {
+    $w = [Diagnostics.Stopwatch]::StartNew()
+    $job.Tok.Stop()
+    $done = $job.H.AsyncWaitHandle.WaitOne(15000)
+    $took = $w.Elapsed.TotalSeconds
+    $r = $null
+    if ($done) { try { $r = @($job.Ps.EndInvoke($job.H))[0] } catch { Write-Host ("   run: " + $_.Exception.Message) } } else { $job.Ps.Stop() }
+    $job.Ps.Dispose()
+    return @{ Done = $done; Took = $took; Res = $r }
+}
+
+# Groq: קטע 0 עונה, והשרת ״נתקע״ דקה על קטע 1
+$s = StartServer @((Resp 200 $okSeg $null), (Resp 200 $okSeg $null 60))
+$p = NewProvider $s.Port
+$p.Chunk = 10
+$job = StartStoppable $p 40000
+$got = WaitReq $s 1 30
+Start-Sleep -Milliseconds 300
+$st = StopAndWait $job
+StopServer $s
+$res = $st.Res
+Check 'Groq: עצירה כשהבקשה תקועה בשרת - חוזרת מיד, לא אחרי דקה' ($got -and $st.Done -and $st.Took -lt 3) ("took={0:0.0}s got=$got" -f $st.Took)
+Check 'Groq: מה שתומלל לפני העצירה נשמר' ($res -ne $null -and $res.Cues.Count -eq 1 -and $res.Canceled) ("cues=" + $(if ($res) { $res.Cues.Count }) + " canceled=" + $(if ($res) { $res.Canceled }))
+Check 'Groq: הבקשה שנקטעה איננה ״כישלון״ ולא ״חור״, ואין הודעת שגיאה' ($res -ne $null -and $res.Failed -eq 0 -and $res.Gaps.Count -eq 0 -and $res.Error -eq $null) ("failed=" + $(if ($res) { $res.Failed }) + " gaps=" + $(if ($res) { $res.Gaps.Count }) + " err=" + $(if ($res) { $res.Error }))
+
+# גוגל: מכסה דקתית על הבקשה הראשונה - ממתינים 30 שניות ואז עוברים בין הדגמים. עוצרים באמצע ההמתנה
+$minuteG = '{"error":{"code":429,"message":"Resource has been exhausted (e.g. check quota).","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"40s"}]}}'
+$s = StartServer @((Resp 429 $minuteG $null), (Resp 200 '{}' $null))
+$aiT = T 'Ai'
+$oldRoot = $aiT.GetField('EndpointRoot', $SF).GetValue($null); $oldKey = $aiT.GetField('Key', $SF).GetValue($null)
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$aiT.GetField('Key', $SF).SetValue($null, 'test-key')
+$job = StartStoppable ([Activator]::CreateInstance((T 'GeminiStt'))) 40000
+$got = WaitReq $s 0 30
+Start-Sleep -Milliseconds 800
+$st = StopAndWait $job
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot); $aiT.GetField('Key', $SF).SetValue($null, $oldKey)
+$sent = @(Get-ChildItem $s.Dir -Filter 'req-*.bin').Count
+# השרת מחכה לבקשה שנייה שלא אמורה להגיע - בקשה ריקה משחררת אותו
+try { $tc = New-Object Net.Sockets.TcpClient '127.0.0.1', $s.Port; $tw = $tc.GetStream(); $hb = [Text.Encoding]::ASCII.GetBytes("GET / HTTP/1.1`r`nHost: x`r`n`r`n"); $tw.Write($hb, 0, $hb.Length); Start-Sleep -Milliseconds 300; $tc.Close() } catch { }
+StopServer $s
+$res = $st.Res
+Check 'גוגל: עצירה באמצע ההמתנה למכסה - חוזרת מיד' ($got -and $st.Done -and $st.Took -lt 3) ("took={0:0.0}s got=$got" -f $st.Took)
+Check 'גוגל: אחרי עצירה לא עוברים לדגם הבא - בקשה אחת בלבד, בלי ״כישלון״' ($sent -eq 1 -and $res -ne $null -and $res.Failed -eq 0 -and $res.Error -eq $null) ("sent=$sent failed=" + $(if ($res) { $res.Failed }) + " err=" + $(if ($res) { $res.Error }))
+
 # ‏Groq: כתוביות לפי משפטים מתוך זרם המילים (0.8.3). הקטעים של Whisper חוצים משפטים, ואחרי
 # כמה עשרות שניות הזמנים שלהם בשניות שלמות - הזמנים של המילים מדויקים. המקרים מסרטון אמיתי.
 Write-Host 'Groq: כתוביות לפי משפטים מזרם המילים'
@@ -539,6 +611,7 @@ $run = [Activator]::CreateInstance((T 'TranscribeRunDlg'), (Pack (NewProvider 1)
 $c1 = Closing $run
 $stop1 = $run.GetType().GetField('_cancel', $IF).GetValue($run)
 Check 'תמלול: ‏× ראשון = ״עצירה״ - החלון נשאר עד שמה שתומלל חוזר' ($c1 -eq $true -and $stop1 -eq $true) ("cancel=$c1 stop=$stop1")
+Check 'תמלול: ״עצירה״ קוטעת גם את הבקשה שבדרך (StopToken)' ($run.GetType().GetField('_stop', $IF).GetValue($run).Stopped -eq $true) ''
 $c2 = Closing $run
 Check 'תמלול: ‏× שני סוגר מיד' ($c2 -eq $false) "cancel=$c2"
 $run.Dispose()
@@ -550,6 +623,7 @@ $tl = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType(
 $ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl 'עברית' ''))
 [void](Closing $ai)
 Check 'תרגום: ‏× עוצר את העבודה ברקע' ($ai.GetType().GetField('_cancel', $IF).GetValue($ai) -eq $true) ''
+Check 'תרגום: ‏× קוטע גם את הבקשה שבדרך (StopToken)' ($ai.GetType().GetField('_stop', $IF).GetValue($ai).Stopped -eq $true) ''
 $ai.Dispose()
 # חלון התמלול (0.8.5): ״המפתח שכבר יש לכם״ רק למי שיש; והרקע מהתמלול הקודם של אותו סרט כבר בשדה
 $mi0 = [Activator]::CreateInstance((T 'MediaInfo')); $mi0.DurationSec = 60

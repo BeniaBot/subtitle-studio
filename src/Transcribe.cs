@@ -156,6 +156,9 @@ namespace SubtitleStudio
                     _lastSend = DateTime.MinValue;                    // המתנו כבר מספיק
                 }
 
+                // עצרו באמצע הבקשה: זה לא כישלון ולא חור - פשוט סוף
+                if (lines == null && canceled != null && canceled()) { res.Canceled = true; break; }
+
                 if (lines == null)
                 {
                     res.Failed++;
@@ -612,7 +615,7 @@ namespace SubtitleStudio
             if (_lastSend != DateTime.MinValue)
             {
                 int elapsed = (int)(DateTime.UtcNow - _lastSend).TotalMilliseconds;
-                if (elapsed < _gapMs) Thread.Sleep(_gapMs - elapsed);
+                if (elapsed < _gapMs) StopToken.Sleep(_gapMs - elapsed);
             }
             _lastSend = DateTime.UtcNow;
         }

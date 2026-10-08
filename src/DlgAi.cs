@@ -329,6 +329,7 @@ namespace SubtitleStudio
         private readonly List<Cue> _cues;
         private readonly string _lang, _context;
         private volatile bool _cancel;
+        private readonly StopToken _stop = new StopToken();
         public List<string> Translated;
         public string Error;
         /// <summary>כמה כתוביות נשארו בשפת המקור - המודל דילג עליהן גם בניסיון החוזר.</summary>
@@ -349,7 +350,7 @@ namespace SubtitleStudio
             Btn cancel = new Btn();
             cancel.Text = Lang.T("ביטול");
             cancel.Kind = BtnKind.Ghost;
-            cancel.Click += delegate { _cancel = true; Ok = false; Close(); };
+            cancel.Click += delegate { _cancel = true; _stop.Stop(); Ok = false; Close(); };
             Row(cancel, 40, 0);
             Y += Theme.S(6);
             ClientSize = new Size(ClientSize.Width, Y);
@@ -357,7 +358,8 @@ namespace SubtitleStudio
 
             // ‏×‏ או Esc = ״ביטול״. עד 0.8.5 החלון נסגר והתרגום המשיך ברקע עד הסוף - צרך מכסה,
             // והתוצאה נזרקה
-            FormClosing += delegate { _cancel = true; };
+            // גם הבקשה שבדרך נקטעת (StopToken) - עד 0.8.8 היא המשיכה ברקע עד שהשרת ענה
+            FormClosing += delegate { _cancel = true; _stop.Stop(); };
             Shown += delegate { Start(); };
         }
 
@@ -365,6 +367,7 @@ namespace SubtitleStudio
         {
             Thread t = new Thread(delegate ()
             {
+                StopToken.Attach(_stop);
                 List<string> all = new List<string>();
                 List<string[]> prev = new List<string[]>();           // ההמשכיות בין המנות
                 int done = 0;
@@ -380,7 +383,8 @@ namespace SubtitleStudio
                     catch (Exception ex) { err = ex.Message; Ai.Log("חריגה בתרגום: " + ex); }
                     if (res == null)
                     {
-                        Error = err;
+                        // ביטול: הבקשה נקטעה, וזו לא שגיאה להציג
+                        if (!_cancel) Error = err;
                         try { BeginInvoke((MethodInvoker)delegate { Ok = false; Close(); }); }
                         catch { }
                         return;

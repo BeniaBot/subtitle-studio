@@ -330,6 +330,7 @@ namespace SubtitleStudio
         private readonly long _from, _to;
         private volatile bool _cancel;
         private bool _finished;
+        private readonly StopToken _stop = new StopToken();
 
         public Transcribe.Result Result;
 
@@ -379,6 +380,7 @@ namespace SubtitleStudio
         private void Stop()
         {
             _cancel = true;
+            _stop.Stop();                       // גם הבקשה שבדרך - עד 0.8.8 חיכינו לה, עד שלוש דקות ויותר
             _stat.Text = Lang.T("עוצר…");
             _stat.Invalidate();
         }
@@ -387,6 +389,7 @@ namespace SubtitleStudio
         {
             Thread t = new Thread(delegate ()
             {
+                StopToken.Attach(_stop);
                 Transcribe.Result r = null;
                 try
                 {

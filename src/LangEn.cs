@@ -1101,6 +1101,7 @@ namespace SubtitleStudio
             "לא זוהה דיבור בקובץ.", "No speech was detected in the file.",
             "נוצרו {0} כתוביות.", "Made {0} subtitles.",
             "נעצר. {0}", "Stopped. {0}",
+            "נעצר.", "Stopped.",
             "  כדאי לעבור ולתקן.  לביטול - Ctrl+Z.", "  Go over them and fix them.  To undo - Ctrl+Z.",
             "תומלל עד {0} ({1} כתוביות).", "Transcribed up to {0} ({1} subtitles).",
             "תומלל רק חלק מהסרט - {0} כתוביות.", "Only part of the video was transcribed - {0} subtitles.",
@@ -1212,9 +1213,9 @@ namespace SubtitleStudio
             "על הציר מסומן הקטע {0}. {1}", "The section {0} is marked on the timeline. {1}",
             "רק את הקטע", "Only the section",
             "את כל הכתוביות", "All the subtitles",
-            "לתזמן רק את הקטע המסומן?", "Time only the marked section?",
         };
         private static readonly string[] P4 = new string[] {
+            "לתזמן רק את הקטע המסומן?", "Time only the marked section?",
             "אפשר לתזמן מחדש לפי הדיבור רק את הכתוביות שבתוכו, או את כולן.", "You can re-time by the speech only the subtitles inside it, or all of them.",
             "להצמיד רק בקטע המסומן?", "Snap only in the marked section?",
             "אפשר להצמיד למעברי סצנה רק את הכתוביות שבתוכו, או את כולן.", "You can snap to scene changes only the subtitles inside it, or all of them.",

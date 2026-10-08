@@ -9,6 +9,73 @@ using System.Web.Script.Serialization;
 
 namespace SubtitleStudio
 {
+    /// <summary>עצירה שקוטעת גם את הבקשה שכבר בדרך לשרת.
+    ///
+    /// **עד 0.8.8 ״עצירה״ בתמלול חיכתה לבקשה הנוכחית:** עד שלוש דקות לבקשה, ועם המתנה למכסה, ניסיון חוזר
+    /// ומעבר בין שבעה דגמים - הרבה יותר. החלון כתב ״עוצר…״ ולא הגיב (בנימין, 8.10.2026). והתרגום נסגר מיד, אבל
+    /// הבקשה המשיכה ברקע וצרכה מכסה.
+    ///
+    /// החוט שעובד מתחבר (`Attach`); החלון קורא ל-`Stop` מחוט הממשק. כל בקשה ברשת נרשמת (`Track`) ונקטעת,
+    /// כל המתנה עוברת דרך `Sleep`, ובקשה חדשה לא יוצאת. חוט בלי טוקן - כמו תמיד.</summary>
+    internal sealed class StopToken
+    {
+        private readonly object _lock = new object();
+        private volatile bool _stopped;
+        private WebRequest _req;
+
+        [ThreadStatic] private static StopToken _current;
+
+        /// <summary>מחבר את החוט הנוכחי לטוקן (null - מנתק).</summary>
+        public static void Attach(StopToken t) { _current = t; }
+
+        /// <summary>ביקשו לעצור את העבודה של החוט הזה.</summary>
+        public static bool Here
+        {
+            get { StopToken t = _current; return t != null && t._stopped; }
+        }
+
+        public bool Stopped { get { return _stopped; } }
+
+        /// <summary>עוצר: הבקשה שבדרך נקטעת מיד, וכל המתנה מסתיימת.</summary>
+        public void Stop()
+        {
+            _stopped = true;
+            WebRequest r;
+            lock (_lock) r = _req;
+            if (r != null)
+            {
+                try { r.Abort(); }
+                catch { }
+            }
+        }
+
+        /// <summary>הבקשה שבדרך בחוט הזה (null אחרי שהסתיימה). אם כבר עצרו - נקטעת מיד.</summary>
+        public static void Track(WebRequest r)
+        {
+            StopToken t = _current;
+            if (t == null) return;
+            lock (t._lock) t._req = r;
+            if (r != null && t._stopped)
+            {
+                try { r.Abort(); }
+                catch { }
+            }
+        }
+
+        /// <summary>המתנה שמסתיימת מיד כשעוצרים.</summary>
+        public static void Sleep(int ms)
+        {
+            int slept = 0;
+            while (slept < ms)
+            {
+                if (Here) return;
+                int step = Math.Min(200, ms - slept);
+                System.Threading.Thread.Sleep(step);
+                slept += step;
+            }
+        }
+    }
+
     /// <summary>הודעה אחת בשיחה מול המודל.</summary>
     internal class AiMsg
     {
@@ -189,9 +256,13 @@ namespace SubtitleStudio
         }
 
         // ---------- קריאה לשרת ----------
+        /// <summary>הכתובת של גוגל. **משתנה רק בבדיקות** (test-stt, דרך reflection): עצירה, מכסה ומעבר בין דגמים
+        /// מול שרת מדומה - את אלה אי אפשר לייצר מול השרת האמיתי בלי לשרוף מכסה.</summary>
+        internal static string EndpointRoot = "https://generativelanguage.googleapis.com/v1beta/models/";
+
         private static string Endpoint(string model)
         {
-            return "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + Uri.EscapeDataString(Key);
+            return EndpointRoot + model + ":generateContent?key=" + Uri.EscapeDataString(Key);
         }
 
         /// <summary>מערך מ-JSON מגיע לפעמים כ-object[] ולפעמים כ-ArrayList,
@@ -229,6 +300,8 @@ namespace SubtitleStudio
             string blocked = null;            // תשובה של ״נחסם בלי סיבה״ - אם גם כל השאר ייכשלו
             foreach (string model in tryModels)
             {
+                // עצרו: לא עוברים לדגם הבא (anyTried - כדי שזה לא ייקרא ״המכסה היומית נגמרה״)
+                if (StopToken.Here) { anyTried = true; if (err == null) err = Lang.T("נעצר."); break; }
                 // דגם שכבר ידוע שמיצה את המכסה היומית - אין טעם לבזבז
                 // עליו בקשה, בטח לא 66 פעם בתמלול של שיעור
                 if (IsExhausted(model)) continue;
@@ -656,7 +729,8 @@ namespace SubtitleStudio
             if (waitSec > 30) waitSec = 30;
             Log((LastHttpCode == 429 ? "מכסה" : "עומס בשרת") +
                 " - ממתין " + waitSec + " שניות ומנסה שוב");
-            System.Threading.Thread.Sleep(waitSec * 1000);
+            StopToken.Sleep(waitSec * 1000);
+            if (StopToken.Here) return false;
             int again;
             bool ok = PostOnce(url, json, out reply, out error, out again);
             if (ok) { LastHttpCode = 0; LastRetrySec = 0; LastQuotaIsDaily = false; }
@@ -687,10 +761,12 @@ namespace SubtitleStudio
         private static bool PostOnce(string url, string json, out string reply, out string error, out int retrySec)
         {
             reply = null; error = null; retrySec = 0;
+            if (StopToken.Here) { error = Lang.T("נעצר."); return false; }
             try
             {
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                StopToken.Track(req);
                 req.Method = "POST";
                 req.ContentType = "application/json; charset=utf-8";
                 req.UserAgent = "Subtext/" + App.Version;
@@ -708,6 +784,8 @@ namespace SubtitleStudio
             }
             catch (WebException wex)
             {
+                // נקטעה בעצירה: לא ״אין חיבור לאינטרנט״, ולא ניסיון חוזר
+                if (wex.Status == WebExceptionStatus.RequestCanceled && StopToken.Here) { error = Lang.T("נעצר."); return false; }
                 string detail = "";
                 int code = 0;
                 try
@@ -739,6 +817,7 @@ namespace SubtitleStudio
                 return false;
             }
             catch (Exception ex) { error = ex.Message; return false; }
+            finally { StopToken.Track(null); }
         }
 
         /// <summary>הופך שגיאת רשת להסבר בעברית פשוטה.</summary>
@@ -924,9 +1003,9 @@ namespace SubtitleStudio
             // ״היי יא יא יא...״ 123 אלף תווים, עד שהתשובה נחתכה בתקרת האורך באמצע
             // מחרוזת - והקטע כולו נזרק כ״פורמט לא צפוי״. שולחים שוב פעם אחת, עם
             // אזהרה מפורשת; ואם גם זה לא עוזר - מצילים מה שאפשר, מקוצר.
-            if (lines == null || r.Finish == "MAX_TOKENS" || Looping(lines))
+            if (!StopToken.Here && (lines == null || r.Finish == "MAX_TOKENS" || Looping(lines)))
             {
-                System.Threading.Thread.Sleep(4000);
+                StopToken.Sleep(4000);
                 AiReply r2 = Send(sys + LoopWarning, h, null, true);
                 string e2 = null;
                 List<TrLine> l2 = r2.Ok ? ParseTrLines(r2.Text, out e2) : null;
