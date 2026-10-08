@@ -51,7 +51,7 @@ run. The app runs it as a separate process; it does not link against it or patch
 | | |
 |---|---|
 | בילד · Build | `essentials_build` by [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) |
-| גרסה · Version | `9.0.1-essentials_build-www.gyan.dev` |
+| גרסה · Version | `9.0.2-essentials_build-www.gyan.dev` (מ-0.8.8 · since 0.8.8) |
 | רישיון · License | **GNU General Public License v3** (‏`--enable-gpl --enable-version3`) |
 | נוסח הרישיון · License text | [`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt) |
 | קוד מקור · Source | https://ffmpeg.org/download.html · https://git.ffmpeg.org/ffmpeg.git |
@@ -154,11 +154,19 @@ independent C# 5 implementation under MIT, as is our Torah‑study word list.*
 
 ## רכיבים נוספים · Everything else
 
-אין. אין NuGet, אין ספריות מצורפות, אין גופני אייקונים — כל האייקונים מצוירים בקוד,
+אין ספריות מצורפות. אין NuGet ואין גופני אייקונים — כל האייקונים מצוירים בקוד,
 והתוכנה מהודרת עם מהדר ה‑C# המובנה בווינדוס מול ‎.NET Framework 4.8.
 
-*None. No NuGet, no bundled libraries, no icon fonts — every icon is drawn in code, and
-the app compiles with the C# compiler that ships with Windows against .NET Framework 4.8.*
+**מפענח LZMA** (`src\Lzma.cs`, מ-0.8.8): העברה של המפענח מ-[LZMA SDK](https://www.7-zip.org/sdk.html)
+של איגור פבלוב, שהוא **נחלת הכלל** (public domain). מנוע הווידאו נארז בתוך ה-EXE ב-LZMA —
+27 מגה במקום 37. הקוד שלנו סביבו ב-MIT.
+
+*No bundled libraries. No NuGet, no icon fonts — every icon is drawn in code, and the app
+compiles with the C# compiler that ships with Windows against .NET Framework 4.8.*
+
+***LZMA decoder** (`src\Lzma.cs`, since 0.8.8): a port of the decoder from Igor Pavlov's
+[LZMA SDK](https://www.7-zip.org/sdk.html), which is in the **public domain**. The video engine
+is packed inside the EXE with LZMA — 27 MB instead of 37.*
 
 ---
 

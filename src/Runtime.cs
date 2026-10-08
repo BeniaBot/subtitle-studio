@@ -67,7 +67,7 @@ namespace SubtitleStudio
             }
         }
 
-        private static bool CanWrite(string dir)
+        internal static bool CanWrite(string dir)
         {
             try
             {
@@ -81,7 +81,14 @@ namespace SubtitleStudio
 
         public static string FfmpegPath { get { return _ffmpeg; } }
 
-        /// <summary>גודל ffmpeg.exe המקורי כפי שנשמר בתוך המשאב.</summary>
+        /// <summary>FFP1 = ‏Deflate (עד 0.8.7, ובבנייה בלי פייתון); FFP2 = ‏LZMA (0.8.8: ‏27 מגה במקום 37).</summary>
+        private static bool IsPackMagic(byte[] h, out bool lzma)
+        {
+            lzma = h[3] == '2';
+            return h[0] == 'F' && h[1] == 'F' && h[2] == 'P' && (h[3] == '1' || h[3] == '2');
+        }
+
+        /// <summary>גודל ffmpeg.exe המקורי כפי שנשמר בחבילה.</summary>
         public static long PayloadSize
         {
             get
@@ -95,7 +102,8 @@ namespace SubtitleStudio
                         if (s == null) return 0;
                         byte[] head = new byte[12];
                         if (s.Read(head, 0, 12) != 12) return 0;
-                        if (head[0] != 'F' || head[1] != 'F' || head[2] != 'P' || head[3] != '1') return 0;
+                        bool lz;
+                        if (!IsPackMagic(head, out lz)) return 0;
                         _payloadSize = BitConverter.ToInt64(head, 4);
                     }
                 }
@@ -104,10 +112,109 @@ namespace SubtitleStudio
             }
         }
 
+        // ---------- המנוע בסוף הקובץ (0.8.8) ----------
+        // ‏[התוכנה][ffmpeg.pack][64 בתים: "SUBTEXT-ENGINE-1", אורך החבילה, SHA-256 שלה, אפסים] (build\make-overlay.ps1).
+        // עד 0.8.7 המנוע היה משאב **בתוך** התוכנה, ולכן כל עדכון הוריד את כל 37 המגה. עכשיו העדכון מוריד רק את חלק
+        // התוכנה ומדביק את המנוע שכבר יש (Updater.FetchSlim). בחלק האחרון אין שום דבר שתלוי בתוכנה - כך המנוע
+        // והחלק האחרון זהים בכל גרסה עם אותו מנוע.
+
+        public const string TrailerMagic = "SUBTEXT-ENGINE-1";
+        public const int TrailerSize = 64;
+
+        private static bool _overlayRead;
+        private static string _overlayFile;
+        private static long _packOffset, _packLength;
+        private static string _engineId = "";
+
+        /// <summary>הקובץ שהתוכנה רצה ממנו. בבדיקות (Assembly.Load מבייטים) אין לו מיקום, ואז SUBSTUDIO_EXE.</summary>
+        internal static string SelfPath
+        {
+            get
+            {
+                string p = "";
+                try { p = Assembly.GetExecutingAssembly().Location; }
+                catch { }
+                if (string.IsNullOrEmpty(p)) p = Environment.GetEnvironmentVariable("SUBSTUDIO_EXE") ?? "";
+                return p;
+            }
+        }
+
+        /// <summary>קורא את החלק האחרון של קובץ. null = אין בו מנוע (או שהוא פגום): {מיקום החבילה, אורכה}.</summary>
+        internal static long[] ReadTrailer(string file, out string engineId)
+        {
+            engineId = "";
+            try
+            {
+                if (string.IsNullOrEmpty(file) || !File.Exists(file)) return null;
+                using (FileStream fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    if (fs.Length < TrailerSize + 12) return null;
+                    fs.Seek(-TrailerSize, SeekOrigin.End);
+                    byte[] t = new byte[TrailerSize];
+                    int got = 0, n;
+                    while (got < TrailerSize && (n = fs.Read(t, got, TrailerSize - got)) > 0) got += n;
+                    if (got != TrailerSize || Encoding.ASCII.GetString(t, 0, 16) != TrailerMagic) return null;
+                    long packLen = BitConverter.ToInt64(t, 16);
+                    long offset = fs.Length - TrailerSize - packLen;
+                    if (packLen <= 12 || offset <= 0) return null;
+                    // החבילה עצמה מתחילה ב-FFP1/FFP2 - עוד הגנה מחלק אחרון מקרי
+                    fs.Seek(offset, SeekOrigin.Begin);
+                    byte[] head = new byte[4];
+                    bool lz;
+                    if (fs.Read(head, 0, 4) != 4 || !IsPackMagic(head, out lz)) return null;
+                    engineId = BitConverter.ToString(t, 24, 32).Replace("-", "").ToLowerInvariant();
+                    return new long[] { offset, packLen };
+                }
+            }
+            catch { return null; }
+        }
+
+        private static void ReadOverlay()
+        {
+            if (_overlayRead) return;
+            _overlayRead = true;
+            string f = SelfPath;
+            string id;
+            long[] r = ReadTrailer(f, out id);
+            if (r == null) return;
+            _overlayFile = f; _packOffset = r[0]; _packLength = r[1]; _engineId = id;
+        }
+
+        /// <summary>יש מנוע בסוף הקובץ שהתוכנה רצה ממנו.</summary>
+        public static bool HasOverlay { get { ReadOverlay(); return _overlayFile != null; } }
+
+        /// <summary>הזהות של המנוע שבקובץ (SHA-256 של החבילה, באותיות קטנות), או ריק.</summary>
+        public static string EngineId { get { ReadOverlay(); return _engineId; } }
+
         private static Stream Payload()
         {
+            ReadOverlay();
+            if (_overlayFile != null)
+            {
+                try
+                {
+                    FileStream fs = new FileStream(_overlayFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16);
+                    return new WindowStream(fs, _packOffset, _packLength);
+                }
+                catch { return null; }
+            }
+            // עד 0.8.7 - משאב בתוך התוכנה
             try { return Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName); }
             catch { return null; }
+        }
+
+        /// <summary>מה שכתוב בקובץ החותמת שליד המנוע שנפרס: ״id=…״, או ריק (פריסה של 0.8.7 ומטה).</summary>
+        private static string StampId(string dir)
+        {
+            try
+            {
+                string p = Path.Combine(dir, "ffmpeg.stamp");
+                if (!File.Exists(p)) return "";
+                foreach (string line in File.ReadAllLines(p, Encoding.UTF8))
+                    if (line.StartsWith("id=", StringComparison.OrdinalIgnoreCase)) return line.Substring(3).Trim().ToLowerInvariant();
+            }
+            catch { }
+            return "";
         }
 
         public static bool HasPayload { get { return PayloadSize > 0; } }
@@ -122,6 +229,7 @@ namespace SubtitleStudio
                 Path.Combine(TargetDir, "ffmpeg.exe")
             };
             long want = PayloadSize;
+            string id = EngineId;
             foreach (string c in candidates)
             {
                 try
@@ -129,8 +237,13 @@ namespace SubtitleStudio
                     if (!File.Exists(c)) continue;
                     long len = new FileInfo(c).Length;
                     if (len < 1000000) continue;                       // קובץ פגום/חלקי
-                    if (want > 0 && c.StartsWith(TargetDir, StringComparison.OrdinalIgnoreCase) && len != want)
-                        continue;                                      // פריסה ישנה - נחליף אותה
+                    if (c.StartsWith(TargetDir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // **פריסה של מנוע אחר - מחליפים.** לפי הזהות שבחותמת; עד 0.8.7 לפי הגודל בלבד, ומנוע חדש
+                        // באותו גודל בדיוק היה נשאר הישן. פריסה בלי זהות (0.8.7 ומטה) - פעם אחת מחדש.
+                        if (id.Length > 0 && StampId(Path.GetDirectoryName(c)) != id) continue;
+                        if (want > 0 && len != want) continue;
+                    }
                     return c;
                 }
                 catch { }
@@ -158,23 +271,10 @@ namespace SubtitleStudio
                 {
                     Directory.CreateDirectory(dir);
                     long total = PayloadSize;
-                    using (Stream res = Payload())
-                    {
-                        res.Seek(12, SeekOrigin.Begin);
-                        using (DeflateStream ds = new DeflateStream(res, CompressionMode.Decompress))
-                        using (FileStream fs = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
-                        {
-                            byte[] buf = new byte[1 << 20];
-                            long written = 0;
-                            int n;
-                            while ((n = ds.Read(buf, 0, buf.Length)) > 0)
-                            {
-                                fs.Write(buf, 0, n);
-                                written += n;
-                                if (total > 0) progress = Math.Min(0.999, written / (double)total);
-                            }
-                        }
-                    }
+                    Unpack(SelfPath, temp, delegate (long written) { if (total > 0) progress = Math.Min(0.999, written / (double)total); });
+                    // מה שנפרס הוא בדיוק מה שנארז: באורך (והפענוח עצמו בודק את עצמו)
+                    if (total > 0 && new FileInfo(temp).Length != total)
+                        throw new InvalidDataException(Lang.T("מנוע הווידאו שבתוך התוכנה פגום."));
                     if (File.Exists(target))
                     {
                         try { File.Delete(target); }
@@ -182,7 +282,7 @@ namespace SubtitleStudio
                     }
                     if (File.Exists(target)) File.Delete(target);
                     File.Move(temp, target);
-                    try { File.WriteAllText(Path.Combine(dir, "ffmpeg.stamp"), PayloadSize.ToString() + "\r\n" + DateTime.Now.ToString("s"), Encoding.UTF8); }
+                    try { File.WriteAllText(Path.Combine(dir, "ffmpeg.stamp"), PayloadSize.ToString() + "\r\n" + DateTime.Now.ToString("s") + "\r\nid=" + EngineId, Encoding.UTF8); }
                     catch { }
                     progress = 1;
                 }
@@ -220,6 +320,51 @@ namespace SubtitleStudio
             _ffmpeg = File.Exists(target) ? target : null;
         }
 
+        /// <summary>פורס את המנוע שבחבילה לקובץ (LZMA או Deflate, לפי הכותרת). <paramref name="progress"/>: כמה
+        /// בתים נכתבו. נפרד מ-Prepare כדי ש-test-release יפרוס את המנוע האמיתי ויבדוק את הטביעה.</summary>
+        internal static void Unpack(string exeFile, string dest, Action<long> progress)
+        {
+            string id;
+            long[] r = ReadTrailer(exeFile, out id);
+            if (r == null) throw new InvalidDataException(Lang.T("אין מנוע וידאו בתוך התוכנה."));
+            // **קודם הטביעה של החבילה** מול הזהות שבסוף הקובץ: פענוח של חבילה פגומה עם אורך ידוע לא נכשל - הוא כותב
+            // מנוע פגום באורך הנכון. קובץ תוכנה שנפגם (הורדה חלקית, דיסק) מקבל הודעה ברורה במקום מנוע שבור.
+            using (FileStream hs = new FileStream(exeFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20))
+            using (WindowStream w = new WindowStream(hs, r[0], r[1]))
+            using (System.Security.Cryptography.SHA256 sha = System.Security.Cryptography.SHA256.Create())
+            {
+                string got = BitConverter.ToString(sha.ComputeHash(w)).Replace("-", "").ToLowerInvariant();
+                if (got != id) throw new InvalidDataException(Lang.T("קובץ התוכנה פגום. כדאי להוריד אותו שוב."));
+            }
+            using (Stream res = new WindowStream(new FileStream(exeFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16), r[0], r[1]))
+            {
+                byte[] head = new byte[12];
+                bool lzma;
+                if (res.Read(head, 0, 12) != 12 || !IsPackMagic(head, out lzma)) throw new InvalidDataException(Lang.T("קובץ התוכנה פגום. כדאי להוריד אותו שוב."));
+                long total = BitConverter.ToInt64(head, 4);
+                using (FileStream fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
+                {
+                    if (lzma)
+                    {
+                        new LzmaDecoder().Decode(res, fs, total, progress);
+                        return;
+                    }
+                    using (DeflateStream ds = new DeflateStream(res, CompressionMode.Decompress))
+                    {
+                        byte[] buf = new byte[1 << 20];
+                        long written = 0;
+                        int n;
+                        while ((n = ds.Read(buf, 0, buf.Length)) > 0)
+                        {
+                            fs.Write(buf, 0, n);
+                            written += n;
+                            if (progress != null) progress(written);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>הסרת הפריסה (לניקוי ידני מההגדרות).</summary>
         public static bool Remove(out string message)
         {
@@ -233,6 +378,56 @@ namespace SubtitleStudio
                 return true;
             }
             catch (Exception ex) { message = ex.Message; return false; }
+        }
+    }
+
+    /// <summary>חלון קריאה בלבד על קטע מתוך קובץ (המנוע שבסוף ה-EXE): מתחיל באפס ונגמר בסוף הקטע.</summary>
+    internal sealed class WindowStream : Stream
+    {
+        private readonly Stream _s;
+        private readonly long _start, _len;
+        private long _pos;
+
+        public WindowStream(Stream s, long start, long length)
+        {
+            _s = s; _start = start; _len = length;
+            _s.Seek(start, SeekOrigin.Begin);
+        }
+
+        public override bool CanRead { get { return true; } }
+        public override bool CanSeek { get { return true; } }
+        public override bool CanWrite { get { return false; } }
+        public override long Length { get { return _len; } }
+        public override long Position { get { return _pos; } set { Seek(value, SeekOrigin.Begin); } }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            long left = _len - _pos;
+            if (left <= 0) return 0;
+            if (count > left) count = (int)left;
+            int n = _s.Read(buffer, offset, count);
+            _pos += n;
+            return n;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            long p = origin == SeekOrigin.Begin ? offset : origin == SeekOrigin.Current ? _pos + offset : _len + offset;
+            if (p < 0) p = 0;
+            if (p > _len) p = _len;
+            _s.Seek(_start + p, SeekOrigin.Begin);
+            _pos = p;
+            return p;
+        }
+
+        public override void Flush() { }
+        public override void SetLength(long value) { throw new NotSupportedException(); }
+        public override void Write(byte[] buffer, int offset, int count) { throw new NotSupportedException(); }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _s.Dispose();
+            base.Dispose(disposing);
         }
     }
 

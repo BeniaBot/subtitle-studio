@@ -25,8 +25,6 @@ if errorlevel 1 exit /b 1
 
 if not exist "dist" mkdir "dist"
 
-set RES=
-if exist "build\payload\ffmpeg.pack" set RES=/resource:"build\payload\ffmpeg.pack",ffmpeg.pack
 
 rem  UI font (IBM Plex Sans Hebrew, SIL OFL) - embedded so the app looks the same everywhere.
 rem  Listed one by one on purpose: delayed expansion inside the csc line is fragile.
@@ -35,10 +33,9 @@ rem  paperwork: MIT for our code, GPLv3 for FFmpeg, OFL for the font.
 
 echo Compiling...
 "%CSC%" /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 ^
-  /out:"dist\Subtext.exe" ^
+  /out:"build\payload\Subtext-app.exe" ^
   /win32icon:"build\app.ico" ^
   /win32manifest:"build\app.manifest" ^
-  %RES% ^
   /resource:"assets\fonts\IBMPlexSansHebrew-Regular.ttf",IBMPlexSansHebrew-Regular.ttf ^
   /resource:"assets\fonts\IBMPlexSansHebrew-SemiBold.ttf",IBMPlexSansHebrew-SemiBold.ttf ^
   /resource:"assets\fonts\IBMPlexSansHebrew-Bold.ttf",IBMPlexSansHebrew-Bold.ttf ^
@@ -59,6 +56,11 @@ if errorlevel 1 (
   echo [ERROR] Build failed.
   exit /b 1
 )
+
+rem  The engine goes at the end of the file, not inside it: the small app-only update (0.8.8)
+rem  rebuilds the EXE from the app part plus the engine the user already has.
+powershell -NoProfile -ExecutionPolicy Bypass -File "build\make-overlay.ps1"
+if errorlevel 1 exit /b 1
 
 for %%F in ("dist\Subtext.exe") do set SIZE=%%~zF
 echo.
