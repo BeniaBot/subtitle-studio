@@ -2,6 +2,62 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.8",
+      "date": "2026-10-08",
+      "items": [
+        {
+          "t": "major",
+          "s": "מהעדכון הבא: מורידים רק את התוכנה - כחצי מגה במקום כ-28. מנוע הווידאו כבר אצלכם, והוא לא יורד שוב",
+          "en": "From the next update on, only the program is downloaded - about half a megabyte instead of about 28. The video engine is already on your computer, and it isn't downloaded again"
+        },
+        {
+          "t": "feature",
+          "s": "כלי הווידאו (המרה, סיבוב, דהייה, מהירות, חיבור, ריוורס, שינוי רזולוציה וחיתוך מדויק) יוצרים מסרטון רגיל מהרשת או מהטלפון קובץ קטן ברבע עד כמעט חצי, באותה איכות לעין",
+          "en": "The video tools (convert, rotate, fade, speed, join, reverse, resolution and exact cut) make a file a quarter to almost half smaller from an ordinary web or phone video, with the same quality to the eye"
+        },
+        {
+          "t": "fix",
+          "s": "״דחיסה״ ו״הכנה לשליחה בוואטסאפ״ תמיד מקטינות את הקובץ - עד עכשיו סרטון רגיל מהרשת יצא מהן גדול יותר",
+          "en": "'Compress' and 'Prepare for WhatsApp' always make the file smaller - until now an ordinary web video came out bigger"
+        },
+        {
+          "t": "fix",
+          "s": "״שינוי רזולוציה״ ו״התאמה לגודל קובץ״ לא רצות כשהן רק היו מקלקלות את הקובץ, ואומרות למה. וההתאמה לגודל נכנסת ביעד גם בגדלים קטנים",
+          "en": "'Change resolution' and 'Fit to a file size' do not run when they would only make the file worse, and say why. And fitting to a size stays under the target at small sizes too"
+        },
+        {
+          "t": "feature",
+          "s": "GIF קטן וחלק יותר - בלי ״גרעינים״ על שמיים ועל פנים",
+          "en": "Smaller, smoother GIFs - no 'grain' on skies and faces"
+        },
+        {
+          "t": "feature",
+          "s": "קובץ התוכנה קטן יותר: 28 מגה במקום 37",
+          "en": "A smaller program file: 28 MB instead of 37"
+        },
+        {
+          "t": "feature",
+          "s": "הצעת העדכון אומרת כמה יורד, ואפשר לבטל באמצע ההורדה",
+          "en": "The update offer says how much will be downloaded, and the download can be cancelled halfway"
+        },
+        {
+          "t": "fix",
+          "s": "״עצירה״ בתמלול עוצרת מיד - גם באמצע בקשה לשרת - ומה שכבר תומלל נשמר. וביטול תרגום כבר לא ממשיך לרוץ ברקע",
+          "en": "'Stop' in transcription stops at once - even in the middle of a request to the server - and what was already transcribed is kept. Cancelling a translation no longer keeps running in the background"
+        },
+        {
+          "t": "fix",
+          "s": "מנוע הווידאו עודכן לגרסה 9.0.2, עם תיקוני באגים",
+          "en": "The video engine was updated to version 9.0.2, with bug fixes"
+        },
+        {
+          "t": "fix",
+          "s": "שתי גרסאות של התוכנה על אותו מחשב (למשל מותקנת וניידת) כבר לא מפריעות זו לזו בפתיחה, ו״הגישה נדחתה״ לא יופיע",
+          "en": "Two versions of the program on the same computer (say, installed and portable) no longer get in each other's way at start, and 'access denied' won't appear"
+        }
+      ]
+    },
+    {
       "v": "0.8.7",
       "date": "2026-10-08",
       "items": [

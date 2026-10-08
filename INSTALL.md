@@ -71,8 +71,9 @@ Subtext-Setup.exe /uninstall
 ## מה בונה את מה
 
 ```
-build.cmd                  ->  dist\Subtext.exe        (~36MB, הכול בפנים)
-build\make-installer.cmd   ->  dist\Subtext-Setup.exe  (~37MB)
+build.cmd                  ->  dist\Subtext.exe        (~28MB, הכול בפנים)
+                               dist\Subtext-app-update-<id>.gz  (~0.5MB, העדכון הקטן)
+build\make-installer.cmd   ->  dist\Subtext-Setup.exe  (~28MB)
 ```
 
 **סדר הפעולות חשוב.** המתקין מטמיע את `dist\Subtext.exe` כמשאב,
