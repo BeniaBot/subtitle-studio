@@ -59,10 +59,14 @@ namespace SubtitleStudio
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
                 psi.RedirectStandardOutput = true;
+                // גם ערוץ השגיאות שלו, ולא של מי שהפעיל אותנו (-v quiet - אין בו כלום, אז אין חשש שיתמלא). עד 0.8.8 ffmpeg
+                // יתום החזיק את ערוץ השגיאות של test-all עשר דקות (8.10); בתוכנה עצמה אין קונסולה, אז זה רק בבדיקות.
+                psi.RedirectStandardError = true;
                 _proc = new Process();
                 _proc.StartInfo = psi;
                 _proc.Start();
                 ChildJob.Add(_proc);
+                _proc.BeginErrorReadLine();
 
                 Stream s = _proc.StandardOutput.BaseStream;
                 int samplesPerBucket = rate * PeriodMs / 1000;   // 80
@@ -315,11 +319,13 @@ namespace SubtitleStudio
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
                 psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
                 _proc = new Process();
                 _proc.StartInfo = psi;
                 try { _proc.Start(); }
                 catch { _proc = null; return; }
                 ChildJob.Add(_proc);
+                _proc.BeginErrorReadLine();
 
                 _feeder = new Thread(Feed);
                 _feeder.IsBackground = true;
@@ -451,11 +457,13 @@ namespace SubtitleStudio
             psi.UseShellExecute = false;
             psi.CreateNoWindow = true;
             psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
             _proc = new Process();
             _proc.StartInfo = psi;
             try { _proc.Start(); }
             catch { _proc = null; return; }
             ChildJob.Add(_proc);
+            _proc.BeginErrorReadLine();
 
             long start = fromMs;
             _thread = new Thread(delegate () { Reader(start); });
@@ -633,11 +641,13 @@ namespace SubtitleStudio
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
                 psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
                 using (Process p = new Process())
                 {
                     p.StartInfo = psi;
                     p.Start();
                     ChildJob.Add(p);
+                    p.BeginErrorReadLine();
                     if (owner != null) owner._cur = p;
                     int need = w * h * 3;
                     byte[] buf = new byte[need];

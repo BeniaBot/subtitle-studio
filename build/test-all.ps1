@@ -8,7 +8,7 @@ param([string]$Only = '', [int]$Timeout = 900)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $expect = [ordered]@{
-    'logic' = 198; 'autotime' = 31; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
+    'logic' = 206; 'autotime' = 31; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 45; 'layout' = 95; 'project' = 106; 'screens' = 35
     'fuzz' = 11; 'long' = 15; 'stt' = 125; 'errors' = 38; 'buttons' = 12
     'source' = 7; 'qa' = 100; 'spell' = 59; 'release' = 63; 'settings' = 19; 'subs' = 26; 'cut' = 43
@@ -25,9 +25,22 @@ foreach ($n in $names) {
     $file = Join-Path $here ('test-' + $parts[0] + '.ps1')
     $lang = if ($parts.Count -gt 1) { $parts[1] } else { '' }
     $t0 = $sw.Elapsed.TotalSeconds
-    $job = Start-Job -ArgumentList $file, $lang { param($f, $l)
-        if ($l) { powershell -NoProfile -ExecutionPolicy Bypass -File $f -Lang $l 2>&1 | Out-String }
-        else { powershell -NoProfile -ExecutionPolicy Bypass -File $f 2>&1 | Out-String } }
+    # Output goes to a FILE, and we wait for the PROCESS - not for a pipe to reach EOF. An ffmpeg whose parent
+    # died while creating it stays frozen forever (one thread, no CPU) and inherits every inheritable handle,
+    # the package's stdout pipe too: twice on 8.10 the run waited ten minutes on such a pipe. Leftover
+    # ffmpeg children of the package (and only those - never the user's own Subtext) are killed afterwards.
+    $log = Join-Path $env:TEMP ('ss-testall-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.txt')
+    $job = Start-Job -ArgumentList $file, $lang, $log { param($f, $l, $log)
+        $a = '-NoProfile -ExecutionPolicy Bypass -File "' + $f + '"' + $(if ($l) { ' -Lang ' + $l } else { '' })
+        $p = Start-Process powershell -ArgumentList $a -RedirectStandardOutput $log -RedirectStandardError ($log + '.err') -NoNewWindow -PassThru
+        $p.WaitForExit()
+        Get-CimInstance Win32_Process -Filter ("Name='ffmpeg.exe' AND ParentProcessId=" + $p.Id) | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        $o = ''
+        foreach ($x in $log, ($log + '.err')) {
+            try { $fs = New-Object IO.FileStream($x, 'Open', 'Read', 'ReadWrite'); $sr = New-Object IO.StreamReader($fs); $o += $sr.ReadToEnd(); $sr.Dispose() } catch { }
+            try { [IO.File]::Delete($x) } catch { }
+        }
+        $o }
     $out = ''; $state = 'done'
     if (Wait-Job $job -Timeout $Timeout) { $out = Receive-Job $job } else {
         $state = 'TIMEOUT'
