@@ -2,6 +2,47 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.7",
+      "date": "2026-10-08",
+      "items": [
+        {
+          "t": "major",
+          "s": "כלי חיתוך חדש: כמה קטעים בבת אחת, ישר על פס הקול - לשמור או להסיר, לשמוע את התוצאה לפני השמירה, או לשמור כל קטע לקובץ נפרד",
+          "en": "A new cutting tool: several sections at once, right on the waveform - keep or remove, hear the result before saving, or save each section to its own file"
+        },
+        {
+          "t": "feature",
+          "s": "קובצי קול נחתכים בפורמט שלהם, בלי פגיעה באיכות ועם תמונת העטיפה והשם. MP3, ‏WAV, ‏M4A ו-WMA - בלי קידוד מחדש בכלל",
+          "en": "Audio files are cut in their own format, with no loss of quality and with the cover picture and title kept. MP3, WAV, M4A and WMA - with no re-encoding at all"
+        },
+        {
+          "t": "feature",
+          "s": "אחרי החיתוך העורך עובר לקובץ החתוך, והכתוביות זזות איתו",
+          "en": "After cutting, the editor switches to the cut file, and the subtitles move with it"
+        },
+        {
+          "t": "feature",
+          "s": "בסוף כל פעולה כתוב איפה הקובץ נשמר ובאיזה גודל",
+          "en": "At the end of every action the window says where the file was saved and how big it is"
+        },
+        {
+          "t": "fix",
+          "s": "כלי הקול (עוצמה, איזון, ניקוי רעש, ריוורס, מהירות) נכשלו על קובץ M4A עם תמונת עטיפה; עכשיו הם עובדים, והעטיפה נשארת",
+          "en": "The audio tools (volume, normalise, noise removal, reverse, speed) failed on an M4A file with a cover picture; now they work, and the cover stays"
+        },
+        {
+          "t": "fix",
+          "s": "מנוע הווידאו כבר לא ממשיך לרוץ ברקע אחרי שהתוכנה נסגרת באמצע עבודה",
+          "en": "The video engine no longer keeps running in the background after the program is closed in the middle of a job"
+        },
+        {
+          "t": "fix",
+          "s": "השעון זז גם כשקופצים בזמן עצירה (חצים, לחיצה על הציר)",
+          "en": "The clock moves also when you jump while paused (arrows, a click on the timeline)"
+        }
+      ]
+    },
+    {
       "v": "0.8.6",
       "date": "2026-10-07",
       "items": [
