@@ -134,6 +134,19 @@ namespace SubtitleStudio
             return f;
         }
 
+        /// <summary>קובץ קול עם תמונת עטיפה (ערוץ ״וידאו״ של תמונה אחת): במיכל שמחזיק עטיפה (MP3, ‏M4A, ‏FLAC) היא
+        /// מועתקת כמו שהיא, ובאחר - יוצאת. בלי זה ffmpeg ניסה לקודד אותה כסרטון, ו-M4A עם עטיפת PNG יצא ריק בחמישה
+        /// כלים (real-sweep על קבצי קול, 8.10.2026). בסרט של ממש - ריק: שם כל כלי מטפל בתמונה בעצמו.</summary>
+        internal static string CoverArgs(ToolCtx c)
+        {
+            if (c.Mi == null || c.Mi.HasVideo) return "";
+            bool cover = false;
+            foreach (MediaStream st in c.Mi.Streams) if (st.Type == "video") cover = true;
+            if (!cover) return "";
+            string e = Path.GetExtension(c.Out ?? "").ToLowerInvariant();
+            return e == ".mp3" || e == ".m4a" || e == ".flac" ? "-c:v copy -disposition:v:0 attached_pic " : "-vn ";
+        }
+
         public static List<MediaTool> All()
         {
             List<MediaTool> t = new List<MediaTool>();
@@ -150,7 +163,7 @@ namespace SubtitleStudio
             vol.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af volume=" + c.Val.ToString("0.##", CultureInfo.InvariantCulture) + "dB " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : CoverArgs(c)) + Ff.Q(c.Out);
             };
             t.Add(vol);
 
@@ -168,7 +181,7 @@ namespace SubtitleStudio
                 MediaStream a = c.Mi != null ? c.Mi.FirstAudio() : null;
                 int hz = a != null && a.SampleRate >= 8000 && a.SampleRate <= 96000 ? a.SampleRate : 48000;
                 return "-i " + Ff.Q(c.In) + " -af loudnorm=I=-16:TP=-1.5:LRA=11,aresample=" + hz + " " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : CoverArgs(c)) + Ff.Q(c.Out);
             };
             t.Add(norm);
 
@@ -241,7 +254,7 @@ namespace SubtitleStudio
                 // קובץ קול (גם עם תמונת עטיפה): בלי ערוץ תמונה. עד 0.8.1 העטיפה קודדה כסרט
                 // של פריים אחד, וההמרה נכשלה
                 if (c.Mi != null && !c.Mi.HasVideo)
-                    return "-i " + Ff.Q(c.In) + " -vn " + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
+                    return "-i " + Ff.Q(c.In) + " " + (CoverArgs(c).Length > 0 ? CoverArgs(c) : "-vn ") + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
                 if (c.Opt == 0)
                     return "-i " + Ff.Q(c.In) + " " + Q.MaxVideo + " " + Q.MaxAudio + " -movflags +faststart " + Ff.Q(c.Out);
                 return "-i " + Ff.Q(c.In) + " -c copy " + (Path.GetExtension(c.Out).ToLowerInvariant() == ".mp4" ? "-movflags +faststart " : "") + Ff.Q(c.Out);
@@ -302,7 +315,7 @@ namespace SubtitleStudio
                            "[a]\" -map \"[v]\" -map \"[a]\" " + Q.MaxVideo + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
                 if (c.Mi != null && c.Mi.HasVideo)
                     return "-i " + Ff.Q(c.In) + " -vf \"setpts=" + pts + "*PTS\" -an " + Q.MaxVideo + " " + Ff.Q(c.Out);
-                return "-i " + Ff.Q(c.In) + " -filter:a atempo=" + vs + " " + Ff.Q(c.Out);
+                return "-i " + Ff.Q(c.In) + " -filter:a atempo=" + vs + " " + CoverArgs(c) + Ff.Q(c.Out);
             };
             t.Add(speed);
 
@@ -477,7 +490,7 @@ namespace SubtitleStudio
             denoise.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af afftdn=nr=" + ((int)c.Val) + ":nf=-25 " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : CoverArgs(c)) + Ff.Q(c.Out);
             };
             t.Add(denoise);
 
@@ -505,11 +518,17 @@ namespace SubtitleStudio
                 bool hasV = c.Mi == null || c.Mi.HasVideo;
                 bool hasA = c.Mi != null && c.Mi.HasAudio;
                 string range = c.RangeArgs();
-                if (c.Opt == 2 || !hasV)
+                if (!hasV)
+                {
+                    // קובץ קול: הקטע לפני הקלט - חיתוך אחרי הקלט זרק את תמונת העטיפה (היא בזמן אפס)
+                    return c.RangeIn() + "-i " + Ff.Q(c.In) + " " + c.RangeOut() + "-af areverse " +
+                           CoverArgs(c) + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
+                }
+                if (c.Opt == 2)
                 {
                     // רק הקול
                     return "-i " + Ff.Q(c.In) + " " + range + "-af areverse " +
-                           (hasV ? "-c:v copy " : "") + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
+                           (hasV ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
                 }
                 if (c.Opt == 1 || !hasA)
                 {

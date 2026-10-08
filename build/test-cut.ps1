@@ -2,7 +2,7 @@
 # הלוגיקה (CutPlan) מול מקרים ידועים, ואחר כך המנוע עצמו על קבצים אמיתיים שנוצרים כאן: MP3, ‏M4A, ‏WAV
 # (בלי קידוד מחדש, בפורמט המקורי) ו-MP4 (מהיר ומדויק) - ובודקים את האורך של מה שיצא.
 # אחר כך החלון עצמו, עם הנגן האמיתי: גרירה, הקלדה, מקלדת, ניגון, וחיתוך דרך החלון.
-# צפוי: 42 בדיקות.
+# צפוי: 43 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -92,6 +92,7 @@ Get-ChildItem $dir -File | ForEach-Object { [IO.File]::Delete($_.FullName) }
 & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:duration=60' -c:a libopus -b:a 64k (Join-Path $dir 'src.opus')
 & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'testsrc=size=300x300:rate=1' -frames:v 1 (Join-Path $dir 'cover.png')
 & $ffx -nostdin -hide_banner -loglevel error -y -i (Join-Path $dir 'src.mp3') -i (Join-Path $dir 'cover.png') -map 0:a -map 1:v -c:a copy -c:v mjpeg -disposition:v attached_pic -metadata title=CoverTest (Join-Path $dir 'cover.mp3')
+& $ffx -nostdin -hide_banner -loglevel error -y -i (Join-Path $dir 'src.m4a') -i (Join-Path $dir 'cover.png') -map 0:a -map 1:v -c:a copy -c:v png -disposition:v attached_pic (Join-Path $dir 'cover.m4a')
 function Probe($p) { return (T 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$p)) }
 function RunSteps($job) {
     foreach ($a in $job.Steps) {
@@ -130,11 +131,34 @@ foreach ($ext in 'flac', 'ogg', 'opus') {
     $r = Cut (Join-Path $dir "src.$ext") $three $false "re.$ext"
     Check ("$ext - שלושה קטעים: מדויק (בקידוד מחדש), באותו פורמט") ($r.Err -eq $null -and [IO.Path]::GetExtension($r.Out) -eq ".$ext" -and [Math]::Abs($r.Dur - 18) -lt 0.12 -and $r.Steps -eq 1) ("dur=" + $r.Dur + " steps=" + $r.Steps + " " + $r.Err)
 }
-function Tags($p) { $ErrorActionPreference = 'Continue'; $e = (& $ffx -hide_banner -i $p 2>&1 | Out-String); return @{ Cover = ($e -match 'attached pic'); Title = ($e -match '(?m)^\s+title\s+:\s*CoverTest') } }
+function Tags($p) { $ErrorActionPreference = 'Continue'; $e = ((& $ffx -hide_banner -i $p 2>&1 | ForEach-Object { [string]$_ }) -join "`n"); return @{ Cover = ($e -match 'attached pic'); Title = ($e -match '(?m)^\s+title\s+:\s*CoverTest') } }
 $r1 = Cut (Join-Path $dir 'cover.mp3') @(,@(5000, 35000)) $false 'cover1.mp3'
 $r3 = Cut (Join-Path $dir 'cover.mp3') $three $false 'cover3.mp3'
 $t1 = Tags $r1.Out; $t3 = Tags $r3.Out
 Check 'MP3 עם תמונת עטיפה ושם: אחרי חיתוך (קטע אחד, וגם שלושה מחוברים) העטיפה והשם נשארים' ($r1.Err -eq $null -and $r3.Err -eq $null -and $t1.Cover -and $t1.Title -and $t3.Cover -and $t3.Title -and [Math]::Abs($r3.Dur - 18) -lt 0.25) ("one: cover=" + $t1.Cover + " title=" + $t1.Title + "  three: cover=" + $t3.Cover + " title=" + $t3.Title + " dur=" + $r3.Dur)
+
+# כלי המדיה על קובץ קול עם עטיפה: עד 0.8.7 ffmpeg ניסה לקודד את העטיפה כסרטון, ו-M4A עם עטיפת PNG יצא ריק
+# בחמישה כלים (real-sweep). עכשיו העטיפה מועתקת כמו שהיא, והקול עובר את הכלי
+$toolsAll = (T 'MediaTools').GetMethod('All', $ST).Invoke($null, @())
+$bad = @(); $runs = 0
+foreach ($srcName in 'cover.m4a', 'cover.mp3') {
+    $smi = Probe (Join-Path $dir $srcName)
+    foreach ($tool in $toolsAll) {
+        if ($tool.NeedsVideo -or $tool.ParamKind -eq 3) { continue }
+        if ($tool.Name -notmatch 'עוצמ|רעש|היפוך|מהירות') { continue }
+        $tdlg = [Activator]::CreateInstance((T 'ToolRunDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, (Pack $null $tool $smi ([long]2000) ([long]8000) ([long]5000)), $null)
+        $sugg = $tdlg.GetType().GetField('_out', $IN).GetValue($tdlg).Text
+        $o = Join-Path $dir ('tool' + $runs + [IO.Path]::GetExtension($sugg))
+        $job = $tdlg.GetType().GetMethod('BuildJob', $IN).Invoke($tdlg, @([string]$o)); $tdlg.Dispose()
+        $err = RunSteps $(if ($job.Steps) { $job } else { $j2 = $job; $j2.Steps = @($job.Args); $j2 })
+        $runs++
+        $out = $job.OutputPath
+        $mo = if (Test-Path $out) { Probe $out } else { $null }
+        $tg = if ($mo) { Tags $out } else { @{ Cover = $false } }
+        if ($err -or $mo -eq $null -or -not $mo.HasAudio -or $mo.DurationSec -le 0 -or -not $tg.Cover) { $bad += ($srcName + ' / ' + $tool.Name + ': ' + $(if ($err) { $err } else { 'audio=' + $(if ($mo) { $mo.HasAudio } else { 'no file' }) + ' cover=' + $tg.Cover })) }
+    }
+}
+Check 'כלי הקול על M4A עם עטיפת PNG ועל MP3 עם עטיפה: יש קול, והעטיפה נשארת' ($runs -ge 10 -and $bad.Count -eq 0) ("runs=$runs  " + ($bad -join ' | '))
 
 # ================= החלון =================
 # החלון עם הנגן האמיתי של התוכנה, מחוץ למסך: גרירה על פס הקול, הקלדת זמנים, חצים, I/O, הכרטיסים,
