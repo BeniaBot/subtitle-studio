@@ -589,7 +589,9 @@ namespace SubtitleStudio
                 long want = _want;
                 if (want < 0 || want == _served) continue;
                 Thread.Sleep(30);                 // דיבאונס בזמן גרירה
-                if (_want != want) continue;
+                // ושוב ״עצור?״: בלי זה צילום חדש התחיל גם אחרי Stop (החלון נסגר באמצע ההמתנה), ו-ffmpeg שלו
+                // נשאר בלי הורה כשהתוכנה נסגרה בין יצירת התהליך לשיוך שלו ל-Job (נמצא בבדיקות, 8.10)
+                if (_stop || _want != want) continue;
                 Bitmap b = Grab(_path, want, _w, _h, this);
                 if (b == null) { _served = want; continue; }
                 lock (_lock)

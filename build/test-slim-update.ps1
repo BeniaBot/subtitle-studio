@@ -141,8 +141,9 @@ function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$ex
         }
         if (-not $hit) { Fail "$label : no update offer within 60s"; return }
         Log ("offer after " + [int]$sw.Elapsed.TotalSeconds + "s")
-        $engine = Join-Path $appDir 'runtime\ffmpeg.exe'
-        $engineTime = if (Test-Path $engine) { (Get-Item $engine).LastWriteTimeUtc } else { $null }
+        # כל מנוע בתיקייה משלו: runtime\<זהות>\ffmpeg.exe
+        $engine = Get-ChildItem (Join-Path $appDir 'runtime') -Recurse -Filter ffmpeg.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        $engineTime = if ($engine -and (Test-Path $engine)) { (Get-Item $engine).LastWriteTimeUtc } else { $null }
         Start-Sleep -Milliseconds 600
         Shot $hit[0] (Join-Path $shots "$label-1-offer.png")
         ClickBtn $hit[0] $hit[1]
@@ -193,7 +194,7 @@ function Scenario($label, $srcOld, $srcNew, [int]$kbps, [bool]$cancel, [bool]$ex
         Log ("server: " + ($reqs -join ' | '))
         if ($expectSlim) {
             if (-not $gotGz -or $gotFull) { Fail "$label : expected only the small file (gz=$gotGz full=$gotFull)" }
-            $engineNow = if (Test-Path $engine) { (Get-Item $engine).LastWriteTimeUtc } else { $null }
+            $engineNow = if ($engine -and (Test-Path $engine)) { (Get-Item $engine).LastWriteTimeUtc } else { $null }
             if ($engineTime -ne $null -and $engineNow -ne $engineTime) { Fail "$label : the engine was deployed again" } else { Log "engine kept (not deployed again)" }
         } else {
             if (-not $gotGz -or -not $gotFull) { Fail "$label : expected the small try and then the full file (gz=$gotGz full=$gotFull)" }

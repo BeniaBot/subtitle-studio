@@ -443,6 +443,41 @@ Check 'T_LZMA_TRUNCATED' ($err.Length -gt 0 -and $sw.Elapsed.TotalSeconds -lt 10
 
 Remove-Item $work2 -Recurse -Force -ErrorAction SilentlyContinue
 
+# ================= כל מנוע בתיקייה משלו (0.8.8) =================
+# עד 0.8.7 גרסה אחרת החליפה את runtime\ffmpeg.exe גם כשהוא היה בשימוש: ״הגישה לנתיב נדחתה״ (אצל בנימין, 8.10)
+Write-Host 'HDR_FOLDERS'
+$rtRoot = Join-Path $env:TEMP ('ss-rt-' + [guid]::NewGuid().ToString('N').Substring(0, 6))
+New-Item -ItemType Directory -Force $rtRoot | Out-Null
+function FakeEngine($dir, $id, [long]$len) {
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    $fs = [IO.File]::Create((Join-Path $dir 'ffmpeg.exe')); $fs.SetLength($len); $fs.Dispose()
+    if ($id -ne $null) { [IO.File]::WriteAllText((Join-Path $dir 'ffmpeg.stamp'), "$len`r`n2026-10-08T10:00:00`r`nid=$id", [Text.Encoding]::UTF8) }
+}
+$rtT.GetField('TargetDirOverride', $ST).SetValue($null, [string]$rtRoot)
+$find = $rtT.GetMethod('FindExisting', $ST)
+$mineDir = [string]$rtT.GetMethod('EngineDirFor', $ST).Invoke($null, @([string]$eid))
+FakeEngine $mineDir $eid $psz
+$f1 = [string]$find.Invoke($null, @())
+[IO.File]::WriteAllText((Join-Path $mineDir 'ffmpeg.stamp'), "$psz`r`nx`r`nid=0000000000000000aaaa", [Text.Encoding]::UTF8)
+$f2 = [string]$find.Invoke($null, @())
+Check 'T_FOLDER_FIND' ($mineDir.StartsWith($rtRoot) -and (Split-Path $mineDir -Leaf) -eq $eid.Substring(0, 16) -and $f1 -eq (Join-Path $mineDir 'ffmpeg.exe') -and $f2 -eq '') ("mine=" + (Split-Path $mineDir -Leaf) + " found=" + ($f1 -ne '') + " other-id=" + ($f2 -ne ''))
+
+# ניקוי: מנוע אחר שלא בשימוש - נמחק; מנוע אחר שרץ עכשיו - נשאר; תיקייה שאינה מנוע - נשארת; הפריסה של 0.8.7 - נמחקת
+FakeEngine $mineDir $eid 2000000
+FakeEngine (Join-Path $rtRoot 'aaaaaaaaaaaaaaaa') 'aaaa' 2000000
+FakeEngine (Join-Path $rtRoot 'bbbbbbbbbbbbbbbb') 'bbbb' 2000000
+New-Item -ItemType Directory -Force (Join-Path $rtRoot 'notes') | Out-Null; Set-Content (Join-Path $rtRoot 'notes\keep.txt') 'x'
+$fsL = [IO.File]::Create((Join-Path $rtRoot 'ffmpeg.exe')); $fsL.SetLength(2000000); $fsL.Dispose(); Set-Content (Join-Path $rtRoot 'ffmpeg.stamp') '2000000'
+$lock = [IO.File]::Open((Join-Path $rtRoot 'bbbbbbbbbbbbbbbb\ffmpeg.exe'), 'Open', 'Read', 'None')
+[void]$rtT.GetMethod('CleanupOthers', $ST).Invoke($null, @([string]$rtRoot, [string]$mineDir))
+$lock.Dispose()
+$state = @{ mine = (Test-Path (Join-Path $mineDir 'ffmpeg.exe')); a = (Test-Path (Join-Path $rtRoot 'aaaaaaaaaaaaaaaa')); b = (Test-Path (Join-Path $rtRoot 'bbbbbbbbbbbbbbbb\ffmpeg.stamp'));
+           notes = (Test-Path (Join-Path $rtRoot 'notes\keep.txt')); legacy = (Test-Path (Join-Path $rtRoot 'ffmpeg.exe')) }
+Check 'T_FOLDER_CLEANUP' ($state.mine -and -not $state.a -and $state.b -and $state.notes -and -not $state.legacy) (($state.GetEnumerator() | Sort-Object Name | ForEach-Object { $_.Name + '=' + $_.Value }) -join ' ')
+
+$rtT.GetField('TargetDirOverride', $ST).SetValue($null, $null)
+Remove-Item $rtRoot -Recurse -Force -ErrorAction SilentlyContinue
+
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

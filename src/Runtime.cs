@@ -37,6 +37,9 @@ namespace SubtitleStudio
 
         private static string _targetDir;
 
+        /// <summary>לבדיקות: תיקיית פריסה זמנית במקום זו של המשתמש.</summary>
+        internal static string TargetDirOverride;
+
         /// <summary>לאן נפרס מנוע הווידאו. מחושב פעם אחת: החישוב שואל את
         /// הכונן, ובמצב דיסק מלא גם כותב ומוחק קובץ בדיקה ליד ה-EXE -
         /// דבר שאין שום סיבה לעשות חמש פעמים בכל הפעלה.</summary>
@@ -44,6 +47,7 @@ namespace SubtitleStudio
         {
             get
             {
+                if (TargetDirOverride != null) return TargetDirOverride;
                 if (_targetDir == null) _targetDir = ComputeTargetDir();
                 return _targetDir;
             }
@@ -219,36 +223,89 @@ namespace SubtitleStudio
 
         public static bool HasPayload { get { return PayloadSize > 0; } }
 
+        /// <summary>**כל מנוע בתיקייה משלו** (0.8.8): runtime\<16 תווים מהזהות>\ffmpeg.exe. עד 0.8.7 כל הגרסאות פרסו
+        /// לאותו runtime\ffmpeg.exe ובדקו אותו לפי הגודל - וגרסה אחרת (עותק נייד ישן, או גרסת פיתוח באותו מחשב)
+        /// החליפה אותו בשלה, גם כשהוא היה בשימוש: ״הגישה לנתיב נדחתה״ (קרה אצל בנימין, 8.10).</summary>
+        internal static string EngineDirFor(string id)
+        {
+            return id != null && id.Length >= 16 ? Path.Combine(TargetDir, id.Substring(0, 16)) : TargetDir;
+        }
+
+        private static bool Valid(string exe, string id, long want)
+        {
+            try
+            {
+                if (!File.Exists(exe)) return false;
+                long len = new FileInfo(exe).Length;
+                if (len < 1000000 || (want > 0 && len != want)) return false;      // פגום, חלקי, או אחר
+                return string.IsNullOrEmpty(id) || StampId(Path.GetDirectoryName(exe)) == id;
+            }
+            catch { return false; }
+        }
+
         private static string FindExisting()
         {
-            string[] candidates = new string[]
-            {
-                Path.Combine(ExeDir, "ffmpeg.exe"),
-                Path.Combine(Path.Combine(ExeDir, "tools"), "ffmpeg.exe"),
-                Path.Combine(Path.Combine(ExeDir, "runtime"), "ffmpeg.exe"),
-                Path.Combine(TargetDir, "ffmpeg.exe")
-            };
-            long want = PayloadSize;
+            // ffmpeg שמישהו הניח ליד התוכנה (פיתוח, מחשב בלי הרשאות כתיבה) - קודם לכול
+            foreach (string c in new string[] { Path.Combine(ExeDir, "ffmpeg.exe"), Path.Combine(Path.Combine(ExeDir, "tools"), "ffmpeg.exe") })
+                if (Valid(c, "", 0)) return c;
             string id = EngineId;
-            foreach (string c in candidates)
+            long want = PayloadSize;
+            if (id.Length > 0)
             {
-                try
-                {
-                    if (!File.Exists(c)) continue;
-                    long len = new FileInfo(c).Length;
-                    if (len < 1000000) continue;                       // קובץ פגום/חלקי
-                    if (c.StartsWith(TargetDir, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // **פריסה של מנוע אחר - מחליפים.** לפי הזהות שבחותמת; עד 0.8.7 לפי הגודל בלבד, ומנוע חדש
-                        // באותו גודל בדיוק היה נשאר הישן. פריסה בלי זהות (0.8.7 ומטה) - פעם אחת מחדש.
-                        if (id.Length > 0 && StampId(Path.GetDirectoryName(c)) != id) continue;
-                        if (want > 0 && len != want) continue;
-                    }
-                    return c;
-                }
-                catch { }
+                string mine = Path.Combine(EngineDirFor(id), "ffmpeg.exe");
+                return Valid(mine, id, want) ? mine : null;
             }
+            // בלי זהות (בדיקות שטוענות את התוכנה מבייטים, בנייה בלי מנוע): המנוע האחרון שנפרס, ואחריו הפריסה הישנה
+            string best = null;
+            DateTime bestT = DateTime.MinValue;
+            try
+            {
+                if (Directory.Exists(TargetDir))
+                    foreach (string d in Directory.GetDirectories(TargetDir))
+                    {
+                        string c = Path.Combine(d, "ffmpeg.exe");
+                        if (StampId(d).Length == 0 || !Valid(c, "", 0)) continue;
+                        DateTime t = File.GetLastWriteTimeUtc(c);
+                        if (t > bestT) { bestT = t; best = c; }
+                    }
+            }
+            catch { }
+            if (best != null) return best;
+            foreach (string c in new string[] { Path.Combine(Path.Combine(ExeDir, "runtime"), "ffmpeg.exe"), Path.Combine(TargetDir, "ffmpeg.exe") })
+                if (Valid(c, "", want)) return c;
             return null;
+        }
+
+        /// <summary>אחרי פריסה של מנוע חדש: מנועים אחרים שנפרסו כאן (גרסאות קודמות, וה-ffmpeg.exe ש-0.8.7 ומטה פרסו
+        /// ישר ב-runtime) נמחקים - **כל אחד רק אם אף תוכנה לא משתמשת בו כרגע**. נוגעים רק בתיקיות עם חותמת מנוע.
+        /// גרסה ישנה שתופעל שוב - פשוט תפרוס לעצמה מחדש.</summary>
+        internal static void CleanupOthers(string root, string keep)
+        {
+            try
+            {
+                string k = Path.GetFullPath(keep).TrimEnd('\\');
+                foreach (string d in Directory.GetDirectories(root))
+                {
+                    if (string.Equals(Path.GetFullPath(d).TrimEnd('\\'), k, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!File.Exists(Path.Combine(d, "ffmpeg.stamp"))) continue;
+                    string exe = Path.Combine(d, "ffmpeg.exe");
+                    try { if (File.Exists(exe)) File.Delete(exe); }
+                    catch { continue; }                     // רץ עכשיו - בפעם הבאה
+                    try { Directory.Delete(d, true); }
+                    catch { }
+                }
+                string legacy = Path.Combine(root, "ffmpeg.exe");
+                if (File.Exists(legacy))
+                {
+                    try
+                    {
+                        File.Delete(legacy);
+                        File.Delete(Path.Combine(root, "ffmpeg.stamp"));
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
 
         /// <summary>מוודא שמנוע הווידאו קיים. פורס אותו בהפעלה הראשונה עם חלון התקדמות.</summary>
@@ -258,7 +315,8 @@ namespace SubtitleStudio
             if (_ffmpeg != null) return;
             if (!HasPayload) return;                                   // בנייה בלי מנוע מוטמע
 
-            string dir = TargetDir;
+            string id = EngineId;
+            string dir = EngineDirFor(id);
             string target = Path.Combine(dir, "ffmpeg.exe");
             string temp = target + "." + Guid.NewGuid().ToString("N").Substring(0, 8) + ".tmp";
             string error = null;
@@ -275,15 +333,20 @@ namespace SubtitleStudio
                     // מה שנפרס הוא בדיוק מה שנארז: באורך (והפענוח עצמו בודק את עצמו)
                     if (total > 0 && new FileInfo(temp).Length != total)
                         throw new InvalidDataException(Lang.T("מנוע הווידאו שבתוך התוכנה פגום."));
-                    if (File.Exists(target))
+                    if (Valid(target, id, total))
                     {
-                        try { File.Delete(target); }
+                        // עותק אחר של התוכנה פרס את אותו מנוע בינתיים
+                        try { File.Delete(temp); }
                         catch { }
                     }
-                    if (File.Exists(target)) File.Delete(target);
-                    File.Move(temp, target);
-                    try { File.WriteAllText(Path.Combine(dir, "ffmpeg.stamp"), PayloadSize.ToString() + "\r\n" + DateTime.Now.ToString("s") + "\r\nid=" + EngineId, Encoding.UTF8); }
-                    catch { }
+                    else
+                    {
+                        if (File.Exists(target)) File.Delete(target);      // שארית פגומה של פריסה קודמת
+                        File.Move(temp, target);
+                        try { File.WriteAllText(Path.Combine(dir, "ffmpeg.stamp"), total.ToString() + "\r\n" + DateTime.Now.ToString("s") + "\r\nid=" + id, Encoding.UTF8); }
+                        catch { }
+                    }
+                    if (id.Length > 0) CleanupOthers(TargetDir, dir);
                     progress = 1;
                 }
                 catch (Exception ex)
