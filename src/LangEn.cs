@@ -507,7 +507,7 @@ namespace SubtitleStudio
             "איך עובדים כאן", "How it works",
             "ארבעה שלבים, וכל הקיצורים במקום אחד", "Four steps, and all the shortcuts in one place",
             "קיצורים ופעולות מהירות", "Shortcuts and quick actions",
-            "סימון קטע: חיתוך, תמלול ועוד", "Mark a section: cut, transcribe and more",
+            "סימון קטע: חיתוך, תמלול ועוד", "Mark a section to work on",
             "הגדרות", "Settings",
             "נשמר מיד, ונזכר בפעם הבאה", "Saved at once, and remembered next time",
             "מראה", "Appearance",
