@@ -2,6 +2,47 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.9",
+      "date": "2026-10-09",
+      "items": [
+        {
+          "t": "major",
+          "s": "יבוא כתוביות מקובץ טקסט נכתב מחדש: פסקה ארוכה מתחלקת לכתוביות לפי משפטים, כותרת נשארת לבד, ומספור, תבליטים וסימני עיצוב יורדים",
+          "en": "Importing subtitles from a text file was rewritten: a long paragraph is split into subtitles by sentences, a heading stays on its own, and numbering, bullets and formatting marks are removed"
+        },
+        {
+          "t": "feature",
+          "s": "קובץ כתוביות שנשמר כטקסט נכנס עם הזמנים שלו, וזמנים בתחילת שורות נלקחים רק כשהם באמת זמנים",
+          "en": "A subtitle file saved as text comes in with its own times, and times at the start of lines are used only when they really are times"
+        },
+        {
+          "t": "feature",
+          "s": "יבוא כשכבר יש כתוביות שואל אם להחליף אותן או לצרף",
+          "en": "Importing when there are already subtitles asks whether to replace them or add to them"
+        },
+        {
+          "t": "major",
+          "s": "מהירות הניגון מ-0.25 עד 4: פס גרירה, כפתורים מהירים, הקלדה של מהירות מדויקת, וגלגלת העכבר על הכפתור",
+          "en": "Playback speed from 0.25 to 4: a slider, quick buttons, typing an exact speed, and the mouse wheel on the button"
+        },
+        {
+          "t": "fix",
+          "s": "המהירות כבר לא נזכרת בין הפעלות, ובחלון החיתוך יש לה כפתור משלה - עד עכשיו הוא ניגן במהירות של המסך הראשי, בלי דרך לשנות",
+          "en": "The speed is no longer remembered between launches, and the cut window has its own speed button - until now it played at the main window's speed with no way to change it"
+        },
+        {
+          "t": "feature",
+          "s": "״פתיחה באמצעות ▸ Subtext״ בקליק ימני על סרט, קובץ קול או כתוביות (בתוכנה המותקנת). מה שנפתח בלחיצה כפולה לא משתנה",
+          "en": "'Open with > Subtext' on right-click for video, audio and subtitle files (installed copy). What opens on double-click does not change"
+        },
+        {
+          "t": "feature",
+          "s": "ליד כל פס גרירה בכלים אפשר להקליד ערך מדויק - למשל קובץ שייכנס בדיוק ל-16 מגה",
+          "en": "Next to every slider in the tools you can type an exact value - for example a file that fits into exactly 16 MB"
+        }
+      ]
+    },
+    {
       "v": "0.8.8",
       "date": "2026-10-08",
       "items": [
