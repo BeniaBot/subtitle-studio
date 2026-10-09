@@ -403,6 +403,18 @@ namespace SubtitleStudio
         public Func<double, string> Format;
         /// <summary>סימון קטן על המסילה בערך הזה (NaN - בלי). למהירות: הרגילה, באמצע.</summary>
         public double Mark = double.NaN;
+        /// <summary>אפשר להקליד ערך: המספר שבצד מצויר כשדה, לחיצה עליו פותחת תיבה, Enter מאשר ו-Esc מבטל. בנימין
+        /// (9.10): ״מלבד הגרירה... שיהיה ניתן להקליד ידנית בדיוק את הגודל המבוקש״ - בגרירה ״התאמה לגודל״ זזה בצעדים
+        /// של 5, ו-16 מגה (המגבלה של וואטסאפ) לא היה אפשרי.</summary>
+        public bool Editable;
+        /// <summary>גבולות להקלדה (NaN - כמו בגרירה). ההקלדה לא מעוגלת לצעד.</summary>
+        public double TypeMin = double.NaN, TypeMax = double.NaN;
+        /// <summary>מה מופיע בתיבה כשמתחילים להקליד (null - המספר). ומטקסט לערך (null - מספר; NaN - לא תקין).
+        /// למהירות: בתיבה ״1.25״, והערך הוא הלוגריתם שלו.</summary>
+        public Func<double, string> EditText;
+        public Func<string, double> Parse;
+        private TextBox _box;
+        private bool _committing;
         public event EventHandler ValueChanged;
         private bool _drag;
         private readonly Tween _hot;
@@ -418,7 +430,8 @@ namespace SubtitleStudio
         protected override void OnMouseEnter(EventArgs e) { _hot.To(1); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { if (!_drag) _hot.To(0); base.OnMouseLeave(e); }
 
-        private int LabelW { get { return ShowValue ? Theme.S(54) : 0; } }
+        // שדה להקלדה - קצת רחב יותר, שיכנס גם ״50000 MB״
+        private int LabelW { get { return ShowValue ? Theme.S(Editable ? 70 : 54) : 0; } }
 
         private void SetFromX(int x)
         {
@@ -435,7 +448,86 @@ namespace SubtitleStudio
             }
         }
 
-        protected override void OnMouseDown(MouseEventArgs e) { _drag = true; SetFromX(e.X); base.OnMouseDown(e); }
+        private bool OnLabel(int x) { return ShowValue && x >= Width - LabelW - Theme.S(4); }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            // לחיצה על המספר לא גוררת: עד 0.8.9 היא הקפיצה את הערך לסוף הפס
+            if (OnLabel(e.X)) { if (Editable) BeginEdit(); base.OnMouseDown(e); return; }
+            _drag = true; SetFromX(e.X); base.OnMouseDown(e);
+        }
+
+        private Rectangle LabelRect
+        {
+            get { int h = Math.Min(Height, Theme.S(24)); return new Rectangle(Width - LabelW, (Height - h) / 2, LabelW - 1, h); }
+        }
+
+        /// <summary>פותח את תיבת ההקלדה על המספר.</summary>
+        internal void BeginEdit()
+        {
+            if (_box == null)
+            {
+                _box = new TextBox();
+                _box.BorderStyle = BorderStyle.None;
+                _box.TextAlign = HorizontalAlignment.Center;
+                _box.RightToLeft = RightToLeft.No;
+                _box.KeyDown += delegate (object o, KeyEventArgs ke)
+                {
+                    if (ke.KeyCode == Keys.Enter) { ke.SuppressKeyPress = true; Commit(true); }
+                    else if (ke.KeyCode == Keys.Escape) { ke.SuppressKeyPress = true; Commit(false); }
+                };
+                _box.LostFocus += delegate { Commit(true); };
+                Controls.Add(_box);
+            }
+            _box.BackColor = Theme.PanelAlt;
+            _box.ForeColor = Theme.Text;
+            _box.Font = Theme.SmallBold;
+            Rectangle r = LabelRect;
+            int bh = _box.PreferredHeight;
+            _box.SetBounds(r.X + Theme.S(4), r.Y + (r.Height - bh) / 2, r.Width - Theme.S(8), bh);
+            _box.Text = EditText != null ? EditText(Value) : Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            _box.Visible = true;
+            _box.Focus();
+            _box.SelectAll();
+            Invalidate();
+        }
+
+        /// <summary>טקסט לערך: מספר בכל צורה סבירה (״16״, ״16.5״, ״16,5״, ״16 MB״).</summary>
+        internal static double ParseNumber(string t)
+        {
+            t = (t ?? "").Trim().Replace(',', '.');
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            foreach (char c in t) { if (char.IsDigit(c) || c == '.' || (c == '-' && sb.Length == 0)) sb.Append(c); else if (sb.Length > 0) break; }
+            double v;
+            return double.TryParse(sb.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v) ? v : double.NaN;
+        }
+
+        private void Commit(bool apply)
+        {
+            if (_box == null || !_box.Visible || _committing) return;
+            _committing = true;
+            try
+            {
+                if (apply)
+                {
+                    double v = Parse != null ? Parse(_box.Text) : ParseNumber(_box.Text);
+                    if (!double.IsNaN(v) && !double.IsInfinity(v))
+                    {
+                        double lo = double.IsNaN(TypeMin) ? Min : TypeMin, hi = double.IsNaN(TypeMax) ? Max : TypeMax;
+                        if (v < lo) v = lo;
+                        if (v > hi) v = hi;
+                        if (Math.Abs(v - Value) > 1e-9)
+                        {
+                            Value = v;
+                            if (ValueChanged != null) ValueChanged(this, EventArgs.Empty);
+                        }
+                    }
+                }
+                _box.Visible = false;
+                Invalidate();
+            }
+            finally { _committing = false; }
+        }
         protected override void OnMouseMove(MouseEventArgs e) { if (_drag) SetFromX(e.X); base.OnMouseMove(e); }
         protected override void OnMouseUp(MouseEventArgs e)
         {
@@ -460,6 +552,8 @@ namespace SubtitleStudio
             float hot = Math.Max(_hot.Eased, _drag ? 1f : 0f);
             float th = Theme.S(6), kr = Theme.S(7) + hot * Theme.S(1.5), x0 = Theme.S(6);
             float t = (float)((Value - Min) / Math.Max(1e-9, Max - Min));
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;                       // ערך שהוקלד מעבר לטווח הגרירה - הידית בקצה
             // מסילה שקועה, ומילוי בצבע ההדגשה עם גוון בהיר למעלה
             RectangleF track = new RectangleF(x0, (float)Math.Round(cy - th / 2), w, th);
             Color rail = Theme.Mix(Theme.PanelAlt, Theme.Border, 0.7f);
@@ -480,14 +574,28 @@ namespace SubtitleStudio
                 g.FillEllipse(sh, kx - kr - 0.5f, cy - kr + 1f, kr * 2 + 1f, kr * 2 + 1f);
             using (SolidBrush b = new SolidBrush(Color.White)) g.FillEllipse(b, kx - kr, cy - kr, kr * 2, kr * 2);
             using (Pen p = new Pen(Theme.Accent, 2)) g.DrawEllipse(p, kx - kr + 1, cy - kr + 1, kr * 2 - 2, kr * 2 - 2);
-            if (ShowValue)
+            if (ShowValue && Editable)
+            {
+                // נראה כמו שדה: מסגרת עדינה, ובריחוף - מודגשת
+                Rectangle lr = LabelRect;
+                Theme.FillRound(g, lr, Theme.S(6), Theme.PanelAlt);
+                Theme.DrawRound(g, lr, Theme.S(6), _hot.Eased > 0.5f ? Theme.Accent : Theme.Border, 1f);
+            }
+            if (ShowValue && (_box == null || !_box.Visible))
             {
                 // ספרות אחידות בגופן הממשק - אבל סיומת עברית (״שנ׳״) מצוירת תו אחר תו
                 // משמאל לימין ויוצאת הפוכה, ולכן היא נשארת בדרך הרגילה
                 bool heb = false;
                 foreach (char ch in Suffix ?? "") if (Theme.IsHebrew(ch)) heb = true;
                 RectangleF vr = new RectangleF(Width - LabelW - 2, 0, LabelW, Height);
-                if (Format != null) Theme.Num(g, Format(Value), Theme.SmallBold, Theme.TextDim, vr, StringAlignment.Far);
+                if (Editable)
+                {
+                    // בתוך השדה - באמצע, ובצבע של טקסט שאפשר לערוך
+                    Rectangle lr = LabelRect;
+                    Theme.Num(g, Format != null ? Format(Value) : Value.ToString("0.##") + Suffix, Theme.SmallBold, Theme.Text,
+                              new RectangleF(lr.X, 0, lr.Width, Height), StringAlignment.Center);
+                }
+                else if (Format != null) Theme.Num(g, Format(Value), Theme.SmallBold, Theme.TextDim, vr, StringAlignment.Far);
                 else if (heb) Theme.Str(g, Theme.Ltr(Value.ToString("0.##") + Suffix), Theme.SmallBold, Theme.TextDim, vr, Theme.SfFar);
                 else Theme.Num(g, Value.ToString("0.##") + Suffix, Theme.SmallBold, Theme.TextDim, vr, StringAlignment.Far);
             }
@@ -512,6 +620,10 @@ namespace SubtitleStudio
         {
             _slider.Min = -2; _slider.Max = 2; _slider.Step = 0.01; _slider.Value = 0; _slider.Mark = 0;
             _slider.Format = delegate (double v) { return Plain(Snap(Math.Pow(2, v))); };
+            // אפשר להקליד מהירות מדויקת: בתיבה ״1.25״, ונשמר הלוגריתם שלה
+            _slider.Editable = true;
+            _slider.EditText = delegate (double v) { return Snap(Math.Pow(2, v)).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture); };
+            _slider.Parse = delegate (string t) { double n = Slider.ParseNumber(t); return double.IsNaN(n) || n <= 0 ? double.NaN : Math.Log(Snap(n), 2); };
             _slider.ValueChanged += delegate
             {
                 if (_quiet) return;

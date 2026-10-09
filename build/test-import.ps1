@@ -1,6 +1,6 @@
 ﻿# test-import.ps1 - טקסט לכתוביות (0.8.9), ומהירות הניגון. כל מקרה נולד ממדידה ב-text-sweep.ps1 על טקסטים
 # אמיתיים ומקרי קצה: פסקה ענקית, שורה ריקה אחת, פסוקים ושעות ביום, SRT שהודבק, טקסט מ-PDF, Markdown.
-# צפוי: 29 בדיקות.
+# צפוי: 33 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -117,6 +117,31 @@ $step = $sp.GetMethod('StepFrom', $SF); $snap = $sp.GetMethod('Snap', $SF)
 function St($v, $d) { return [double]$step.Invoke($null, @([double]$v, [int]$d)) }
 Check 'צעד: 0.25 עולה ל-0.3, ומ-1 ל-1.1 (עשיריות שלמות, ודרך 1)' ((St 0.25 1) -eq 0.3 -and (St 1 1) -eq 1.1 -and (St 1.25 1) -eq 1.3 -and (St 1.25 -1) -eq 1.2 -and (St 0.3 -1) -eq 0.25) ("" + (St 0.25 1) + " " + (St 1 1) + " " + (St 1.25 1) + " " + (St 1.25 -1))
 Check 'גבולות: לא מתחת ל-0.25 ולא מעל 4; וקרוב לרגילה - רגילה' ((St 4 1) -eq 4 -and (St 0.25 -1) -eq 0.25 -and [double]$snap.Invoke($null, @([double]1.02)) -eq 1 -and [double]$snap.Invoke($null, @([double]9)) -eq 4) ''
+
+Write-Host 'הקלדת ערך בפס הגרירה'
+Add-Type -AssemblyName System.Windows.Forms
+$slT = T 'Slider'
+$IF = [Reflection.BindingFlags]'NonPublic,Public,Instance'
+function Typed($text, [bool]$enter) {
+    $f = New-Object Windows.Forms.Form; $f.ShowInTaskbar = $false; $f.StartPosition = 'Manual'; $f.Location = New-Object Drawing.Point -9000, 0
+    $s = [Activator]::CreateInstance($slT); $s.Min = 5; $s.Max = 500; $s.Step = 5; $s.Value = 200; $s.Editable = $true; $s.TypeMin = 1; $s.TypeMax = 50000; $s.Suffix = ' MB'
+    $s.Width = 400; $f.Controls.Add($s); $f.Show()
+    $slT.GetMethod('BeginEdit', $IF).Invoke($s, @()) | Out-Null
+    $box = $slT.GetField('_box', $IF).GetValue($s)
+    $box.Text = $text
+    $slT.GetMethod('Commit', $IF).Invoke($s, @([bool]$enter)) | Out-Null
+    $v = $s.Value; $vis = $box.Visible
+    $f.Close(); $f.Dispose()
+    return @{ V = $v; Open = $vis }
+}
+$a = Typed '16' $true
+Check 'מקלידים 16 - בדיוק 16 (בגרירה: צעדים של 5)' ($a.V -eq 16 -and -not $a.Open) ("v=" + $a.V)
+$a = Typed '16,5 MB' $true
+Check '״16,5 MB״ - מובן כ-16.5' ($a.V -eq 16.5) ("v=" + $a.V)
+$a = Typed '99999' $true; $b = Typed '0' $true
+Check 'מעבר לגבולות ההקלדה - לגבול (50,000 / 1)' ($a.V -eq 50000 -and $b.V -eq 1) ("high=" + $a.V + " low=" + $b.V)
+$a = Typed 'שלום' $true; $b = Typed '30' $false
+Check 'טקסט לא תקין, או Esc - הערך לא משתנה' ($a.V -eq 200 -and $b.V -eq 200) ("bad=" + $a.V + " esc=" + $b.V)
 
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)

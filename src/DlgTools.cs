@@ -38,6 +38,8 @@ namespace SubtitleStudio
         public int ParamKind;              // 0=אין 1=סליידר 2=רשימה 3=קובץ
         public string ParamLabel = "";
         public double Min, Max, Def, Step = 1;
+        /// <summary>גבולות להקלדה, כשהם רחבים מהגרירה (NaN - כמו בגרירה). ״התאמה לגודל״: גוררים 5-500, מקלידים 1-50,000.</summary>
+        public double TypeMin = double.NaN, TypeMax = double.NaN;
         public string Suffix = "";
         public string[] Options;
         public Func<MediaInfo, string[]> OptionsFor;
@@ -572,6 +574,7 @@ namespace SubtitleStudio
             fit.Desc = Lang.T("\"שייכנס ל-200MB\" - התוכנה מחשבת את האיכות הכי טובה שנכנסת בגודל הזה");
             fit.Icon = Ico.Download;
             fit.ParamKind = 1; fit.Min = 5; fit.Max = 500; fit.Def = 200; fit.Step = 5; fit.Suffix = " MB";
+            fit.TypeMin = 1; fit.TypeMax = 50000;
             fit.ParamLabel = Lang.T("לאיזה גודל להגיע");
             fit.NeedsVideo = true;
             fit.OutExt = ".mp4";
@@ -753,6 +756,9 @@ namespace SubtitleStudio
                 _slider = new Slider();
                 _slider.Min = tool.Min; _slider.Max = tool.Max; _slider.Value = tool.Def;
                 _slider.Step = tool.Step; _slider.Suffix = tool.Suffix;
+                // אפשר גם להקליד ערך מדויק (0.8.9): המספר שבצד הוא שדה
+                _slider.Editable = true;
+                _slider.TypeMin = tool.TypeMin; _slider.TypeMax = tool.TypeMax;
                 if (tool.Hint != null || tool.Block != null) _slider.ValueChanged += delegate { UpdateHint(); };
                 Row(_slider, 30, 14);
             }

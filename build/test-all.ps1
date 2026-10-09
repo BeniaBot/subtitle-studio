@@ -11,7 +11,7 @@ $expect = [ordered]@{
     'logic' = 207; 'autotime' = 31; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 46; 'layout' = 95; 'project' = 106; 'screens' = 35
     'fuzz' = 11; 'long' = 15; 'stt' = 125; 'errors' = 38; 'buttons' = 12
-    'source' = 7; 'qa' = 100; 'spell' = 59; 'release' = 67; 'settings' = 19; 'subs' = 26; 'cut' = 43; 'import' = 29
+    'source' = 7; 'qa' = 100; 'spell' = 59; 'release' = 67; 'settings' = 19; 'subs' = 26; 'cut' = 43; 'import' = 33
     # name@en = the same package with -Lang en: the whole layout is mirrored there
     'buttons@en' = 12; 'layout@en' = 95; 'screens@en' = 35
 }
