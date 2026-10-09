@@ -391,6 +391,33 @@ $rk = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($kU); $rk.SetValue('I
 [void]$refresh.Invoke($null, @([string]$iexe, $kU, $kA))
 $rk = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($kU); $dv2 = $rk.GetValue('DisplayVersion'); $rk.Close()
 Check 'T_INSTALL_OTHER' ($dv2 -eq '0.0.2') $dv2
+# ״פתיחה באמצעות ▸ Subtext״ (0.8.9) - בענף בדיקה, לא בשיוכים האמיתיים
+$owT = T 'OpenWith'
+$owRoot = 'Software\SubtextTest\Classes'
+$owReg = $owT.GetMethod('Register', $ST); $owUn = $owT.GetMethod('Unregister', $ST); $owIs = $owT.GetMethod('IsRegistered', $ST); $owEnsure = $owT.GetMethod('Ensure', $ST)
+$hk = [Microsoft.Win32.Registry]::CurrentUser
+# נגן אחר שכבר פותח MP4 בלחיצה כפולה, ונמצא ברשימה שלו
+$k = $hk.CreateSubKey("$owRoot\.mp4"); $k.SetValue('', 'OtherPlayer.mp4'); $k.Close()
+$k = $hk.CreateSubKey("$owRoot\.mp4\OpenWithProgids"); $k.SetValue('OtherPlayer.mp4', [byte[]]@(), [Microsoft.Win32.RegistryValueKind]::None); $k.Close()
+$exeA = 'C:\Apps\Subtext\Subtext.exe'
+$e1 = $owReg.Invoke($null, @([string]$owRoot, [string]$exeA))
+$k = $hk.OpenSubKey("$owRoot\Subtext.Media\shell\open\command"); $cmd = $k.GetValue(''); $k.Close()
+$missing = @(); foreach ($x in $owT.GetField('Extensions', $ST).GetValue($null)) { $kk = $hk.OpenSubKey("$owRoot\$x\OpenWithProgids"); if (-not $kk -or -not ($kk.GetValueNames() -contains 'Subtext.Media')) { $missing += $x }; if ($kk) { $kk.Close() } }
+Check 'T_OPENWITH_REGISTER' ($e1 -eq $null -and $cmd -eq ('"' + $exeA + '" "%1"') -and $missing.Count -eq 0) ("cmd=$cmd missing=" + ($missing -join ','))
+$k = $hk.OpenSubKey("$owRoot\.mp4"); $def = $k.GetValue(''); $k.Close()
+# ‏GetValueNames ולא GetValue: ערך ריק מסוג None חוזר כמערך ריק, ו-`@() -ne $null` ב-PowerShell הוא סינון ולא בדיקה
+$k = $hk.OpenSubKey("$owRoot\.mp4\OpenWithProgids"); $other = $k.GetValueNames() -contains 'OtherPlayer.mp4'; $k.Close()
+Check 'T_OPENWITH_NOT_HIJACK' ($def -eq 'OtherPlayer.mp4' -and $other) "default=$def other=$other"
+$isA = [bool]$owIs.Invoke($null, @([string]$owRoot, [string]$exeA)); $isB = [bool]$owIs.Invoke($null, @([string]$owRoot, 'D:\Other\Subtext.exe'))
+[void]$owEnsure.Invoke($null, @([string]$owRoot, 'D:\Other\Subtext.exe'))
+$k = $hk.OpenSubKey("$owRoot\Subtext.Media\shell\open\command"); $cmd2 = $k.GetValue(''); $k.Close()
+Check 'T_OPENWITH_ENSURE' ($isA -and -not $isB -and $cmd2 -like '*D:\Other\Subtext.exe*') "cmd=$cmd2"
+$owUn.Invoke($null, @([string]$owRoot)) | Out-Null
+$k = $hk.OpenSubKey("$owRoot\.mp4"); $def2 = if ($k) { $k.GetValue('') } else { $null }; if ($k) { $k.Close() }
+$k = $hk.OpenSubKey("$owRoot\.mp4\OpenWithProgids"); $other2 = $k -and ($k.GetValueNames() -contains 'OtherPlayer.mp4'); $ours2 = $k -and ($k.GetValueNames() -contains 'Subtext.Media'); if ($k) { $k.Close() }
+$flac = $hk.OpenSubKey("$owRoot\.flac"); $flacGone = $flac -eq $null; if ($flac) { $flac.Close() }
+$progGone = ($hk.OpenSubKey("$owRoot\Subtext.Media") -eq $null) -and ($hk.OpenSubKey("$owRoot\Applications\Subtext.exe") -eq $null)
+Check 'T_OPENWITH_UNREGISTER' ($def2 -eq 'OtherPlayer.mp4' -and $other2 -and -not $ours2 -and $flacGone -and $progGone) ("default=$def2 flacGone=$flacGone progGone=$progGone")
 [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree('Software\SubtextTest', $false)
 
 # תשובת גיטהאב: הקובץ הקטן נקרא לחוד, ולא נלקח כ״קובץ הנייד״ גם כשהוא ראשון ברשימה

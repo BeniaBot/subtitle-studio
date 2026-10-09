@@ -313,6 +313,7 @@ namespace SubtitleStudioSetup
         public static void DeleteRegistry()
         {
             Assoc.Unregister(Assoc.Classes);
+            SubtitleStudio.OpenWith.Unregister(SubtitleStudio.OpenWith.Classes);
             try { Registry.CurrentUser.DeleteSubKeyTree(Prod.RegUninstall, false); }
             catch (Exception ex) { Log.W("reg uninstall key: " + ex.Message); }
             try { Registry.CurrentUser.DeleteSubKeyTree(Prod.RegApp, false); }

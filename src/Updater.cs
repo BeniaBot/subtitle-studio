@@ -665,7 +665,16 @@ namespace SubtitleStudio
         /// <summary>**אחרי עדכון קטן המתקין לא רץ** (0.8.8), ולכן הגרסה החדשה מעדכנת בעצמה את מה שהוא היה כותב על
         /// הגרסה: installed.txt, ורשומת ״אפליקציות מותקנות״. רק עותק מותקן, רק רשומה שמצביעה לתיקייה שלו, ורק כשהגרסה
         /// הרשומה שונה. נקרא בהפעלה (לא בבדיקות).</summary>
-        public static void Refresh() { Refresh(Application.ExecutablePath, RegUninstall, RegApp); }
+        public static void Refresh()
+        {
+            Refresh(Application.ExecutablePath, RegUninstall, RegApp);
+            // ״פתיחה באמצעות ▸ Subtext״ (0.8.9): עדכון קטן לא מריץ את המתקין, אז עותק מותקן מוודא בעצמו. נייד - לא
+            if (IsInstalled())
+            {
+                string err = OpenWith.Ensure(OpenWith.Classes, Application.ExecutablePath);
+                if (err != null) Ai.Log("פתיחה באמצעות: " + err);
+            }
+        }
 
         internal static bool Refresh(string exe, string uninstallKey, string appKey)
         {

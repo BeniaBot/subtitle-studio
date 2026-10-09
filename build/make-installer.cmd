@@ -55,7 +55,7 @@ echo Compiling uninstaller...
   /reference:System.Core.dll ^
   /reference:System.Drawing.dll ^
   /reference:System.Windows.Forms.dll ^
-  "%SRC%\Common.cs" "%SRC%\Skin.cs" "%SRC%\ShellLink.cs" ^
+  "%SRC%\Common.cs" "src\OpenWith.cs" "%SRC%\Skin.cs" "%SRC%\ShellLink.cs" ^
   "%SRC%\UninstallUi.cs" "%SRC%\UninstallMain.cs"
 if errorlevel 1 (
   echo.
@@ -75,7 +75,7 @@ echo Compiling setup (embedding the app - takes a few seconds)...
   /reference:System.Core.dll ^
   /reference:System.Drawing.dll ^
   /reference:System.Windows.Forms.dll ^
-  "%SRC%\Common.cs" "%SRC%\Skin.cs" "%SRC%\ShellLink.cs" ^
+  "%SRC%\Common.cs" "src\OpenWith.cs" "%SRC%\Skin.cs" "%SRC%\ShellLink.cs" ^
   "%SRC%\UninstallUi.cs" "%SRC%\Setup.cs" "%SRC%\SetupForm.cs"
 if errorlevel 1 (
   echo.

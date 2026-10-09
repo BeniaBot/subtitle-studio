@@ -206,6 +206,8 @@ namespace SubtitleStudioSetup
                 WriteMarker(Dir, size);
                 WriteRegistry(Dir, exe, size + Math.Max(0, usize));
                 Assoc.Register(Assoc.Classes, exe);
+                string ow = SubtitleStudio.OpenWith.Register(SubtitleStudio.OpenWith.Classes, exe);
+                if (ow != null) Log.W("open with: " + ow);
 
                 P(1.0, "ההתקנה הסתיימה.");
                 return true;
