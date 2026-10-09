@@ -173,11 +173,13 @@ try {
     $hash = (Get-FileHash $appExe).Hash
     Log ("EXE hash matches dist (the release): " + ($hash -eq $expected))
     if ($hash -ne $expected) { Fail "the swapped EXE is not the release" }
-    Log (".old left next to it: " + (Test-Path ($appExe + '.old')))
-    if (Test-Path ($appExe + '.old')) { Fail ".old was not cleaned up" }
     if ($new) {
         Log ("new instance running pid=" + $new.ProcessId)
         Start-Sleep -Seconds 8
+        # ה-.old נבדק **אחרי** שהחדשה עלתה ועברה את Shown - שם היא מנקה אותו. עד 9.10 הוא נבדק חצי שנייה אחרי
+        # שהתהליך החדש הופיע, לפני הניקוי, ו-0.8.7 ל-0.8.8 ״נכשל״ על זה
+        Log (".old left next to it: " + (Test-Path ($appExe + '.old')))
+        if (Test-Path ($appExe + '.old')) { Fail ".old was not cleaned up" }
         $np = Get-Process -Id $new.ProcessId -ErrorAction SilentlyContinue
         $tops = [UW]::Tops([uint32]$new.ProcessId)
         $main = $null; $best = 0

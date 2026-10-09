@@ -691,9 +691,29 @@ namespace SubtitleStudio
             try { exe = System.Reflection.Assembly.GetEntryAssembly().Location; }
             catch { }
 
-            // העותק הישן שהעדכון הזיז הצידה, אחרי שהגרסה החדשה כבר רצה
-            try { if (exe.Length > 0 && File.Exists(exe + ".old")) File.Delete(exe + ".old"); }
-            catch { }
+            // העותק הישן שהעדכון הזיז הצידה, אחרי שהגרסה החדשה כבר רצה. **הישנה עוד רצה ממנו** רגע אחרי שהחדשה
+            // עלתה - ובעדכון הקטן (המנוע כבר פרוס) החדשה עולה מהר, והמחיקה הראשונה עלולה להיכשל. אז שוב ברקע, עד חצי דקה;
+            // אחרת 29 מגה נשארים עד ההפעלה הבאה
+            string oldExe = exe.Length > 0 ? exe + ".old" : "";
+            if (oldExe.Length > 0 && File.Exists(oldExe))
+            {
+                System.Threading.Thread t = new System.Threading.Thread(delegate ()
+                {
+                    for (int i = 0; i < 30; i++)
+                    {
+                        try
+                        {
+                            if (!File.Exists(oldExe)) return;
+                            File.Delete(oldExe);
+                            return;
+                        }
+                        catch { }
+                        System.Threading.Thread.Sleep(1000);
+                    }
+                });
+                t.IsBackground = true;
+                t.Start();
+            }
 
             try
             {
