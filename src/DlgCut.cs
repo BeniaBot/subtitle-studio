@@ -447,6 +447,8 @@ namespace SubtitleStudio
         private readonly CutView _view;
         private readonly CutMap _map;
         private readonly Btn _play, _modeKeep, _modeRemove, _add;
+        private readonly Btn _speed;
+        private SpeedPicker _speedPick;
         private readonly Lbl _clock, _summary, _empty, _info, _kfNote;
         private readonly Field _jump;
         private readonly Toggle _preview, _split, _fast, _open;
@@ -513,8 +515,24 @@ namespace SubtitleStudio
             zin.Click += delegate { _view.ZoomAt(0.5, (int)Math.Max(0, Math.Min(_view.Width, _view.X(Position())))); };
             zout.Click += delegate { _view.ZoomAt(2, (int)Math.Max(0, Math.Min(_view.Width, _view.X(Position())))); };
             Controls.Add(fit); Controls.Add(zin); Controls.Add(zout);
+            // מהירות: אותו נגן כמו בחלון הראשי, ועכשיו רואים ומשנים אותה גם כאן. עד 0.8.9 החיתוך ניגן במהירות של הראשי -
+            // ״פי 2״ שנשאר מהפעם הקודמת - בלי שום דרך לשנות בלי לצאת (בנימין)
+            _speed = new Btn(); _speed.Icon = Ico.Gauge; _speed.Kind = BtnKind.Tool; _speed.Menu = true; _speed.Font = Theme.Small;
+            _speed.Text = SpeedPicker.Text(3.85);
+            int spW = Math.Max(Theme.S(84), _speed.NeedWidth());
+            _speed.SetBounds(zout.Right + s8, y + s4, spW, rowH - s8);
+            _speed.Click += delegate { ShowSpeed(); };
+            _speed.MouseWheel += delegate (object so, MouseEventArgs me)
+            {
+                if (_main == null) return;
+                _main.PlayerSpeed = SpeedPicker.StepFrom(_main.PlayerSpeed, me.Delta > 0 ? 1 : -1);
+                SyncSpeed();
+            };
+            Ui.Tip.SetToolTip(_speed, Lang.T("מהירות ההשמעה (גם גלגלת). לא משנה את הקובץ, רק את ההשמעה כאן"));
+            Controls.Add(_speed);
+            SyncSpeed();
             _preview = new Toggle(); _preview.Text = Lang.T("לשמוע רק את מה שיישמר"); _preview.Font = Theme.Small;
-            _preview.SetBounds(zout.Right + Theme.S(14), y, Math.Max(Theme.S(60), _jump.Left - zout.Right - Theme.S(24)), rowH);
+            _preview.SetBounds(_speed.Right + Theme.S(14), y, Math.Max(Theme.S(60), _jump.Left - _speed.Right - Theme.S(24)), rowH);
             Ui.Tip.SetToolTip(_preview, Lang.T("בניגון מדלגים על מה שיוסר - שומעים את התוצאה לפני השמירה"));
             Controls.Add(_preview);
             y += rowH + s10;
@@ -703,6 +721,39 @@ namespace SubtitleStudio
         // ---------- נגן ----------
 
         private long Position() { return _main != null ? _main.PlayerPosition : 0; }
+
+        private void SyncSpeed()
+        {
+            double v = _main != null ? _main.PlayerSpeed : 1.0;
+            _speed.Text = SpeedPicker.Text(v);
+            _speed.Tint = Math.Abs(v - 1.0) < 0.001 ? Color.Empty : Theme.Accent;
+            _speed.Invalidate();
+        }
+
+        private void ShowSpeed()
+        {
+            if (_speedPick == null)
+            {
+                _speedPick = new SpeedPicker();
+                _speedPick.Visible = false;
+                Controls.Add(_speedPick);
+                _speedPick.Changed += delegate
+                {
+                    if (_main != null) _main.PlayerSpeed = _speedPick.Value;
+                    SyncSpeed();
+                };
+            }
+            _speedPick.Value = _main != null ? _main.PlayerSpeed : 1.0;
+            PopupPanel pp = new PopupPanel(_speedPick, Theme.S(360), SpeedPicker.NeedHeight + Theme.S(24));
+            pp.FormClosed += delegate
+            {
+                // בחזרה לחלון, כדי שהחלונית שנסגרת לא תשמיד אותו
+                _speedPick.Parent = this;
+                _speedPick.Visible = false;
+            };
+            _speedPick.Visible = true;
+            pp.ShowUnder(_speed);
+        }
 
         private void Seek(long t)
         {

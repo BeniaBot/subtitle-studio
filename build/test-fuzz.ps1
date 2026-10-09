@@ -94,7 +94,7 @@ $optT = T 'Formats+TextImportOptions'
 $opt = [Activator]::CreateInstance($optT)
 $txtCrash = 0; $txtMsg = ''
 foreach ($t in @('', ' ', "`n`n`n", ('מילה ' * 20000), ("שורה.`n" * 3000), ('.' * 5000), ([string][char]0x200F * 100))) {
-    try { [void]$fmt.GetMethod('ImportPlainText', $SF).Invoke($null, @([string]$t, $opt)) }
+    try { [void]($fmt.GetMethods([Reflection.BindingFlags]'NonPublic,Public,Static') | Where-Object { $_.Name -eq 'ImportPlainText' -and $_.GetParameters().Count -eq 2 } | Select-Object -First 1).Invoke($null, @([string]$t, $opt)) }
     catch { $txtCrash++; if ($txtMsg -eq '') { $txtMsg = $_.Exception.InnerException.Message } }
 }
 Check 'טקסט חופשי: ריק, ענק, רק נקודות, רק סימני כיווניות' ($txtCrash -eq 0) $txtMsg

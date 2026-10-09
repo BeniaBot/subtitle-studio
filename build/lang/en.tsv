@@ -274,6 +274,7 @@
 התקרבות (Ctrl+גלגלת)	Zoom in (Ctrl+wheel)
 התרחקות	Zoom out
 לשמוע רק את מה שיישמר	Hear only what will be kept
+מהירות ההשמעה (גם גלגלת). לא משנה את הקובץ, רק את ההשמעה כאן	Playback speed (the mouse wheel works too). It does not change the file, only playback here
 בניגון מדלגים על מה שיוסר - שומעים את התוצאה לפני השמירה	Playback skips what will be removed - hear the result before saving
 לחיצה על פס הקול - מעבר לנקודה · גרירה על מקום ריק - קטע חדש · גרירת קו צבעוני - הזזה · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · I/O - התחלה וסוף של הקטע הפעיל	Click: go there · Drag on empty space: new section · Drag a coloured line: move it · Wheel: scroll, Ctrl+wheel: zoom · I/O: start and end of the active section
 לשמור קטעים	Keep sections
@@ -361,6 +362,10 @@
 אין עדיין טקסט. הדביקו למעלה, או טענו קובץ.	No text yet. Paste it above, or load a file.
 כל שורה ריקה מפרידה בין כתוביות	Each blank line separates subtitles
 כל שורה היא כתובית	Each line is a subtitle
+זה קובץ כתוביות - הן ייכנסו עם הזמנים שלהן	This is a subtitle file - they will come in with their own times
+לפי הזמנים שבתחילת השורות	By the times at the start of the lines
+קטעים ארוכים חולקו לפי משפטים	Long passages were split into sentences
+כתובית לכל שורה	A subtitle for each line
 ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״	{0} subtitles will be made  ·  {1}\r\nThe first: “{2}”
 אין טקסט	No text
 הדביקו טקסט כדי ליצור כתוביות.	Paste some text to make subtitles.
@@ -1122,6 +1127,10 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 ייתכן שהקובץ פגום או בפורמט לא נתמך:\n{0}	The file may be damaged or in an unsupported format:\n{0}
 לא הצלחתי לפתוח	Couldn't open it
 לא נמצאו תזמונים בקובץ	No timings found in the file
+בקובץ הזה אין זמנים	This file has no times
+זה טקסט רגיל. להפוך אותו לכתוביות? בחלון הבא התוכנה תחלק אותו, ותראו מה ייצא לפני שיוצרים.	It is plain text. Turn it into subtitles? In the next window the program will split it, and you will see the result before anything is created.
+להפוך לכתוביות	Turn into subtitles
+מה לעשות עם {0} הכתוביות החדשות?	What should happen to the {0} new subtitles?
 נראה שזה קובץ טקסט רגיל. לייבא אותו כטקסט ולתת לתוכנה לתזמן אוטומטית?	This looks like a plain text file. Import it as text and let the program time it automatically?
 כן, כטקסט	Yes, as text
 כבר יש כתוביות פתוחות	Subtitles are already open

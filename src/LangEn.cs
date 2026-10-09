@@ -262,6 +262,7 @@ namespace SubtitleStudio
             "התקרבות (Ctrl+גלגלת)", "Zoom in (Ctrl+wheel)",
             "התרחקות", "Zoom out",
             "לשמוע רק את מה שיישמר", "Hear only what will be kept",
+            "מהירות ההשמעה (גם גלגלת). לא משנה את הקובץ, רק את ההשמעה כאן", "Playback speed (the mouse wheel works too). It does not change the file, only playback here",
             "בניגון מדלגים על מה שיוסר - שומעים את התוצאה לפני השמירה", "Playback skips what will be removed - hear the result before saving",
             "לחיצה על פס הקול - מעבר לנקודה · גרירה על מקום ריק - קטע חדש · גרירת קו צבעוני - הזזה · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · I/O - התחלה וסוף של הקטע הפעיל", "Click: go there · Drag on empty space: new section · Drag a coloured line: move it · Wheel: scroll, Ctrl+wheel: zoom · I/O: start and end of the active section",
             "לשמור קטעים", "Keep sections",
@@ -306,9 +307,9 @@ namespace SubtitleStudio
             "מדויק, בלי אובדן איכות", "exact, no loss of quality",
             "בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״.", "Without re-encoding a cut can only start at a key frame. For full accuracy, turn off “Fast cut”.",
             "חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון", "Fast cut: a section will start up to {0} seconds before the mark",
-            "הזזת תזמון", "Shift timing",
         };
         private static readonly string[] P1 = new string[] {
+            "הזזת תזמון", "Shift timing",
             "מזיזים קבוצת כתוביות קדימה או אחורה", "Move a group of subtitles earlier or later",
             "על אילו כתוביות להחיל?", "Which subtitles?",
             "כל הכתוביות ({0})", "All subtitles ({0})",
@@ -349,6 +350,10 @@ namespace SubtitleStudio
             "אין עדיין טקסט. הדביקו למעלה, או טענו קובץ.", "No text yet. Paste it above, or load a file.",
             "כל שורה ריקה מפרידה בין כתוביות", "Each blank line separates subtitles",
             "כל שורה היא כתובית", "Each line is a subtitle",
+            "זה קובץ כתוביות - הן ייכנסו עם הזמנים שלהן", "This is a subtitle file - they will come in with their own times",
+            "לפי הזמנים שבתחילת השורות", "By the times at the start of the lines",
+            "קטעים ארוכים חולקו לפי משפטים", "Long passages were split into sentences",
+            "כתובית לכל שורה", "A subtitle for each line",
             "ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״", "{0} subtitles will be made  ·  {1}\r\nThe first: “{2}”",
             "אין טקסט", "No text",
             "הדביקו טקסט כדי ליצור כתוביות.", "Paste some text to make subtitles.",
@@ -604,13 +609,13 @@ namespace SubtitleStudio
             "כשהכתוביות נעשו לגרסה בקצב אחר", "For subtitles timed to a different frame rate",
             "הכתוביות נעשו בקצב", "The subtitles were made at",
             "הסרט שלכם בקצב", "Your video runs at",
+        };
+        private static readonly string[] P2 = new string[] {
             "אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הסרט.", "If you're not sure, it's better to use Sync to the video.",
             "להמיר", "Convert",
             "אותו קצב", "Same rate",
             "בחרו שני קצבים שונים.", "Choose two different rates.",
             "המרת קצב", "Frame rate conversion",
-        };
-        private static readonly string[] P2 = new string[] {
             "כל הקבצים|*.*", "All files|*.*",
             " - חדש", " - new",
             "הקובץ כבר קטן מהגודל הזה ({0}). כדי להקטין אותו באמת - לבחור גודל קטן יותר.", "The file is already smaller than this size ({0}). To really make it smaller, choose a smaller size.",
@@ -906,13 +911,13 @@ namespace SubtitleStudio
             "מידע", "Information",
             "פרטי הקובץ", "File details",
             "ערוצים, רזולוציה, אורך וגודל", "Tracks, resolution, length and size",
+        };
+        private static readonly string[] P3 = new string[] {
             "הכתוביות שלי", "My subtitles",
             "מה כדאי לתקן בכתוביות, ותיקון אוטומטי", "What's worth fixing in the subtitles, and automatic fixes",
             "הכתובית הוזזה ל-{0}.  לביטול - Ctrl+Z.", "The subtitle was moved to {0}.  To undo - Ctrl+Z.",
             "תצוגה מקדימה", "Preview",
             "לא נפתח סרט", "No video is open",
-        };
-        private static readonly string[] P3 = new string[] {
             "ניגון / עצירה (מקש הרווח)", "Play / pause (space bar)",
             "אחורה שתי שניות (חץ שמאלה, או Ctrl+חץ תוך כדי כתיבה)", "Back two seconds (left arrow, or Ctrl+arrow while typing)",
             "לכתובית הקודמת", "To the previous subtitle",
@@ -1086,6 +1091,10 @@ namespace SubtitleStudio
             "ייתכן שהקובץ פגום או בפורמט לא נתמך:\n{0}", "The file may be damaged or in an unsupported format:\n{0}",
             "לא הצלחתי לפתוח", "Couldn't open it",
             "לא נמצאו תזמונים בקובץ", "No timings found in the file",
+            "בקובץ הזה אין זמנים", "This file has no times",
+            "זה טקסט רגיל. להפוך אותו לכתוביות? בחלון הבא התוכנה תחלק אותו, ותראו מה ייצא לפני שיוצרים.", "It is plain text. Turn it into subtitles? In the next window the program will split it, and you will see the result before anything is created.",
+            "להפוך לכתוביות", "Turn into subtitles",
+            "מה לעשות עם {0} הכתוביות החדשות?", "What should happen to the {0} new subtitles?",
             "נראה שזה קובץ טקסט רגיל. לייבא אותו כטקסט ולתת לתוכנה לתזמן אוטומטית?", "This looks like a plain text file. Import it as text and let the program time it automatically?",
             "כן, כטקסט", "Yes, as text",
             "כבר יש כתוביות פתוחות", "Subtitles are already open",
@@ -1204,6 +1213,8 @@ namespace SubtitleStudio
             "מהתחלת הכתובית", "From the start of the subtitle",
             "נכון - להסיר את הסימון", "Correct - remove the mark",
             "נשמע כמו שכתוב · Ctrl+Z מבטל", "Sounds as written · Ctrl+Z undoes",
+        };
+        private static readonly string[] P4 = new string[] {
             "כתובית אחת לא תורגמה", "One subtitle was not translated",
             "{0} כתוביות לא תורגמו", "{0} subtitles were not translated",
             "המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב.", "The model skipped them even on a second try, and they stayed in the original language. You can translate them by hand, or translate again.",
@@ -1213,8 +1224,6 @@ namespace SubtitleStudio
             "נוצרו {0} כתוביות בקטע {1}.", "{0} subtitles were created in the section {1}.",
             "בקטע המסומן על הציר אין כתוביות.", "There are no subtitles in the section marked on the timeline.",
             "על הציר מסומן הקטע {0}. {1}", "The section {0} is marked on the timeline. {1}",
-        };
-        private static readonly string[] P4 = new string[] {
             "רק את הקטע", "Only the section",
             "את כל הכתוביות", "All the subtitles",
             "לתזמן רק את הקטע המסומן?", "Time only the marked section?",

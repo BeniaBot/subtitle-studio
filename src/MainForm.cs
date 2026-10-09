@@ -117,7 +117,6 @@ namespace SubtitleStudio
                 UpdateSteps();
                 UpdateHint();
                 Spell.EnsureLoaded();              // ברקע, כחצי שנייה; רק אם המילון מותקן ודלוק
-                if (Math.Abs(Settings.Speed - 1.0) > 0.001) SetSpeed(Settings.Speed);
                 // בבדיקות אוטומטיות אין משתמש שילחץ על דיאלוג, ואין טעם לפנות לרשת
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
                 if (!Ff.Available)
@@ -588,6 +587,12 @@ namespace SubtitleStudio
             _speedBtn.PrefWidth = SpeedButtonWidth();
             _speedBtn.Size = new Size(_speedBtn.PrefWidth, Theme.S(34));
             _speedBtn.Click += delegate { ShowSpeedMenu(); };
+            // גלגלת על הכפתור: צעד של עשירית, בלי לפתוח כלום
+            _speedBtn.MouseWheel += delegate (object s2, MouseEventArgs me) { SetSpeedStep(me.Delta > 0 ? 1 : -1); };
+            _speedPicker = new SpeedPicker();
+            _speedPicker.Changed += delegate { SetSpeed(_speedPicker.Value); };
+            _speedPicker.Visible = false;
+            _videoCard.Controls.Add(_speedPicker);   // בית קבוע, כמו הסליידר של העוצמה
             Ui.Tip.SetToolTip(_speedBtn, Lang.T("מהירות השמעה. האטה עוזרת לתפוס בדיוק את הרגע שבו מתחיל הדיבור") +
                 Environment.NewLine + Lang.T("לא משנה את הקובץ, רק את ההשמעה כאן"));
             _videoCard.Controls.Add(_speedBtn);
@@ -606,51 +611,50 @@ namespace SubtitleStudio
             pp.ShowUnder(_volBtn);
         }
 
-        private static readonly double[] Speeds = new double[] { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+        private SpeedPicker _speedPicker;
 
         /// <summary>תצוגת מהירות: בלי אפסים מיותרים.</summary>
-        private static string SpeedText(double v)
-        {
-            return Theme.Ltr(v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "×");
-        }
+        private static string SpeedText(double v) { return SpeedPicker.Text(v); }
 
         /// <summary>באותו חשבון ש-Btn מצייר: ריפוד, חץ התפריט, אייקון, רווח וטקסט.</summary>
         private int SpeedButtonWidth()
         {
             int textW = 0;
-            foreach (double sp in Speeds)
+            // הארוכות שאפשר לקבל (0.25-4, ברשת של 0.05)
+            foreach (double sp in new double[] { 0.25, 1.25, 3.85 })
                 textW = Math.Max(textW, TextRenderer.MeasureText(SpeedText(sp), _speedBtn.Font,
                     new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
             return S(12) * 2 + S(16) + _speedBtn.IconSize + S(8) + textW + S(4);
         }
 
+        /// <summary>חלונית המהירות (``SpeedPicker``): פס גרירה וכפתורים מהירים. עד 0.8.9 - תפריט של שש מהירויות.</summary>
         private void ShowSpeedMenu()
         {
-            List<MenuItem> items = new List<MenuItem>();
-            foreach (double sp in Speeds)
+            _speedPicker.Value = _engine.Speed;
+            PopupPanel pp = new PopupPanel(_speedPicker, Theme.S(360), SpeedPicker.NeedHeight + Theme.S(24));
+            pp.FormClosed += delegate
             {
-                double captured = sp;
-                string desc = sp < 1 ? Lang.T("איטי יותר - נוח לתזמון מדויק")
-                            : sp > 1 ? Lang.T("מהיר יותר - למעבר מהיר על החומר")
-                            : Lang.T("המהירות הרגילה");
-                items.Add(MenuItem.Make(SpeedText(sp), desc,
-                    Math.Abs(_engine.Speed - sp) < 0.001 ? Ico.Check : Ico.None,
-                    delegate { SetSpeed(captured); }));
-            }
-            PopupMenu m = new PopupMenu(items, 300);
-            m.ShowUnder(_speedBtn);
+                _speedPicker.Parent = _videoCard;
+                _speedPicker.Visible = false;
+            };
+            _speedPicker.Visible = true;
+            pp.ShowUnder(_speedBtn);
         }
 
-        /// <summary>מעבר למהירות הבאה/הקודמת ברשימה (Ctrl+חצים למעלה/למטה).</summary>
+        /// <summary>צעד של עשירית למעלה או למטה (Ctrl+חצים, גלגלת על הכפתור).</summary>
         private void SetSpeedStep(int dir)
         {
-            int at = 2;
-            for (int i = 0; i < Speeds.Length; i++)
-                if (Math.Abs(Speeds[i] - _engine.Speed) < 0.001) { at = i; break; }
-            at = Math.Max(0, Math.Min(Speeds.Length - 1, at + dir));
-            SetSpeed(Speeds[at]);
-            _hintLbl.Text = Lang.F("מהירות השמעה: {0}", Theme.Ltr(SpeedText(Speeds[at])));
+            double v = SpeedPicker.StepFrom(_engine.Speed, dir);
+            SetSpeed(v);
+            _hintLbl.Text = Lang.F("מהירות השמעה: {0}", SpeedText(v));
             _hintLbl.Flash();
+        }
+
+        /// <summary>המהירות, לחלון החיתוך: אותו נגן, ואותו כפתור מתעדכן כאן.</summary>
+        internal double PlayerSpeed
+        {
+            get { return _engine.Speed; }
+            set { SetSpeed(value); }
         }
 
         /// <summary>בחלון צר אין מקום לשני זמנים - מציגים רק את המיקום.</summary>
@@ -661,10 +665,12 @@ namespace SubtitleStudio
             return a + "  /  " + Tc.Short(_engine.DurationMs);
         }
 
+        /// <summary>**לא נשמר בין הפעלות** (עד 0.8.9 נשמר, ובנימין פתח קובץ אחר למחרת - והכול רץ פי 2, גם בחלון
+        /// החיתוך שאין בו מהירות). מהירות היא לעבודה של עכשיו.</summary>
         private void SetSpeed(double v)
         {
-            _engine.Speed = v;
-            Settings.Speed = _engine.Speed;
+            _engine.Speed = SpeedPicker.Snap(v);
+            if (_speedPicker != null && Math.Abs(_speedPicker.Value - _engine.Speed) > 0.001) _speedPicker.Value = _engine.Speed;
             _speedBtn.Text = SpeedText(_engine.Speed);
             _speedBtn.Tint = Math.Abs(_engine.Speed - 1.0) < 0.001 ? System.Drawing.Color.Empty : Theme.Accent;
             _speedBtn.Invalidate();
@@ -2800,12 +2806,14 @@ namespace SubtitleStudio
                 ParseResult res = Formats.Load(path);
                 if (res.Cues.Count == 0)
                 {
-                    if (Ui.Confirm(this, Lang.T("לא נמצאו תזמונים בקובץ"),
-                        Lang.T("נראה שזה קובץ טקסט רגיל. לייבא אותו כטקסט ולתת לתוכנה לתזמן אוטומטית?"), Lang.T("כן, כטקסט"), Lang.T("ביטול")))
+                    // עד 0.8.9: ״...ולתת לתוכנה לתזמן אוטומטית?״ - ומה שנפתח היה חלון שמחלק את הטקסט, לא תזמון
+                    if (Ui.Confirm(this, Lang.T("בקובץ הזה אין זמנים"),
+                        Lang.T("זה טקסט רגיל. להפוך אותו לכתוביות? בחלון הבא התוכנה תחלק אותו, ותראו מה ייצא לפני שיוצרים."),
+                        Lang.T("להפוך לכתוביות"), Lang.T("ביטול")))
                     {
                         string enc;
                         string text = Formats.ReadTextSmart(path, out enc);
-                        ImportTextDlg d = new ImportTextDlg(_engine.Position, _mi != null);
+                        ImportTextDlg d = new ImportTextDlg(_engine.Position, _mi != null, _mi != null ? _mi.DurationMs : 0);
                         d.SetText(text);
                         d.ShowDialog(this);
                         if (d.Ok && d.Result != null) ApplyImport(d.Result);
@@ -2850,9 +2858,21 @@ namespace SubtitleStudio
             }
         }
 
+        /// <summary>כשכבר יש כתוביות - שואלים, כמו בפתיחת קובץ כתוביות. עד 0.8.9 היבוא תמיד הוסיף אותן לקיימות,
+        /// והן התערבבו לפי הזמנים.</summary>
         private void ApplyImport(List<Cue> cues)
         {
+            bool replace = false;
+            if (_doc.Cues.Count > 0)
+            {
+                int r = Ui.Msg(this, Lang.T("כבר יש כתוביות פתוחות"),
+                    Lang.F("מה לעשות עם {0} הכתוביות החדשות?", cues.Count), Ico.Question,
+                    Lang.T("להחליף את הקיימות"), Lang.T("לצרף לקיימות"), Lang.T("ביטול"));
+                if (r == 2 || r < 0) return;
+                replace = r == 0;
+            }
             _doc.Push(Lang.T("ייבוא טקסט"));
+            if (replace) _doc.Cues.Clear();
             _doc.Cues.AddRange(cues);
             _doc.Sort();
             _doc.RaiseChanged();
@@ -2861,7 +2881,7 @@ namespace SubtitleStudio
 
         private void ImportText()
         {
-            ImportTextDlg d = new ImportTextDlg(_engine.Position, _mi != null);
+            ImportTextDlg d = new ImportTextDlg(_engine.Position, _mi != null, _mi != null ? _mi.DurationMs : 0);
             d.ShowDialog(this);
             if (d.Ok && d.Result != null) ApplyImport(d.Result);
             d.Dispose();

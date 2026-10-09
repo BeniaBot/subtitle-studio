@@ -144,13 +144,18 @@ namespace SubtitleStudio
         private Btn _advBtn;
         private readonly List<Control> _adv = new List<Control>();
         private bool _advOpen;
+        private long _mediaMs;
         public List<Cue> Result;
 
-        public ImportTextDlg(long startAt) : this(startAt, false) { }
+        public ImportTextDlg(long startAt) : this(startAt, false, 0) { }
+
+        public ImportTextDlg(long startAt, bool hasVideo) : this(startAt, hasVideo, 0) { }
 
         /// <param name="hasVideo">אם יש סרט פתוח, ברירת המחדל היא לתזמן לפיו בלחיצות.</param>
-        public ImportTextDlg(long startAt, bool hasVideo) : base(Lang.T("טקסט לכתוביות"), Ico.Import, 620)
+        /// <param name="mediaMs">אורך הסרט: ״זמן״ בתחילת שורה שאחרי סופו הוא טקסט (שעה ביום), לא חותמת.</param>
+        public ImportTextDlg(long startAt, bool hasVideo, long mediaMs) : base(Lang.T("טקסט לכתוביות"), Ico.Import, 620)
         {
+            _mediaMs = mediaMs;
             Subtitle = Lang.T("מדביקים טקסט חופשי - התוכנה מחלקת אותו לכתוביות");
 
             _text = new Field(true);
@@ -284,42 +289,14 @@ namespace SubtitleStudio
         /// <summary>האם המשתמש ביקש לתזמן אחר כך מול הסרט.</summary>
         public bool TapLater { get { return _tapLater != null && _tapLater.Checked && _tapLater.Enabled; } }
 
-        /// <summary>טקסט שהוקלד משמיעה בא בדרך כלל בפסקאות. אם יש שורות ריקות
-        /// שמפרידות בין קטעים - זו הכוונה; אחרת כל שורה היא משפט.</summary>
-        private static bool LooksLikeParagraphs(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return false;
-            string[] lines = text.Replace("\r\n", "\n").Split('\n');
-            int blanksBetween = 0;
-            bool sawText = false;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                bool empty = lines[i].Trim().Length == 0;
-                if (!empty) { sawText = true; continue; }
-                if (sawText && i + 1 < lines.Length)
-                {
-                    for (int j = i + 1; j < lines.Length; j++)
-                    {
-                        if (lines[j].Trim().Length == 0) continue;
-                        blanksBetween++;
-                        break;
-                    }
-                }
-            }
-            return blanksBetween > 0;
-        }
-
-        private bool SplitByBlank()
-        {
-            if (_split.SelectedIndex == 1) return false;
-            if (_split.SelectedIndex == 2) return true;
-            return LooksLikeParagraphs(_text.Text);
-        }
-
+        /// <summary>״אוטומטי״ מחליט לכל קטע לחוד (Formats.BlockShape). עד 0.8.9 ההחלטה הייתה אחת לכל הטקסט, ושורה
+        /// ריקה אחת בכל הקובץ הפכה את כל השורות לשתי פסקאות ענק.</summary>
         private Formats.TextImportOptions Opts()
         {
             Formats.TextImportOptions o = new Formats.TextImportOptions();
-            o.SplitByBlankLine = SplitByBlank();
+            o.Auto = _split.SelectedIndex == 0;
+            o.SplitByBlankLine = _split.SelectedIndex == 2;
+            o.MediaMs = _mediaMs;
             o.UseTimestamps = _stamps.Checked;
             o.AutoWrap = _wrap.Checked;
             o.Cps = _cps.Value;
@@ -330,20 +307,26 @@ namespace SubtitleStudio
             return o;
         }
 
+        /// <summary>מה ייצא, במילים: כמה כתוביות, ומה התוכנה עשתה עם הטקסט - כדי שאפשר יהיה לתקן לפני שיוצרים.</summary>
         private void UpdatePreview()
         {
             if (_preview == null) return;
-            List<Cue> cues = Formats.ImportPlainText(_text.Text, Opts());
+            Formats.TextImportInfo info;
+            List<Cue> cues = Formats.ImportPlainText(_text.Text, Opts(), out info);
             if (cues.Count == 0)
             {
                 _preview.Text = Lang.T("אין עדיין טקסט. הדביקו למעלה, או טענו קובץ.");
                 _preview.Invalidate();
                 return;
             }
-            string how = SplitByBlank() ? Lang.T("כל שורה ריקה מפרידה בין כתוביות") : Lang.T("כל שורה היא כתובית");
-            string first = cues[0].PlainText;
+            string how;
+            if (info.WasSubtitles) how = Lang.T("זה קובץ כתוביות - הן ייכנסו עם הזמנים שלהן");
+            else if (info.StampsUsed > 0) how = Lang.T("לפי הזמנים שבתחילת השורות");
+            else if (info.SplitUnits > 0) how = Lang.T("קטעים ארוכים חולקו לפי משפטים");
+            else how = Lang.T("כתובית לכל שורה");
+            string first = cues[0].PlainText.Replace("\n", " ");
             if (first.Length > 44) first = first.Substring(0, 42) + "…";
-            _preview.Text = Lang.F("ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״", cues.Count, how, first);
+            _preview.Text = Lang.F("ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״", Theme.Ltr(cues.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)), how, first);
             _preview.Invalidate();
         }
 

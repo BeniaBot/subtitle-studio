@@ -93,7 +93,7 @@ Check 'הכתובית החדשה מסומנת' ($null -ne $new -and $new.Selecte
 
 # ================= חלוניות קופצות =================
 Write-Host 'חלוניות קופצות'
-foreach ($pair in @(@('_volBtn', 'PopupPanel'), @('_speedBtn', 'PopupMenu'))) {
+foreach ($pair in @(@('_volBtn', 'PopupPanel'), @('_speedBtn', 'PopupPanel'))) {
     CloseExtraForms $f
     $n = [System.Windows.Forms.Application]::OpenForms.Count
     Tap (Fld $f $pair[0])
@@ -110,6 +110,9 @@ CloseExtraForms $f
 $vol = Fld $f '_volume'
 $card = Fld $f '_videoCard'
 Check 'הסליידר חזר לכרטיס' ($vol.Parent -eq $card) ("parent=" + $(if ($vol.Parent) { $vol.Parent.GetType().Name } else { 'null' }))
+# ‏0.8.9: גם חלונית המהירות (פס וכפתורים) חוזרת הביתה - אחרת החלונית שנסגרת משמידה אותה
+$spk = Fld $f '_speedPicker'
+Check 'חלונית המהירות חזרה לכרטיס' ($spk -ne $null -and $spk.Parent -eq $card) ("parent=" + $(if ($spk -and $spk.Parent) { $spk.Parent.GetType().Name } else { 'null' }))
 Tap (Fld $f '_volBtn')
 $again = $null
 foreach ($w in [System.Windows.Forms.Application]::OpenForms) { if ($w -ne $f) { $again = $w } }
@@ -165,7 +168,7 @@ $o = [Activator]::CreateInstance($optT)
 $optT.GetField('SplitByBlankLine').SetValue($o, $true)
 $optT.GetField('MarkUntimed').SetValue($o, $true)
 $txt = "שלום לכולם`r`n`r`nזו בדיקה של התזמון`r`n`r`nוזו השורה השלישית"
-$made = $fmt.GetMethod('ImportPlainText').Invoke($null, (Pack ([string]$txt) $o))
+$made = ($fmt.GetMethods([Reflection.BindingFlags]'NonPublic,Public,Static') | Where-Object { $_.Name -eq 'ImportPlainText' -and $_.GetParameters().Count -eq 2 } | Select-Object -First 1).Invoke($null, (Pack ([string]$txt) $o))
 Eq 'הטקסט התחלק לשלוש' $made.Count 3
 $allUntimed = $true
 foreach ($c in $made) { if (-not $c.Untimed) { $allUntimed = $false } }

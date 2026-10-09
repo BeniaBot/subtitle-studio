@@ -399,6 +399,10 @@ namespace SubtitleStudio
         public double Min = 0, Max = 100, Value = 50, Step = 1;
         public string Suffix = "";
         public bool ShowValue = true;
+        /// <summary>איך להציג את הערך (null - המספר והסיומת). למהירות: הערך הוא לוגריתם, והתצוגה ״1.25×״.</summary>
+        public Func<double, string> Format;
+        /// <summary>סימון קטן על המסילה בערך הזה (NaN - בלי). למהירות: הרגילה, באמצע.</summary>
+        public double Mark = double.NaN;
         public event EventHandler ValueChanged;
         private bool _drag;
         private readonly Tween _hot;
@@ -465,6 +469,12 @@ namespace SubtitleStudio
                 Surface.Fill(g, new RectangleF(track.X, track.Y, w * t, th), th / 2,
                     Theme.Mix(Theme.Accent, Color.White, 0.14f), Theme.Accent);
             // הידית: לבנה עם צל רך וטבעת בצבע ההדגשה; גדלה בריחוף ובגרירה
+            if (!double.IsNaN(Mark) && Max > Min)
+            {
+                float mx = x0 + w * (float)((Mark - Min) / (Max - Min));
+                using (Pen mp = new Pen(Theme.TextFaint, Math.Max(1f, Theme.S(1.5f))))
+                    g.DrawLine(mp, mx, cy - th / 2 - Theme.S(5), mx, cy + th / 2 + Theme.S(5));
+            }
             float kx = x0 + w * t;
             using (SolidBrush sh = new SolidBrush(Color.FromArgb(Theme.Dark ? 90 : 40, 0, 0, 0)))
                 g.FillEllipse(sh, kx - kr - 0.5f, cy - kr + 1f, kr * 2 + 1f, kr * 2 + 1f);
@@ -477,12 +487,123 @@ namespace SubtitleStudio
                 bool heb = false;
                 foreach (char ch in Suffix ?? "") if (Theme.IsHebrew(ch)) heb = true;
                 RectangleF vr = new RectangleF(Width - LabelW - 2, 0, LabelW, Height);
-                if (heb) Theme.Str(g, Theme.Ltr(Value.ToString("0.##") + Suffix), Theme.SmallBold, Theme.TextDim, vr, Theme.SfFar);
+                if (Format != null) Theme.Num(g, Format(Value), Theme.SmallBold, Theme.TextDim, vr, StringAlignment.Far);
+                else if (heb) Theme.Str(g, Theme.Ltr(Value.ToString("0.##") + Suffix), Theme.SmallBold, Theme.TextDim, vr, Theme.SfFar);
                 else Theme.Num(g, Value.ToString("0.##") + Suffix, Theme.SmallBold, Theme.TextDim, vr, StringAlignment.Far);
             }
         }
     }
 
+    /// <summary>מהירות ניגון: פס גרירה שהמהירות הרגילה באמצע שלו (סולם לוגריתמי, 0.25-4), ושורת כפתורים למהירויות
+    /// הנפוצות. בחלון הראשי ובחלון החיתוך. **עד 0.8.9** - תפריט של שש מהירויות (0.5 עד 2), והחלון של החיתוך לא הציג
+    /// מהירות בכלל: הוא ניגן במהירות של החלון הראשי, ובנימין נתקע שם עם ״פי 2״ בלי דרך לשנות.</summary>
+    internal class SpeedPicker : SurfaceControl
+    {
+        public const double MinSpeed = 0.25, MaxSpeed = 4.0;
+        public static readonly double[] Quick = new double[] { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+        private readonly Slider _slider = new Slider();
+        private readonly System.Collections.Generic.List<Btn> _quick = new System.Collections.Generic.List<Btn>();
+        private readonly Timer _settle = new Timer();
+        private double _value = 1.0;
+        private bool _quiet;
+        public event EventHandler Changed;
+
+        public SpeedPicker()
+        {
+            _slider.Min = -2; _slider.Max = 2; _slider.Step = 0.01; _slider.Value = 0; _slider.Mark = 0;
+            _slider.Format = delegate (double v) { return Plain(Snap(Math.Pow(2, v))); };
+            _slider.ValueChanged += delegate
+            {
+                if (_quiet) return;
+                double v = Snap(Math.Pow(2, _slider.Value));
+                if (Math.Abs(v - _value) < 0.001) return;
+                _value = v;
+                UpdateQuick();
+                // בגרירה - רק כשהיד נחה רגע: כל שינוי מפעיל מחדש את הניגון
+                _settle.Stop();
+                _settle.Start();
+            };
+            _settle.Interval = 180;
+            _settle.Tick += delegate { _settle.Stop(); Raise(); };
+            Controls.Add(_slider);
+            foreach (double q in Quick)
+            {
+                double cap = q;
+                Btn b = new Btn();
+                b.Text = Text(q);
+                b.Kind = BtnKind.Tool;
+                b.Font = Theme.Small;
+                b.Click += delegate { Value = cap; Raise(); };
+                _quick.Add(b);
+                Controls.Add(b);
+            }
+            UpdateQuick();
+        }
+
+        /// <summary>הגובה שהפקד צריך: פס הגרירה ושורת הכפתורים.</summary>
+        public static int NeedHeight { get { return Theme.S(28) + Theme.S(10) + Theme.S(30); } }
+
+        /// <summary>המהירות. קביעה מבחוץ לא מפעילה את Changed.</summary>
+        public double Value
+        {
+            get { return _value; }
+            set
+            {
+                _value = Snap(value);
+                _quiet = true;
+                _slider.Value = Math.Log(_value, 2);
+                _quiet = false;
+                _slider.Invalidate();
+                UpdateQuick();
+            }
+        }
+
+        private void Raise() { if (Changed != null) Changed(this, EventArgs.Empty); }
+
+        private void UpdateQuick()
+        {
+            for (int i = 0; i < _quick.Count; i++)
+            {
+                _quick[i].Checked = Math.Abs(Quick[i] - _value) < 0.001;
+                _quick[i].Invalidate();
+            }
+        }
+
+        protected override void OnLayout(LayoutEventArgs e)
+        {
+            base.OnLayout(e);
+            int w = ClientSize.Width;
+            int sh = Theme.S(28);
+            _slider.SetBounds(0, 0, w, sh);
+            // נקרא כבר כשהפס נוסף, לפני שיש כפתורים
+            if (_quick.Count == 0) return;
+            int gap = Theme.S(6);
+            int bw = (w - gap * (_quick.Count - 1)) / _quick.Count;
+            // משמאל לימין גם בממשק עברי - כמו הפס שמעליהם: האיטית משמאל, המהירה מימין
+            for (int i = 0; i < _quick.Count; i++) _quick[i].SetBounds(i * (bw + gap), sh + Theme.S(10), bw, Theme.S(30));
+        }
+
+        /// <summary>לרשת של 0.05 ובגבולות 0.25-4.</summary>
+        public static double Snap(double v)
+        {
+            if (double.IsNaN(v) || v <= 0) v = 1;
+            v = Math.Round(v / 0.05) * 0.05;
+            if (v < MinSpeed) v = MinSpeed;
+            if (v > MaxSpeed) v = MaxSpeed;
+            return Math.Round(v, 2);
+        }
+
+        /// <summary>צעד אחד (גלגלת, Ctrl+חץ): לעשירית השלמה הבאה - כך 0.25 עולה ל-0.3, ומשם בעשיריות ודרך 1.</summary>
+        public static double StepFrom(double v, int dir)
+        {
+            double n = dir > 0 ? Math.Floor(v * 10 + 1e-6) / 10 + 0.1 : Math.Ceiling(v * 10 - 1e-6) / 10 - 0.1;
+            return Snap(n);
+        }
+
+        public static string Plain(double v) { return v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "×"; }
+
+        public static string Text(double v) { return Theme.Ltr(Plain(v)); }
+    }
     /// <summary>תיבת טקסט עם מסגרת מעוצבת.</summary>
     internal class Field : SurfaceControl
     {

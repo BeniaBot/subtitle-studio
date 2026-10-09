@@ -223,7 +223,8 @@ Check 'שורת ההסבר בכרטיס נכנסת (בלי ״...״)' ($bad.Count
 # כפתור המהירות, בכל מהירות - לא רק ״1×״ שבמקרה נכנס. עד 0.7.2 ״1.25×״ הוצג ״1…״.
 $mfT = TY 'MainForm'
 $sp = $mfT.GetField('_speedBtn', $IN).GetValue($main)
-$speeds = $mfT.GetField('Speeds', $ST).GetValue($null)
+# ‏0.8.9: כל מהירות מ-0.25 עד 4 (ברשת של 0.05) - גם הארוכות ביותר להצגה
+$speeds = @(0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.85, 2, 2.35, 3.85, 4)
 $spText = $mfT.GetMethod('SpeedText', $ST)
 $cut = @()
 foreach ($size in @(@(1500, 950), @(1000, 700))) {

@@ -698,6 +698,9 @@ namespace SubtitleStudio
         public class TextImportOptions
         {
             public bool SplitByBlankLine = false;   // בלוק = כתובית (אחרת: שורה = כתובית)
+            /// <summary>״אוטומטי״ (0.8.9): כל קטע בין שורות ריקות לפי הצורה שלו (<see cref="BlockShape"/>). כשדלוק,
+            /// SplitByBlankLine לא נחשב.</summary>
+            public bool Auto = false;
             public bool UseTimestamps = true;       // לזהות חותמות זמן בתחילת שורה
             public long StartAt = 0;
             public double Cps = 15;                 // תווים לשנייה לחישוב משך
@@ -709,75 +712,444 @@ namespace SubtitleStudio
             /// <summary>לסמן את התוצאה כ״עוד לא תוזמן״ - הזמנים הם הערכה
             /// והמשתמש יקבע אותם בלחיצות מול הסרט.</summary>
             public bool MarkUntimed = false;
+            /// <summary>אורך הסרט הפתוח (0 = אין). ״זמן״ בתחילת שורה שנופל אחרי סוף הסרט הוא טקסט, לא חותמת
+            /// (״13:00 עצרנו לצהריים״ בסרטון של שלוש דקות).</summary>
+            public long MediaMs = 0;
+        }
+
+        /// <summary>מה קרה ביבוא - בשביל שורת התצוגה המקדימה בחלון.</summary>
+        public class TextImportInfo
+        {
+            /// <summary>הטקסט הוא בעצם קובץ כתוביות (SRT/VTT, גם ״שבור״), ונטען עם הזמנים שלו.</summary>
+            public bool WasSubtitles;
+            /// <summary>שורות שמתחילות בזמן, והזמן שימש למיקום.</summary>
+            public int StampsUsed;
+            /// <summary>שורות שמתחילות במשהו כמו זמן שלא התנהג כמו חותמות (פסוקים ״1:1״, שעות ביום) - נשארו טקסט.</summary>
+            public int StampsIgnored;
+            /// <summary>שורות או פסקאות ארוכות שפוצלו לכמה כתוביות.</summary>
+            public int SplitUnits;
         }
 
         private static readonly Regex RxLeadTime = new Regex(@"^\s*[\[\(]?\s*(\d{1,2}:\d{1,2}(?::\d{1,2})?(?:[.,]\d{1,3})?)\s*[\]\)]?\s*[-–:]?\s*");
 
         public static List<Cue> ImportPlainText(string text, TextImportOptions o)
         {
-            if (o == null) o = new TextImportOptions();
-            List<Cue> result = new List<Cue>();
-            List<string> units = new List<string>();
-            List<long> stamps = new List<long>();
+            TextImportInfo info;
+            return ImportPlainText(text, o, out info);
+        }
 
-            if (o.SplitByBlankLine)
+        /// <summary>טקסט חופשי - כתוביות. ‏**0.8.9, אחרי מדידה** (build\text-sweep.ps1, ‏35 טקסטים - מקרי קצה ואמיתיים
+        /// מהמחשב): עד כאן 335 מתוך 575 כתוביות יצאו ארוכות מדי ו-240 מהירות מכדי לקרוא. שיעור של שעה יצא 150 פסקאות
+        /// של שלוש שורות; עשר שורות עם שורה ריקה אחת ביניהן - שתי כתוביות; ״1:1 בראשית ברא״ מוקם כזמן; וקובץ SRT
+        /// שהודבק נכנס עם המספרים והחיצים. הסדר: ניקוי, קובץ כתוביות?, חותמות שבאמת חותמות, יחידות לפי צורת הקטע,
+        /// פיצול כל יחידה ארוכה, שבירה לשתי שורות, וזמן.</summary>
+        public static List<Cue> ImportPlainText(string text, TextImportOptions o, out TextImportInfo info)
+        {
+            if (o == null) o = new TextImportOptions();
+            info = new TextImportInfo();
+            List<Cue> result = new List<Cue>();
+            text = CleanImportText(text ?? "");
+            if (text.Trim().Length == 0) return result;
+
+            // קובץ כתוביות שהודבק או נטען כטקסט - עם הזמנים שלו, בלי לנחש
+            List<Cue> timed = ParseTimedLenient(text);
+            if (timed != null)
             {
-                foreach (string b in SplitBlocks(text))
+                info.WasSubtitles = true;
+                return timed;
+            }
+
+            string[] lines = text.Split('\n');
+            long[] stamp = new long[lines.Length];
+            int[] cut = new int[lines.Length];
+            for (int i = 0; i < lines.Length; i++) stamp[i] = -1;
+            int candidates = 0;
+            if (o.UseTimestamps)
+            {
+                for (int i = 0; i < lines.Length; i++)
                 {
-                    long st = -1;
-                    string body = b;
-                    if (o.UseTimestamps)
-                    {
-                        Match m = RxLeadTime.Match(b);
-                        if (m.Success) { st = Tc.Parse(m.Groups[1].Value); body = b.Substring(m.Length); }
-                    }
-                    units.Add(body.Trim());
-                    stamps.Add(st);
+                    Match m = RxLeadTime.Match(lines[i]);
+                    if (!m.Success) continue;
+                    long ms = Tc.Parse(m.Groups[1].Value);
+                    if (ms < 0) continue;
+                    stamp[i] = ms; cut[i] = m.Length; candidates++;
+                }
+                if (candidates > 0 && StampsAreReal(lines, stamp, cut, o.MediaMs)) info.StampsUsed = candidates;
+                else
+                {
+                    info.StampsIgnored = candidates;
+                    for (int i = 0; i < lines.Length; i++) { stamp[i] = -1; cut[i] = 0; }
+                }
+            }
+
+            // יחידות: שורה, פסקה, או כתובית שהמשתמש כבר שבר בעצמו
+            List<string> units = new List<string>();
+            List<long> ustamp = new List<long>();
+            if (info.StampsUsed > 0)
+            {
+                // תמלול עם זמנים: כל שורה יחידה, והזמן שבתחילתה (אם יש) - המקום שלה
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string ln = Squeeze(stamp[i] >= 0 ? lines[i].Substring(cut[i]) : lines[i]);
+                    if (ln.Length == 0) continue;
+                    units.Add(ln);
+                    ustamp.Add(stamp[i]);
                 }
             }
             else
             {
-                string[] lines = text.Replace("\r\n", "\n").Split('\n');
-                foreach (string raw in lines)
+                foreach (string block in SplitBlocks(text))
                 {
-                    string ln = raw.Trim();
-                    if (ln.Length == 0) continue;
-                    long st = -1;
-                    if (o.UseTimestamps)
-                    {
-                        Match m = RxLeadTime.Match(ln);
-                        if (m.Success) { st = Tc.Parse(m.Groups[1].Value); ln = ln.Substring(m.Length).Trim(); }
-                    }
-                    if (ln.Length == 0) continue;
-                    units.Add(ln);
-                    stamps.Add(st);
+                    List<string> bl = new List<string>();
+                    foreach (string l in block.Split('\n')) { string t = Squeeze(l); if (t.Length > 0) bl.Add(t); }
+                    if (bl.Count == 0) continue;
+                    int shape;
+                    if (o.Auto) shape = BlockShape(bl, o.MaxCharsPerLine);
+                    else if (o.SplitByBlankLine) shape = FitsAsOne(bl, o.MaxCharsPerLine) ? 3 : 2;
+                    else shape = 1;
+                    if (shape == 1) foreach (string l in bl) { units.Add(l); ustamp.Add(-1); }
+                    else if (shape == 3) { units.Add(string.Join("\n", bl.ToArray())); ustamp.Add(-1); }
+                    else if (o.Auto) foreach (string u in ParagraphRuns(bl, o.MaxCharsPerLine)) { units.Add(u); ustamp.Add(-1); }
+                    else { units.Add(string.Join(" ", bl.ToArray())); ustamp.Add(-1); }
                 }
             }
 
-            long cursor = o.StartAt;
-            for (int i = 0; i < units.Count; i++)
+            // כל יחידה ארוכה - כמה כתוביות
+            List<string> pieces = new List<string>();
+            List<long> pstamp = new List<long>();
+            List<int> punit = new List<int>();
+            for (int u = 0; u < units.Count; u++)
             {
-                string t = units[i];
-                if (o.AutoWrap) t = WrapText(t, o.MaxCharsPerLine);
-                long start = stamps[i] >= 0 ? stamps[i] : cursor;
-                long dur = (long)(CountChars(t) / Math.Max(1.0, o.Cps) * 1000.0);
-                if (dur < o.MinDur) dur = o.MinDur;
-                if (dur > o.MaxDur) dur = o.MaxDur;
-                long end = start + dur;
-                // אם יש חותמת לשורה הבאה - נסיים לפניה
-                if (o.UseTimestamps && i + 1 < units.Count && stamps[i + 1] > start)
+                List<string> parts = SplitForSubs(units[u], o.MaxCharsPerLine);
+                if (parts.Count > 1) info.SplitUnits++;
+                for (int k = 0; k < parts.Count; k++) { pieces.Add(parts[k]); pstamp.Add(k == 0 ? ustamp[u] : -1); punit.Add(u); }
+            }
+
+            // הזמן: כל כתובית לפי אורכה, ברצף. יחידה עם חותמת מתחילה בה, והכתוביות שלה נכנסות עד החותמת הבאה
+            long cursor = o.StartAt;
+            int p = 0;
+            while (p < pieces.Count)
+            {
+                int q = p + 1;
+                while (q < pieces.Count && punit[q] == punit[p]) q++;
+                int n = q - p;
+                long start = pstamp[p] >= 0 ? pstamp[p] : cursor;
+                long[] dur = new long[n];
+                long total = 0;
+                for (int k = 0; k < n; k++)
                 {
-                    long limit = stamps[i + 1] - o.Gap;
-                    if (limit > start + 300 && limit < end) end = limit;
-                    if (limit > end && stamps[i] >= 0) end = Math.Min(limit, start + o.MaxDur);
+                    long d = (long)(CountChars(pieces[p + k]) / Math.Max(1.0, o.Cps) * 1000.0);
+                    if (d < o.MinDur) d = o.MinDur;
+                    if (d > o.MaxDur) d = o.MaxDur;
+                    dur[k] = d;
+                    total += d + (k > 0 ? o.Gap : 0);
                 }
-                Cue c = new Cue(start, end, t);
-                // חותמת זמן אמיתית בטקסט = תזמון אמיתי; אחרת זו רק הערכה
-                c.Untimed = o.MarkUntimed && stamps[i] < 0;
-                result.Add(c);
-                cursor = end + o.Gap;
+                long next = -1;
+                if (pstamp[p] >= 0)
+                    for (int k = q; k < pieces.Count; k++) if (pstamp[k] >= 0) { next = pstamp[k]; break; }
+                if (next > start)
+                {
+                    long span = next - o.Gap - start;
+                    long gaps = o.Gap * (n - 1);
+                    if (total > span && span - gaps > 300 * n)
+                    {
+                        double f = (span - gaps) / (double)(total - gaps);
+                        for (int k = 0; k < n; k++) dur[k] = Math.Max(300, (long)(dur[k] * f));
+                    }
+                    else if (n == 1 && span > dur[0]) dur[0] = Math.Min(span, o.MaxDur);
+                }
+                long t0 = start;
+                for (int k = 0; k < n; k++)
+                {
+                    string t = pieces[p + k];
+                    if (o.AutoWrap && t.IndexOf('\n') < 0) t = WrapImport(t, o.MaxCharsPerLine);
+                    Cue c = new Cue(t0, t0 + dur[k], t);
+                    // חותמת זמן אמיתית בטקסט = תזמון אמיתי; אחרת זו רק הערכה
+                    c.Untimed = o.MarkUntimed && pstamp[p] < 0;
+                    result.Add(c);
+                    t0 += dur[k] + o.Gap;
+                }
+                cursor = t0;
+                p = q;
             }
             return result;
+        }
+
+        private static string Squeeze(string s)
+        {
+            string t = (s ?? "").Trim();
+            while (t.Contains("  ")) t = t.Replace("  ", " ");
+            return t;
+        }
+
+        /// <summary>קטע (בין שורות ריקות) של עד שתי שורות קצרות: מישהו הקליד כתובית, עם שבירת השורה שלו.</summary>
+        private static bool FitsAsOne(List<string> bl, int max)
+        {
+            if (bl.Count > 2) return false;
+            foreach (string l in bl) if (l.Length > max) return false;
+            return true;
+        }
+
+        /// <summary>איך לקרוא קטע כשהחלוקה ״אוטומטית״: 3 - כתובית אחת כמו שהוא (עד שתי שורות קצרות); 1 - כל שורה
+        /// כתובית (שורות קצרות: מישהו הקליד כתובית בכל שורה); 2 - פסקה, השורות מתחברות ומתפצלות מחדש לפי משפטים
+        /// (שורות ארוכות, או טקסט שנשבר בעימוד של מסמך). **ההחלטה לכל קטע לחוד.** עד 0.8.9 היא הייתה אחת לכל הטקסט,
+        /// ושורה ריקה אחת בכל הקובץ הפכה עשר כתוביות של שורה לשתי פסקאות ענק.</summary>
+        internal static int BlockShape(List<string> bl, int max)
+        {
+            if (FitsAsOne(bl, max)) return 3;
+            int shortLines = 0;
+            foreach (string l in bl) if (l.Length <= 50) shortLines++;
+            if (bl.Count >= 2 && shortLines * 5 >= bl.Count * 4) return 1;
+            return 2;
+        }
+
+        /// <summary>פסקה: השורות מתחברות - חוץ מכותרת. שורה קצרה שעומדת לבד (בתחילת הקטע, או אחרי משפט שלם) היא כותרת
+        /// או משפט משלה, ונשארת כתובית נפרדת; שורה קצרה אחרי שורה ארוכה שלא נגמרה - ההמשך שלה (מסמך שנשבר בעימוד).
+        /// בלי זה ״למה דווקא כאן?״ נבלע באמצע הכתובית של הפסקה שאחריו (נמצא בטקסט קריינות אמיתי).</summary>
+        private static List<string> ParagraphRuns(List<string> bl, int max)
+        {
+            List<string> r = new List<string>();
+            List<string> run = new List<string>();
+            foreach (string l in bl)
+            {
+                if (run.Count > 0)
+                {
+                    string prev = run[run.Count - 1];
+                    bool cont;
+                    if (run.Count == 1 && prev.Length <= max) cont = false;
+                    else if (l.Length <= max) cont = !EndsSentenceText(prev);
+                    else cont = true;
+                    if (!cont) { r.Add(string.Join(" ", run.ToArray())); run.Clear(); }
+                }
+                run.Add(l);
+            }
+            if (run.Count > 0) r.Add(string.Join(" ", run.ToArray()));
+            return r;
+        }
+
+        private static bool EndsSentenceText(string t)
+        {
+            t = (t ?? "").TrimEnd();
+            return t.Length > 0 && ".?!…:״\"".IndexOf(t[t.Length - 1]) >= 0;
+        }
+
+        /// <summary>יחידה ארוכה - כמה כתוביות של עד שתי שורות של <paramref name="lineMax"/>. חותכים קרוב לאמצע במקום
+        /// טבעי (<see cref="Qa.SplitPoint"/>: סוף משפט, פסיק, מילת חיבור), ושוב בכל חצי שעדיין לא נכנס. כתובית שהמשתמש
+        /// שבר בעצמו ונכנסת - נשארת כמו שהיא.</summary>
+        internal static List<string> SplitForSubs(string t, int lineMax)
+        {
+            List<string> r = new List<string>();
+            t = (t ?? "").Trim();
+            if (t.Length == 0) return r;
+            if (t.IndexOf('\n') >= 0)
+            {
+                string[] ls = t.Split('\n');
+                bool fit = ls.Length <= 2;
+                foreach (string l in ls) if (l.Length > lineMax) fit = false;
+                if (fit) { r.Add(t); return r; }
+            }
+            string flat = Squeeze(t.Replace('\n', ' '));
+            SplitInto(flat, lineMax, r, 0);
+            return r;
+        }
+
+        /// <summary>נכנס בשתי שורות - לא רק לפי האורך הכולל: 84 תווים לא תמיד נשברים ל-42 ו-42 (תלוי איפה הרווחים).
+        /// עד שזה נבדק, 33 כתוביות יצאו עם שורה של 43-46 תווים.</summary>
+        private static bool FitsTwoLines(string t, int lineMax)
+        {
+            if (t.Length <= lineMax) return true;
+            if (t.Length > lineMax * 2 + 1) return false;
+            string[] ls = WrapImport(t, lineMax).Split('\n');
+            if (ls.Length > 2) return false;
+            foreach (string l in ls) if (l.Length > lineMax) return false;
+            return true;
+        }
+
+        private static void SplitInto(string t, int lineMax, List<string> r, int depth)
+        {
+            if (FitsTwoLines(t, lineMax) || depth > 40) { r.Add(t); return; }
+            int at = Qa.SplitPoint(t);
+            if (at <= 0) { r.Add(t); return; }          // אין מקום סביר - מילה אחת ארוכה (כתובת, למשל)
+            string a = t.Substring(0, at).Trim(), b = t.Substring(at).Trim();
+            // מקף מפריד (״פנטהאוזים — הזדמנות״) שייך לסוף הכתובית הראשונה, לא לתחילת השנייה
+            if (b.Length > 2 && (b[0] == '\u2014' || b[0] == '\u2013') && b[1] == ' ') { a = a + " " + b[0]; b = b.Substring(2).Trim(); }
+            SplitInto(a, lineMax, r, depth + 1);
+            SplitInto(b, lineMax, r, depth + 1);
+        }
+
+        /// <summary>כתובית לשתי שורות: אם יש סוף משפט או פסיק ששתי השורות נכנסות ממנו - שם; אחרת שבירה מאוזנת.</summary>
+        internal static string WrapImport(string s, int max)
+        {
+            if (s.Length <= max) return s;
+            int best = -1;
+            double bestScore = double.MaxValue;
+            for (int i = 1; i < s.Length - 1; i++)
+            {
+                if (s[i] != ' ') continue;
+                if (i > max || s.Length - i - 1 > max) continue;
+                char pc = s[i - 1];
+                double pen = ".?!…".IndexOf(pc) >= 0 ? 0 : (",;:".IndexOf(pc) >= 0 ? 0.08 : 0.25);
+                // לא באמצע רשימת מספרים (״3, 4 ו־5 חדרים״), ולא לפני מקף שמסיים את מה שלפניו
+                if (i >= 2 && char.IsDigit(s[i + 1]) && char.IsDigit(s[i - 2])) pen += 0.3;
+                if (s[i + 1] == '\u2014' || s[i + 1] == '\u2013') pen += 0.3;
+                double sc = Math.Abs(i - s.Length / 2.0) / s.Length + pen;
+                if (sc < bestScore) { bestScore = sc; best = i; }
+            }
+            if (best < 0) return WrapText(s, max);
+            return s.Substring(0, best).Trim() + "\n" + s.Substring(best + 1).Trim();
+        }
+
+        /// <summary>האם הזמנים בתחילת השורות הם חותמות זמן. **לא כל ״1:23״ בתחילת שורה:** פסוקים (״1:1 בראשית ברא״)
+        /// עולים בשנייה בכל שורה - צפוף מכדי לקרוא; שעה ביום (״13:00 עצרנו לצהריים״) נופלת אחרי סוף הסרט; וזמן בשורה
+        /// אחת או שתיים מתוך עשרים הוא חלק מהטקסט. עד 0.8.9 כל אלה מיקמו שורות בזמנים בדויים.</summary>
+        internal static bool StampsAreReal(string[] lines, long[] stamp, int[] cut, long mediaMs)
+        {
+            List<int> idx = new List<int>();
+            int nonEmpty = 0;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].Trim().Length > 0) nonEmpty++;
+                if (stamp[i] >= 0) idx.Add(i);
+            }
+            if (idx.Count < 2) return false;
+            bool firstZero = stamp[idx[0]] < 1000;
+            if (idx.Count * 2 < nonEmpty && !firstZero) return false;
+            int up = 0, dense = 0, inside = 0;
+            for (int k = 0; k < idx.Count; k++)
+            {
+                if (mediaMs <= 0 || stamp[idx[k]] <= mediaMs + 5000) inside++;
+                if (k == 0) continue;
+                long gap = stamp[idx[k]] - stamp[idx[k - 1]];
+                if (gap > 0) up++;
+                // 25 תווים בשנייה - מהר מזה אי אפשר לקרוא
+                long need = CountChars(lines[idx[k - 1]].Substring(cut[idx[k - 1]])) * 1000L / 25;
+                if (gap > 0 && gap < need) dense++;
+            }
+            int pairs = idx.Count - 1;
+            if (up * 5 < pairs * 4) return false;
+            if (dense * 2 > pairs) return false;
+            if (inside * 5 < idx.Count * 4) return false;
+            return true;
+        }
+
+        private static bool IsBidiMark(char c)
+        {
+            return c == '‎' || c == '‏' || (c >= '‪' && c <= '‮') || (c >= '⁦' && c <= '⁩') || c == '؜';
+        }
+
+        private static readonly Regex RxNumbered = new Regex(@"^\s*(\d{1,3})[.)]\s+");
+
+        /// <summary>ניקוי לפני חלוקה: תווי כיוון בלתי נראים, סימני Markdown (כותרת, הדגשה, תבליט) ומספור שורות רץ.
+        ///
+        /// **טקסט שהועתק מ-PDF:** תווי כיוון יושבים בו **במקום** רווחים (״משקר‏ויש‏לו‏כסף״) - ואז הם הופכים לרווח.
+        /// בטקסט רגיל הם רק נעלמים. עד 0.8.9 שורה כזו של 166 תווים לא נשברה בכלל, ו-״**חשוב**״ הופיע על המסך
+        /// עם הכוכביות (נמדד על מאמרים אמיתיים מהמחשב). ״- ״ בתחילת שורה נשאר: בכתוביות זה סימן של דיאלוג.</summary>
+        internal static string CleanImportText(string text)
+        {
+            string s = text.Replace("\r\n", "\n").Replace('\r', '\n').Replace('\t', ' ').Replace(' ', ' ')
+                           .Replace("﻿", "").Replace("​", "");
+            int inside = 0, spaces = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] == ' ') spaces++;
+                if (IsBidiMark(s[i]) && i > 0 && i + 1 < s.Length && !char.IsWhiteSpace(s[i - 1]) && !char.IsWhiteSpace(s[i + 1])) inside++;
+            }
+            bool marksAreSpaces = inside >= 5 && inside * 4 >= spaces;
+            StringBuilder sb = new StringBuilder(s.Length);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (!IsBidiMark(c)) { sb.Append(c); continue; }
+                int j = i + 1;
+                while (j < s.Length && IsBidiMark(s[j])) j++;
+                char prev = sb.Length > 0 ? sb[sb.Length - 1] : ' ';
+                char next = j < s.Length ? s[j] : ' ';
+                if (marksAreSpaces && !char.IsWhiteSpace(prev) && !char.IsWhiteSpace(next)) sb.Append(' ');
+                i = j - 1;
+            }
+            string[] ls = sb.ToString().Split('\n');
+            // מספור רץ (״1. ״ ״2. ״ ״3. ״) - רק כשכל השורות ממוספרות ברצף; אחרת ״3. מסקנה״ הוא טקסט
+            int numbered = 0, nonEmpty = 0, expect = -1;
+            bool run = true;
+            foreach (string l in ls)
+            {
+                if (l.Trim().Length == 0) continue;
+                nonEmpty++;
+                Match m = RxNumbered.Match(l);
+                if (!m.Success) { run = false; continue; }
+                int v = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                if (expect >= 0 && v != expect) run = false;
+                expect = v + 1;
+                numbered++;
+            }
+            bool stripNumbers = run && numbered >= 3 && numbered == nonEmpty;
+            for (int i = 0; i < ls.Length; i++)
+            {
+                string t = ls[i];
+                t = Regex.Replace(t, @"^\s{0,3}#{1,6}\s+", "");          // כותרת
+                t = Regex.Replace(t, @"^\s*[*•·▪►]\s+", "");              // תבליט
+                t = t.Replace("**", "").Replace("__", "");                // הדגשה
+                if (stripNumbers) t = RxNumbered.Replace(t, "", 1);
+                ls[i] = t;
+            }
+            return string.Join("\n", ls);
+        }
+
+        private static readonly Regex RxCueTime = new Regex(
+            @"^\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})[,.](\d{1,3})\s*-+\s*>\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})[,.](\d{1,3})");
+
+        private static long CueTimeOf(Match m, int g)
+        {
+            long h = m.Groups[g].Success && m.Groups[g].Value.Length > 0 ? long.Parse(m.Groups[g].Value, CultureInfo.InvariantCulture) : 0;
+            long mi = long.Parse(m.Groups[g + 1].Value, CultureInfo.InvariantCulture);
+            long s = long.Parse(m.Groups[g + 2].Value, CultureInfo.InvariantCulture);
+            string f = m.Groups[g + 3].Value;
+            while (f.Length < 3) f += "0";
+            return ((h * 60 + mi) * 60 + s) * 1000 + long.Parse(f.Substring(0, 3), CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>טקסט שהוא בעצם קובץ כתוביות (SRT או VTT), גם ״שבור״: נקודה במקום פסיק, ״-->״ בלי רווחים או ״-- >״,
+        /// בלי מספרים. null כשאין בו שורות זמן, או כשרוב הטקסט מחוץ לכתוביות (שורת זמן מקרית בתוך מאמר). עד 0.8.9
+        /// טקסט כזה בחלון ״טקסט לכתוביות״ נכנס כמו שהוא - והמספרים והזמנים הפכו לכתוביות.</summary>
+        internal static List<Cue> ParseTimedLenient(string text)
+        {
+            string[] ls = text.Split('\n');
+            List<Cue> r = new List<Cue>();
+            int timeLines = 0, textLines = 0, inCues = 0;
+            Cue cur = null;
+            StringBuilder body = new StringBuilder();
+            for (int i = 0; i < ls.Length; i++)
+            {
+                string l = ls[i].Trim();
+                Match m = RxCueTime.Match(l);
+                if (m.Success)
+                {
+                    if (cur != null && body.Length > 0) { cur.Text = body.ToString(); r.Add(cur); }
+                    timeLines++;
+                    cur = new Cue(CueTimeOf(m, 1), CueTimeOf(m, 5), "");
+                    body.Length = 0;
+                    continue;
+                }
+                if (l.Length == 0)
+                {
+                    if (cur != null && body.Length > 0) { cur.Text = body.ToString(); r.Add(cur); }
+                    cur = null;
+                    body.Length = 0;
+                    continue;
+                }
+                if (l == "WEBVTT" || l.StartsWith("WEBVTT ") || l.StartsWith("NOTE")) continue;
+                // מספר הכתובית: ספרות לבד, ומיד אחריהן שורת זמן
+                if (Regex.IsMatch(l, @"^\d+$") && i + 1 < ls.Length && RxCueTime.IsMatch(ls[i + 1].Trim())) continue;
+                textLines++;
+                if (cur == null) continue;
+                inCues++;
+                if (body.Length > 0) body.Append('\n');
+                body.Append(l);
+            }
+            if (cur != null && body.Length > 0) { cur.Text = body.ToString(); r.Add(cur); }
+            if (timeLines == 0 || r.Count == 0 || inCues * 2 < textLines) return null;
+            r.Sort(delegate (Cue a, Cue b) { return a.Start.CompareTo(b.Start); });
+            return r;
         }
 
         private static int CountChars(string s)
