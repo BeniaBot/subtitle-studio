@@ -119,6 +119,9 @@ $forms = @(
     @{ n = 'Find';        make = { NewOf 'FindDlg' @([string]'שלום', [int]3) } },
     @{ n = 'Replace';     make = { NewOf 'ReplaceDlg' @($doc) } },
     @{ n = 'ImportText';  make = { NewOf 'ImportTextDlg' @([int64]0, $true) } },
+    # ‏0.8.9: עם טקסט אמיתי - כותרת ופסקה ארוכה - כדי לראות את שורת התצוגה המקדימה שאומרת מה קרה
+    @{ n = 'ImportFull';  make = { $d = NewOf 'ImportTextDlg' @([int64]0, $true, [int64]600000); $d.SetText([string](TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null).Invoke($null, @('למה צריך כתוביות?')) + "`r`n" + 'יש אנשים שלא שומעים טוב, יש מי שצופה בסרטון בלי קול, ויש מי שפשוט מבין יותר טוב כשהוא גם קורא. לכן כמעט כל סרטון מקצועי היום מגיע עם כתוביות.'); $d } },
+    @{ n = 'Speed';       make = { $p = NewOf 'SpeedPicker' @(); $p.Value = 1.25; $sc = (TY 'Theme').GetMethod('S', $ST); NewOf 'PopupPanel' @($p, [int]($p.PrefWidth + $sc.Invoke($null, @([double]24))), [int]((TY 'SpeedPicker').GetProperty('NeedHeight', $ST).GetValue($null, $null) + $sc.Invoke($null, @([double]24)))) } },
     @{ n = 'Transcribe';  make = { NewOf 'TranscribeDlg' @($mi, [int]3) } },
     @{ n = 'Extract';     make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Help';        make = { NewOf 'HelpDlg' @() } },

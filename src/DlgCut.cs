@@ -744,7 +744,7 @@ namespace SubtitleStudio
                 };
             }
             _speedPick.Value = _main != null ? _main.PlayerSpeed : 1.0;
-            PopupPanel pp = new PopupPanel(_speedPick, Theme.S(360), SpeedPicker.NeedHeight + Theme.S(24));
+            PopupPanel pp = new PopupPanel(_speedPick, _speedPick.PrefWidth + Theme.S(24), SpeedPicker.NeedHeight + Theme.S(24));
             pp.FormClosed += delegate
             {
                 // בחזרה לחלון, כדי שהחלונית שנסגרת לא תשמיד אותו

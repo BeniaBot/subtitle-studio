@@ -631,7 +631,7 @@ namespace SubtitleStudio
         private void ShowSpeedMenu()
         {
             _speedPicker.Value = _engine.Speed;
-            PopupPanel pp = new PopupPanel(_speedPicker, Theme.S(360), SpeedPicker.NeedHeight + Theme.S(24));
+            PopupPanel pp = new PopupPanel(_speedPicker, _speedPicker.PrefWidth + Theme.S(24), SpeedPicker.NeedHeight + Theme.S(24));
             pp.FormClosed += delegate
             {
                 _speedPicker.Parent = _videoCard;

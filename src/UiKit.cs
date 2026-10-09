@@ -531,13 +531,26 @@ namespace SubtitleStudio
                 double cap = q;
                 Btn b = new Btn();
                 b.Text = Text(q);
-                b.Kind = BtnKind.Tool;
+                // ‏Subtle ולא Tool: ‏Tool מצמיד את הכיתוב לצד (שורת קישור), ושש מהירויות נראו מפוזרות בלי סדר
+                b.Kind = BtnKind.Subtle;
                 b.Font = Theme.Small;
                 b.Click += delegate { Value = cap; Raise(); };
                 _quick.Add(b);
                 Controls.Add(b);
             }
             UpdateQuick();
+        }
+
+        /// <summary>הרוחב שהפקד צריך: שישה כפתורים שהטקסט שלהם נכנס, בכל קנה מידה ושפה. ברוחב קבוע של 360 ״0.75×״
+        /// ו-״1.25×״ נחתכו ב-125% (נמצא ב-shots: ‏Theme.ClipLog).</summary>
+        public int PrefWidth
+        {
+            get
+            {
+                int bw = 0;
+                foreach (Btn b in _quick) bw = Math.Max(bw, b.NeedWidth());
+                return Math.Max(Theme.S(300), bw * _quick.Count + Theme.S(6) * (_quick.Count - 1));
+            }
         }
 
         /// <summary>הגובה שהפקד צריך: פס הגרירה ושורת הכפתורים.</summary>
