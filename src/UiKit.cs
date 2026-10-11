@@ -110,6 +110,14 @@ namespace SubtitleStudio
             base.OnClick(e);
         }
 
+        /// <summary>לחיצה מהקוד - כמו של המשתמש (העוזר, `AiUi`). כפתור כבוי או מוסתר לא נלחץ.</summary>
+        internal bool PerformClick()
+        {
+            if (!Enabled || !Visible) return false;
+            OnClick(EventArgs.Empty);
+            return true;
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -515,6 +523,15 @@ namespace SubtitleStudio
         {
             double v = Parse != null ? Parse(text) : ParseNumber(text);
             if (double.IsNaN(v) || double.IsInfinity(v)) return;
+            double lo = double.IsNaN(TypeMin) ? Min : TypeMin, hi = double.IsNaN(TypeMax) ? Max : TypeMax;
+            if (v < lo) v = lo;
+            if (v > hi) v = hi;
+            SetValue(v);
+        }
+
+        /// <summary>ערך מהקוד, בגבולות של הקלדה - ומודיע כמו שינוי של המשתמש (העוזר, `AiUi`).</summary>
+        internal void SetFromCode(double v)
+        {
             double lo = double.IsNaN(TypeMin) ? Min : TypeMin, hi = double.IsNaN(TypeMax) ? Max : TypeMax;
             if (v < lo) v = lo;
             if (v > hi) v = hi;
@@ -1255,6 +1272,10 @@ namespace SubtitleStudio
             m.Text = text; m.Desc = desc; m.Icon = icon; m.Click = click;
             return m;
         }
+
+        /// <summary>סוג הפעולה בהרשאות של העוזר (`AiPerms`): מה מותר לו כשהוא מפעיל את הפריט הזה. ‏-1 - רק מראה מידע.</summary>
+        public int AiCat = AiPerms.Edit;
+        public MenuItem Cat(int c) { AiCat = c; return this; }
     }
 
     /// <summary>תפריט נפתח מעוצב - עם שם והסבר לכל פעולה.</summary>

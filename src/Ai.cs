@@ -156,6 +156,8 @@ namespace SubtitleStudio
         public List<object> Parts;
         public string Error;
         public string Finish = "";      // סיבת סיום מהשרת (MAX_TOKENS וכדומה)
+        /// <summary>תשובה ריקה - בלי טקסט ובלי בקשה (לא חסימה ולא קיטוע). קורה אחרי תוצאה של פעולה: הצ׳אט מזכיר למודל להמשיך.</summary>
+        public bool Empty;
         public bool Ok { get { return Error == null; } }
     }
 
@@ -179,6 +181,8 @@ namespace SubtitleStudio
         public static string LastModelUsed = "";
         public static string Key = "";
         public static string LastError = "";
+        /// <summary>בחוט הזה (השיחה): במכסה דקתית או עומס - דגם אחר מיד, בלי ההמתנה של עד 30 שניות.</summary>
+        [ThreadStatic] public static bool PreferSwitch;
 
         /// <summary>דגמים לניסיון, לפי הסדר.
         ///
@@ -417,7 +421,7 @@ namespace SubtitleStudio
                 Dictionary<string, object> cd = content as Dictionary<string, object>;
                 object parts;
                 if (cd == null || !cd.TryGetValue("parts", out parts))
-                { r.Error = Lang.T("המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."); return r; }
+                { r.Error = Lang.T("המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."); r.Empty = true; return r; }
                 System.Collections.IList pa = Arr(parts);
                 StringBuilder text = new StringBuilder();
                 if (pa != null)
@@ -464,9 +468,12 @@ namespace SubtitleStudio
                     else if (r.Finish == "SAFETY" || r.Finish == "PROHIBITED_CONTENT")
                         r.Error = Lang.T("גוגל חסמה את התוכן הזה. נסו ניסוח אחר.");
                     else
+                    {
+                        r.Empty = true;
                         r.Error = string.IsNullOrEmpty(r.Finish)
                             ? Lang.T("המודל לא החזיר תשובה. נסו לנסח אחרת.")
                             : Lang.F("המודל לא החזיר תשובה ({0}). נסו לנסח אחרת.", r.Finish);
+                    }
                     Log("תשובה ריקה. finish=" + r.Finish + "  גוף: " + Snip(reply));
                 }
             }
@@ -771,6 +778,8 @@ namespace SubtitleStudio
             if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
             if (waitSec <= 0) return false;
             LastRetrySec = waitSec;
+            // בשיחה לא מחכים: דגם אחר (עם מכסה משלו) עונה מיד. בתמלול ארוך - כן (0.8.12)
+            if (PreferSwitch) { Log("מכסה או עומס - בשיחה עוברים לדגם אחר בלי לחכות"); return false; }
             if (waitSec > 30) waitSec = 30;
             Log((LastHttpCode == 429 ? "מכסה" : "עומס בשרת") +
                 " - ממתין " + waitSec + " שניות ומנסה שוב");

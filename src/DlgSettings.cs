@@ -36,7 +36,7 @@ namespace SubtitleStudio
         private Combo _lang;
         /// <summary>המשתמש בחר שפה אחרת וביקש להפעיל מחדש. ‏MainForm מפעיל מחדש אחרי שהחלון נסגר.</summary>
         public bool RestartWanted;
-        private Btn _google, _groq, _getDict, _delEngine, _delDict;
+        private Btn _google, _perms, _groq, _getDict, _delEngine, _delDict;
         private Lbl _spellLine, _engineLine, _dictLine;
 
         public SettingsDlg(MainForm main) : base(Lang.T("הגדרות"), Ico.Gear, 580)
@@ -83,6 +83,17 @@ namespace SubtitleStudio
             };
             Row(_google, 52, 6);
 
+            // **מה העוזר רשאי לעשות (0.8.12)** - חלון משלו; כאן רק הסיכום
+            _perms = Card(Lang.T("העוזר: מה מותר לו"), Ico.Sparkles);
+            _perms.Click += delegate
+            {
+                AiPermsDlg d = new AiPermsDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+                Refresh2();
+            };
+            Row(_perms, 52, 6);
+
             _groq = Card(Lang.F("המפתח של {0}", Theme.Ltr("Groq")), Ico.Mic);
             _groq.Click += delegate
             {
@@ -121,19 +132,21 @@ namespace SubtitleStudio
             _auto.Text = Lang.T("לבדוק עדכונים בכל הפעלה");
             _auto.Checked = Settings.AutoUpdate;
             _auto.CheckedChanged += delegate { Settings.AutoUpdate = _auto.Checked; Settings.SaveAll(); };
-            Row(_auto, 30, 4);
+            Row(_auto, 30, 14);
 
-            Btn check = Card(Lang.T("בדיקת עדכונים עכשיו"), Ico.Download);
-            check.Sub = string.IsNullOrEmpty(Settings.LastCheck)
-                ? Lang.T("הבדיקה לא שולחת שום מידע - רק שואלת אם יש גרסה חדשה")
-                : Lang.F("נבדק לאחרונה: {0} · לא נשלח שום מידע", Theme.Ltr(Settings.LastCheck));
+            // ״בדיקה עכשיו״ בשורה של המתג (0.8.12 - פינה מקום לכרטיס של העוזר; הגובה חייב להישאר מתחת ל-693).
+            // ״לא נשלח שום מידע״ ו״נבדק לאחרונה״ - בחלון שהכפתור פותח
+            Btn check = Small(Lang.T("בדיקה עכשיו"), Ico.Download);
+            int cw = Math.Max(Theme.S(130), check.NeedWidth());
+            check.SetBounds(Pad, _auto.Top, cw, Theme.S(30));
+            _auto.SetBounds(Pad + cw + Theme.S(12), _auto.Top, ContentW - cw - Theme.S(12), _auto.Height);
             check.Click += delegate
             {
                 AboutDlg d = new AboutDlg();
                 d.ShowDialog(this);
                 d.Dispose();
             };
-            Row(check, 46, 14);
+            Controls.Add(check);
 
             // ---------- אחסון ----------
             Section(Lang.T("אחסון"));
@@ -219,7 +232,9 @@ namespace SubtitleStudio
             _groq.Sub = string.IsNullOrEmpty(Stt.GroqKey)
                 ? Lang.T("לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם")
                 : Lang.T("מוגדר · עד 8 שעות תמלול ביום");
+            _perms.Sub = AiPerms.Summary();
             _google.Invalidate();
+            _perms.Invalidate();
             _groq.Invalidate();
 
             bool has = Spell.Installed;

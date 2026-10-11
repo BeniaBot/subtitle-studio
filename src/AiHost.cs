@@ -43,6 +43,35 @@ namespace SubtitleStudio
 
             t.Add(new AiTool("get_state", "מצב נוכחי: שם הקובץ, אורך, מספר כתוביות, מיקום הנגן וקטע מסומן"));
 
+            // ---------- הבנה ושליטה כמו המשתמש (0.8.12) ----------
+            t.Add(new AiTool("app_help", "המדריך של התוכנה לפי נושא - לשאלות ״איך...״, ״מה זה...״, ״אפשר...?״, ״למה...״. " +
+                    "קרא לו לפני שאתה מסביר משהו שאתה לא בטוח בו")
+                .Req("topic", "string", "אחד מהנושאים: " + AiKnow.Index()));
+            t.Add(new AiTool("list_commands", "כל הפקודות שבתפריטים ובסרגל, עם מה שכל אחת עושה והאם היא זמינה עכשיו. " +
+                "לכל דבר שאין לו פעולה ייעודית כאן"));
+            t.Add(new AiTool("run_command", "מפעיל פקודה מהתפריטים או מהסרגל - בדיוק כמו לחיצה של המשתמש. פקודה שפותחת חלון: " +
+                    "החלון נפתח, ובסבב הבא הוא מופיע במצב הנוכחי, ואז ui_set / ui_click עובדים בתוכו")
+                .Req("name", "string", "שם הפקודה כמו שהוא ב-list_commands"));
+            t.Add(new AiTool("ui_read", "קורא את החלון הפתוח: כל שדה, בחירה, מתג, פס וכפתור - עם מזהה, תווית, ערך ואפשרויות - " +
+                "וגם הטקסטים וההסברים שבו"));
+            t.Add(new AiTool("ui_set", "ממלא שדה, בוחר אפשרות, מדליק או מכבה מתג, או קובע מספר - בחלון הפתוח")
+                .Req("control", "string", "המזהה (למשל c3) או התווית")
+                .Req("value", "string", "הערך: טקסט, שם האפשרות, מספר, או on/off"));
+            t.Add(new AiTool("ui_click", "לוחץ על כפתור בחלון הפתוח. הכפתור הראשי (main) מבצע את הפעולה של החלון - לפי ההרשאות; " +
+                    "כשצריך לשאול, החלון נשאר ממולא והמשתמש לוחץ")
+                .Req("control", "string", "המזהה (למשל c7) או הטקסט של הכפתור"));
+            t.Add(new AiTool("ask_user", "שואל את המשתמש שאלה עם כמה תשובות מוכנות - הן מופיעות כלחצנים בצ'אט, והוא לוחץ (או כותב משהו אחר). " +
+                    "השתמש בזה כשיש כמה דרכים והבחירה שלו: איזה שירות, צריבה או ערוץ נפרד, איזו שפה, להמשיך או לא. " +
+                    "התשובה שלו חוזרת כתוצאה. שאלה אחת בכל פעם")
+                .Req("question", "string", "השאלה, קצרה")
+                .Req("options", "string", "2-4 תשובות קצרות, מופרדות ב-| (למשל: גוגל|Groq). אפשר להוסיף הסבר קצר אחרי מקף"));
+            t.Add(new AiTool("select_cue", "בוחר כתובית ברשימה: היא נפתחת בעורך, והנגן קופץ אליה")
+                .Req("index", "integer", "מספר הכתובית, מ-1"));
+            t.Add(new AiTool("redo", "מבצע מחדש את מה שבוטל"));
+            t.Add(new AiTool("set_setting", "משנה הגדרה")
+                .Req("name", "string", "dark (מצב כהה), language (he/en, אחרי הפעלה מחדש), spell_check, auto_update")
+                .Req("value", "string", "true/false, או he/en לשפה"));
+
             t.Add(new AiTool("list_cues", "מחזיר כתוביות עם המספר, הזמנים והטקסט")
                 .P("from_index", "integer", "מאיזו כתובית להתחיל, מ-1. ברירת מחדל 1")
                 .P("count", "integer", "כמה להחזיר. ברירת מחדל 40, מקסימום 200"));
@@ -189,7 +218,9 @@ namespace SubtitleStudio
                 "את הכתוביות עם הזמנים. זו התשובה הראשונה כשיש סרט ואין כתוביות. " +
                 "פותח חלון אישור, כי הקול נשלח לשירות חיצוני (גוגל או Groq, המשתמש בוחר שם) - " +
                 "המשתמש מאשר בעצמו")
-                .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים"));
+                .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים")
+                .P("service", "string", "google או groq - מה שהמשתמש בחר (המצב אומר לאיזה יש מפתח). " +
+                   "כשמותר לשלוח ויש מפתח - התמלול מתחיל ישר; אחרת נפתח החלון עם השירות הזה כבר בחור"));
 
             t.Add(new AiTool("auto_time_by_speech",
                 "**מתזמן לבד** את השורות שאין להן זמנים, לפי השתיקות בסרט - בלי אינטרנט, " +
@@ -212,18 +243,7 @@ namespace SubtitleStudio
             return t;
         }
 
-        public string AiStateLine()
-        {
-            try
-            {
-                if (_mi == null) return "לא פתוח קובץ. המשתמש צריך לפתוח סרט או קובץ כתוביות.";
-                return "קובץ " + Path.GetFileName(_mi.Path) +
-                       ", אורך " + Tc.Clock(_mi.DurationMs) +
-                       ", " + (_doc != null ? _doc.Cues.Count : 0) + " כתוביות" +
-                       ", הנגן עומד על " + Tc.Short(_engine != null ? _engine.Position : 0) + ".";
-            }
-            catch { return ""; }
-        }
+        public string AiStateLine() { return AiStateFull(); }
 
         // ---------- ביצוע ----------
         public Dictionary<string, object> RunAiAction(AiCall call, out bool refused)
@@ -234,8 +254,33 @@ namespace SubtitleStudio
 
             try
             {
+                // **ההרשאות (0.8.12).** פקודה, מילוי ולחיצה בחלון - לפי הפקודה והחלון, בתוך הפעולה עצמה
+                if (call.Name != "run_command" && call.Name != "ui_set" && call.Name != "ui_click")
+                {
+                    int cat = AiPerms.CategoryOf(call.Name);
+                    // פעולה שפותחת חלון שבו המשתמש מאשר בעצמו; ומחיקה - שמבקשת אישור בעצמה
+                    bool asksItself = call.Name == "export_video" || call.Name == "trim_video" || call.Name == "run_media_tool" ||
+                                      call.Name == "transcribe_media" || call.Name == "clear_all_cues" || call.Name == "save_subtitles_as" ||
+                                      call.Name == "open_text_import";
+                    string why = AiGate(cat, AiDescribe(call), asksItself, out refused);
+                    if (why != null)
+                    {
+                        if (refused) r["cancelled"] = true;
+                        else r["error"] = why;
+                        return r;
+                    }
+                }
                 switch (call.Name)
                 {
+                    case "app_help": return AiHelp(call);
+                    case "list_commands": return AiListCommands();
+                    case "run_command": return AiRunCommand(call, out refused);
+                    case "ui_read": return AiUiRead();
+                    case "ui_set": return AiUiSet(call, out refused);
+                    case "ui_click": return AiUiClick(call, out refused);
+                    case "select_cue": return AiSelectCue(call);
+                    case "redo": return AiRedo();
+                    case "set_setting": return AiSetSetting(call);
                     case "get_state": return AiState();
                     case "list_cues": return AiListCues(call);
                     case "edit_cue": return AiEditCue(call);
@@ -298,8 +343,17 @@ namespace SubtitleStudio
                 r["width"] = _mi.Width;
                 r["height"] = _mi.Height;
             }
+            r["summary"] = AiStateFull();
             r["cue_count"] = _doc != null ? _doc.Cues.Count : 0;
             r["position_sec"] = Math.Round((_engine != null ? _engine.Position : 0) / 1000.0, 2);
+            r["playing"] = _engine != null && _engine.IsPlaying;
+            r["unsaved_changes"] = _doc != null && _doc.Dirty;
+            if (_doc != null && !string.IsNullOrEmpty(_doc.FilePath)) r["subtitle_file"] = _doc.FilePath;
+            if (_mi != null) r["media_path"] = _mi.Path;
+            // למודל, לא לממשק
+            r["style"] = string.Format("גופן {0}, גודל {1}% מגובה התמונה, צבע #{2:X6}, מיקום {3}{4}", _style.FontName,
+                _style.FontPct.ToString("0.#", CultureInfo.InvariantCulture), _style.Primary.ToArgb() & 0xFFFFFF,
+                _style.Alignment >= 7 ? "למעלה" : _style.Alignment >= 4 ? "באמצע" : "למטה", _style.OpaqueBox ? ", עם רקע אטום" : "");
             if (_tl != null && _tl.InPoint >= 0 && _tl.OutPoint > _tl.InPoint)
             {
                 r["marked_from_sec"] = Math.Round(_tl.InPoint / 1000.0, 2);
@@ -386,7 +440,8 @@ namespace SubtitleStudio
             if (_doc == null || from < 1 || from > _doc.Cues.Count) { r["error"] = Lang.T("טווח לא תקין"); return r; }
             if (to > _doc.Cues.Count) to = _doc.Cues.Count;
             int n = to - from + 1;
-            if (n > 1)
+            // ב״לשאול״ השער כבר שאל (AiGate) - לא שואלים פעמיים
+            if (n > 1 && AiPerms.Get(AiPerms.Edit) == Perm.Allow)
             {
                 int ans = Ui.Msg(this, Lang.F("למחוק {0} כתוביות?", n),
                     Lang.F("הצ'אט ביקש למחוק כתוביות {0}. אפשר לבטל אחר כך ב-Ctrl+Z.", Theme.Ltr(from + "-" + to)),
@@ -630,7 +685,10 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
             if (_doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות"); return r; }
-            ExportVideo();
+            // **נפתח בתור ההודעות (0.8.12)**, כמו run_command: עד כאן ShowDialog עצר את השיחה עד שהחלון נסגר, והעוזר
+            // לא יכול היה לבחור בו כלום - ובניסוי ״תצרוב את הכתוביות בסרט״ נתקע. עכשיו הוא ממלא ולוחץ, לפי ההרשאות
+            _aiLastWinCat = AiPerms.Media;
+            AiDefer(delegate { ExportVideo(); });
             r["done"] = Lang.T("נפתח חלון יצירת הסרט");
             return r;
         }
@@ -639,7 +697,8 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
-            TrimMedia();
+            _aiLastWinCat = AiPerms.Media;
+            AiDefer(delegate { TrimMedia(); });
             r["done"] = Lang.T("נפתח חלון החיתוך");
             return r;
         }
@@ -654,14 +713,19 @@ namespace SubtitleStudio
                 foreach (MediaTool t in MediaTools.All())
                 {
                     if (!string.Equals(t.Name, want, StringComparison.OrdinalIgnoreCase)) continue;
-                    ToolsDlg.RunNamed(this, t.Name, _mi, _tl.InPoint, _tl.OutPoint, _engine.Position);
+                    string name = t.Name;
+                    long a = _tl.InPoint, b = _tl.OutPoint, pos = _engine.Position;
+                    MediaInfo mi = _mi;
+                    _aiLastWinCat = AiPerms.Media;
+                    AiDefer(delegate { ToolsDlg.RunNamed(this, name, mi, a, b, pos); });
                     r["done"] = Lang.F("נפתח הכלי {0}", t.Name);
                     return r;
                 }
                 r["error"] = Lang.T("אין כלי בשם הזה. קרא ל-list_media_tools כדי לראות את השמות.");
                 return r;
             }
-            OpenTools();
+            _aiLastWinCat = AiPerms.Media;
+            AiDefer(delegate { OpenTools(); });
             r["done"] = Lang.T("נפתח חלון הכלים");
             return r;
         }
@@ -987,7 +1051,14 @@ namespace SubtitleStudio
             { r["error"] = Lang.T("אין פס קול בקובץ הזה, אז אין מה לתמלל"); return r; }
 
             int before = _doc.Cues.Count;
-            TranscribeMedia();
+            // השירות שהמשתמש בחר בצ'אט (ask_user): בחור מראש בחלון, ובלי החלון כשמותר לשלוח, יש מפתח, ואין מה לדרוס
+            string svc = c.Str("service", "").Trim().ToLowerInvariant();
+            ISttProvider chosen = svc.StartsWith("groq") ? (ISttProvider)Stt.Groq : svc.Length > 0 ? Stt.Gemini : null;
+            if (chosen != null) Stt.ProviderId = chosen.Id;
+            if (chosen != null && chosen.HasKey && before == 0 && AiPerms.Get(AiPerms.Send) == Perm.Allow)
+                TranscribeMedia(chosen, c.Args.ContainsKey("context") ? c.Str("context", "") : null);
+            else
+                TranscribeMedia();
             int now = _doc.Cues.Count;
             // המשתמש הוא זה שמאשר בחלון, ולכן ״לא קרה כלום״ הוא תוצאה
             // לגיטימית ולא שגיאה - חשוב שהמודל לא ינסה שוב בלולאה.

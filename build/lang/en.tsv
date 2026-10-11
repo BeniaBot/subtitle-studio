@@ -1525,3 +1525,75 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 
 # ---- no longer in the source (kept in case it comes back) ----
 #~ he	en
+# ---- AiControl.cs ----
+פתיחת סרט, קובץ קול או כתוביות (Ctrl+O)	Open a video, audio or subtitle file (Ctrl+O)
+שמירת הכתוביות (Ctrl+S)	Save the subtitles (Ctrl+S)
+שמירה בשם	Save as
+שמירת הכתוביות לקובץ חדש, בפורמט לבחירה (Ctrl+Shift+S)	Save the subtitles to a new file, in a format you choose (Ctrl+Shift+S)
+צריבה בתמונה או ערוץ כתוביות נפרד (F5)	Burn into the picture, or a separate subtitle track (F5)
+חזרה	Redo
+ביצוע מחדש של מה שבוטל (Ctrl+Y)	Do again what was undone (Ctrl+Y)
+כתובית ריקה במקום שבו הנגן עומד (Insert)	An empty subtitle where the player stands (Insert)
+ניגון / עצירה	Play / pause
+מקש הרווח	The space bar
+עזרה	Help
+ארבעה שלבים וכל הקיצורים (F1)	Four steps and all the shortcuts (F1)
+מצב כהה / בהיר	Dark / light mode
+החלפת הערכה	Switch the theme
+חלון ההגדרות (Ctrl+פסיק)	The settings window (Ctrl+comma)
+גרסה, בדיקת עדכונים ורישיון	Version, update check and license
+הסרגל	The toolbar
+״{0}״ לא זמינה עכשיו (למשל: אין סרט פתוח, או אין כתוביות)	'{0}' isn't available right now (for example: no video is open, or there are no subtitles)
+להפעיל את ״{0}״ - {1}	Run '{0}' - {1}
+הופעל: {0}	Done: {0}
+״{0}״ כבוי עכשיו - כנראה חסר משהו בחלון, או שההסבר בו אומר למה	'{0}' is off right now - something is probably missing in the window, or its note says why
+השארתי את החלון מוכן - לחצו ״{0}״ כשאתם מוכנים	I left the window ready - click '{0}' when you're ready
+ללחוץ על ״{0}״ בחלון ״{1}״	Click '{0}' in the '{1}' window
+נלחץ: {0}	Clicked: {0}
+לא מותר לי: {0}. אפשר להתיר בהגדרות ← ״העוזר: מה מותר לו״.	I'm not allowed to: {0}. You can allow it in Settings > 'The assistant: what it may do'.
+העוזר מבקש אישור	The assistant asks for approval
+לאשר	Approve
+לא	No
+נבחרה כתובית {0}	Subtitle {0} selected
+בוצע מחדש	Redone
+בדיקת האיות דלוקה	Spell checking is on
+בדיקת האיות כבויה	Spell checking is off
+בדיקת עדכונים בכל הפעלה - דלוקה	Checking for updates at every start - on
+בדיקת עדכונים בכל הפעלה - כבויה	Checking for updates at every start - off
+השפה לא השתנתה	The language didn't change
+השפה תתחלף בהפעלה הבאה של התוכנה	The language will change the next time the program starts
+ביטול מה שהעוזר עשה	Undo what the assistant did
+# ---- DlgChat.cs (0.8.12) ----
+לבטל את מה שעשיתי	Undo what I did
+אין למה לחזור - בינתיים נפתח קובץ אחר	Nothing to go back to - another file was opened since
+הכתוביות והעיצוב חזרו למצב שלפני הבקשה (Ctrl+Z מחזיר)	The subtitles and the style are back to how they were before the request (Ctrl+Z brings it back)
+גוגל עמוס רגע - ממשיך בעוד {0} שניות	Google is busy for a moment - continuing in {0} seconds
+# ---- AiPerms.cs ----
+לערוך את הכתוביות והעיצוב	Edit the subtitles and the style
+ליצור קבצים חדשים מהסרט	Make new files from the video
+לפתוח ולשמור קבצים	Open and save files
+לשלוח את הקול או תמונות מהסרט	Send the sound or pictures from the video
+לשנות הגדרות	Change settings
+טקסט, זמנים, תרגום, סידור ועיצוב · הכול ניתן לביטול	Text, times, translation, tidying and style · all can be undone
+צריבה, חיתוך, המרה, דחיסה וכל הכלים · המקור לא משתנה	Burning, cutting, converting, compressing and all the tools · the original doesn't change
+פתיחה של קובץ אחר, שמירת הכתוביות והפרויקט	Opening another file, saving the subtitles and the project
+תמלול, והסתכלות על הסרט כדי למצוא סצנה · נשלח לגוגל או ל-Groq	Transcription, and looking at the video to find a scene · sent to Google or Groq
+מראה, שפה, בדיקת איות ועדכונים	Look, language, spell checking and updates
+מותר	Allowed
+לשאול אותי	Ask me
+אסור	Not allowed
+קבצים חדשים	new files
+פתיחה ושמירה	opening and saving
+שליחה החוצה	sending out
+הכול מותר	Everything allowed
+רק מייעץ - לא משנה כלום	Advice only - changes nothing
+מותר: {0}	Allowed: {0}
+שואל: {0}	Asks: {0}
+אסור: {0}	Not allowed: {0}
+העוזר: מה מותר לו	The assistant: what it may do
+לכל סוג פעולה - מותר, לשאול אותי, או אסור	For each kind of action - allowed, ask me, or not allowed
+בבת אחת:	All at once:
+ברירת המחדל	The default
+רק לייעץ	Advice only
+כל מה שהעוזר משנה בכתוביות אפשר לבטל - Ctrl+Z, או ״לבטל את מה שעשיתי״ בצ'אט. ״לשאול אותי״ בחלון: העוזר ממלא אותו, ואתם לוחצים על הכפתור האחרון. את המפתחות ואת החלון הזה רק אתם משנים.	Everything the assistant changes in the subtitles can be undone - Ctrl+Z, or 'Undo what I did' in the chat. 'Ask me' in a window: the assistant fills it in, and you click the last button. Only you can change the keys and this window.
+בדיקה עכשיו	Check now

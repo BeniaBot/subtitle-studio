@@ -16,6 +16,14 @@ namespace SubtitleStudio
         List<AiTool> AiTools();
         /// <summary>מצב נוכחי בטקסט - נשלח כרקע בכל שיחה.</summary>
         string AiStateLine();
+        /// <summary>הפעולה האחרונה נשלחה לתור ההודעות (פותחת חלון) - הצ׳אט ממשיך רק אחריה. מתאפס בקריאה.</summary>
+        bool AiTakeDeferred();
+        /// <summary>אחרי שהפעולה שנדחתה רצה: מוסיף לתוצאה שלה מה יש עכשיו על המסך (החלון שנפתח).</summary>
+        void AiAfterDeferred(Dictionary<string, object> res);
+        /// <summary>״לבטל את מה שעשיתי״: צילום בתחילת בקשה, האם השתנה משהו, וחזרה אליו.</summary>
+        object AiSnapshot();
+        bool AiChangedSince(object snap);
+        bool AiRestore(object snap);
     }
 
     /// <summary>חלון שיחה עם ה-AI: חלון חסר מסגרת בעיצוב התוכנה, לא מודאלי.</summary>
@@ -58,7 +66,12 @@ namespace SubtitleStudio
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
 
             _view = new ChatView();
-            _view.ChipClicked += delegate (object s, string text) { _hint = false; _input.Text = text; Send(); };
+            _view.ChipClicked += delegate (object s, string text)
+            {
+                if (text == UndoChip) { UndoRequest(); return; }
+                if (_ask != null) { AnswerAsk(text); return; }
+                _hint = false; _input.Text = text; Send();
+            };
             _view.RetryClicked += delegate { Retry(); };
             Controls.Add(_view);
 
@@ -277,14 +290,85 @@ namespace SubtitleStudio
             }
             _input.Text = "";
             _hint = false;
+            // תשובה במילים לשאלה שמחכה (במקום ללחוץ על אחת האפשרויות)
+            if (_ask != null) { AnswerAsk(text); return; }
             _view.HideChips();
             _view.AddUser(text);
             AiMsg m = new AiMsg();
             m.Role = "user";
             m.Text = text;
             _history.Add(m);
+            _nudged = false;
+            _waits = 0;
+            _snap = _host.AiSnapshot();
             Turn(0);
         }
+
+        // ---------- שאלה עם תשובות לבחירה (ask_user) ----------
+        private class PendingAsk
+        {
+            public AiReply Reply;
+            public int Index, Round;
+            public List<Dictionary<string, object>> Results;
+        }
+        private PendingAsk _ask;
+
+        /// <summary>התשובה לשאלה שבהמתנה - לחיצה על אחת האפשרויות או טקסט שהקליד - וממשיכים מאותה נקודה.</summary>
+        private void AnswerAsk(string answer)
+        {
+            PendingAsk a = _ask;
+            _ask = null;
+            _view.HideChips();
+            _view.AddUser(answer);
+            Dictionary<string, object> res = new Dictionary<string, object>();
+            res["answer"] = answer;
+            a.Results.Add(res);
+            _busy = true;
+            _send.Enabled = false;
+            RunCalls(a.Reply, a.Index + 1, a.Results, false, a.Round, null);
+        }
+
+        /// <summary>בלי סימני מרקדאון: ההנחיה אוסרת, והדגמים כותבים בכל זאת (נמדד: ״**צריבה**״). הבועה לא מעצבת אותם -
+        /// הן נשארו כוכביות על המסך.</summary>
+        internal static string Plain(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            s = s.Replace("**", "").Replace("__", "");
+            string[] lines = s.Replace("\r", "").Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string l = lines[i];
+                string tl = l.TrimStart();
+                if (tl.StartsWith("#")) l = tl.TrimStart('#').TrimStart();
+                else if (tl.StartsWith("* ") || tl.StartsWith("- ")) l = "· " + tl.Substring(2);
+                lines[i] = l;
+            }
+            return string.Join("\n", lines);
+        }
+
+        // ---------- ״לבטל את מה שעשיתי״ (0.8.12) ----------
+        /// <summary>הכתוביות והעיצוב בתחילת הבקשה האחרונה. אחרי הבקשה - אם משהו השתנה - כפתור שמחזיר אליהם בצעד ביטול
+        /// אחד. בנימין: ״ביטול לכל מה שעשה״; Ctrl+Z מבטל רק צעד אחד, ובקשה אחת יכולה להיות עשרה צעדים.</summary>
+        private object _snap;
+        private static string UndoChip { get { return "↶  " + Lang.T("לבטל את מה שעשיתי"); } }
+
+        private void UndoRequest()
+        {
+            if (_busy || _snap == null) return;
+            _view.HideChips();
+            if (!_host.AiRestore(_snap)) { _view.AddAction(Lang.T("אין למה לחזור - בינתיים נפתח קובץ אחר"), false); return; }
+            _snap = null;
+            _view.AddAction(Lang.T("הכתוביות והעיצוב חזרו למצב שלפני הבקשה (Ctrl+Z מחזיר)"), true);
+            AiMsg note = new AiMsg();
+            note.Role = "user";
+            note.Hidden = true;
+            note.Text = "(הודעה מהתוכנה: המשתמש ביטל את כל מה שעשית בבקשה הקודמת - הכתוביות והעיצוב חזרו למצב שלפניה.)";
+            _history.Add(note);
+        }
+
+        /// <summary>בבקשה הזאת כבר הוזכר למודל להמשיך אחרי תשובה ריקה / כבר חיכינו למכסה (כמה פעמים).</summary>
+        private bool _nudged;
+        private int _waits;
 
         /// <summary>סבב אחד מול המודל. אם הוא ביקש פעולה - מריצים ושולחים תוצאה בחזרה.</summary>
         private void Turn(int round)
@@ -307,6 +391,8 @@ namespace SubtitleStudio
             AiReply reply = null;
             Thread t = new Thread(delegate ()
             {
+                // בשיחה: מכסה דקתית או עומס - דגם אחר מיד, לא המתנה של חצי דקה בכל סבב (נמדד: 59 שניות לבקשה אחת)
+                Ai.PreferSwitch = true;
                 try { reply = Ai.Send(sys, snapshot, tools, false); }
                 catch (Exception ex)
                 {
@@ -325,6 +411,39 @@ namespace SubtitleStudio
         private void AfterReply(AiReply r, int round)
         {
             _view.Thinking = false;
+            if (IsDisposed) return;
+
+            // **תשובה ריקה באמצע בקשה** (אחרי תוצאה של פעולה): נמדד - ״תוסיף כתובית ואז תזיז הכול״ נעצר אחרי הצעד
+            // הראשון בלי מילה. מזכירים פעם אחת להמשיך, או לפחות לומר מה נעשה
+            if (r != null && r.Empty && round > 0 && !_nudged)
+            {
+                _nudged = true;
+                AiMsg nudge = new AiMsg();
+                nudge.Role = "user";
+                nudge.Hidden = true;
+                nudge.Text = "(הודעה מהתוכנה, לא מהמשתמש: לא כתבת כלום. אם נשאר חלק מהבקשה שעוד לא ביצעת - בצע אותו עכשיו. " +
+                             "אם הכול בוצע - כתוב למשתמש במשפט אחד מה נעשה.)";
+                _history.Add(nudge);
+                Turn(round + 1);
+                return;
+            }
+
+            // **כל הדגמים עמוסים כרגע** (מכסה דקתית או עומס, לא יומית): מחכים כמה שהשרת ביקש וממשיכים לבד - עד פעמיים
+            if (r != null && !r.Ok && !r.Empty && _waits < 2 &&
+                ((Ai.LastHttpCode == 429 && !Ai.LastQuotaIsDaily) || Ai.LastHttpCode >= 500))
+            {
+                _waits++;
+                int sec = Math.Max(5, Math.Min(45, Ai.LastRetrySec > 0 ? Ai.LastRetrySec : 20));
+                _view.AddAction(Lang.F("גוגל עמוס רגע - ממשיך בעוד {0} שניות", sec), true);
+                _view.Thinking = true;
+                System.Windows.Forms.Timer wait = new System.Windows.Forms.Timer();
+                wait.Interval = sec * 1000;
+                int again = round;
+                wait.Tick += delegate { wait.Stop(); wait.Dispose(); if (!IsDisposed) Turn(again); };
+                wait.Start();
+                return;
+            }
+
             if (r == null || !r.Ok)
             {
                 _view.AddError(r != null ? r.Error : Lang.T("לא התקבלה תשובה מהשרת."));
@@ -333,7 +452,7 @@ namespace SubtitleStudio
                 return;
             }
 
-            if (!string.IsNullOrEmpty(r.Text)) _view.AddBot(r.Text);
+            if (!string.IsNullOrEmpty(r.Text)) _view.AddBot(Plain(r.Text));
 
             // **התור של המודל נשמר כמו שהגיע** - טקסט ובקשות יחד, עם החתימות (`AiMsg.Parts`). עד 0.8.12 הוא פוצל
             // לשתי הודעות והחתימה נזרקה, וכל בקשה של שני שלבים נפלה בשלב השני
@@ -345,13 +464,41 @@ namespace SubtitleStudio
             if (model.Parts.Count > 0) _history.Add(model);
 
             if (r.Calls.Count == 0) { Done(); return; }
+            RunCalls(r, 0, new List<Dictionary<string, object>>(), false, round, null);
+        }
 
-            // **כל** הפעולות שביקש, לפי הסדר (עד 0.8.12 - רק האחרונה). המשתמש ביטל אחת - השאר לא מתבצעות
-            List<Dictionary<string, object>> results = new List<Dictionary<string, object>>();
-            bool stopped = false;
-            foreach (AiCall call in r.Calls)
+        /// <summary>**כל** הפעולות שביקש, לפי הסדר (עד 0.8.12 - רק האחרונה). המשתמש ביטל אחת - השאר לא מתבצעות.
+        ///
+        /// **פעולה שנדחתה** (פקודה או לחיצה שפותחת חלון - `AiTakeDeferred`): ההמשך נשלח אחריה בתור ההודעות, ולא רץ
+        /// מיד. כך, כשהיא פותחת חלון מודאלי, ההמשך - והסבב הבא מול המודל - רצים בתוך החלון ורואים אותו.</summary>
+        private void RunCalls(AiReply r, int from, List<Dictionary<string, object>> results, bool stopped, int round,
+                              Dictionary<string, object> deferredRes)
+        {
+            if (deferredRes != null) _host.AiAfterDeferred(deferredRes);
+            for (int i = from; i < r.Calls.Count; i++)
             {
+                if (IsDisposed) return;
+                AiCall call = r.Calls[i];
                 Dictionary<string, object> res;
+                // **שאלה עם תשובות לבחירה** (בנימין: ״אפשרות נפתחת ללחוץ מה אני רוצה, כמו שעובד היום בקלוד״):
+                // השאלה בבועה, התשובות כלחצנים, והשיחה עוצרת כאן עד שהוא בוחר - או כותב משהו אחר
+                if (!stopped && call.Name == "ask_user")
+                {
+                    _ask = new PendingAsk();
+                    _ask.Reply = r; _ask.Index = i; _ask.Results = results; _ask.Round = round;
+                    string q = call.Str("question", "").Trim();
+                    if (q.Length > 0) _view.AddBot(Plain(q));
+                    List<string> opts = new List<string>();
+                    foreach (string o in call.Str("options", "").Split('|'))
+                        if (o.Trim().Length > 0 && opts.Count < 6) opts.Add(o.Trim());
+                    _view.AddChips(opts.ToArray());
+                    _busy = false;
+                    _send.Enabled = true;
+                    _view.Thinking = false;
+                    Invalidate();
+                    _input.Focus();
+                    return;
+                }
                 if (stopped)
                 {
                     res = new Dictionary<string, object>();
@@ -371,7 +518,20 @@ namespace SubtitleStudio
                 results.Add(res);
                 ShowResult(res, refused);
                 if (refused) stopped = true;
-                if (IsDisposed) return;
+                if (_host.AiTakeDeferred())
+                {
+                    int next = i + 1;
+                    bool st = stopped;
+                    Dictionary<string, object> mine = res;
+                    // **בטיימר, לא ב-BeginInvoke:** ההמשך רץ בתוך הלולאה של החלון שנפתח, אבל הודעה שבתור לפניו עוד לא
+                    // ראתה אותו מוצג - בניסוי ״תפתח את חלון העיצוב ותשים רקע כהה״ המילוי קיבל ״אין חלון פתוח״.
+                    // טיימר מגיע רק כשהתור ריק, כלומר אחרי שהחלון נפתח וצויר
+                    System.Windows.Forms.Timer go = new System.Windows.Forms.Timer();
+                    go.Interval = 150;
+                    go.Tick += delegate { go.Stop(); go.Dispose(); if (!IsDisposed) RunCalls(r, next, results, st, round, mine); };
+                    go.Start();
+                    return;
+                }
             }
 
             AiMsg tool = new AiMsg();
@@ -383,7 +543,9 @@ namespace SubtitleStudio
             tool.Hidden = true;
             _history.Add(tool);
 
-            Turn(round + 1);
+            // גם הסבב הבא בתור ההודעות: אחרי כל מה שהפעולות שלחו לתור (חלון שנפתח, לחיצה)
+            try { BeginInvoke((MethodInvoker)delegate { if (!IsDisposed) Turn(round + 1); }); }
+            catch { }
         }
 
         /// <summary>שורת ״✓ בוצע״ / ״הפעולה בוטלה״ / השגיאה, מתחת לתשובה.</summary>
@@ -428,6 +590,7 @@ namespace SubtitleStudio
             _busy = false;
             _send.Enabled = true;
             _view.Thinking = false;
+            if (_snap != null && _host.AiChangedSince(_snap)) _view.AddChips(new string[] { UndoChip });
             Invalidate();
             _input.Focus();
         }
@@ -435,16 +598,29 @@ namespace SubtitleStudio
         private string SystemPrompt()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת עריכת כתוביות בעברית. ");
-            sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון.\n");
+            sb.Append("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת ווינדוס לכתוביות בעברית: כתיבה, תמלול, תזמון, תרגום, ");
+            sb.Append("עיצוב, הטמעה בסרט, חיתוך וכלים לסרט ולקול. ");
+            sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר וברור, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון (בלי כוכביות וסולמיות).\n\n");
 
-            sb.Append("אתה לא צ׳אט של עצות - אתה מפעיל את התוכנה בפועל. ");
-            sb.Append("התוכנה יודעת לעשות כמעט הכול, ולכל יכולת יש פונקציה. ");
-            sb.Append("לפני שאתה אומר ״אני לא יכול״ - עבור על רשימת הפונקציות שברשותך ומצא את המתאימה. ");
-            sb.Append("אם עדיין נראה שאין - קרא ל-list_media_tools, שם יש עשרות פעולות על קובץ הווידאו.\n");
+            sb.Append("יש לך גישה לתוכנה כמו למשתמש: אתה רואה את המצב (למטה), קורא את הכתוביות, מפעיל כל פקודה בתפריטים ובסרגל ");
+            sb.Append("(list_commands, run_command), ובחלון פתוח - קורא, ממלא ולוחץ (ui_read, ui_set, ui_click). ");
+            sb.Append("לכל מה שנפוץ יש גם פעולה ישירה (עריכה, תזמון, תרגום, עיצוב). לפני ״אני לא יכול״ - בדוק ב-list_commands.\n\n");
+
+            sb.Append("**שני סוגי פניות, ולכל אחד תגובה אחרת:**\n");
+            sb.Append("· בקשה לעשות (״תזיז״, ״תתקן״, ״תעשה צהוב״, ״תפתח״) - עשה בפועל, בפונקציות. אל תתאר צעדים ידניים.\n");
+            sb.Append("· שאלה (״איך...״, ״מה זה...״, ״אפשר...?״, ״למה...״, ״מה ההבדל...״) - ענה בהסבר קצר ומדויק (app_help נותן ");
+            sb.Append("את הפרטים - השתמש בו כשאתה לא בטוח), ובסוף הצע לעשות את זה בשבילו. **אל תבצע** עד שהוא אומר כן. ");
+            sb.Append("שאלה על התוכנה לא דורשת קובץ פתוח - אל תענה ״אין סרט פתוח״ על שאלת ״איך״.\n\n");
+
+            sb.Append("**עבודה בחלון:** run_command או ui_click שפותחים חלון - החלון מופיע במצב הנוכחי בסבב הבא (עם הפקדים). ");
+            sb.Append("מלא בו מה שצריך (כמה ui_set בבת אחת), ואז הכפתור הראשי (main) עם ui_click. ");
+            sb.Append("כשההרשאה היא ״לשאול״ - הלחיצה הראשית נשארת למשתמש: אמור לו שהחלון מוכן ומה ללחוץ. ");
+            sb.Append("כפתור כבוי - קרא את הטקסטים בחלון (ui_read): הם אומרים למה. סיימת עם חלון שלא צריך - לחץ ״ביטול״ או ״סגירה״.\n\n");
 
             sb.Append("**איך מתחילים כתוביות מאפס** - זו השאלה הנפוצה ביותר, ויש בדיוק ארבע תשובות:\n");
-            sb.Append("0. **יש סרט ואין טקסט בכלל - transcribe_media.** התוכנה מקשיבה וכותבת לבד, עם תזמונים. ");
+            sb.Append("0. **יש סרט ואין טקסט בכלל (״אני רוצה כתוביות לסרט״) - תמלול.** קודם ask_user: באיזה שירות לתמלל ");
+            sb.Append("(האפשרויות והמצב שלהן בשורת ״שירותי תמלול״ למטה; תאר כל אחת בכמה מילים), ואז transcribe_media עם service. ");
+            sb.Append("התוכנה מקשיבה וכותבת לבד, עם תזמונים. ");
             sb.Append("זו התשובה הראשונה שצריך לשקול כשיש סרט פתוח. היא פותחת חלון אישור כי הקול נשלח ");
             sb.Append("החוצה, והמשתמש מאשר בעצמו - אל תבטיח לו שזה נשאר במחשב, ואל תנסה שוב אם הוא סגר.\n");
             sb.Append("1. הטקסט כבר כתוב אצל המשתמש (תמליל, מסמך) - open_text_import פותח לו את החלון להדביק בו. ");
@@ -469,15 +645,22 @@ namespace SubtitleStudio
             sb.Append("· לחתוך: לשמור או להסיר קטעים מהסרט או מקובץ הקול - mark_range ואז trim_video (החלון נפתח עם הקטע)\n");
             sb.Append("· לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");
 
-            sb.Append("כללי עבודה: אל תסביר איך לעשות ידנית - פשוט תעשה. ");
-            sb.Append("אם יש פונקציה שמתאימה, קרא לה במקום לתאר אותה במילים. ");
-            sb.Append("תשובה שמסתיימת ב״תגיד לי מה לעשות״ בלי שקראת לשום פונקציה היא כמעט תמיד טעות. ");
-            sb.Append("אל תמציא נתונים: אם חסר לך מידע, קרא ל-get_state או list_cues. ");
-            sb.Append("אפשר לשרשר כמה פעולות בתור אחד כדי להשלים בקשה שלמה. ");
-            sb.Append("פעולות הרסניות מבקשות אישור מהמשתמש בעצמן - אל תשאל אישור פעמיים. ");
-            sb.Append("פונקציה שפותחת חלון מחזירה ״נפתח״ - זה הצלחה, לא כישלון. ");
-            sb.Append("אחרי שביצעת, אמור במשפט אחד מה קרה.\n");
-            sb.Append("מצב נוכחי: ");
+            sb.Append("**התוכנה (השמות המדויקים - כשאתה מזכיר כפתור או תפריט, רק בשמות האלה ומ-app_help, אף פעם לא בשם שהמצאת):** ");
+            sb.Append(AiKnow.Overview).Append("\n\n");
+
+            sb.Append("**כשיש כמה דרכים והבחירה של המשתמש** (שירות, צריבה או ערוץ נפרד, שפה, להחליף או לצרף) - ask_user עם 2-4 ");
+            sb.Append("תשובות קצרות שהוא לוחץ עליהן, במקום שאלה פתוחה. שאלה אחת בכל פעם, ורק כשבאמת צריך - מה שאפשר להחליט לבד, תחליט.\n");
+
+            sb.Append("\nכללי עבודה: ");
+            sb.Append("אל תמציא נתונים - מספרי כתוביות, זמנים וטקסט קח מ-list_cues ומהמצב. ");
+            sb.Append("בקשה של כמה שלבים (״תוסיף ואז תזיז״) - בצע את כולם לפני שאתה מסיים; אפשר כמה פעולות בתשובה אחת, והן מתבצעות לפי הסדר. ");
+            sb.Append("פעולה שדורשת אישור - התוכנה מציגה אותו בעצמה, אל תשאל פעמיים. ");
+            sb.Append("פעולה שנכשלה - אמור בפשטות למה ומה אפשר לעשות; אל תנסה שוב את אותו דבר יותר מפעם אחת. ");
+            sb.Append("אחרי שביצעת - משפט אחד מה השתנה. כל שינוי בכתוביות אפשר לבטל: Ctrl+Z, או ״לבטל את מה שעשיתי״ בצ'אט.\n\n");
+
+            sb.Append("ההרשאות שהמשתמש קבע לך:\n");
+            sb.Append(AiPerms.ForPrompt());
+            sb.Append("\nמצב נוכחי: ");
             sb.Append(_host.AiStateLine());
             // ההנחיה נשארת בעברית גם בממשק אנגלי - היא למודל, והוא מבין אותה.
             // מה שמשתנה הוא שפת התשובה: ״בעברית פשוטה״ למעלה נאמר על הסגנון.

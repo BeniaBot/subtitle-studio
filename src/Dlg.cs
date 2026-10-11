@@ -258,6 +258,11 @@ namespace SubtitleStudio
 
         protected virtual bool OnOk() { return true; }
 
+        /// <summary>לעוזר (`AiUi`): שם החלון, השורה שמתחתיו, והכפתור הראשי - הלחיצה שמבצעת.</summary>
+        internal string TitleText { get { return _title; } }
+        internal string SubtitleText { get { return Subtitle; } }
+        internal Btn OkButton { get { return _bottom.Count > 0 ? _bottom[0] as Btn : null; } }
+
         // ---------- פריסה מחדש כשמסתירים שורות ----------
         private class FlowRow
         {

@@ -354,14 +354,14 @@ namespace SubtitleStudio
 
             items.Add(MenuItem.Group(Lang.T("קובץ")));
             items.Add(MenuItem.Make(Lang.T("פרויקט חדש"), Lang.T("סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)"), Ico.Plus,
-                delegate { NewProject(); }));
+                delegate { NewProject(); }).Cat(AiPerms.Files));
             MenuItem saveProj = MenuItem.Make(Lang.T("שמירת הפרויקט"),
                 Lang.T("הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך"), Ico.Save,
-                delegate { SaveProject(false); });
+                delegate { SaveProject(false); }).Cat(AiPerms.Files);
             saveProj.Enabled = media || cues;
             items.Add(saveProj);
             MenuItem findIt = MenuItem.Make(Lang.T("חיפוש בכתוביות"), Lang.T("לקפוץ לכתובית שמכילה מילה (Ctrl+F)"), Ico.Search,
-                delegate { FindText(); });
+                delegate { FindText(); }).Cat(AiPerms.ReadOnly);
             findIt.Enabled = cues;
             items.Add(findIt);
             MenuItem clr = MenuItem.Make(Lang.T("מחיקת כל הכתוביות"), Lang.T("מרוקן את הרשימה; הסרט נשאר פתוח"), Ico.Trash,
@@ -372,13 +372,13 @@ namespace SubtitleStudio
             items.Add(MenuItem.Group(Lang.T("הבאת כתוביות")));
             MenuItem tr = MenuItem.Make(Lang.T("תמלול אוטומטי של הסרט"),
                 Lang.T("התוכנה מקשיבה וכותבת לבד · הקול נשלח לתמלול באינטרנט"), Ico.Sparkles,
-                delegate { TranscribeMedia(); });
+                delegate { TranscribeMedia(); }).Cat(AiPerms.Send);
             tr.Enabled = media;
             items.Add(tr);
             items.Add(MenuItem.Make(Lang.T("יצירת כתוביות מטקסט"), Lang.T("מדביקים טקסט - התוכנה מחלקת ומתזמנת לבד"), Ico.TextIcon,
                 delegate { ImportText(); }));
             MenuItem ext = MenuItem.Make(Lang.T("שליפת כתוביות מהסרט"), Lang.T("מוציא ערוץ כתוביות שכבר קיים בקובץ"), Ico.Layers,
-                delegate { ExtractSubs(); });
+                delegate { ExtractSubs(); }).Cat(AiPerms.Files);
             ext.Enabled = media;
             items.Add(ext);
 
@@ -416,11 +416,11 @@ namespace SubtitleStudio
             // ההגדרות, ומי שמנסה לתרגם בלי מפתח מקבל את מסך ההזנה בעצמו
             // (`EnsureAiKey`). פריט בתפריט שמוביל לאותו מקום הוא עוד שורה לקרוא.
             MenuItem tr1 = MenuItem.Make(Lang.T("ייצוא הטקסט לתרגום"), Lang.T("יוצר קובץ טקסט ממוספר, בלי לגעת בתזמונים"), Ico.Translate,
-                delegate { ExportForTranslation(); });
+                delegate { ExportForTranslation(); }).Cat(AiPerms.Files);
             tr1.Enabled = cues;
             items.Add(tr1);
             MenuItem tr2 = MenuItem.Make(Lang.T("החזרת טקסט מתורגם"), Lang.T("מחזיר את התרגום בדיוק לאותם תזמונים"), Ico.Import,
-                delegate { ImportTranslation(); });
+                delegate { ImportTranslation(); }).Cat(AiPerms.Files);
             tr2.Enabled = cues;
             items.Add(tr2);
 
@@ -438,27 +438,36 @@ namespace SubtitleStudio
 
         private void ShowVideoMenu(Control anchor)
         {
+            PopupMenu m = new PopupMenu(VideoMenuItems(), 350);
+            m.ShowUnder(anchor);
+        }
+
+        /// <summary>כמו SubtitleMenuItems: הבנייה בנפרד מההצגה - גם בשביל העוזר (`run_command`).</summary>
+        internal List<MenuItem> VideoMenuItems()
+        {
             List<MenuItem> items = new List<MenuItem>();
 
             items.Add(MenuItem.Group(Lang.T("עריכה")));
-            items.Add(MenuItem.Make(Lang.T("חיתוך קטעים"), Lang.T("לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול"), Ico.Scissors,
-                delegate { TrimMedia(); }));
+            MenuItem cutItem = MenuItem.Make(Lang.T("חיתוך קטעים"), Lang.T("לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול"), Ico.Scissors,
+                delegate { TrimMedia(); }).Cat(AiPerms.Media);
+            items.Add(cutItem);
 
             items.Add(MenuItem.Group(Lang.T("המרה ועיבוד")));
             MenuItem fitItem = MenuItem.Make(Lang.T("הקטנה לגודל מבוקש"),
                 Lang.T("למשל ״שייכנס ל-200MB לוואטסאפ/גוגל ׳אט״ - באיכות הכי טובה שנכנסת"), Ico.Download,
-                delegate { OpenFitSize(); });
+                delegate { OpenFitSize(); }).Cat(AiPerms.Media);
             fitItem.Enabled = _mi != null;
             items.Add(fitItem);
-            items.Add(MenuItem.Make(Lang.T("כלים לסרט ולקול"), Lang.T("עוצמת שמע, המרה, דחיסה לגודל, חילוץ אודיו ועוד"), Ico.Sliders,
-                delegate { OpenTools(); }));
+            MenuItem toolsItem = MenuItem.Make(Lang.T("כלים לסרט ולקול"), Lang.T("עוצמת שמע, המרה, דחיסה לגודל, חילוץ אודיו ועוד"), Ico.Sliders,
+                delegate { OpenTools(); }).Cat(AiPerms.Media);
+            items.Add(toolsItem);
 
             items.Add(MenuItem.Group(Lang.T("מידע")));
-            items.Add(MenuItem.Make(Lang.T("פרטי הקובץ"), Lang.T("ערוצים, רזולוציה, אורך וגודל"), Ico.Info,
-                delegate { ShowMediaInfo(); }));
+            MenuItem infoItem = MenuItem.Make(Lang.T("פרטי הקובץ"), Lang.T("ערוצים, רזולוציה, אורך וגודל"), Ico.Info,
+                delegate { ShowMediaInfo(); }).Cat(AiPerms.ReadOnly);
+            items.Add(infoItem);
 
-            PopupMenu m = new PopupMenu(items, 350);
-            m.ShowUnder(anchor);
+            return items;
         }
 
         private void BuildListCard()
@@ -2895,7 +2904,9 @@ namespace SubtitleStudio
         }
 
         /// <summary>תמלול אוטומטי של הסרט הפתוח.</summary>
-        private void TranscribeMedia()
+        private void TranscribeMedia() { TranscribeMedia(null, null); }
+
+        private void TranscribeMedia(ISttProvider direct, string directContext)
         {
             if (_mi == null || string.IsNullOrEmpty(_mediaPath))
             {
@@ -2907,16 +2918,36 @@ namespace SubtitleStudio
                 Ui.Error(this, Lang.T("אין קול בקובץ"), Lang.T("אין מה לתמלל - בקובץ הזה אין פס קול."));
                 return;
             }
-            // בלי בדיקת מפתח כאן: החלון שואל איפה לתמלל, ומחבר את השירות שנבחר
-            TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count, _contentContext, _tl.InPoint, _tl.OutPoint);
-            d.ShowDialog(this);
-            bool ok = d.Ok;
-            string ctx = d.Context;
-            _contentContext = ctx;
-            bool replace = d.ReplaceExisting;
-            long from = d.FromMs, to = d.ToMs;
-            ISttProvider provider = d.Provider;
-            d.Dispose();
+            bool ok, replace;
+            string ctx;
+            long from, to;
+            ISttProvider provider;
+            if (direct != null)
+            {
+                // **מהעוזר, כשמותר לו לשלוח (0.8.12):** המשתמש כבר בחר שירות בצ'אט ואמר ״כן״ - בלי החלון. רק כשיש
+                // מפתח לשירות ואין כתוביות שאפשר לדרוס (AiTranscribe בודק); אחרת החלון, עם השירות כבר בחור
+                ok = true;
+                replace = false;
+                provider = direct;
+                ctx = directContext ?? _contentContext;
+                _contentContext = ctx;
+                bool marked = _tl.InPoint >= 0 && _tl.OutPoint > _tl.InPoint;
+                from = marked ? _tl.InPoint : 0;
+                to = marked ? _tl.OutPoint : 0;
+            }
+            else
+            {
+                // בלי בדיקת מפתח כאן: החלון שואל איפה לתמלל, ומחבר את השירות שנבחר
+                TranscribeDlg d = new TranscribeDlg(_mi, _doc.Cues.Count, _contentContext, _tl.InPoint, _tl.OutPoint);
+                d.ShowDialog(this);
+                ok = d.Ok;
+                ctx = d.Context;
+                _contentContext = ctx;
+                replace = d.ReplaceExisting;
+                from = d.FromMs; to = d.ToMs;
+                provider = d.Provider;
+                d.Dispose();
+            }
             if (!ok) return;
 
             _engine.Pause();

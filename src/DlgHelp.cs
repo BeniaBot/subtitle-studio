@@ -39,6 +39,9 @@ namespace SubtitleStudio
             new string[] { "F5", Lang.T("יצירת הסרט עם הכתוביות") }
         };
 
+        /// <summary>הקיצורים, גם למדריך של העוזר (`AiKnow`).</summary>
+        internal static string[][] KeyList { get { return Keys; } }
+
         // 700 בשתי השפות. באנגלית שמות הפעולות ארוכים; בעברית המקש הארוך (״קליק ימני
         // ברשימה״) מרחיב את עמודת המקשים, וב-620 שני תיאורים נחתכו ב״...״ (0.8.1)
         public HelpDlg() : base(Lang.T("איך עובדים כאן"), Ico.Question, 700)
