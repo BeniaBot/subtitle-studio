@@ -244,7 +244,8 @@ namespace SubtitleStudio
             if (c == "vorbis") { ext = src == ".oga" || src == ".mka" || src == ".webm" ? src : ".ogg"; return "-c:a libvorbis -q:a 6"; }
             if (c == "opus") { ext = src == ".ogg" || src == ".mka" || src == ".webm" ? src : ".opus"; return "-c:a libopus -b:a 160k"; }
             ext = ".m4a";
-            return Q.MaxAudio;
+            // לא כבד מהמקור (0.8.11): הקלטת AMR של 12k לא צריכה AAC של 256k
+            return Burn.AudioCodec(ext, mi);
         }
 
         /// <summary>האם השמירה תהיה בלי קידוד מחדש.</summary>
@@ -356,7 +357,7 @@ namespace SubtitleStudio
             sb.Append("-i ").Append(src).Append(" -filter_complex \"").Append(f).Append("\" -map \"[v]\" ");
             if (audio) sb.Append("-map \"[a]\" ");
             sb.Append(Burn.MaxVideoFor(mi, 0)).Append(" ");
-            if (audio) sb.Append(Q.MaxAudio).Append(" ");
+            if (audio) sb.Append(Burn.AudioFor(outPath, mi)).Append(" ");
             if (Path.GetExtension(outPath).ToLowerInvariant() == ".mp4") sb.Append("-movflags +faststart ");
             sb.Append("-map_chapters -1 ").Append(Ff.Q(outPath));
             steps.Add(sb.ToString());

@@ -19,6 +19,8 @@ namespace SubtitleStudio
         public string Title = "";
         public int Width, Height;
         public double Fps;
+        /// <summary>תמונה: ״yuv420p״, ״yuv420p10le״... ריק = לא ידוע.</summary>
+        public string PixFmt = "";
         public int Channels;
         /// <summary>קול שהמפענח לא מסמן את סידור הערוצים שלו (״1 channels״ במקום ״mono״ - ‏Speex, ‏TTA). ‏AAC ו-FLAC
         /// מסרבים לקודד אותו (״Unsupported channel layout״), ו-<see cref="Burn.LayoutArgs"/> מוסיף ‏-ac.</summary>
@@ -457,6 +459,11 @@ namespace SubtitleStudio
                     }
                     Match fps = Regex.Match(tail, @"([\d.]+)\s*fps");
                     if (fps.Success) cur.Fps = D(fps.Groups[1].Value);
+                    if (cur.Type == "video")
+                    {
+                        Match pf = Regex.Match(tail, @"\b(yuvj?\d{3}p\w*|yuva\d{3}p\w*|nv12|nv21|p010\w*|rgb\w+|bgr\w+|gray\w*|pal8)\b");
+                        if (pf.Success) cur.PixFmt = pf.Groups[1].Value;
+                    }
                     Match br = Regex.Match(tail, @"(\d+)\s*kb/s");
                     if (br.Success) cur.BitRate = (long)(D(br.Groups[1].Value) * 1000);
                     if (cur.Type == "audio")

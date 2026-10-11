@@ -231,16 +231,66 @@ namespace SubtitleStudio
         /// קצב לא ידוע (MKV, ‏OGG) - <paramref name="maxK"/>.</summary>
         public static string SmallAudio(MediaInfo mi, int maxK)
         {
-            MediaStream a = mi != null ? mi.FirstAudio() : null;
-            int k = maxK;
-            if (a != null && a.BitRate > 0) k = Math.Max(48, Math.Min(maxK, (int)Math.Ceiling(a.BitRate / 1000.0)));
+            int src = SourceAudioKbps(mi);
+            int k = src > 0 ? Math.Max(48, Math.Min(maxK, src)) : maxK;
             return "-c:a aac -b:a " + k.ToString(CultureInfo.InvariantCulture) + "k";
         }
 
-        /// <summary><see cref="AudioFor(string)"/>, ועם ‏-ac כשצריך (<see cref="LayoutArgs"/>).</summary>
+        /// <summary><see cref="AudioFor(string)"/> לקול של <paramref name="mi"/>: ‏-ac (<see cref="LayoutArgs"/>), ו**קצב לא גבוה
+        /// מהמקור** בקידוד עם אובדן. עד 0.8.11 תמיד 256k (AAC) / ‏192k (Opus, ‏WMA) / ‏MP3 בסביבות 190k: ניקוי רעש, עוצמה ואיזון
+        /// על סרטון עם קול של 128k הגדילו אותו ב-12% (docs/EXPERIMENTS.md) - הקול לא יכול להשתפר מעבר למקור. וקובץ MP3 של 320k
+        /// יצא מכלי ״רק הקול״ ב-128k (ברירת המחדל של המקודד). קצב לא ידוע (MKV, ‏WEBM) - כמו קודם.</summary>
         public static string AudioFor(string outPath, MediaInfo mi)
         {
-            return AudioFor(outPath) + LayoutArgs(mi);
+            return AudioCodec(outPath, mi) + LayoutArgs(mi);
+        }
+
+        /// <summary><see cref="AudioFor(string, MediaInfo)"/> בלי ‏-ac (למי שמוסיף אותו בעצמו).</summary>
+        public static string AudioCodec(string outPath, MediaInfo mi)
+        {
+            string basic = AudioFor(outPath);
+            int src = SourceAudioKbps(mi);
+            if (src > 0)
+            {
+                if (basic == Q.MaxAudio) basic = "-c:a aac -b:a " + Kbps(src, 16, 96, 256);
+                else if (basic.StartsWith("-c:a libopus")) basic = "-c:a libopus -b:a " + Kbps(src, 16, 64, 192);
+                else if (basic.StartsWith("-c:a wmav2")) basic = "-c:a wmav2 -b:a " + Kbps(src, 16, 96, 192);
+                else if (basic.StartsWith("-c:a libmp3lame")) basic = "-c:a libmp3lame -b:a " + Mp3Kbps(src);
+            }
+            return basic;
+        }
+
+        /// <summary>קצב הקול של המקור (k), או 0. **בקובץ קול - גם מהגודל, והנמוך מהשניים:** ‏Vorbis מדווח קצב ״נומינלי״ גבוה מהאמת
+        /// (128 בקובץ של 96), ו-Opus לא מדווח בכלל - ובלי זה ״איזון עוצמה״ על Opus יצא פי 3 מהמקור ועל OGG פי 1.2 (נמדד 11.10).
+        /// תמונת עטיפה רק מגדילה את החישוב מהגודל, ולכן המינימום. בסרטון - רק מה שמדווח.</summary>
+        internal static int SourceAudioKbps(MediaInfo mi)
+        {
+            MediaStream a = mi != null ? mi.FirstAudio() : null;
+            if (a == null) return 0;
+            int src = a.BitRate > 0 ? (int)Math.Round(a.BitRate / 1000.0) : 0;
+            if (mi.FirstVideo() == null && mi.SizeBytes > 0 && mi.DurationSec >= 1)
+            {
+                int bySize = (int)Math.Round(mi.SizeBytes * 8.0 / mi.DurationSec / 1000.0);
+                src = src > 0 ? Math.Min(src, bySize) : bySize;
+            }
+            return src;
+        }
+
+        /// <summary>הקצב של המקור, מעוגל **לקרוב** בשלבים של <paramref name="step"/>, בין <paramref name="lo"/> ל-<paramref name="hi"/>.
+        /// לא כלפי מעלה: 129 בשלבים של 32 נהיה 160, ו-M4A יצא גדול ב-24% (נמדד).</summary>
+        private static string Kbps(int src, int step, int lo, int hi)
+        {
+            int k = (int)Math.Round(src / (double)step) * step;
+            return Math.Max(lo, Math.Min(hi, k)).ToString(CultureInfo.InvariantCulture) + "k";
+        }
+
+        /// <summary>‏MP3 מקבל רק קצבים מהטבלה: הקרוב למקור (96-320).</summary>
+        private static string Mp3Kbps(int src)
+        {
+            int[] ok = { 96, 112, 128, 160, 192, 224, 256, 320 };
+            int best = ok[0];
+            foreach (int k in ok) if (Math.Abs(k - src) < Math.Abs(best - src)) best = k;
+            return best.ToString(CultureInfo.InvariantCulture) + "k";
         }
 
         /// <summary>קידוד הקול לקובץ שהתמונה בו מועתקת: Opus ל-WEBM (שלא מקבל AAC),

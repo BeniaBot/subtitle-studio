@@ -44,6 +44,8 @@ namespace SubtitleStudio
         public string[] Options;
         public Func<MediaInfo, string[]> OptionsFor;
         public int DefOption;
+        /// <summary>האפשרות שהחלון נפתח עליה לפי הקובץ (null - DefOption).</summary>
+        public Func<MediaInfo, int> DefFor;
         public string FileFilter = Lang.T("כל הקבצים|*.*");
         public string Group = "";
         public string OutSuffix = Lang.T(" - חדש");
@@ -179,6 +181,74 @@ namespace SubtitleStudio
             return f;
         }
 
+        /// <summary>‏MP4 שנפתח בכל מקום: H.264 של 8 ביט (4:2:0), וקול AAC/MP3 או בלי, במיכל MP4/M4V/MOV.</summary>
+        internal static bool Mp4Ready(MediaInfo mi)
+        {
+            if (mi == null) return false;
+            string e = "";
+            try { e = Path.GetExtension(mi.Path).ToLowerInvariant(); }
+            catch { }
+            if (e != ".mp4" && e != ".m4v" && e != ".mov") return false;
+            MediaStream v = mi.FirstVideo();
+            if (v == null || v.Codec.ToLowerInvariant() != "h264") return false;
+            if (v.PixFmt.Length > 0 && v.PixFmt != "yuv420p" && v.PixFmt != "yuvj420p") return false;
+            foreach (MediaStream s in mi.Streams)
+            {
+                if (s.Type != "audio") continue;
+                string ac = s.Codec.ToLowerInvariant();
+                if (ac != "aac" && ac != "mp3") return false;
+            }
+            return true;
+        }
+
+        private static readonly string[] Mp4Video = { "h264", "hevc", "mpeg4", "av1", "vp9", "mpeg2video", "mpeg1video", "mjpeg" };
+        private static readonly string[] Mp4Audio = { "aac", "mp3", "ac3", "eac3", "alac", "opus", "mp2", "flac" };
+
+        /// <summary>אפשר להעתיק את התמונה ואת כל ערוצי הקול ל-MP4 בלי קידוד.</summary>
+        internal static bool Mp4Copyable(MediaInfo mi)
+        {
+            if (mi == null) return false;
+            MediaStream v = mi.FirstVideo();
+            if (v != null && Array.IndexOf(Mp4Video, v.Codec.ToLowerInvariant()) < 0) return false;
+            foreach (MediaStream s in mi.Streams)
+                if (s.Type == "audio" && Array.IndexOf(Mp4Audio, s.Codec.ToLowerInvariant()) < 0) return false;
+            return true;
+        }
+
+        /// <summary>אילו ערוצים נכנסים בהעתקה. ‏MP4: התמונה, כל הקול, וכתוביות טקסט (כתוביות תמונה ו״ערוצי נתונים״ של מצלמות -
+        /// לא; הם מפילים את ההעתקה כולה). ‏MKV: התמונה, כל הקול, כל הכתוביות והקבצים המצורפים (גופנים). עד 0.8.11 - ברירת המחדל
+        /// של ffmpeg: ערוץ קול אחד, וכתוביות שהפילו את ההעתקה ל-MP4.</summary>
+        internal static string CopyMaps(MediaInfo mi, bool mp4)
+        {
+            MediaStream v = mi != null ? mi.FirstVideo() : null;
+            StringBuilder sb = new StringBuilder();
+            sb.Append(v != null ? "-map 0:" + v.Index.ToString(CultureInfo.InvariantCulture) + " " : "-map 0:v? ");
+            sb.Append("-map 0:a? ");
+            if (mi != null)
+                foreach (MediaStream s in mi.Streams)
+                    if (s.Type == "subtitle" && (!mp4 || s.IsTextSubtitle)) sb.Append("-map 0:").Append(s.Index.ToString(CultureInfo.InvariantCulture)).Append(" ");
+            if (!mp4) sb.Append("-map 0:t? ");
+            return sb.ToString();
+        }
+
+        /// <summary>כתוביות טקסט: ‏MP4 מקבל רק mov_text, ו-MKV לא מקבל mov_text - ממירים (הטקסט נשאר, זה לא ״קידוד״ של ממש).</summary>
+        internal static string CopySubCodecs(MediaInfo mi, bool mp4)
+        {
+            if (mi == null) return "";
+            StringBuilder sb = new StringBuilder();
+            int k = 0;
+            foreach (MediaStream s in mi.Streams)
+            {
+                if (s.Type != "subtitle" || (mp4 && !s.IsTextSubtitle)) continue;
+                string c = s.Codec.ToLowerInvariant();
+                // לכל ערוץ במפורש: ב״MP4 - תאימות מרבית״ אין ‏-c copy כללי, ו-mov_text בלי קודק נפל ב-״Encoder not found״
+                if (mp4) sb.Append("-c:s:").Append(k).Append(c == "mov_text" ? " copy " : " mov_text ");
+                else if (c == "mov_text") sb.Append("-c:s:").Append(k).Append(" srt ");
+                k++;
+            }
+            return sb.ToString();
+        }
+
         /// <summary>הטווח של ״התאמה לגודל״ לפי הקובץ (מינימום, מקסימום, ברירת מחדל, צעד). עד 0.8.10 תמיד 5-500, ונפתח על
         /// 200 - כלומר כמעט כל סרטון קצר נפתח חסום (״הקובץ כבר קטן מהגודל הזה״), וקובץ של 3 ג׳יגה לא הגיע ליעד של 1.
         /// עכשיו: עד גודל הקובץ, ונפתח על חצי ממנו.</summary>
@@ -225,7 +295,7 @@ namespace SubtitleStudio
             vol.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af volume=" + c.Val.ToString("0.##", CultureInfo.InvariantCulture) + "dB " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : CoverArgs(c)) + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
             };
             t.Add(vol);
 
@@ -244,7 +314,7 @@ namespace SubtitleStudio
                 MediaStream a = c.Mi != null ? c.Mi.FirstAudio() : null;
                 int hz = a != null && a.SampleRate >= 8000 && a.SampleRate <= 96000 ? a.SampleRate : 48000;
                 return "-i " + Ff.Q(c.In) + " -af loudnorm=I=-16:TP=-1.5:LRA=11,aresample=" + hz + " " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : CoverArgs(c)) + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
             };
             t.Add(norm);
 
@@ -318,15 +388,42 @@ namespace SubtitleStudio
             conv.ParamLabel = Lang.T("פורמט היעד");
             conv.ExtFor = delegate (int i) { return i == 1 ? ".mkv" : ".mp4"; };
             conv.OutSuffix = Lang.T(" - מומר");
+            // **MP4 שכבר נפתח בכל מקום - ״MP4 מהיר״.** עד 0.8.11 תמיד קידוד מחדש, שלא משפר כלום ורק לוקח זמן (docs/EXPERIMENTS.md)
+            conv.DefFor = delegate (MediaInfo mi) { return Mp4Ready(mi) ? 2 : 0; };
+            conv.Block = delegate (ToolCtx c)
+            {
+                if (c.Mi == null || !c.Mi.HasVideo) return null;
+                // ״MP4 מהיר״ על WMV, ‏WEBM של VP8, ‏OGV - ‏ffmpeg נכשל בשגיאה סתומה
+                if (c.Opt == 2 && !Mp4Copyable(c.Mi))
+                    return Lang.T("התמונה או הקול בקובץ הזה בקידוד ש-MP4 לא מקבל כמו שהוא. ״MP4 - תאימות מרבית״ ימיר אותם.");
+                MediaStream v = c.Mi.FirstVideo();
+                if (c.Opt == 1 && v != null && v.Codec.ToLowerInvariant().StartsWith("rv"))
+                    return Lang.T("MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - תאימות מרבית״ ימיר אותה.");
+                return null;
+            };
+            conv.Hint = delegate (ToolCtx c)
+            {
+                if (c.Mi == null || !c.Mi.HasVideo) return "";
+                if (c.Opt == 0)
+                    return Mp4Ready(c.Mi)
+                        ? Lang.T("הקובץ כבר MP4 שנפתח בכל מקום - קידוד מחדש לא ישפר אותו, רק ייקח זמן. לעותק מהיר - ״MP4 מהיר״.")
+                        : Lang.T("התמונה והקול מקודדים מחדש לצורה שנפתחת בכל מקום. לוקח זמן, באיכות מקסימלית.");
+                if (c.Opt == 1) return Lang.T("שניות, בלי שום שינוי באיכות. MKV מקבל כל קידוד - אבל לא כל טלפון פותח אותו.");
+                return Lang.T("שניות, בלי שום שינוי באיכות: התמונה והקול מועתקים כמו שהם.");
+            };
             conv.Build = delegate (ToolCtx c)
             {
                 // קובץ קול (גם עם תמונת עטיפה): בלי ערוץ תמונה. עד 0.8.1 העטיפה קודדה כסרט
                 // של פריים אחד, וההמרה נכשלה
                 if (c.Mi != null && !c.Mi.HasVideo)
                     return "-i " + Ff.Q(c.In) + " " + (CoverArgs(c).Length > 0 ? CoverArgs(c) : "-vn ") + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
+                // כל ערוצי הקול וכתוביות הטקסט נשארים (0.8.11; עד אז רק הערוץ הראשון, והכתוביות ירדו - נמצא בניסוי על MKV)
                 if (c.Opt == 0)
-                    return "-i " + Ff.Q(c.In) + " " + Burn.MaxVideoFor(c.Mi, 0) + " " + Q.MaxAudio + " -movflags +faststart " + Ff.Q(c.Out);
-                return "-i " + Ff.Q(c.In) + " -c copy " + (Path.GetExtension(c.Out).ToLowerInvariant() == ".mp4" ? "-movflags +faststart " : "") + Ff.Q(c.Out);
+                    return "-i " + Ff.Q(c.In) + " " + CopyMaps(c.Mi, true) + Burn.MaxVideoFor(c.Mi, 0) + " " + Burn.AudioFor(c.Out, c.Mi) + " " +
+                           CopySubCodecs(c.Mi, true) + "-movflags +faststart " + Ff.Q(c.Out);
+                bool mp4 = Path.GetExtension(c.Out).ToLowerInvariant() == ".mp4";
+                return Burn.CopyInputFlags(c.Mi) + "-i " + Ff.Q(c.In) + " " + CopyMaps(c.Mi, mp4) + "-c copy " + CopySubCodecs(c.Mi, mp4) +
+                       (mp4 ? "-movflags +faststart " : "") + Ff.Q(c.Out);
             };
             t.Add(conv);
 
@@ -356,7 +453,7 @@ namespace SubtitleStudio
                 int h = ResHeight(c.Opt);
                 string sc = Burn.ScaleShort(c.Mi, h);
                 return "-i " + Ff.Q(c.In) + (sc.Length > 0 ? " -vf \"" + sc + "\"" : "") + " " + Burn.MaxVideoFor(c.Mi, h) + " " +
-                       (c.Mi != null && c.Mi.HasAudio ? Q.MaxAudio + " " : "-an ") + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasAudio ? Burn.AudioFor(c.Out, c.Mi) + " " : "-an ") + Ff.Q(c.Out);
             };
             t.Add(res);
 
@@ -395,10 +492,10 @@ namespace SubtitleStudio
                 string pts = (1.0 / v).ToString("0.####", CultureInfo.InvariantCulture);
                 if (c.Mi != null && c.Mi.HasVideo && c.Mi.HasAudio)
                     return "-i " + Ff.Q(c.In) + " -filter_complex \"[0:v]setpts=" + pts + "*PTS[v];[0:a]atempo=" + vs +
-                           "[a]\" -map \"[v]\" -map \"[a]\" " + Burn.MaxVideoFor(c.Mi, 0) + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
+                           "[a]\" -map \"[v]\" -map \"[a]\" " + Burn.MaxVideoFor(c.Mi, 0) + " " + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
                 if (c.Mi != null && c.Mi.HasVideo)
                     return "-i " + Ff.Q(c.In) + " -vf \"setpts=" + pts + "*PTS\" -an " + Burn.MaxVideoFor(c.Mi, 0) + " " + Ff.Q(c.Out);
-                return "-i " + Ff.Q(c.In) + " -filter:a atempo=" + vs + " " + CoverArgs(c) + Ff.Q(c.Out);
+                return "-i " + Ff.Q(c.In) + " -filter:a atempo=" + vs + " " + CoverArgs(c) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
             };
             t.Add(speed);
 
@@ -452,7 +549,7 @@ namespace SubtitleStudio
                 string os = outAt.ToString("0.##", CultureInfo.InvariantCulture);
                 string vf = "fade=t=in:st=0:d=" + ds + ",fade=t=out:st=" + os + ":d=" + ds;
                 string af = c.Mi != null && c.Mi.HasAudio
-                    ? " -af \"afade=t=in:st=0:d=" + ds + ",afade=t=out:st=" + os + ":d=" + ds + "\" " + Q.MaxAudio
+                    ? " -af \"afade=t=in:st=0:d=" + ds + ",afade=t=out:st=" + os + ":d=" + ds + "\" " + Burn.AudioFor(c.Out, c.Mi)
                     : " -an";
                 return "-i " + Ff.Q(c.In) + " -vf \"" + vf + "\" " + Burn.MaxVideoFor(c.Mi, 0) +
                        af + " " + Ff.Q(c.Out);
@@ -561,7 +658,7 @@ namespace SubtitleStudio
                 string maps = audio ? "-map \"[v]\" -map \"[a]\" " : "-map \"[v]\" ";
                 return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) +
                        " -filter_complex \"" + g.ToString() + "\" " + maps + Burn.MaxVideoFor(c.Mi, 0) + " " +
-                       (audio ? Burn.AudioFor(c.Out) + " " : "") + Ff.Q(c.Out);
+                       (audio ? Burn.AudioFor(c.Out, c.Mi) + " " : "") + Ff.Q(c.Out);
             };
             t.Add(join);
 
@@ -578,7 +675,7 @@ namespace SubtitleStudio
             denoise.Build = delegate (ToolCtx c)
             {
                 return "-i " + Ff.Q(c.In) + " -af afftdn=nr=" + ((int)c.Val) + ":nf=-25 " +
-                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " + Burn.AudioFor(c.Out) + " " : CoverArgs(c)) + Ff.Q(c.Out);
+                       (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
             };
             t.Add(denoise);
 
@@ -616,15 +713,15 @@ namespace SubtitleStudio
                 {
                     // רק הקול
                     return "-i " + Ff.Q(c.In) + " " + range + "-af areverse " +
-                           (hasV ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out) + " " + Ff.Q(c.Out);
+                           (hasV ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
                 }
                 if (c.Opt == 1 || !hasA)
                 {
                     return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse " + Burn.MaxVideoFor(c.Mi, 0) + " " +
-                           (hasA ? Q.MaxAudio + " " : "-an ") + Ff.Q(c.Out);
+                           (hasA ? Burn.AudioFor(c.Out, c.Mi) + " " : "-an ") + Ff.Q(c.Out);
                 }
                 return "-i " + Ff.Q(c.In) + " " + range + "-vf reverse -af areverse " +
-                       Burn.MaxVideoFor(c.Mi, 0) + " " + Q.MaxAudio + " " + Ff.Q(c.Out);
+                       Burn.MaxVideoFor(c.Mi, 0) + " " + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
             };
             t.Add(reverse);
 
@@ -834,7 +931,7 @@ namespace SubtitleStudio
                 Section(tool.ParamLabel);
                 _combo = new Combo();
                 _combo.Items.AddRange(tool.OptionsFor != null ? tool.OptionsFor(mi) : tool.Options);
-                _combo.SelectedIndex = FirstUsable(tool.DefOption);
+                _combo.SelectedIndex = FirstUsable(tool.DefFor != null ? tool.DefFor(mi) : tool.DefOption);
                 _combo.SelectedIndexChanged += delegate { UpdateOut(); UpdateHint(); };
                 Row(_combo, 32, 14);
             }
