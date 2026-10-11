@@ -153,6 +153,23 @@ namespace SubtitleStudio
 
         /// <param name="hasVideo">אם יש סרט פתוח, ברירת המחדל היא לתזמן לפיו בלחיצות.</param>
         /// <param name="mediaMs">אורך הסרט: ״זמן״ בתחילת שורה שאחרי סופו הוא טקסט (שעה ביום), לא חותמת.</param>
+        /// <summary>כיוון התיבה לפי הטקסט, לא לפי שפת הממשק: עברית בממשק אנגלי הוצגה משמאל לימין והנקודה עברה לצד הלא
+        /// נכון (נמצא בצילומים של 0.8.9); ולהפך - טקסט באנגלית בממשק עברי. לפי האות החזקה הראשונה.</summary>
+        private void FitDirection()
+        {
+            bool rtl = Lang.Rtl;
+            foreach (char c in _text.Box.Text)
+            {
+                if ((c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF)) { rtl = true; break; }
+                if (char.IsLetter(c)) { rtl = false; break; }
+            }
+            RightToLeft want = rtl ? RightToLeft.Yes : RightToLeft.No;
+            if (_text.Box.RightToLeft == want) return;
+            _text.Box.RightToLeft = want;
+            // בתיבה מימין לשמאל Left הוא ״מתחילת השורה״ - כלומר מימין (Right שם יישר לשמאל; נראה בצילום)
+            _text.Box.TextAlign = HorizontalAlignment.Left;
+        }
+
         public ImportTextDlg(long startAt, bool hasVideo, long mediaMs) : base(Lang.T("טקסט לכתוביות"), Ico.Import, 620)
         {
             _mediaMs = mediaMs;
@@ -160,7 +177,7 @@ namespace SubtitleStudio
 
             _text = new Field(true);
             _text.Placeholder = Lang.T("הדביקו כאן את הטקסט. שורה ריקה בין קטעים = כתובית נפרדת.");
-            _text.Box.TextChanged += delegate { UpdatePreview(); };
+            _text.Box.TextChanged += delegate { FitDirection(); UpdatePreview(); };
             Row(_text, 150, 8);
 
             Btn load = new Btn();
