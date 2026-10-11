@@ -631,6 +631,12 @@ namespace SubtitleStudio
             "אותו קצב", "Same rate",
             "בחרו שני קצבים שונים.", "Choose two different rates.",
             "המרת קצב", "Frame rate conversion",
+            "הקובץ כבר MP4 שנפתח בכל מקום - קידוד מחדש לא ישפר אותו, רק ייקח זמן. לעותק מהיר - ״MP4 מהיר״.", "This file is already an MP4 that opens everywhere - re-encoding won't improve it, it will only take time. For a quick copy, choose 'Fast MP4'.",
+            "התמונה והקול מקודדים מחדש לצורה שנפתחת בכל מקום. לוקח זמן, באיכות מקסימלית.", "The picture and sound are re-encoded into a form that opens everywhere. Takes time, at maximum quality.",
+            "תוך שניות, בלי שום שינוי באיכות. MKV מקבל כל קידוד - אבל לא כל טלפון פותח אותו.", "In seconds, with no change in quality. MKV takes any encoding - but not every phone opens it.",
+            "תוך שניות, בלי שום שינוי באיכות: התמונה והקול מועתקים כמו שהם.", "In seconds, with no change in quality: the picture and sound are copied as they are.",
+            "התמונה או הקול בקובץ הזה בקידוד ש-MP4 לא מקבל כמו שהוא. ״MP4 - תאימות מרבית״ ימיר אותם.", "The picture or sound in this file is in an encoding MP4 doesn't take as it is. 'MP4 - widest support' will convert them.",
+            "MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - תאימות מרבית״ ימיר אותה.", "MKV doesn't take the RealMedia picture as it is. 'MP4 - widest support' will convert it.",
             "כל הקבצים|*.*", "All files|*.*",
             " - חדש", " - new",
             "הקובץ כבר קטן מהגודל הזה ({0}). כדי להקטין אותו באמת - לבחור גודל קטן יותר.", "The file is already smaller than this size ({0}). To really make it smaller, choose a smaller size.",
@@ -905,14 +911,14 @@ namespace SubtitleStudio
             "מחיקת כל הכתוביות", "Delete all subtitles",
             "מרוקן את הרשימה; הסרט נשאר פתוח", "Empties the list; the video stays open",
             "הבאת כתוביות", "Get subtitles",
+        };
+        private static readonly string[] P3 = new string[] {
             "תמלול אוטומטי של הסרט", "Transcribe the video automatically",
             "התוכנה מקשיבה וכותבת לבד · הקול נשלח לתמלול באינטרנט", "Listens and writes the subtitles · the audio is sent online",
             "יצירת כתוביות מטקסט", "Make subtitles from text",
             "מדביקים טקסט - התוכנה מחלקת ומתזמנת לבד", "Paste text - the program splits and times it by itself",
             "שליפת כתוביות מהסרט", "Extract subtitles from the video",
             "מוציא ערוץ כתוביות שכבר קיים בקובץ", "Takes out a subtitle track that's already in the file",
-        };
-        private static readonly string[] P3 = new string[] {
             "תזמון", "Timing",
             "כשהכתוביות מקדימות או מאחרות באופן קבוע", "When the subtitles are always early or late",
             "בוחרים כתובית, עוצרים איפה שהיא נשמעת - ואני מתקן", "Choose a subtitle, stop where it's heard - and I'll fix it",
@@ -1207,14 +1213,14 @@ namespace SubtitleStudio
             "הפרויקט לא נשמר", "The project wasn't saved",
             "הפרויקט נשמר:  {0}‏   ·   בפעם הבאה הוא יחכה במסך הפתיחה", "Project saved:  {0}   ·   next time it will be waiting on the start screen",
             "לא הצלחתי לפתוח את הפרויקט", "Couldn't open the project",
+        };
+        private static readonly string[] P4 = new string[] {
             "לפתוח את הפרויקט?", "Open the project?",
             "הכתוביות שלא נשמרו יאבדו.", "Unsaved subtitles will be lost.",
             "העבודה שוחזרה", "The work was restored",
             "נפתח הפרויקט {0}‏", "Opened the project {0}",
             "  ·  בלי הסרט", "  ·  without the video",
             "הסרט של הפרויקט לא נמצא", "The project's video wasn't found",
-        };
-        private static readonly string[] P4 = new string[] {
             "חיפשתי את {0}‏ ולא מצאתי. אולי הוא הועבר לתיקייה אחרת, או שהכונן שלו לא מחובר.\nהכתוביות נפתחות בכל מקרה.", "I looked for {0} and didn't find it. Maybe it was moved to another folder, or its drive isn't connected.\nThe subtitles open anyway.",
             "לאתר את הסרט", "Find the video",
             "להמשיך בלי הסרט", "Go on without the video",
