@@ -186,6 +186,8 @@ namespace SubtitleStudio
         public static string LastError = "";
         /// <summary>בחוט הזה (השיחה): במכסה דקתית או עומס - דגם אחר מיד, בלי ההמתנה של עד 30 שניות.</summary>
         [ThreadStatic] public static bool PreferSwitch;
+        /// <summary>הבקשה האחרונה בחוט הזה נפלה בחיבור עצמו (לא תשובה מהשרת).</summary>
+        [ThreadStatic] private static bool LastTransportFail;
 
         /// <summary>דגמים לניסיון, לפי הסדר.
         ///
@@ -408,23 +410,31 @@ namespace SubtitleStudio
                 return r;
             }
             Log("תשובה: " + reply.Length + " תווים");
+            ParseReply(r, reply);
+            if (r.Error != null) LastError = r.Error;
+            return r;
+        }
 
+        /// <summary>קריאת תשובה של generateContent לתוך <paramref name="r"/> - טקסט, כל הבקשות, והחלקים כמו שהם.
+        /// מופרד מהשליחה כדי לבדוק בלי רשת (test-assistant: כמה בקשות, חתימות, חשיבה, תשובה ריקה).</summary>
+        internal static void ParseReply(AiReply r, string reply)
+        {
             try
             {
                 Dictionary<string, object> root = Ser().DeserializeObject(reply) as Dictionary<string, object>;
-                if (root == null) { r.Error = Lang.F("השרת החזיר תשובה לא צפויה: {0}", Snip(reply)); return r; }
+                if (root == null) { r.Error = Lang.F("השרת החזיר תשובה לא צפויה: {0}", Snip(reply)); return; }
                 object cands;
-                if (!root.TryGetValue("candidates", out cands)) { r.Error = ErrorFrom(root, reply); return r; }
+                if (!root.TryGetValue("candidates", out cands)) { r.Error = ErrorFrom(root, reply); return; }
                 System.Collections.IList arr = Arr(cands);
-                if (arr == null || arr.Count == 0) { r.Error = ErrorFrom(root, reply); return r; }
+                if (arr == null || arr.Count == 0) { r.Error = ErrorFrom(root, reply); return; }
                 r.Finish = FinishOf(arr[0]);
                 Dictionary<string, object> c0 = arr[0] as Dictionary<string, object>;
                 object content;
-                if (c0 == null || !c0.TryGetValue("content", out content)) { r.Error = Lang.T("התשובה מהשרת ריקה."); return r; }
+                if (c0 == null || !c0.TryGetValue("content", out content)) { r.Error = Lang.T("התשובה מהשרת ריקה."); return; }
                 Dictionary<string, object> cd = content as Dictionary<string, object>;
                 object parts;
                 if (cd == null || !cd.TryGetValue("parts", out parts))
-                { r.Error = Lang.T("המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."); r.Empty = true; return r; }
+                { r.Error = Lang.T("המודל לא החזיר תשובה. נסו לנסח את הבקשה מחדש, או שוב בעוד רגע."); r.Empty = true; return; }
                 System.Collections.IList pa = Arr(parts);
                 StringBuilder text = new StringBuilder();
                 if (pa != null)
@@ -485,8 +495,6 @@ namespace SubtitleStudio
                 r.Error = Lang.F("לא הצלחתי לקרוא את התשובה: {0}", ex.Message);
                 Log("שגיאת קריאה: " + ex.Message + "  גוף: " + Snip(reply));
             }
-            if (r.Error != null) LastError = r.Error;
-            return r;
         }
 
         /// <summary>התשובה היא חסימה בלי נימוק (‏OTHER) ובלי שום תוכן: על הבקשה כולה (promptFeedback), או על
@@ -788,7 +796,14 @@ namespace SubtitleStudio
             LastRetrySec = 0;
             LastQuotaIsDaily = false;
             int waitSec;
+            LastTransportFail = false;
             if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
+            if (LastTransportFail && !StopToken.Here)
+            {
+                Log("החיבור נפל בדרך - ניסיון נוסף מיד");
+                LastTransportFail = false;
+                if (PostOnce(url, json, out reply, out error, out waitSec)) return true;
+            }
             if (waitSec <= 0) return false;
             LastRetrySec = waitSec;
             // בשיחה לא מחכים: דגם אחר (עם מכסה משלו) עונה מיד. בתמלול ארוך - כן (0.8.12)
@@ -837,8 +852,12 @@ namespace SubtitleStudio
                 req.Method = "POST";
                 req.ContentType = "application/json; charset=utf-8";
                 req.UserAgent = "Subtext/" + App.Version;
-                req.Timeout = 180000;
-                req.ReadWriteTimeout = 180000;
+                // **חיבור חדש לכל בקשה (0.8.12).** חיבור ישן מהמאגר שהשרת כבר סגר: בקשה עם תמונה חיכתה שלוש דקות ונפלה ב״חיבור
+                // שהיה צפוי להישאר פעיל נסגר על-ידי השרת״ (נמדד, 12.10). לחיצת יד חדשה עולה עשיריות שנייה
+                req.KeepAlive = false;
+                // בשיחה לא מחכים שלוש דקות: אחרי דקה וחצי - ניסיון חוזר או דגם אחר
+                req.Timeout = PreferSwitch ? 90000 : 180000;
+                req.ReadWriteTimeout = PreferSwitch ? 90000 : 180000;
                 byte[] data = Encoding.UTF8.GetBytes(json);
                 req.ContentLength = data.Length;
                 using (Stream s = req.GetRequestStream()) s.Write(data, 0, data.Length);
@@ -853,6 +872,11 @@ namespace SubtitleStudio
             {
                 // נקטעה בעצירה: לא ״אין חיבור לאינטרנט״, ולא ניסיון חוזר
                 if (wex.Status == WebExceptionStatus.RequestCanceled && StopToken.Here) { error = Lang.T("נעצר."); return false; }
+                // החיבור נפל בדרך (לא תשובה מהשרת) - Post מנסה פעם אחת מיד
+                LastTransportFail = wex.Response == null &&
+                    (wex.Status == WebExceptionStatus.KeepAliveFailure || wex.Status == WebExceptionStatus.ConnectionClosed ||
+                     wex.Status == WebExceptionStatus.ReceiveFailure || wex.Status == WebExceptionStatus.SendFailure ||
+                     wex.Status == WebExceptionStatus.Timeout);
                 string detail = "";
                 int code = 0;
                 try
