@@ -2,6 +2,27 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.11",
+      "date": "2026-10-11",
+      "items": [
+        {
+          "t": "fix",
+          "s": "כלי הקול (ניקוי רעש, עוצמה, איזון ועוד) כבר לא מגדילים את הקובץ - הקול נשמר בגודל של המקור",
+          "en": "The sound tools (noise removal, volume, levelling and more) no longer make the file bigger - the sound keeps the size of the source"
+        },
+        {
+          "t": "fix",
+          "s": "״המרת פורמט״ של סרט שכבר מוכן ל-MP4 נעשית בלי קידוד מחדש - בשניות, בלי לאבד איכות ובלי להגדיל את הקובץ",
+          "en": "'Convert format' on a video that is already MP4-ready no longer re-encodes it - it takes seconds, loses no quality and doesn't make the file bigger"
+        },
+        {
+          "t": "fix",
+          "s": "״המרת פורמט״ שומרת את כל ערוצי הקול ואת הכתוביות שבתוך הסרט, ואומרת מראש כשאפשרות לא תעבוד על הקובץ",
+          "en": "'Convert format' keeps every sound track and the subtitles inside the video, and says up front when an option won't work on the file"
+        }
+      ]
+    },
+    {
       "v": "0.8.10",
       "date": "2026-10-11",
       "items": [
