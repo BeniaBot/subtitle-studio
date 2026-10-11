@@ -11,7 +11,8 @@
 #  3. **גודל קובץ בתוך משפט עברי בלי Ltr.** ‏״1.2 MB מתוך 37 MB״ הוצג
 #     ״MB 37 מתוך MB 1.2״ בחלון ההורדה של העדכון.
 # 5-7 (0.8.1): שכבת השפה - תבניות Lang.F, טקסט כתוב בכל קריאה, וטבלת התרגום.
-# צפוי: 7 בדיקות.
+# 8 (0.8.11): לכל טקסט בממשק יש תרגום.
+# צפוי: 8 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $pass = 0; $fail = 0
@@ -176,6 +177,30 @@ if (Test-Path $tsv) {
     }
 }
 Check 'בטבלת התרגום, לאנגלית אותם {n} כמו לעברית' ($bad.Count -eq 0) (Lines $bad)
+
+# ---- 8. לכל טקסט בממשק יש תרגום ----
+# מחרוזת בלי תרגום חוזרת בעברית, באמצע ממשק אנגלי, ושום בדיקה לא נכשלת (test-buttons מחפש חיתוך, לא שפה).
+# כך יצאו לצילומים ההסברים החדשים של ״המרת פורמט״ ב-0.8.11. הטבלה שומרת \n \t \\ כשני תווים, כמו בקוד.
+$keys = @{}
+if (Test-Path $tsv) {
+    foreach ($line in [IO.File]::ReadAllLines($tsv, [Text.Encoding]::UTF8)) {
+        if ($line.StartsWith('#')) { continue }
+        $p = $line -split "`t", 2
+        if ($p.Length -eq 2 -and $p[1].Trim().Length -gt 0) { $keys[$p[0]] = 1 }
+    }
+}
+$bad = @()
+foreach ($f in $cs) {
+    if ($f.Name -eq 'Lang.cs' -or $f.Name -eq 'LangEn.cs') { continue }
+    $t = [IO.File]::ReadAllText($f.FullName, [Text.Encoding]::UTF8)
+    foreach ($c in [LangScan]::Find($t)) {
+        if (-not $c.Literal -or $c.Template -notmatch $heb) { continue }
+        # ‏‏ בקוד הוא התו עצמו בטבלה
+        $k = [regex]::Replace($c.Template.Replace('\"', '"'), '\\u([0-9A-Fa-f]{4})', { param($m) [string][char][Convert]::ToInt32($m.Groups[1].Value, 16) })
+        if (-not $keys.ContainsKey($k)) { $bad += ('{0}:{1}  {2}' -f $f.Name, $c.Line, $c.Template) }
+    }
+}
+Check 'לכל Lang.T/Lang.F בעברית יש תרגום ב-en.tsv' ($bad.Count -eq 0) (Lines $bad)
 
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)

@@ -655,6 +655,12 @@ Ctrl+גלגלת	Ctrl+Wheel
 המרת קצב	Frame rate conversion
 
 # ---- DlgTools.cs ----
+הקובץ כבר MP4 שנפתח בכל מקום - קידוד מחדש לא ישפר אותו, רק ייקח זמן. לעותק מהיר - ״MP4 מהיר״.	This file is already an MP4 that opens everywhere - re-encoding won't improve it, it will only take time. For a quick copy, choose 'Fast MP4'.
+התמונה והקול מקודדים מחדש לצורה שנפתחת בכל מקום. לוקח זמן, באיכות מקסימלית.	The picture and sound are re-encoded into a form that opens everywhere. Takes time, at maximum quality.
+תוך שניות, בלי שום שינוי באיכות. MKV מקבל כל קידוד - אבל לא כל טלפון פותח אותו.	In seconds, with no change in quality. MKV takes any encoding - but not every phone opens it.
+תוך שניות, בלי שום שינוי באיכות: התמונה והקול מועתקים כמו שהם.	In seconds, with no change in quality: the picture and sound are copied as they are.
+התמונה או הקול בקובץ הזה בקידוד ש-MP4 לא מקבל כמו שהוא. ״MP4 - תאימות מרבית״ ימיר אותם.	The picture or sound in this file is in an encoding MP4 doesn't take as it is. 'MP4 - widest support' will convert them.
+MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - תאימות מרבית״ ימיר אותה.	MKV doesn't take the RealMedia picture as it is. 'MP4 - widest support' will convert it.
 כל הקבצים|*.*	All files|*.*
  - חדש	 - new
 הקובץ כבר קטן מהגודל הזה ({0}). כדי להקטין אותו באמת - לבחור גודל קטן יותר.	The file is already smaller than this size ({0}). To really make it smaller, choose a smaller size.
