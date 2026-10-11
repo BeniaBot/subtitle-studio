@@ -2,6 +2,52 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.10",
+      "date": "2026-10-11",
+      "items": [
+        {
+          "t": "major",
+          "s": "כלי החיתוך נוח הרבה יותר: לחיצה על פס הקול מנגנת משם, ״התחלה כאן״ ו״סוף כאן״ לפי הנגן, ו״השמעת התוצאה״ - שומעים בדיוק מה שייצא",
+          "en": "The cut tool is much easier: a click on the sound bar plays from there, 'Start here' and 'End here' follow the player, and 'Play the result' lets you hear exactly what will come out"
+        },
+        {
+          "t": "feature",
+          "s": "בחיתוך: דיוק של אלפית שנייה, הקלדה שמשפיעה מיד, ביטול (Ctrl+Z), ופריים אחורה וקדימה בפסיק ובנקודה",
+          "en": "In the cut tool: accuracy to a thousandth of a second, typing that takes effect at once, undo (Ctrl+Z), and one frame back and forward with comma and period"
+        },
+        {
+          "t": "fix",
+          "s": "בחיתוך: לחיצה כבר לא יוצרת קטע זעיר בטעות, והחלון נפתח בלי קטע שלא ביקשתם",
+          "en": "In the cut tool: a click no longer makes a tiny section by mistake, and the window opens without a section you didn't ask for"
+        },
+        {
+          "t": "major",
+          "s": "49 סוגי סרטים וקובצי קול - גם DVD, מצלמות ישנות, MXF, ‏AIFF, ‏AC3 ועוד - וכל הכלים עובדים עליהם",
+          "en": "49 video and audio file types - including DVD, old cameras, MXF, AIFF, AC3 and more - and all the tools work on them"
+        },
+        {
+          "t": "feature",
+          "s": "קובצי כתוביות של יוטיוב, של מילות שירים, של שירותי צפייה ושל Windows Media נפתחים",
+          "en": "Subtitle files from YouTube, song lyrics, streaming services and Windows Media open"
+        },
+        {
+          "t": "fix",
+          "s": "הקלדה ליד פס גרירה משפיעה מיד, בלי Enter - ואפשר להקליד בכל הפסים, גם בעיצוב הכתובית",
+          "en": "Typing next to a slider takes effect at once, without Enter - and every slider can be typed into, including the subtitle style"
+        },
+        {
+          "t": "feature",
+          "s": "״התאמה לגודל קובץ״: נפתחת לפי גודל הקובץ, כפתורים לגדלים נפוצים, והאיכות כתובה במילים",
+          "en": "'Fit to a file size': opens according to the file's size, buttons for common sizes, and the quality in plain words"
+        },
+        {
+          "t": "fix",
+          "s": "בסרט בלי קול, כלי הקול אומרים ״בקובץ הזה אין קול״ במקום שגיאה",
+          "en": "On a video without sound, the sound tools say 'This file has no sound' instead of an error"
+        }
+      ]
+    },
+    {
       "v": "0.8.9",
       "date": "2026-10-09",
       "items": [
