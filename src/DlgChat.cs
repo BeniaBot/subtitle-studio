@@ -30,7 +30,7 @@ namespace SubtitleStudio
         private Point _dragOrigin;
         private bool _dragging;
 
-        private const int MaxRounds = 8;
+        private const int MaxRounds = 12;
         private static readonly string[] Chips = new string[]
         {
             Lang.T("תרגם את הכתוביות לאנגלית"),
@@ -333,48 +333,85 @@ namespace SubtitleStudio
                 return;
             }
 
-            if (!string.IsNullOrEmpty(r.Text))
-            {
-                _view.AddBot(r.Text);
-                AiMsg m = new AiMsg();
-                m.Role = "model";
-                m.Text = r.Text;
-                _history.Add(m);
-            }
+            if (!string.IsNullOrEmpty(r.Text)) _view.AddBot(r.Text);
 
-            if (r.Call == null) { Done(); return; }
-
-            bool refused;
-            Dictionary<string, object> res;
-            try { res = _host.RunAiAction(r.Call, out refused); }
-            catch (Exception ex)
-            {
-                refused = false;
-                res = new Dictionary<string, object>();
-                res["error"] = ex.Message;
-            }
-
+            // **התור של המודל נשמר כמו שהגיע** - טקסט ובקשות יחד, עם החתימות (`AiMsg.Parts`). עד 0.8.12 הוא פוצל
+            // לשתי הודעות והחתימה נזרקה, וכל בקשה של שני שלבים נפלה בשלב השני
             AiMsg model = new AiMsg();
             model.Role = "model";
-            model.Call = r.Call;
-            model.Hidden = true;
-            _history.Add(model);
+            model.Text = r.Text ?? "";
+            model.Parts = r.Parts ?? PartsOf(r);
+            model.Hidden = model.Text.Length == 0;
+            if (model.Parts.Count > 0) _history.Add(model);
+
+            if (r.Calls.Count == 0) { Done(); return; }
+
+            // **כל** הפעולות שביקש, לפי הסדר (עד 0.8.12 - רק האחרונה). המשתמש ביטל אחת - השאר לא מתבצעות
+            List<Dictionary<string, object>> results = new List<Dictionary<string, object>>();
+            bool stopped = false;
+            foreach (AiCall call in r.Calls)
+            {
+                Dictionary<string, object> res;
+                if (stopped)
+                {
+                    res = new Dictionary<string, object>();
+                    res["skipped"] = "המשתמש ביטל פעולה קודמת בבקשה הזאת, ולכן זו לא בוצעה";
+                    results.Add(res);
+                    continue;
+                }
+                bool refused;
+                try { res = _host.RunAiAction(call, out refused); }
+                catch (Exception ex)
+                {
+                    refused = false;
+                    res = new Dictionary<string, object>();
+                    res["error"] = ex.Message;
+                }
+                if (res == null) res = new Dictionary<string, object>();
+                results.Add(res);
+                ShowResult(res, refused);
+                if (refused) stopped = true;
+                if (IsDisposed) return;
+            }
 
             AiMsg tool = new AiMsg();
             tool.Role = "tool";
-            tool.ToolName = r.Call.Name;
-            tool.ToolResult = res;
+            tool.Calls = r.Calls;
+            tool.Results = results;
+            tool.ToolName = r.Calls[0].Name;
+            tool.ToolResult = results[0];
+            tool.Hidden = true;
             _history.Add(tool);
 
+            Turn(round + 1);
+        }
+
+        /// <summary>שורת ״✓ בוצע״ / ״הפעולה בוטלה״ / השגיאה, מתחת לתשובה.</summary>
+        private void ShowResult(Dictionary<string, object> res, bool refused)
+        {
             object done;
-            if (res != null && res.TryGetValue("done", out done) && Convert.ToString(done).Length > 0)
+            if (res.TryGetValue("done", out done) && Convert.ToString(done).Length > 0)
                 _view.AddAction(Convert.ToString(done), true);
             else if (refused)
                 _view.AddAction(Lang.T("הפעולה בוטלה"), false);
-            else if (res != null && res.ContainsKey("error"))
+            else if (res.ContainsKey("error"))
                 _view.AddAction(Convert.ToString(res["error"]), false);
+        }
 
-            Turn(round + 1);
+        /// <summary>חלקים לתור של המודל כשהשרת לא החזיר אותם (שרת מדומה בבדיקות): הטקסט, ובקשה לכל פעולה.</summary>
+        private static List<object> PartsOf(AiReply r)
+        {
+            List<object> ps = new List<object>();
+            if (!string.IsNullOrEmpty(r.Text)) ps.Add(new Dictionary<string, object> { { "text", r.Text } });
+            foreach (AiCall c in r.Calls)
+            {
+                Dictionary<string, object> fc = new Dictionary<string, object>();
+                fc["name"] = c.Name;
+                fc["args"] = c.Args ?? new Dictionary<string, object>();
+                if (!string.IsNullOrEmpty(c.Id)) fc["id"] = c.Id;
+                ps.Add(new Dictionary<string, object> { { "functionCall", fc } });
+            }
+            return ps;
         }
 
         private int _lastRound = -1;
@@ -564,7 +601,14 @@ namespace SubtitleStudio
                 {
                     foreach (Item it in _items)
                     {
-                        if (it.Kind == Kind.Action) { it.H = Theme.S(30); continue; }
+                        if (it.Kind == Kind.Action)
+                        {
+                            // שורת ״✓ בוצע״ ארוכה גולשת לשורה נוספת. עד 0.8.12 היא נחתכה בשלוש נקודות
+                            Size a = TextSize(ActionText(it), Theme.Small, (int)ActionMaxW - Theme.S(26), it.Rtl);
+                            it.W = Math.Min(ActionMaxW, a.Width + Theme.S(26) + 2);
+                            it.H = Math.Max(Theme.S(30), a.Height + Theme.S(14));
+                            continue;
+                        }
                         if (it.Kind == Kind.Chips)
                         {
                             float w = Width - Theme.S(6);
@@ -582,10 +626,11 @@ namespace SubtitleStudio
                             it.H = y + rowH;
                             continue;
                         }
-                        SizeF s = g.MeasureString(it.Text, Theme.Ui,
-                            new SizeF(BubbleW - Theme.S(26), 4000f), it.Rtl ? Theme.SfRtlWrap : Theme.SfWrap);
+                        // **נמדד באותו מנוע שמצייר** (TextRenderer, דרך Theme.Str). עד 0.8.12 המדידה היתה של GDI+, והוא
+                        // שובר שורות אחרת: הטקסט צויר בשורה אחת יותר מהבועה, והסוף של תשובות ארוכות פשוט לא נראה
+                        Size s = TextSize(it.Text, Theme.Ui, (int)BubbleW - Theme.S(26), it.Rtl);
                         it.H = s.Height + Theme.S(26) + (it.Retry ? Theme.S(34) : 0);
-                        it.W = Math.Min(BubbleW, s.Width + Theme.S(30));
+                        it.W = Math.Min(BubbleW, s.Width + Theme.S(30) + 2);
                         if (it.Retry) it.W = Math.Max(it.W, Theme.S(150));
                         if (it.W < Theme.S(70)) it.W = Theme.S(70);
                     }
@@ -594,6 +639,18 @@ namespace SubtitleStudio
             }
 
             protected override void OnResize(EventArgs e) { base.OnResize(e); Measure(); }
+
+            /// <summary>גודל פסקה ברוחב נתון, באותן הגדרות שבהן Theme.Str מצייר אותה.</summary>
+            private static Size TextSize(string s, Font f, int width, bool rtl)
+            {
+                if (string.IsNullOrEmpty(s) || width <= 0) return Size.Empty;
+                TextFormatFlags fl = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.WordBreak;
+                if (rtl) fl |= TextFormatFlags.RightToLeft;
+                return TextRenderer.MeasureText(s, f, new Size(width, int.MaxValue), fl);
+            }
+
+            private float ActionMaxW { get { return Width - Theme.S(20); } }
+            private static string ActionText(Item it) { return (it.Good ? "✓  " : "·  ") + it.Text; }
 
             private float TotalH
             {
@@ -692,11 +749,12 @@ namespace SubtitleStudio
                     {
                         if (it.Kind == Kind.Action)
                         {
-                            string s = (it.Good ? "✓  " : "·  ") + it.Text;
-                            float w = Math.Min(Width - Theme.S(20), Theme.Measure(g, s, Theme.Small).Width + Theme.S(26));
-                            RectangleF r = new RectangleF((Width - w) / 2f, y + Theme.S(3), w, Theme.S(24));
+                            string s = ActionText(it);
+                            float w = it.W > 0 ? it.W : ActionMaxW;
+                            RectangleF r = new RectangleF((Width - w) / 2f, y + Theme.S(3), w, it.H - Theme.S(6));
                             Theme.FillRound(g, r, Theme.S(12), Theme.Mix(Theme.Bg, it.Good ? Theme.Good : Theme.Warn, 0.16f));
-                            Theme.Str(g, s, Theme.Small, it.Good ? Theme.Good : Theme.Warn, r, Theme.SfCenter);
+                            RectangleF tr = new RectangleF(r.X + Theme.S(13), r.Y + Theme.S(4), r.Width - Theme.S(26), r.Height - Theme.S(8));
+                            Theme.Str(g, s, Theme.Small, it.Good ? Theme.Good : Theme.Warn, tr, it.Rtl ? Theme.SfRtlWrap : Theme.SfWrap);
                         }
                         else if (it.Kind == Kind.Chips)
                         {

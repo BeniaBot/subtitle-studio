@@ -86,6 +86,15 @@ namespace SubtitleStudio
         public AiCall Call;                // תור של המודל שביקש להפעיל פעולה
         public bool Hidden;                // הודעות שירות שלא מוצגות בצ'אט
 
+        /// <summary>**תור של המודל כמו שהגיע, חלק אחר חלק** - טקסט, בקשות לפעולות, ו-thoughtSignature שלהן.
+        /// עד 0.8.12 נשמרו רק הטקסט ובקשה אחת, והחתימה נזרקה. הדגמים החדשים (2.5 ו-3) דוחים את הבקשה הבאה
+        /// בשיחה: ״Function call is missing a thought_signature״ - כל בקשה של שני שלבים נפלה בשלב השני (נמדד, 11.10.2026).</summary>
+        public List<object> Parts;
+
+        /// <summary>תור תשובות לכמה פעולות שהמודל ביקש יחד - אחת לכל בקשה, באותו סדר.</summary>
+        public List<AiCall> Calls;
+        public List<Dictionary<string, object>> Results;
+
         /// <summary>קטע שמע לתמלול, מקודד base64, יחד עם ה-mime שלו.
         /// נשלח כ-inline_data לצד הטקסט. כשזה מלא, ההודעה נושאת שני
         /// חלקים - ההוראה והשמע.</summary>
@@ -98,6 +107,8 @@ namespace SubtitleStudio
     {
         public string Name = "";
         public Dictionary<string, object> Args = new Dictionary<string, object>();
+        /// <summary>המזהה שהשרת נתן לבקשה (בדגמים שנותנים). חוזר בתשובה, כדי שהתשובה תשויך לבקשה הנכונה.</summary>
+        public string Id;
 
         public string Str(string key, string def)
         {
@@ -137,7 +148,12 @@ namespace SubtitleStudio
     internal class AiReply
     {
         public string Text = "";
+        /// <summary>הבקשה הראשונה מ-Calls (לקוד שמטפל רק באחת).</summary>
         public AiCall Call;
+        /// <summary>**כל** הפעולות שהמודל ביקש בתשובה הזאת, לפי הסדר. עד 0.8.12 נשמרה רק האחרונה, והשאר נעלמו.</summary>
+        public List<AiCall> Calls = new List<AiCall>();
+        /// <summary>החלקים כמו שהגיעו - לשמור בשיחה כמו שהם (`AiMsg.Parts`).</summary>
+        public List<object> Parts;
         public string Error;
         public string Finish = "";      // סיבת סיום מהשרת (MAX_TOKENS וכדומה)
         public bool Ok { get { return Error == null; } }
@@ -406,12 +422,17 @@ namespace SubtitleStudio
                 StringBuilder text = new StringBuilder();
                 if (pa != null)
                 {
+                    r.Parts = new List<object>();
                     foreach (object po in pa)
                     {
                         Dictionary<string, object> pd = po as Dictionary<string, object>;
                         if (pd == null) continue;
+                        r.Parts.Add(pd);
+                        // סיכום החשיבה של הדגם (thought=true) הוא לא תשובה למשתמש
+                        object th;
+                        bool thought = pd.TryGetValue("thought", out th) && th is bool && (bool)th;
                         object t;
-                        if (pd.TryGetValue("text", out t) && t != null) text.Append(Convert.ToString(t));
+                        if (!thought && pd.TryGetValue("text", out t) && t != null) text.Append(Convert.ToString(t));
                         object fc;
                         if (pd.TryGetValue("functionCall", out fc))
                         {
@@ -427,10 +448,13 @@ namespace SubtitleStudio
                                     Dictionary<string, object> a = ag as Dictionary<string, object>;
                                     if (a != null) call.Args = a;
                                 }
-                                r.Call = call;
+                                object id;
+                                if (f.TryGetValue("id", out id) && id != null) call.Id = Convert.ToString(id);
+                                r.Calls.Add(call);
                             }
                         }
                     }
+                    if (r.Calls.Count > 0) r.Call = r.Calls[0];
                 }
                 r.Text = text.ToString().Trim();
                 if (r.Text.Length == 0 && r.Call == null)
@@ -551,7 +575,28 @@ namespace SubtitleStudio
             foreach (AiMsg m in history)
             {
                 Dictionary<string, object> item = new Dictionary<string, object>();
-                if (m.Role == "tool")
+                if (m.Role == "model" && m.Parts != null && m.Parts.Count > 0)
+                {
+                    // התור של המודל כמו שהגיע - עם החתימות. כל שינוי בו (גם השמטה של חלק טקסט) שובר את השיחה
+                    item["role"] = "model";
+                    item["parts"] = m.Parts.ToArray();
+                }
+                else if (m.Role == "tool" && m.Calls != null && m.Results != null)
+                {
+                    // תשובה לכל בקשה, באותו סדר ובאותו תור
+                    List<object> ps = new List<object>();
+                    for (int k = 0; k < m.Calls.Count; k++)
+                    {
+                        Dictionary<string, object> fr = new Dictionary<string, object>();
+                        fr["name"] = m.Calls[k].Name;
+                        if (!string.IsNullOrEmpty(m.Calls[k].Id)) fr["id"] = m.Calls[k].Id;
+                        fr["response"] = k < m.Results.Count && m.Results[k] != null ? (object)m.Results[k] : new Dictionary<string, object>();
+                        ps.Add(new Dictionary<string, object> { { "functionResponse", fr } });
+                    }
+                    item["role"] = "user";
+                    item["parts"] = ps.ToArray();
+                }
+                else if (m.Role == "tool")
                 {
                     item["role"] = "user";
                     item["parts"] = new object[] { new Dictionary<string, object> {
