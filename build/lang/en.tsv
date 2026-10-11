@@ -319,6 +319,21 @@
 מדויק, בלי אובדן איכות	exact, no loss of quality
 בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״.	Without re-encoding a cut can only start at a key frame. For full accuracy, turn off “Fast cut”.
 חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון	Fast cut: a section will start up to {0} seconds before the mark
+ההתחלה = איפה שהנגן עומד עכשיו (הקו האדום)	Start = where the player is now (the red line)
+הסוף = איפה שהנגן עומד עכשיו (הקו האדום)	End = where the player is now (the red line)
+מקלידים זמן (2:30, ‏150, ‏1:02:30.250) - משפיע מיד · חצים: שנייה · Shift: עשירית · Ctrl: מאית · Esc: לבטל	Type a time (2:30, 150, 1:02:30.250) - takes effect at once · Arrows: a second · Shift: a tenth · Ctrl: a hundredth · Esc: undo
+התחלה כאן	Start here
+ההתחלה של הקטע - איפה שהנגן עומד (המקש I). כשהנגן כבר אחרי הקטע - קטע חדש	The start of the section - where the player is (the I key). When the player is already past the section - a new section
+סוף כאן	End here
+הסוף של הקטע - איפה שהנגן עומד (המקש O)	The end of the section - where the player is (the O key)
+השמעת התוצאה	Play the result
+משמיע רק את מה שיישמר, ברצף - בדיוק מה שייצא - ועוצר בסוף	Plays only what will be kept, in a row - exactly what will come out - and stops at the end
+לחיצה - הנגן עובר לשם · לחיצה כפולה - לנגן משם · גרירה - קטע חדש · גרירת קו צבעוני - הזזה\nהמספרים למעלה: גרירה מזיזה את הנגן · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · פסיק ונקודה - פריים אחורה וקדימה	Click - the player goes there · Double-click - play from there · Drag - a new section · Drag a colored line - move it\nThe numbers on top: drag to move the player · Wheel - scroll, Ctrl+wheel - zoom · Comma and period - one frame back and forward
+לחיצה - הנגן עובר לשם · לחיצה כפולה - לנגן · גרירה - קטע חדש · גרירת קו - הזזה · Ctrl+Z - ביטול	Click - go there · Double-click - play · Drag - new section · Drag a line - move it · Ctrl+Z - undo
+אין מה לבטל.	Nothing to undo.
+אין קטעים עדיין. גוררים על פס הקול, או מנגנים ולוחצים ״התחלה כאן״ ו״סוף כאן״.	No sections yet. Drag on the sound bar, or play and click “Start here” and “End here”.
+אין כאן מקום לקטע חדש - הזיזו את הנגן.	There is no room for a new section here - move the player.
+אין מה לשמוע - הכול יוסר.	Nothing to hear - everything will be removed.
 
 # ---- DlgEdit.cs ----
 הזזת תזמון	Shift timing
@@ -754,6 +769,17 @@ MP4 מהיר - העתקת זרם בלי קידוד	Fast MP4 - stream copy withou
 חסר קובץ	File missing
 בחרו את הקובץ הנדרש לפעולה.	Choose the file this action needs.
 אי אפשר לכתוב על קובץ המקור.	The source file can't be overwritten.
+קובצי קול	Audio files
+קובצי וידאו	Video files
+לא זמין - אין קול בקובץ	Not available - the file has no sound
+בקובץ הזה אין קול.	This file has no sound.
+יוצא {0} במקום {1}	{0} instead of {1}
+תמונה {0} (במקור {1})	Picture {0} (originally {1})
+תמונה {0} כמו במקור	Picture {0}, as in the original
+איכות טובה מאוד	Very good quality
+איכות טובה	Good quality
+איכות סבירה	Fair quality
+איכות נמוכה	Low quality
 
 # ---- DlgTranscribe.cs ----
 תמלול אוטומטי	Automatic transcription
@@ -1273,6 +1299,11 @@ Windows-1254 (טורקית)	Windows-1254 (Turkish)
 מסמן כאן את תחילת הקטע (I)	Marks the start of the section here (I)
 קטע מסומן: תמלול, תרגום ותזמון רצים רק עליו, ו״הסרט ← חיתוך קטעים״ מתחיל ממנו	With a section marked, transcription, translation and timing run on it alone, and “Video → Cut sections” starts from it
 מסמן כאן את סוף הקטע (O)	Marks the end of the section here (O)
+סרטים וקובצי קול	Videos and audio files
+כל הקבצים	All files
+קובצי כתוביות	Subtitle files
+כל הקבצים שאני מכיר	All supported files
+פרויקטים	Projects
 # ---- Model.cs ----
   ·  משך כולל 	  ·  total length 
 

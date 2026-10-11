@@ -309,6 +309,21 @@ namespace SubtitleStudio
             "חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון", "Fast cut: a section will start up to {0} seconds before the mark",
         };
         private static readonly string[] P1 = new string[] {
+            "ההתחלה = איפה שהנגן עומד עכשיו (הקו האדום)", "Start = where the player is now (the red line)",
+            "הסוף = איפה שהנגן עומד עכשיו (הקו האדום)", "End = where the player is now (the red line)",
+            "מקלידים זמן (2:30, ‏150, ‏1:02:30.250) - משפיע מיד · חצים: שנייה · Shift: עשירית · Ctrl: מאית · Esc: לבטל", "Type a time (2:30, 150, 1:02:30.250) - takes effect at once · Arrows: a second · Shift: a tenth · Ctrl: a hundredth · Esc: undo",
+            "התחלה כאן", "Start here",
+            "ההתחלה של הקטע - איפה שהנגן עומד (המקש I). כשהנגן כבר אחרי הקטע - קטע חדש", "The start of the section - where the player is (the I key). When the player is already past the section - a new section",
+            "סוף כאן", "End here",
+            "הסוף של הקטע - איפה שהנגן עומד (המקש O)", "The end of the section - where the player is (the O key)",
+            "השמעת התוצאה", "Play the result",
+            "משמיע רק את מה שיישמר, ברצף - בדיוק מה שייצא - ועוצר בסוף", "Plays only what will be kept, in a row - exactly what will come out - and stops at the end",
+            "לחיצה - הנגן עובר לשם · לחיצה כפולה - לנגן משם · גרירה - קטע חדש · גרירת קו צבעוני - הזזה\nהמספרים למעלה: גרירה מזיזה את הנגן · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · פסיק ונקודה - פריים אחורה וקדימה", "Click - the player goes there · Double-click - play from there · Drag - a new section · Drag a colored line - move it\nThe numbers on top: drag to move the player · Wheel - scroll, Ctrl+wheel - zoom · Comma and period - one frame back and forward",
+            "לחיצה - הנגן עובר לשם · לחיצה כפולה - לנגן · גרירה - קטע חדש · גרירת קו - הזזה · Ctrl+Z - ביטול", "Click - go there · Double-click - play · Drag - new section · Drag a line - move it · Ctrl+Z - undo",
+            "אין מה לבטל.", "Nothing to undo.",
+            "אין קטעים עדיין. גוררים על פס הקול, או מנגנים ולוחצים ״התחלה כאן״ ו״סוף כאן״.", "No sections yet. Drag on the sound bar, or play and click “Start here” and “End here”.",
+            "אין כאן מקום לקטע חדש - הזיזו את הנגן.", "There is no room for a new section here - move the player.",
+            "אין מה לשמוע - הכול יוסר.", "Nothing to hear - everything will be removed.",
             "הזזת תזמון", "Shift timing",
             "מזיזים קבוצת כתוביות קדימה או אחורה", "Move a group of subtitles earlier or later",
             "על אילו כתוביות להחיל?", "Which subtitles?",
@@ -594,6 +609,8 @@ namespace SubtitleStudio
             "הזזה של {0} שניות {1}", "Shift by {0} seconds {1}",
             "אין מה לתקן", "Nothing to fix",
             "הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.", "The subtitle already starts exactly where the video is.",
+        };
+        private static readonly string[] P2 = new string[] {
             "סנכרון", "Sync",
             "הנקודות קרובות מדי", "The points are too close",
             "בחרו כתובית רחוקה יותר מהנקודה הראשונה.", "Choose a subtitle further from the first point.",
@@ -609,8 +626,6 @@ namespace SubtitleStudio
             "כשהכתוביות נעשו לגרסה בקצב אחר", "For subtitles timed to a different frame rate",
             "הכתוביות נעשו בקצב", "The subtitles were made at",
             "הסרט שלכם בקצב", "Your video runs at",
-        };
-        private static readonly string[] P2 = new string[] {
             "אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הסרט.", "If you're not sure, it's better to use Sync to the video.",
             "להמיר", "Convert",
             "אותו קצב", "Same rate",
@@ -730,6 +745,17 @@ namespace SubtitleStudio
             "חסר קובץ", "File missing",
             "בחרו את הקובץ הנדרש לפעולה.", "Choose the file this action needs.",
             "אי אפשר לכתוב על קובץ המקור.", "The source file can't be overwritten.",
+            "קובצי קול", "Audio files",
+            "קובצי וידאו", "Video files",
+            "לא זמין - אין קול בקובץ", "Not available - the file has no sound",
+            "בקובץ הזה אין קול.", "This file has no sound.",
+            "יוצא {0} במקום {1}", "{0} instead of {1}",
+            "תמונה {0} (במקור {1})", "Picture {0} (originally {1})",
+            "תמונה {0} כמו במקור", "Picture {0}, as in the original",
+            "איכות טובה מאוד", "Very good quality",
+            "איכות טובה", "Good quality",
+            "איכות סבירה", "Fair quality",
+            "איכות נמוכה", "Low quality",
             "תמלול אוטומטי", "Automatic transcription",
             "התוכנה מקשיבה לסרט וכותבת את הכתוביות", "The program listens to the video and writes the subtitles",
             "איפה לתמלל", "Where to transcribe",
@@ -885,6 +911,8 @@ namespace SubtitleStudio
             "מדביקים טקסט - התוכנה מחלקת ומתזמנת לבד", "Paste text - the program splits and times it by itself",
             "שליפת כתוביות מהסרט", "Extract subtitles from the video",
             "מוציא ערוץ כתוביות שכבר קיים בקובץ", "Takes out a subtitle track that's already in the file",
+        };
+        private static readonly string[] P3 = new string[] {
             "תזמון", "Timing",
             "כשהכתוביות מקדימות או מאחרות באופן קבוע", "When the subtitles are always early or late",
             "בוחרים כתובית, עוצרים איפה שהיא נשמעת - ואני מתקן", "Choose a subtitle, stop where it's heard - and I'll fix it",
@@ -911,8 +939,6 @@ namespace SubtitleStudio
             "מידע", "Information",
             "פרטי הקובץ", "File details",
             "ערוצים, רזולוציה, אורך וגודל", "Tracks, resolution, length and size",
-        };
-        private static readonly string[] P3 = new string[] {
             "הכתוביות שלי", "My subtitles",
             "מה כדאי לתקן בכתוביות, ותיקון אוטומטי", "What's worth fixing in the subtitles, and automatic fixes",
             "הכתובית הוזזה ל-{0}.  לביטול - Ctrl+Z.", "The subtitle was moved to {0}.  To undo - Ctrl+Z.",
@@ -1187,6 +1213,8 @@ namespace SubtitleStudio
             "נפתח הפרויקט {0}‏", "Opened the project {0}",
             "  ·  בלי הסרט", "  ·  without the video",
             "הסרט של הפרויקט לא נמצא", "The project's video wasn't found",
+        };
+        private static readonly string[] P4 = new string[] {
             "חיפשתי את {0}‏ ולא מצאתי. אולי הוא הועבר לתיקייה אחרת, או שהכונן שלו לא מחובר.\nהכתוביות נפתחות בכל מקרה.", "I looked for {0} and didn't find it. Maybe it was moved to another folder, or its drive isn't connected.\nThe subtitles open anyway.",
             "לאתר את הסרט", "Find the video",
             "להמשיך בלי הסרט", "Go on without the video",
@@ -1213,8 +1241,6 @@ namespace SubtitleStudio
             "מהתחלת הכתובית", "From the start of the subtitle",
             "נכון - להסיר את הסימון", "Correct - remove the mark",
             "נשמע כמו שכתוב · Ctrl+Z מבטל", "Sounds as written · Ctrl+Z undoes",
-        };
-        private static readonly string[] P4 = new string[] {
             "כתובית אחת לא תורגמה", "One subtitle was not translated",
             "{0} כתוביות לא תורגמו", "{0} subtitles were not translated",
             "המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב.", "The model skipped them even on a second try, and they stayed in the original language. You can translate them by hand, or translate again.",
@@ -1238,6 +1264,11 @@ namespace SubtitleStudio
             "מסמן כאן את תחילת הקטע (I)", "Marks the start of the section here (I)",
             "קטע מסומן: תמלול, תרגום ותזמון רצים רק עליו, ו״הסרט ← חיתוך קטעים״ מתחיל ממנו", "With a section marked, transcription, translation and timing run on it alone, and “Video → Cut sections” starts from it",
             "מסמן כאן את סוף הקטע (O)", "Marks the end of the section here (O)",
+            "סרטים וקובצי קול", "Videos and audio files",
+            "כל הקבצים", "All files",
+            "קובצי כתוביות", "Subtitle files",
+            "כל הקבצים שאני מכיר", "All supported files",
+            "פרויקטים", "Projects",
             "  ·  משך כולל ", "  ·  total length ",
             "קרתה תקלה בלתי צפויה:\n\n{0}", "Something unexpected went wrong:\n\n{0}",
             "לא הצלחתי לקרוא את הקובץ: {0}", "Couldn't read the file: {0}",
