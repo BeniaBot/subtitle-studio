@@ -30,11 +30,20 @@ namespace SubtitleStudio
         public event EventHandler Edited;
         /// <summary>לחיצה על הגל - לשם עובר הנגן.</summary>
         public event Action<long> SeekTo;
+        /// <summary>לחיצה כפולה על הגל - מנגנים משם.</summary>
+        public event Action<long> PlayFrom;
+        /// <summary>מתחילים לגרור קו של קטע - החלון שומר מצב לביטול.</summary>
+        public event EventHandler EditStarting;
         public event EventHandler ActiveChanged;
         public event EventHandler ViewChanged;
 
         private CutSection _dragSec;
-        private bool _dragStart, _dragNew, _moved;
+        private bool _dragStart, _dragNew, _moved, _scrub;
+
+        /// <summary>כמה רחוק צריך לגרור כדי שזה ייחשב קטע חדש, ולא לחיצה. **עד 0.8.10 - 4 פיקסלים**, ובעכבר רגיל לחיצה
+        /// ״כדי לנגן מכאן״ יצרה קטע של חצי שנייה, והנגן לא זז (בנימין: ״איך אני מגדיר נגינה על מקום מסוים?״; נוסה 11.10).</summary>
+        private int DragPx { get { return Theme.S(12); } }
+        private const long MinNewMs = 250;
         private int _x0;
         private long _t0, _t1;
 
@@ -161,8 +170,25 @@ namespace SubtitleStudio
             {
                 float a = X(Math.Min(_t0, _t1)), b2 = X(Math.Max(_t0, _t1));
                 using (SolidBrush b = new SolidBrush(Color.FromArgb(60, Theme.Text))) g.FillRectangle(b, a, top, Math.Max(1, b2 - a), H - top);
+                TimeTag(g, (a + b2) / 2, CutDlg.Precise(Math.Min(_t0, _t1)) + " – " + CutDlg.Precise(Math.Max(_t0, _t1)));
             }
+            // בזמן גרירה - הזמן המדויק של מה שזז, ליד הקו (בנימין: ״למה אני יכול לדייק רק עד עשירית השנייה?״)
+            if (_dragSec != null) TimeTag(g, X(_dragStart ? _dragSec.A : _dragSec.B), CutDlg.Precise(_dragStart ? _dragSec.A : _dragSec.B));
+            else if (_scrub) TimeTag(g, X(Playhead), CutDlg.Precise(Playhead));
             Theme.HLine(g, Theme.Border, 0, W, H - 1);
+        }
+
+        /// <summary>תווית זמן קטנה בתחתית הגל, ממורכזת על <paramref name="x"/> (ולא יוצאת מהקצוות).</summary>
+        private void TimeTag(Graphics g, float x, string text)
+        {
+            text = Theme.Ltr(text);
+            Size sz = TextRenderer.MeasureText(text, Theme.SmallBold);
+            float w = sz.Width + Theme.S(10), h = Theme.S(20);
+            float l = Math.Max(Theme.S(2), Math.Min(Width - w - Theme.S(2), x - w / 2));
+            RectangleF r = new RectangleF(l, Height - h - Theme.S(5), w, h);
+            Theme.FillRound(g, r, Theme.S(5), Theme.Dark ? Color.FromArgb(235, 20, 22, 28) : Color.FromArgb(240, 255, 255, 255));
+            Theme.DrawRound(g, r, Theme.S(5), Theme.Border, 1f);
+            Theme.Str(g, text, Theme.SmallBold, Theme.Text, r, Theme.SfCenter);
         }
 
         private void DrawRuler(Graphics g, int top)
@@ -206,15 +232,30 @@ namespace SubtitleStudio
             return best;
         }
 
+        /// <summary>שורת המספרים שמעל הגל (ועוד קצת) היא ״פס הנגן״: לחיצה וגרירה שם מזיזות את הנגן, לא יוצרות קטע.
+        /// עד 0.8.10 גרירה שם - מה שכל אחד עושה כדי להזיז נגן - יצרה קטע (נוסה 11.10).</summary>
+        private bool OnRuler(int y) { return y < RulerH + Theme.S(4); }
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             Focus();
             if (e.Button != MouseButtons.Left || Duration <= 0) return;
+            if (OnRuler(e.Y))
+            {
+                _scrub = true;
+                Capture = true;
+                long t0 = T(Math.Max(0, Math.Min(Width, e.X)));
+                Playhead = t0;
+                if (SeekTo != null) SeekTo(t0);
+                Invalidate();
+                return;
+            }
             bool st;
             CutSection s = Hit(e.X, out st);
             if (s != null)
             {
+                if (EditStarting != null) EditStarting(this, EventArgs.Empty);
                 _dragSec = s; _dragStart = st;
                 if (ActiveId != s.Id) { ActiveId = s.Id; if (ActiveChanged != null) ActiveChanged(this, EventArgs.Empty); }
             }
@@ -226,10 +267,18 @@ namespace SubtitleStudio
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            if (_scrub)
+            {
+                if (e.X < 0) SetView(ViewStart + (long)(e.X * MsPerPx * 0.3), MsPerPx);
+                else if (e.X > Width) SetView(ViewStart + (long)((e.X - Width) * MsPerPx * 0.3), MsPerPx);
+                long ts = T(Math.Max(0, Math.Min(Width, e.X)));
+                if (ts != Playhead) { Playhead = ts; if (SeekTo != null) SeekTo(ts); Invalidate(); }
+                return;
+            }
             if (_dragSec == null && !_dragNew)
             {
                 bool st;
-                Cursor = Hit(e.X, out st) != null ? Cursors.SizeWE : Cursors.Cross;
+                Cursor = OnRuler(e.Y) ? Cursors.Hand : (Hit(e.X, out st) != null ? Cursors.SizeWE : Cursors.Cross);
                 return;
             }
             // גרירה מעבר לקצה מזיזה את התצוגה
@@ -246,7 +295,7 @@ namespace SubtitleStudio
             }
             else
             {
-                if (Math.Abs(e.X - _x0) > Theme.S(4)) _moved = true;
+                if (Math.Abs(e.X - _x0) > DragPx) _moved = true;
                 _t1 = t;
             }
             Invalidate();
@@ -256,15 +305,27 @@ namespace SubtitleStudio
         {
             base.OnMouseUp(e);
             Capture = false;
+            if (_scrub) { _scrub = false; Invalidate(); return; }
             if (_dragNew)
             {
                 _dragNew = false;
-                if (_moved) { if (CreateSection != null) CreateSection(Math.Min(_t0, _t1), Math.Max(_t0, _t1)); }
+                // קטע של פחות מרבע שנייה הוא יד שזזה בלחיצה, לא קטע
+                if (_moved && Math.Abs(_t1 - _t0) >= MinNewMs) { if (CreateSection != null) CreateSection(Math.Min(_t0, _t1), Math.Max(_t0, _t1)); }
                 else if (SeekTo != null) SeekTo(_t0);
             }
             else if (_dragSec != null && SeekTo != null) SeekTo(_dragStart ? _dragSec.A : _dragSec.B);
             _dragSec = null;
             Invalidate();
+        }
+
+        /// <summary>לחיצה כפולה על הגל: לנגן משם (שתי הלחיצות כבר הזיזו את הנגן לנקודה).</summary>
+        protected override void OnMouseDoubleClick(MouseEventArgs e)
+        {
+            base.OnMouseDoubleClick(e);
+            if (e.Button != MouseButtons.Left || OnRuler(e.Y) || Duration <= 0) return;
+            bool st;
+            if (Hit(e.X, out st) != null) return;
+            if (PlayFrom != null) PlayFrom(T(Math.Max(0, Math.Min(Width, e.X))));
         }
 
         protected override void OnMouseWheel(MouseEventArgs e)
@@ -366,7 +427,8 @@ namespace SubtitleStudio
         public bool Active;
 
         /// <summary>רוחבי העמודות, לפי הסדר מתחילת השורה (מימין בעברית).</summary>
-        internal static readonly int[] Cols = { 40, 104, 98, 30, 98, 30, 70, 30, 30 };
+        // הזמנים באלפיות (0.8.10) - העמודות שלהם רחבות יותר
+        internal static readonly int[] Cols = { 40, 104, 108, 30, 108, 30, 80, 30, 30 };
         internal const int Gap = 6;
 
         public CutRow(CutSection s)
@@ -383,8 +445,8 @@ namespace SubtitleStudio
             Del = IconBtn(Ico.Close, Lang.T("למחוק את הקטע"));
             Ui.Tip.SetToolTip(Chip, Lang.T("להראות את הקטע על פס הקול"));
             Ui.Tip.SetToolTip(Kind, Lang.T("לחיצה מחליפה בין שמירה להסרה"));
-            Ui.Tip.SetToolTip(PinA, Lang.T("ההתחלה - איפה שהנגן עומד"));
-            Ui.Tip.SetToolTip(PinB, Lang.T("הסוף - איפה שהנגן עומד"));
+            Ui.Tip.SetToolTip(PinA, Lang.T("ההתחלה = איפה שהנגן עומד עכשיו (הקו האדום)"));
+            Ui.Tip.SetToolTip(PinB, Lang.T("הסוף = איפה שהנגן עומד עכשיו (הקו האדום)"));
             Controls.AddRange(new Control[] { Chip, Kind, FA, PinA, FB, PinB, Len, Play, Del });
         }
 
@@ -393,7 +455,7 @@ namespace SubtitleStudio
             Field f = new Field();
             f.Ltr = true;
             f.Font = Theme.Small;
-            Ui.Tip.SetToolTip(f.Box, Lang.T("מקלידים זמן (2:30, ‏150, ‏1:02:30) · חצים: שנייה · עם Shift: עשירית"));
+            Ui.Tip.SetToolTip(f.Box, Lang.T("מקלידים זמן (2:30, ‏150, ‏1:02:30.250) - משפיע מיד · חצים: שנייה · Shift: עשירית · Ctrl: מאית · Esc: לבטל"));
             return f;
         }
 
@@ -447,11 +509,16 @@ namespace SubtitleStudio
         private readonly CutView _view;
         private readonly CutMap _map;
         private readonly Btn _play, _modeKeep, _modeRemove, _add;
-        private readonly Btn _speed;
+        private readonly Btn _speed, _markIn, _markOut, _result;
         private SpeedPicker _speedPick;
         private readonly Lbl _clock, _summary, _empty, _info, _kfNote;
         private readonly Field _jump;
-        private readonly Toggle _preview, _split, _fast, _open;
+        private readonly Toggle _split, _fast, _open;
+        /// <summary>״השמעת התוצאה״ פועלת: מדלגים על מה שיוסר, ובסוף עוצרים. ▶, לחיצה על הגל או ניגון קטע - מכבים.</summary>
+        private bool _resultMode;
+        /// <summary>ביטול וחזרה (Ctrl+Z, ‏Ctrl+Y) לכל שינוי בקטעים (0.8.10). עד אז גרירה או מחיקה בטעות - בלי דרך חזרה.</summary>
+        private readonly List<List<CutSection>> _undo = new List<List<CutSection>>(), _redo = new List<List<CutSection>>();
+        private bool _typedPushed;
         private readonly bool _hasCues;
 
         /// <summary>אחרי חיתוך מוצלח עם ״לעבור לקובץ החתוך״: הקובץ שהעורך פותח (הכתוביות כבר הוזזו אליו).</summary>
@@ -482,29 +549,31 @@ namespace SubtitleStudio
             int y = HeadH + Theme.S(12), rowH = Theme.S(40);
             _play = new Btn(); _play.Icon = Ico.Play; _play.IconOnly = true; _play.Kind = BtnKind.Primary; _play.IconSize = Theme.S(16);
             _play.SetBounds(Pad + W - rowH, y, rowH, rowH);
-            _play.Click += delegate { _stopAt = -1; Toggle(); };
+            _play.Click += delegate { _stopAt = -1; _resultMode = false; Toggle(); };
             Ui.Tip.SetToolTip(_play, Lang.T("ניגון ועצירה (רווח)"));
             Controls.Add(_play);
             _clock = new Lbl(); _clock.Font = Theme.F(12f, FontStyle.Bold); _clock.Numeric = true;
-            _clock.SetBounds(Pad + W - rowH - s10 - Theme.S(190), y, Theme.S(190), rowH);
+            int clockW = Math.Max(Theme.S(196), TextRenderer.MeasureText(Theme.Ltr("00:00:00.00  /  00:00:00.0"), _clock.Font).Width + Theme.S(6));
+            _clock.SetBounds(Pad + W - rowH - s10 - clockW, y, clockW, rowH);
             Controls.Add(_clock);
-            Lbl jl = new Lbl(); jl.Text = Lang.T("קפיצה לזמן:"); jl.Font = Theme.Small; jl.Color = Theme.TextDim; jl.Align = StringAlignment.Far;
-            // התווית לפני השדה בכיוון הקריאה: בעברית מימין לו (‏MirrorLayout הופך לאנגלית)
-            int jlw = Math.Max(Theme.S(60), TextRenderer.MeasureText(jl.Text, jl.Font).Width + Theme.S(4));
-            jl.SetBounds(_clock.Left - Theme.S(14) - jlw, y, jlw, rowH);
-            _jump = new Field(); _jump.Ltr = true; _jump.Placeholder = "1:30:00"; _jump.Font = Theme.Small;
-            _jump.SetBounds(jl.Left - Theme.S(6) - Theme.S(100), y + s4, Theme.S(100), rowH - s8);
-            Controls.Add(jl); Controls.Add(_jump);
-            _jump.Box.KeyDown += delegate (object o, KeyEventArgs e)
-            {
-                if (e.KeyCode != Keys.Enter) return;
-                e.SuppressKeyPress = true;
-                long t;
-                if (!TryTime(_jump.Text, out t)) { Flash(Lang.T("זמן לא תקין. דוגמאות: 2:30, ‏1:02:30, ‏150")); return; }
-                Seek(Math.Min(t, _mi.DurationMs));
-                if (t < _view.ViewStart || t > _view.ViewEnd) _view.SetView(t - (_view.ViewEnd - _view.ViewStart) / 2, _view.MsPerPx);
-            };
-            // צד שמאל (בעברית): זום ו״לשמוע את התוצאה״
+            // **״התחלה כאן״ ו״סוף כאן״** - לפי המקום של הנגן. עד 0.8.10 רק המקשים I ו-O, שלא כתובים בשום מקום בולט, וכפתור
+            // ⌖ קטן בכל שורה (בנימין: ״למה אני לא יכול לסמן מיקום התחלה וסיום בצורה נוחה?״)
+            _markIn = MarkBtn(Lang.T("התחלה כאן"), Lang.T("ההתחלה של הקטע - איפה שהנגן עומד (המקש I). כשהנגן כבר אחרי הקטע - קטע חדש"));
+            _markOut = MarkBtn(Lang.T("סוף כאן"), Lang.T("הסוף של הקטע - איפה שהנגן עומד (המקש O)"));
+            int mx = _clock.Left - Theme.S(12);
+            _markIn.SetBounds(mx - _markIn.Width, y + s4, _markIn.Width, rowH - s8); mx = _markIn.Left - s8;
+            _markOut.SetBounds(mx - _markOut.Width, y + s4, _markOut.Width, rowH - s8); mx = _markOut.Left - Theme.S(16);
+            _markIn.Click += delegate { MarkHere(true); _view.Focus(); };
+            _markOut.Click += delegate { MarkHere(false); _view.Focus(); };
+            // **״השמעת התוצאה״** - רק מה שיישמר, ברצף, ועצירה בסוף. עד 0.8.10 מתג קטן ״לשמוע רק את מה שיישמר״ שמשנה את
+            // ▶ - ובנימין לא מצא אותו (״איך אני שומע את הקטע החתוך בלבד?״)
+            _result = new Btn(); _result.Text = Lang.T("השמעת התוצאה"); _result.Icon = Ico.Play; _result.Kind = BtnKind.Subtle; _result.Font = Theme.Small;
+            int rw = Math.Max(Theme.S(120), _result.NeedWidth());
+            _result.SetBounds(mx - rw, y + s4, rw, rowH - s8);
+            _result.Click += delegate { PlayResult(); };
+            Ui.Tip.SetToolTip(_result, Lang.T("משמיע רק את מה שיישמר, ברצף - בדיוק מה שייצא - ועוצר בסוף"));
+            Controls.Add(_markIn); Controls.Add(_markOut); Controls.Add(_result);
+            // צד שמאל (בעברית): זום ומהירות
             Btn fit = new Btn(); fit.Text = Lang.T("כל הקובץ"); fit.Kind = BtnKind.Ghost; fit.Font = Theme.Small;
             int fitW = Math.Max(Theme.S(86), fit.NeedWidth());
             fit.SetBounds(Pad, y + s4, fitW, rowH - s8);
@@ -531,29 +600,54 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_speed, Lang.T("מהירות ההשמעה (גם גלגלת). לא משנה את הקובץ, רק את ההשמעה כאן"));
             Controls.Add(_speed);
             SyncSpeed();
-            _preview = new Toggle(); _preview.Text = Lang.T("לשמוע רק את מה שיישמר"); _preview.Font = Theme.Small;
-            _preview.SetBounds(_speed.Right + Theme.S(14), y, Math.Max(Theme.S(60), _jump.Left - _speed.Right - Theme.S(24)), rowH);
-            Ui.Tip.SetToolTip(_preview, Lang.T("בניגון מדלגים על מה שיוסר - שומעים את התוצאה לפני השמירה"));
-            Controls.Add(_preview);
             y += rowH + s10;
 
             // ---- הגל והמפה ----
             _view = new CutView(); _view.Wave = wave; _view.Duration = Math.Max(1, mi.DurationMs); _view.Sections = _secs;
-            _view.SetBounds(Pad, y, W, Theme.S(140));
+            // 130 ולא 140: שורת ״קפיצה לזמן״ ירדה לכאן (0.8.10), והחלון חייב להיכנס ל-1080p ב-150% (test-screens)
+            _view.SetBounds(Pad, y, W, Theme.S(130));
             _view.CreateSection += delegate (long a, long b) { AddSection(a, b, _keepMode); };
             _view.Edited += delegate { RefreshAll(false); };
-            _view.SeekTo += delegate (long t) { Seek(t); };
+            _view.SeekTo += delegate (long t) { _resultMode = false; Seek(t); };
+            _view.EditStarting += delegate { Push(); };
+            _view.PlayFrom += delegate (long t)
+            {
+                if (_main == null) return;
+                _resultMode = false; _stopAt = -1;
+                Seek(t);
+                if (!_main.PlayerIsPlaying) _main.PlayPlayer();
+            };
             _view.ActiveChanged += delegate { SetActive(_view.ActiveId); };
+            Ui.Tip.SetToolTip(_view, Lang.T("לחיצה - הנגן עובר לשם · לחיצה כפולה - לנגן משם · גרירה - קטע חדש · גרירת קו צבעוני - הזזה\nהמספרים למעלה: גרירה מזיזה את הנגן · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · פסיק ונקודה - פריים אחורה וקדימה"));
             Controls.Add(_view);
             y += _view.Height + s4;
             _map = new CutMap(_view);
             _map.SetBounds(Pad, y, W, Theme.S(22));
             _view.ViewChanged += delegate { _map.Invalidate(); };
             Controls.Add(_map);
-            Lbl how = Hint(Lang.T("לחיצה על פס הקול - מעבר לנקודה · גרירה על מקום ריק - קטע חדש · גרירת קו צבעוני - הזזה · גלגלת - גלילה, ‏Ctrl+גלגלת - זום · I/O - התחלה וסוף של הקטע הפעיל"));
-            how.SetBounds(Pad, _map.Bottom + s4, W, Theme.S(18));
+            // מתחת: הסבר קצר (עד 0.8.10 - שורה צפופה של חמש פעולות), ו״קפיצה לזמן״ שעבר לכאן מהשורה של הנגן
+            int jy = _map.Bottom + s4, jh = Theme.S(26);
+            _jump = new Field(); _jump.Ltr = true; _jump.Placeholder = "1:30:00"; _jump.Font = Theme.Small;
+            _jump.SetBounds(Pad, jy, Theme.S(100), jh);
+            Lbl jl = new Lbl(); jl.Text = Lang.T("קפיצה לזמן:"); jl.Font = Theme.Small; jl.Color = Theme.TextDim; jl.Align = StringAlignment.Far;
+            // התווית לפני השדה בכיוון הקריאה: בעברית מימין לו (‏MirrorLayout הופך לאנגלית)
+            int jlw = Math.Max(Theme.S(60), TextRenderer.MeasureText(jl.Text, jl.Font).Width + Theme.S(4));
+            jl.SetBounds(_jump.Right + Theme.S(6), jy, jlw, jh);
+            Controls.Add(jl); Controls.Add(_jump);
+            _jump.Box.KeyDown += delegate (object o, KeyEventArgs e)
+            {
+                if (e.KeyCode != Keys.Enter) return;
+                e.SuppressKeyPress = true;
+                long t;
+                if (!TryTime(_jump.Text, out t)) { Flash(Lang.T("זמן לא תקין. דוגמאות: 2:30, ‏1:02:30, ‏150")); return; }
+                Seek(Math.Min(t, _mi.DurationMs));
+                if (t < _view.ViewStart || t > _view.ViewEnd) _view.SetView(t - (_view.ViewEnd - _view.ViewStart) / 2, _view.MsPerPx);
+            };
+            Lbl how = Hint(Lang.T("לחיצה - הנגן עובר לשם · לחיצה כפולה - לנגן · גרירה - קטע חדש · גרירת קו - הזזה · Ctrl+Z - ביטול"));
+            how.SetBounds(jl.Right + Theme.S(16), jy, Pad + W - jl.Right - Theme.S(16), jh);
+            how.Align = StringAlignment.Near;
             Controls.Add(how);
-            y = how.Bottom + s10;
+            y = jy + jh + s8;
 
             // ---- למטה: הטבלה, ולצידה התמונה וההגדרות ----
             int sideW = Theme.S(300), gapC = Theme.S(16), mainW = W - sideW - gapC;
@@ -589,7 +683,7 @@ namespace SubtitleStudio
             _rows.BackColor = Theme.Panel;
             _rows.SetBounds(mainX, ty, mainW, Theme.S(140));
             Controls.Add(_rows);
-            _empty = Hint(Lang.T("אין קטעים. גוררים על פס הקול, או ״להוסיף קטע״."));
+            _empty = Hint(Lang.T("אין קטעים עדיין. גוררים על פס הקול, או מנגנים ולוחצים ״התחלה כאן״ ו״סוף כאן״."));
             _empty.SetBounds(mainX, ty + Theme.S(10), mainW, Theme.S(22));
             _empty.Align = StringAlignment.Center;
             Controls.Add(_empty);
@@ -653,8 +747,9 @@ namespace SubtitleStudio
             Y = _summary.Bottom + Theme.S(4);
             Buttons(Lang.T("לחתוך ולשמור"), Ico.Scissors, Lang.T("סגירה"));
 
-            if (_secs.Count == 0) AddSection(0, Math.Min(_mi.DurationMs, 30000), true);
-            else { _keepMode = CutPlan.HasKeep(_secs) || _secs.Count == 0; _activeId = _secs[_secs.Count - 1].Id; }
+            // **בלי קטע שלא ביקשו.** עד 0.8.10 החלון נפתח עם ״0:00-0:30, יישמר״, ו״לחתוך ולשמור״ בלי לגעת בכלום שמר חצי
+            // דקה. עכשיו ריק, וההסבר בטבלה אומר מה עושים (ואם סימנו קטע על הציר בחלון הראשי - הוא כבר כאן)
+            if (_secs.Count > 0) { _keepMode = CutPlan.HasKeep(_secs); _activeId = _secs[_secs.Count - 1].Id; }
             SetMode(_keepMode, false);
             RebuildRows();
             _view.Playhead = Position();
@@ -695,6 +790,136 @@ namespace SubtitleStudio
                         : Lang.F("קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.",
                                  name, Theme.Ltr(ext.TrimStart('.').ToUpperInvariant()));
             }
+        }
+
+        /// <summary>זמן באלפיות: ״01:02.750״, ומעל שעה ״1:01:02.750״ - בשדות, באורך ובגרירה. בנימין (11.10): ״למה אני יכול
+        /// לדייק רק עד עשירית השנייה?״ - עד 0.8.10 ‏Tc.Short, שמעגל לעשירית: ״1:02.75״ שהוקלד נשמר נכון, אבל השדה הראה ״01:02.7״.</summary>
+        internal static string Precise(long ms)
+        {
+            if (ms < 0) ms = 0;
+            long h = ms / 3600000, m = (ms / 60000) % 60, s = (ms / 1000) % 60, f = ms % 1000;
+            string core = m.ToString("00", CultureInfo.InvariantCulture) + ":" + s.ToString("00", CultureInfo.InvariantCulture) + "." +
+                          f.ToString("000", CultureInfo.InvariantCulture);
+            return h > 0 ? h.ToString(CultureInfo.InvariantCulture) + ":" + core : core;
+        }
+
+        /// <summary>השעון: מאיות (אלפיות רצות מרצדות).</summary>
+        private static string Hundredths(long ms)
+        {
+            string p = Precise(ms);
+            return p.Substring(0, p.Length - 1);
+        }
+
+        private Btn MarkBtn(string text, string tip)
+        {
+            Btn b = new Btn(); b.Text = text; b.Kind = BtnKind.Subtle; b.Font = Theme.SmallBold;
+            b.Width = Math.Max(Theme.S(96), b.NeedWidth());
+            Ui.Tip.SetToolTip(b, tip);
+            return b;
+        }
+
+        /// <summary>״התחלה כאן״ / ״סוף כאן״ (וגם I ו-O): הקצה של הקטע הפעיל עובר לנגן. **קטע חדש** כשאין קטע, וכשהנגן כבר
+        /// מעבר לקטע הפעיל (״התחלה״ אחרי הסוף שלו, ״סוף״ לפני ההתחלה) - כך מסמנים כמה קטעים ברצף בזמן הניגון: התחלה, סוף,
+        /// ממשיכים לשמוע, התחלה... קטע חדש מ״התחלה״ נמשך עד הקטע הבא (או עד הסוף), ומ״סוף״ - מהקטע שלפני (או מההתחלה).</summary>
+        private void MarkHere(bool start)
+        {
+            long t = Math.Max(0, Math.Min(_mi.DurationMs, Position()));
+            CutSection s = Find(_activeId);
+            if (s != null && (start ? t < s.B : t > s.A))
+            {
+                Push();
+                CutPlan.SetEdge(s, start, t, _mi.DurationMs);
+                RefreshAll(true);
+                return;
+            }
+            long a, b;
+            if (start)
+            {
+                a = t; b = _mi.DurationMs;
+                foreach (CutSection o in _secs) if (o.A > t && o.A < b) b = o.A;
+            }
+            else
+            {
+                a = 0; b = t;
+                foreach (CutSection o in _secs) if (o.B < t && o.B > a) a = o.B;
+            }
+            if (b - a < 100) { Flash(Lang.T("אין כאן מקום לקטע חדש - הזיזו את הנגן.")); return; }
+            AddSection(a, b, _keepMode);
+        }
+
+        // ---------- ביטול וחזרה ----------
+
+        private List<CutSection> Snap()
+        {
+            List<CutSection> l = new List<CutSection>(_secs.Count);
+            foreach (CutSection s in _secs)
+            {
+                CutSection c = new CutSection();
+                c.Id = s.Id; c.A = s.A; c.B = s.B; c.Keep = s.Keep; c.Color = s.Color;
+                l.Add(c);
+            }
+            return l;
+        }
+
+        /// <summary>לפני כל שינוי בקטעים.</summary>
+        private void Push()
+        {
+            _undo.Add(Snap());
+            if (_undo.Count > 200) _undo.RemoveAt(0);
+            _redo.Clear();
+        }
+
+        /// <summary>חוזרים למצב - **באותה רשימה** (היא משותפת לחלון הראשי ולפס הקול).</summary>
+        private void Restore(List<CutSection> st)
+        {
+            _secs.Clear();
+            _secs.AddRange(st);
+            if (Find(_activeId) == null) _activeId = _secs.Count > 0 ? _secs[_secs.Count - 1].Id : -1;
+            RebuildRows();
+        }
+
+        internal void Undo()
+        {
+            if (_undo.Count == 0) { Flash(Lang.T("אין מה לבטל.")); return; }
+            _redo.Add(Snap());
+            List<CutSection> st = _undo[_undo.Count - 1];
+            _undo.RemoveAt(_undo.Count - 1);
+            Restore(st);
+        }
+
+        internal void Redo()
+        {
+            if (_redo.Count == 0) return;
+            _undo.Add(Snap());
+            List<CutSection> st = _redo[_redo.Count - 1];
+            _redo.RemoveAt(_redo.Count - 1);
+            Restore(st);
+        }
+
+        /// <summary>פריים אחד אחורה או קדימה (פסיק ונקודה), ובקובץ קול - עשירית. הנגן נעצר: מדייקים על תמונה עומדת.</summary>
+        private void StepFrame(int dir)
+        {
+            if (_main != null && _main.PlayerIsPlaying) _main.PausePlayer();
+            _resultMode = false;
+            MediaStream v = _mi.FirstVideo();
+            long step = v != null && v.Fps > 1 && v.Fps <= 120 ? (long)Math.Round(1000.0 / v.Fps) : 100;
+            long t = Math.Max(0, Math.Min(_mi.DurationMs, Position() + dir * step));
+            Seek(t);
+            _view.Follow(t);
+        }
+
+        /// <summary>״השמעת התוצאה״: מתחילת מה שיישמר, ברצף (OnTick מדלג ועוצר). לחיצה בזמן שהיא מתנגנת - עצירה.</summary>
+        private void PlayResult()
+        {
+            if (_main == null) return;
+            if (_resultMode && _main.PlayerIsPlaying) { _main.PausePlayer(); _resultMode = false; return; }
+            List<long[]> kept = CutPlan.Kept(_secs, _mi.DurationMs);
+            if (kept.Count == 0) { Flash(Lang.T("אין מה לשמוע - הכול יוסר.")); return; }
+            _stopAt = -1;
+            _resultMode = true;
+            Seek(kept[0][0]);
+            if (kept[0][0] < _view.ViewStart || kept[0][0] > _view.ViewEnd) _view.ShowRange(kept[0][0], kept[kept.Count - 1][1]);
+            _main.PlayPlayer();
         }
 
         private Btn ZoomBtn(Ico ico, string tip)
@@ -782,7 +1007,7 @@ namespace SubtitleStudio
 
         private void UpdateClock(long t)
         {
-            string c = Theme.Ltr(Tc.Short(t) + "  /  " + Tc.Short(_mi.DurationMs));
+            string c = Theme.Ltr(Hundredths(t) + "  /  " + Hundredths(_mi.DurationMs));
             if (c != _lastClock) { _lastClock = c; _clock.Text = c; _clock.Invalidate(); }
         }
 
@@ -857,16 +1082,23 @@ namespace SubtitleStudio
                 {
                     if (stop == null || t >= stop.B) { _main.PausePlayer(); _stopAt = -1; if (stop != null) Seek(stop.B); }
                 }
-                else if (_preview.Checked && !CutPlan.IsKept(_secs, t))
+                else if (_resultMode && !CutPlan.IsKept(_secs, t))
                 {
-                    // ״לשמוע רק את מה שיישמר״: קפיצה לתחילת החלק הבא שנשאר, ובסוף - עצירה
+                    // ״השמעת התוצאה״: קפיצה לתחילת החלק הבא שנשאר, ובסוף - עצירה
                     long next = -1;
                     foreach (long[] r in CutPlan.Kept(_secs, _mi.DurationMs)) if (r[1] > t + 20) { next = Math.Max(r[0], t); break; }
-                    if (next >= 0) _main.SeekPlayer(next); else _main.PausePlayer();
+                    if (next >= 0) _main.SeekPlayer(next); else { _main.PausePlayer(); _resultMode = false; }
                 }
                 _view.Follow(t);
             }
             if (_play.Icon != (playing ? Ico.Pause : Ico.Play)) { _play.Icon = playing ? Ico.Pause : Ico.Play; _play.Invalidate(); }
+            bool resultOn = _resultMode && playing;
+            if (_result.Checked != resultOn)
+            {
+                _result.Checked = resultOn;
+                _result.Icon = resultOn ? Ico.Pause : Ico.Play;
+                _result.Invalidate();
+            }
             if (_view.Playhead != t) { _view.Playhead = t; _view.Invalidate(); _map.Invalidate(); }
             UpdateClock(t);
         }
@@ -881,6 +1113,7 @@ namespace SubtitleStudio
 
         private void AddSection(long a, long b, bool keep)
         {
+            Push();
             CutSection s = new CutSection();
             s.Id = _nextId++;
             s.A = Math.Max(0, Math.Min(a, b));
@@ -906,6 +1139,7 @@ namespace SubtitleStudio
 
         private void RemoveSection(CutSection s)
         {
+            Push();
             _secs.Remove(s);
             if (_activeId == s.Id) _activeId = _secs.Count > 0 ? _secs[_secs.Count - 1].Id : -1;
             RebuildRows();
@@ -930,7 +1164,10 @@ namespace SubtitleStudio
                 bool uniform = true;
                 foreach (CutSection s in _secs) if (s.Keep != _keepMode) uniform = false;
                 if (uniform)
+                {
+                    Push();
                     foreach (CutSection s in _secs) { s.Keep = keep; s.Color = CutPlan.PickColor(_secs, keep, s); }
+                }
             }
             _keepMode = keep;
             _modeKeep.Checked = keep; _modeRemove.Checked = !keep;
@@ -956,6 +1193,8 @@ namespace SubtitleStudio
             _rows.Remember();
             _rows.ResumeLayout();
             _empty.Visible = _secs.Count == 0;
+            // ההסבר יושב במקום הטבלה הריקה (0.8.10: החלון נפתח בלי קטעים, ו-test-layout ראה את שניהם זה על זה)
+            _rows.Visible = _secs.Count > 0;
             RefreshAll(true);
             SetActive(_activeId);
         }
@@ -966,18 +1205,20 @@ namespace SubtitleStudio
             r.Chip.Click += delegate { SetActive(s.Id); _view.ShowRange(s.A, s.B); };
             r.Kind.Click += delegate
             {
+                Push();
                 s.Keep = !s.Keep;
                 s.Color = CutPlan.PickColor(_secs, s.Keep, s);
                 SetActive(s.Id);
                 RebuildRows();
             };
-            r.PinA.Click += delegate { SetActive(s.Id); CutPlan.SetEdge(s, true, Position(), _mi.DurationMs); RefreshAll(true); };
-            r.PinB.Click += delegate { SetActive(s.Id); CutPlan.SetEdge(s, false, Position(), _mi.DurationMs); RefreshAll(true); };
+            r.PinA.Click += delegate { Push(); SetActive(s.Id); CutPlan.SetEdge(s, true, Position(), _mi.DurationMs); RefreshAll(true); };
+            r.PinB.Click += delegate { Push(); SetActive(s.Id); CutPlan.SetEdge(s, false, Position(), _mi.DurationMs); RefreshAll(true); };
             r.Play.Click += delegate
             {
                 SetActive(s.Id);
                 if (s.A < _view.ViewStart || s.A > _view.ViewEnd) _view.ShowRange(s.A, s.B);
                 if (_main == null) return;
+                _resultMode = false;
                 _main.SeekPlayer(s.A);
                 _stopAt = s.Id;
                 _main.PlayPlayer();
@@ -991,6 +1232,8 @@ namespace SubtitleStudio
 
         private void WireField(Field f, CutSection s, bool start)
         {
+            // הערך מלפני ההקלדה - ל-Esc
+            f.Box.Enter += delegate { f.Box.Tag = start ? s.A : s.B; _typedPushed = false; };
             f.Box.KeyDown += delegate (object o, KeyEventArgs e)
             {
                 if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Commit(f, s, start); f.Box.SelectAll(); }
@@ -999,19 +1242,51 @@ namespace SubtitleStudio
                     e.Handled = true; e.SuppressKeyPress = true;
                     long cur;
                     if (!TryTime(f.Text, out cur)) cur = start ? s.A : s.B;
-                    long step = (e.Shift ? 100 : 1000) * (e.KeyCode == Keys.Up ? 1 : -1);
+                    // שנייה; Shift - עשירית; Ctrl - מאית
+                    long step = (e.Control ? 10 : e.Shift ? 100 : 1000) * (e.KeyCode == Keys.Up ? 1 : -1);
+                    Push();
                     CutPlan.SetEdge(s, start, cur + step, _mi.DurationMs);
                     RefreshAll(true);                  // כולל התיבה הזאת - היא תמיד מראה מה שנשמר
                     if (_main != null && !_main.PlayerIsPlaying) Seek(start ? s.A : s.B);
                 }
             };
+            // **משפיע תוך כדי הקלדה** (בנימין: ״אחרי ההקלדה אם לא לוחצים אנטר זה לא משפיע... הייתי רוצה שזה ישפיע
+            // מיידית״, ״ואפילו ההקלדה לא נוחה״). רק ערך שלם ועקבי עם הקצה השני: ״5״ בדרך ל-״50״ כסוף של 10-20 היה הופך
+            // את הקטע (SetEdge מזיז קטע הפוך) - ונשאר הפוך. התיבה עצמה לא נכתבת מחדש באמצע ההקלדה.
+            f.Box.TextChanged += delegate
+            {
+                if (!f.Box.Focused) return;
+                long t;
+                if (!TryTime(f.Text, out t) || t > _mi.DurationMs) return;
+                if (start ? t >= s.B : t <= s.A) return;
+                if ((start ? s.A : s.B) == t) return;
+                if (!_typedPushed) { Push(); _typedPushed = true; }      // הקלדה אחת = ביטול אחד
+                if (start) s.A = t; else s.B = t;
+                RefreshAll(false);
+                if (_main != null && !_main.PlayerIsPlaying) Seek(t);
+            };
             f.Box.Leave += delegate { Commit(f, s, start); };
+        }
+
+        /// <summary>Esc בתיבת זמן: מה שהיה לפני ההקלדה (היא כבר השפיעה תוך כדי).</summary>
+        private bool Revert(Field f, CutSection s, bool start)
+        {
+            if (f.Box.Tag is long)
+            {
+                long was = (long)f.Box.Tag;
+                if (start) s.A = was; else s.B = was;
+            }
+            // ההקלדה בוטלה - גם המצב שנשמר לביטול בשבילה
+            if (_typedPushed && _undo.Count > 0) { _undo.RemoveAt(_undo.Count - 1); _typedPushed = false; }
+            f.Text = Precise(start ? s.A : s.B);
+            RefreshAll(true);
+            return true;
         }
 
         private void Commit(Field f, CutSection s, bool start)
         {
             long t;
-            string shown = Tc.Short(start ? s.A : s.B);
+            string shown = Precise(start ? s.A : s.B);
             if (f.Text.Trim() == shown) return;
             if (!TryTime(f.Text, out t))
             {
@@ -1020,6 +1295,8 @@ namespace SubtitleStudio
                 return;
             }
             if (t > _mi.DurationMs) Flash(Lang.T("הזמן ארוך מהקובץ - נקבע לסוף."));
+            if (!_typedPushed && t != (start ? s.A : s.B)) Push();
+            _typedPushed = false;
             CutPlan.SetEdge(s, start, t, _mi.DurationMs);
             RefreshAll(true);
             long edge = start ? s.A : s.B;
@@ -1059,9 +1336,9 @@ namespace SubtitleStudio
                 r.Kind.Text = s.Keep ? Lang.T("יישמר") : Lang.T("יוסר");
                 r.Kind.Icon = s.Keep ? Ico.Check : Ico.Trash;
                 r.Kind.Tint = s.Color;
-                if (all || !r.FA.Box.Focused) r.FA.Text = Tc.Short(s.A);
-                if (all || !r.FB.Box.Focused) r.FB.Text = Tc.Short(s.B);
-                r.Len.Text = Tc.Short(s.B - s.A);
+                if (all || !r.FA.Box.Focused) r.FA.Text = Precise(s.A);
+                if (all || !r.FB.Box.Focused) r.FB.Text = Precise(s.B);
+                r.Len.Text = Precise(s.B - s.A);
                 foreach (Control c in r.Controls) c.Invalidate();
             }
             bool hasKeep = CutPlan.HasKeep(_secs);
@@ -1087,7 +1364,7 @@ namespace SubtitleStudio
                     : Lang.T("עם קידוד מחדש - מדויק");
                 _summary.Text = _secs.Count == 0 ? Lang.T("קודם מסמנים קטע.")
                     : split ? Lang.F("{0} קבצים  ·  {1}", Theme.Ltr(CutPlan.SplitItems(_secs).Count.ToString(CultureInfo.InvariantCulture)), how)
-                    : Lang.F("אורך התוצאה: {0}  ·  {1}", Theme.Ltr(Tc.Short(CutPlan.Total(kept))), how);
+                    : Lang.F("אורך התוצאה: {0}  ·  {1}", Theme.Ltr(Precise(CutPlan.Total(kept))), how);
                 _summary.Color = Theme.Text;
                 _summary.Invalidate();
             }
@@ -1110,8 +1387,8 @@ namespace SubtitleStudio
                 {
                     foreach (CutRow r in _rowCtl)
                     {
-                        if (r.FA.Box == fc) { r.FA.Text = Tc.Short(r.Sec.A); _view.Focus(); return true; }
-                        if (r.FB.Box == fc) { r.FB.Text = Tc.Short(r.Sec.B); _view.Focus(); return true; }
+                        if (r.FA.Box == fc) { Revert(r.FA, r.Sec, true); _view.Focus(); return true; }
+                        if (r.FB.Box == fc) { Revert(r.FB, r.Sec, false); _view.Focus(); return true; }
                     }
                     if (fc == _jump.Box) { _jump.Text = ""; _view.Focus(); return true; }
                 }
@@ -1124,14 +1401,20 @@ namespace SubtitleStudio
                 case Keys.Right: Seek(Position() + 5000); return true;
                 case Keys.Shift | Keys.Left: Seek(Position() - 1000); return true;
                 case Keys.Shift | Keys.Right: Seek(Position() + 1000); return true;
-                case Keys.I:
-                case Keys.O:
+                // פריים אחורה/קדימה (בקובץ קול - עשירית), כמו בעורכי וידאו
+                case Keys.Oemcomma: StepFrame(-1); return true;
+                case Keys.OemPeriod: StepFrame(1); return true;
+                case Keys.Home: Seek(0); _view.Follow(0); return true;
+                case Keys.End: Seek(_mi.DurationMs); _view.Follow(_mi.DurationMs); return true;
+                case Keys.I: MarkHere(true); return true;
+                case Keys.O: MarkHere(false); return true;
+                case Keys.Control | Keys.Z: Undo(); return true;
+                case Keys.Control | Keys.Y:
+                case Keys.Control | Keys.Shift | Keys.Z: Redo(); return true;
+                case Keys.Delete:
                     {
                         CutSection s = Find(_activeId);
-                        long t = Position();
-                        if (s == null) { AddSection(t, t, _keepMode); s = Find(_activeId); }
-                        CutPlan.SetEdge(s, keyData == Keys.I, t, _mi.DurationMs);
-                        RefreshAll(true);
+                        if (s != null) RemoveSection(s);
                         return true;
                     }
             }

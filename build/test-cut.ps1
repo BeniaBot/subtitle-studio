@@ -198,15 +198,16 @@ $secs = [Activator]::CreateInstance($listT)
 $dlg = [Activator]::CreateInstance($CD, (Pack $mainF $mi $doc $wave $secs))
 $dlg.StartPosition = 'Manual'; $dlg.Location = New-Object Drawing.Point -4000, -3000
 $dlg.Show(); Pump 200
-$view = Fld $dlg '_view'; $open = Fld $dlg '_open'; $split = Fld $dlg '_split'; $fast = Fld $dlg '_fast'; $prev = Fld $dlg '_preview'
-Check 'חלון חדש: קטע אחד לשמירה, 0-30; ״לעבור לקובץ החתוך״ דלוק כי יש כתוביות; ״כל קטע לקובץ נפרד״ מוצג' ($secs.Count -eq 1 -and (Txt $secs) -eq '0-30000k' -and $open.Checked -and $open.Visible -and $split.Visible -and $wave.Ready) (Txt $secs)
+$view = Fld $dlg '_view'; $open = Fld $dlg '_open'; $split = Fld $dlg '_split'; $fast = Fld $dlg '_fast'; $res = Fld $dlg '_result'
+# עד 0.8.10 נפתח עם ״0:00-0:30, יישמר״ שאף אחד לא ביקש (נוסה 11.10)
+Check 'חלון חדש: בלי קטע שלא ביקשו, וההסבר בטבלה מוצג; ״לעבור לקובץ החתוך״ דלוק כי יש כתוביות' ($secs.Count -eq 0 -and (Fld $dlg '_empty').Visible -and $open.Checked -and $open.Visible -and $wave.Ready) (Txt $secs)
 
 $view.FitAll()
 $x0 = [int]$view.X(40000); $x1 = [int]$view.X(50000)
 Mouse $view 'OnMouseDown' $x0; Mouse $view 'OnMouseMove' ($x0 + 12); Mouse $view 'OnMouseMove' $x1; Mouse $view 'OnMouseUp' $x1
 $px = [long]([Math]::Ceiling($view.MsPerPx)) + 1
 $n = $secs[$secs.Count - 1]
-Check 'גרירה על מקום ריק: קטע חדש מהנקודה שבה התחילה עד השחרור, מהסוג שבכרטיס' ($secs.Count -eq 2 -and [Math]::Abs($n.A - 40000) -le $px -and [Math]::Abs($n.B - 50000) -le $px -and $n.Keep) (Txt $secs)
+Check 'גרירה על מקום ריק: קטע חדש מהנקודה שבה התחילה עד השחרור, מהסוג שבכרטיס' ($secs.Count -eq 1 -and [Math]::Abs($n.A - 40000) -le $px -and [Math]::Abs($n.B - 50000) -le $px -and $n.Keep) (Txt $secs)
 
 $n.A = 40000; $n.B = 50000
 Mouse $view 'OnMouseDown' ([int]$view.X(40000)); Mouse $view 'OnMouseMove' ([int]$view.X(45000))
@@ -216,7 +217,7 @@ Check 'גרירת קו: ההתחלה זזה, וגרירה מעבר לסוף מח
 
 Mouse $view 'OnMouseDown' ([int]$view.X(20000)); Mouse $view 'OnMouseUp' ([int]$view.X(20000))
 Pump 150
-Check 'לחיצה בלי גרירה: הנגן עובר לשם, ואין קטע חדש' ($secs.Count -eq 2 -and [Math]::Abs((PosP) - 20000) -le ($px + 50)) ('pos=' + (PosP))
+Check 'לחיצה בלי גרירה: הנגן עובר לשם, ואין קטע חדש' ($secs.Count -eq 1 -and [Math]::Abs((PosP) - 20000) -le ($px + 50)) ('pos=' + (PosP))
 $clockTxt = [string](Fld $mainF '_timeLbl').Text
 Check 'השעון של החלון הראשי זז עם קפיצה בזמן עצירה (עד 0.8.6 נשאר על הזמן הקודם)' ($clockTxt -match '00:20\.0') $clockTxt
 
@@ -240,7 +241,7 @@ $r0.FA.Text = '0:12'; [void]$commit.Invoke($dlg, (Pack $r0.FA $s0 $true))
 $a1 = $s0.A
 $r0.FA.Text = 'abc'; [void]$commit.Invoke($dlg, (Pack $r0.FA $s0 $true))
 $warn = (Fld $dlg '_summary').Color -eq (T 'Theme').GetProperty('Warn', $ST).GetValue($null, $null)
-Check 'הקלדת התחלה: ״0:12״ נקבע; ״abc״ - הערך נשאר, התיבה חוזרת אליו, ואזהרה' ($a1 -eq 12000 -and $s0.A -eq 12000 -and $r0.FA.Text -eq '00:12.0' -and $warn) ('A=' + $s0.A + ' text=' + $r0.FA.Text)
+Check 'הקלדת התחלה: ״0:12״ נקבע; ״abc״ - הערך נשאר, התיבה חוזרת אליו, ואזהרה' ($a1 -eq 12000 -and $s0.A -eq 12000 -and $r0.FA.Text -eq '00:12.000' -and $warn) ('A=' + $s0.A + ' text=' + $r0.FA.Text)
 $r0.FB.Text = '75'; [void]$commit.Invoke($dlg, (Pack $r0.FB $s0 $false))
 $b1 = $s0.B
 $r0.FA.Text = '1:30'; [void]$commit.Invoke($dlg, (Pack $r0.FA $s0 $true))
@@ -251,7 +252,7 @@ $r0 = (Fld $dlg '_rowCtl')[0]; $s0 = $secs[0]
 Key $r0.FA.Box ([Windows.Forms.Keys]::Up); $u1 = $s0.A
 Key $r0.FA.Box ([Windows.Forms.Keys]::Up -bor [Windows.Forms.Keys]::Shift); $u2 = $s0.A
 Key $r0.FB.Box ([Windows.Forms.Keys]::Down); $d1 = $s0.B
-Check 'חצים בתיבת זמן: למעלה +שנייה, עם Shift +עשירית, למטה -שנייה; והתיבה מראה את מה שנשמר' ($u1 -eq 11000 -and $u2 -eq 11100 -and $d1 -eq 19000 -and $r0.FA.Text -eq '00:11.1') ("$u1 $u2 $d1 " + $r0.FA.Text)
+Check 'חצים בתיבת זמן: למעלה +שנייה, עם Shift +עשירית, למטה -שנייה; והתיבה מראה את מה שנשמר' ($u1 -eq 11000 -and $u2 -eq 11100 -and $d1 -eq 19000 -and $r0.FA.Text -eq '00:11.100') ("$u1 $u2 $d1 " + $r0.FA.Text)
 
 SeekP 5000; Pump 60; [void](Cmd ([Windows.Forms.Keys]::I))
 SeekP 25000; Pump 60; [void](Cmd ([Windows.Forms.Keys]::O))
@@ -276,6 +277,60 @@ $sw = [Diagnostics.Stopwatch]::StartNew(); while ($note.Text -eq '' -and $sw.Ela
 $t1 = $note.Text
 $fast.Checked = $false; Pump 50
 Check 'חיתוך מהיר בסרט: נמדד פריים המפתח, ונאמר כמה מוקדם יתחיל (11.0 ← 10.0); בלי חיתוך מהיר - בלי הערה' ($t1 -match '1\.0' -and $note.Text -eq '') ($t1 + ' after ' + [Math]::Round($sw.Elapsed.TotalSeconds, 1) + 's')
+
+# ---- 0.8.10: מה שבנימין ניסה ולא הצליח (11.10), ונוסה כמו משתמש לפני התיקון ----
+function MouseAt($ctl, $what, [int]$x, [int]$y) { $e = New-Object Windows.Forms.MouseEventArgs ([Windows.Forms.MouseButtons]::Left), 1, $x, $y, 0; [void][Windows.Forms.Control].GetMethod($what, $IN).Invoke($ctl, (Pack $e)) }
+Reset @()
+$view.FitAll()
+$xa = [int]$view.X(30000)
+Mouse $view 'OnMouseDown' $xa; Mouse $view 'OnMouseMove' ($xa + 8); Mouse $view 'OnMouseUp' ($xa + 8); Pump 100
+Check 'לחיצה שהיד זזה בה 8 פיקסלים: הנגן עובר לשם, ולא נוצר קטע (עד 0.8.10 - קטע של חצי שנייה)' ($secs.Count -eq 0 -and [Math]::Abs((PosP) - 30000) -le ($px * 2 + 50)) ('pos=' + (PosP) + ' ' + (Txt $secs))
+$xb = [int]$view.X(20000); $xc = [int]$view.X(35000)
+MouseAt $view 'OnMouseDown' $xb 8; MouseAt $view 'OnMouseMove' ([int](($xb + $xc) / 2)) 8; MouseAt $view 'OnMouseMove' $xc 8; MouseAt $view 'OnMouseUp' $xc 8; Pump 100
+Check 'גרירה על שורת המספרים: מזיזה את הנגן, ולא יוצרת קטע' ($secs.Count -eq 0 -and [Math]::Abs((PosP) - 35000) -le ($px + 50)) ('pos=' + (PosP) + ' ' + (Txt $secs))
+MouseAt $view 'OnMouseDoubleClick' ([int]$view.X(12000)) 70; Pump 300
+$dbl = Playing; $dp = PosP
+[void]$mf.GetMethod('PausePlayer', $IN).Invoke($mainF, @())
+Check 'לחיצה כפולה על הגל: מנגנים משם' ($dbl -and $dp -ge 12000 -and $dp -lt 13500) ('playing=' + $dbl + ' pos=' + $dp)
+$mIn = Fld $dlg '_markIn'; $mOut = Fld $dlg '_markOut'
+SeekP 5000; Pump 40; Click $mIn; SeekP 8000; Pump 40; Click $mOut
+SeekP 12000; Pump 40; Click $mIn; SeekP 15000; Pump 40; Click $mOut
+Check '״התחלה כאן״ ו״סוף כאן״ ברצף: כל התחלה אחרי הסוף פותחת קטע חדש' ((Txt $secs) -eq '5000-8000k,12000-15000k') (Txt $secs)
+Reset @(@(30000, 35000, $true), @(10000, 15000, $true))
+SeekP 20000; Pump 40; Click $mIn
+Check '״התחלה כאן״ אחרי הקטע: הקטע החדש נגמר איפה שהבא מתחיל' ((Txt $secs) -eq '30000-35000k,10000-15000k,20000-30000k') (Txt $secs)
+Reset @(,@(10000, 20000, $true))
+SeekP 25000; Pump 40; Click $mOut
+Check '״סוף כאן״ אחרי הקטע: הקטע הפעיל מתארך' ((Txt $secs) -eq '10000-25000k') (Txt $secs)
+# הקלדה שמשפיעה מיד (בנימין: ״אחרי ההקלדה אם לא לוחצים אנטר זה לא משפיע״), ולא הופכת קטע בדרך
+Reset @(,@(10000, 20000, $true))
+$r0 = (Fld $dlg '_rowCtl')[0]; $s0 = $secs[0]
+$dlg.Activate(); [void]$r0.FB.Box.Focus(); Pump 30
+$foc = $r0.FB.Box.Focused
+$r0.FB.Box.Text = '5'; $b5 = $s0.B; $a5 = $s0.A
+$r0.FB.Box.Text = '50'; $b50 = $s0.B
+$r0.FB.Box.Text = '0:42.75'; $bL = $s0.B
+Check 'הקלדה בתיבת זמן משפיעה מיד, בלי Enter; ״5״ בדרך ל-״50״ לא הופך את הקטע' ($foc -and $b5 -eq 20000 -and $a5 -eq 10000 -and $b50 -eq 50000 -and $bL -eq 42750) ("focused=$foc  5:$a5-$b5  50:$b50  0:42.75:$bL")
+[void](Cmd ([Windows.Forms.Keys]::Escape))
+Check 'Esc בתיבת זמן: מה שהיה לפני ההקלדה' ($s0.B -eq 20000 -and $r0.FB.Text -eq '00:20.000') ('B=' + $s0.B + ' text=' + $r0.FB.Text)
+$pr = $CD.GetMethod('Precise', $ST)
+Check 'זמן באלפיות (עד 0.8.10 - עשיריות: ״1:02.75״ הוצג ״01:02.7״)' ($pr.Invoke($null, @([long]62750)) -eq '01:02.750' -and $pr.Invoke($null, @([long]3723456)) -eq '1:02:03.456' -and $pr.Invoke($null, @([long]5)) -eq '00:00.005') ''
+# ביטול וחזרה (0.8.10; עד אז גרירה או מחיקה בטעות - בלי דרך חזרה)
+Reset @(,@(10000, 20000, $true))
+$view.Focus(); Pump 20
+$xe = [int]$view.X(20000)
+Mouse $view 'OnMouseDown' $xe; Mouse $view 'OnMouseMove' ([int]$view.X(30000)); Mouse $view 'OnMouseUp' ([int]$view.X(30000)); Pump 50
+$dragged = $secs[0].B
+[void](Cmd ([Windows.Forms.Keys]::Delete)); $afterDel = $secs.Count
+[void](Cmd ([Windows.Forms.Keys]::Control -bor [Windows.Forms.Keys]::Z)); $u1 = Txt $secs
+[void](Cmd ([Windows.Forms.Keys]::Control -bor [Windows.Forms.Keys]::Z)); $u2 = Txt $secs
+[void](Cmd ([Windows.Forms.Keys]::Control -bor [Windows.Forms.Keys]::Y)); $r1 = Txt $secs
+Check 'Ctrl+Z מבטל גרירה ומחיקה, Ctrl+Y מחזיר; Delete מוחק את הקטע הפעיל' ([Math]::Abs($dragged - 30000) -le $px -and $afterDel -eq 0 -and $u1 -match '^10000-3\d{4}k$' -and $u2 -eq '10000-20000k' -and $r1 -eq $u1) ("drag=$dragged del=$afterDel u1=$u1 u2=$u2 r1=$r1")
+
+SeekP 10000; Pump 40; $view.Focus(); [void](Cmd ([Windows.Forms.Keys]::OemPeriod)); [void](Cmd ([Windows.Forms.Keys]::OemPeriod)); $f2 = PosP
+[void](Cmd ([Windows.Forms.Keys]::Oemcomma)); $f1 = PosP
+$fps = $mi.FirstVideo().Fps; $fr = [Math]::Round(1000 / $fps)
+Check 'פסיק ונקודה: פריים אחורה וקדימה' ([Math]::Abs($f2 - (10000 + 2 * $fr)) -le 2 -and [Math]::Abs($f1 - (10000 + $fr)) -le 2) ("fps=$fps  $f2 $f1")
 
 # ---- חיתוך אמיתי דרך החלון ----
 $planM = $CD.GetMethod('Plan', $IN); $finM = $CD.GetMethod('Finish', $IN)
@@ -303,16 +358,14 @@ $du = (Probe $pl.Run.Outs[0]).DurationSec
 $got = (@($doc.Cues) | ForEach-Object { $_.Text + '@' + $_.Start + '-' + $_.End }) -join ' | '
 Check 'חיתוך מדויק דרך החלון: 18 שניות, והכתוביות זזות לזמנים של הקובץ החדש' ($err -eq $null -and [Math]::Abs($du - 18) -lt 0.2 -and $got -eq 'נחתכת בגבול@1000-2000 | שלמה@3000-5000 | בקטע השני@9000-11000') ("dur=$du  $got  $err")
 
-# ״לשמוע רק את מה שיישמר״: בניגון, רגע שמוסר - קפיצה לחלק הבא שנשאר
-$prev.Checked = $true
-Reset @(@(10000, 20000, $true), @(40000, 50000, $true))
-SeekP 25000; Pump 60
-[void]$mf.GetMethod('PlayPlayer', $IN).Invoke($mainF, @())
-Pump 250
+# ״השמעת התוצאה״ (0.8.10; עד אז מתג ״לשמוע רק את מה שיישמר״ שבנימין לא מצא): מתחילת התוצאה, מדלג, ועוצר בסוף
+Reset @(@(10000, 10400, $true), @(40000, 41500, $true))
+Click $res
+Pump 900
 $pp = PosP
-[void]$mf.GetMethod('PausePlayer', $IN).Invoke($mainF, @())
-Check '״לשמוע רק את מה שיישמר״: הניגון מדלג על מה שמוסר' ($pp -ge 40000 -and $pp -lt 42000) ('pos=' + $pp)
-$prev.Checked = $false
+$sw = [Diagnostics.Stopwatch]::StartNew(); while ((Playing) -and $sw.Elapsed.TotalSeconds -lt 6) { Pump 50 }
+$pe = PosP
+Check '״השמעת התוצאה״: מתחילת מה שיישמר, מדלג על מה שמוסר, ועוצר בסוף' ($pp -ge 40000 -and $pp -lt 41500 -and -not (Playing) -and [Math]::Abs($pe - 41500) -le 120) ('אחרי 0.9 שנ׳ ' + $pp + ', בסוף ' + $pe)
 
 # ▶ בשורה: מנגן את הקטע ועוצר בסופו
 Reset @(@(10000, 20000, $true), @(40000, 41000, $true))
