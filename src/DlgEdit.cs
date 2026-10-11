@@ -241,7 +241,7 @@ namespace SubtitleStudio
             Row(cpsL, 22, 2);
             _adv.Add(cpsL);
             _cps = new Slider();
-            _cps.Min = 8; _cps.Max = 25; _cps.Value = 15; _cps.Step = 0.5;
+            _cps.Min = 8; _cps.Max = 25; _cps.Value = 15; _cps.Step = 0.5; _cps.Editable = true;
             _cps.ValueChanged += delegate { UpdatePreview(); };
             Row(_cps, 28, 8);
             _adv.Add(_cps);
@@ -250,7 +250,7 @@ namespace SubtitleStudio
             Row(minL, 22, 2);
             _adv.Add(minL);
             _minDur = new Slider();
-            _minDur.Min = 0.5; _minDur.Max = 4; _minDur.Value = 1.4; _minDur.Step = 0.1;
+            _minDur.Min = 0.5; _minDur.Max = 4; _minDur.Value = 1.4; _minDur.Step = 0.1; _minDur.Editable = true;
             _minDur.ValueChanged += delegate { UpdatePreview(); };
             Row(_minDur, 28, 8);
             _adv.Add(_minDur);
@@ -487,7 +487,7 @@ namespace SubtitleStudio
             Controls.Add(_font);
 
             _size = new Slider();
-            _size.Min = 2; _size.Max = 12; _size.Value = _style.FontPct; _size.Step = 0.1; _size.Suffix = "%";
+            _size.Min = 2; _size.Max = 12; _size.Value = _style.FontPct; _size.Step = 0.1; _size.Suffix = "%"; _size.Editable = true;
             _size.ValueChanged += delegate { _style.FontPct = _size.Value; _preview.Invalidate(); };
             _size.SetBounds(left, Y + Theme.S(2), half, Theme.S(28));
             Controls.Add(_size);
@@ -536,13 +536,13 @@ namespace SubtitleStudio
             Y += Theme.S(24);
 
             _outline = new Slider();
-            _outline.Min = 0; _outline.Max = 6; _outline.Value = _style.OutlineWidth; _outline.Step = 0.1;
+            _outline.Min = 0; _outline.Max = 6; _outline.Value = _style.OutlineWidth; _outline.Step = 0.1; _outline.Editable = true;
             _outline.ValueChanged += delegate { _style.OutlineWidth = _outline.Value; _preview.Invalidate(); };
             _outline.SetBounds(right, Y, half, Theme.S(28));
             Controls.Add(_outline);
 
             _marginV = new Slider();
-            _marginV.Min = 0; _marginV.Max = 25; _marginV.Value = _style.MarginVPct; _marginV.Step = 0.5; _marginV.Suffix = "%";
+            _marginV.Min = 0; _marginV.Max = 25; _marginV.Value = _style.MarginVPct; _marginV.Step = 0.5; _marginV.Suffix = "%"; _marginV.Editable = true;
             _marginV.ValueChanged += delegate { _style.MarginVPct = _marginV.Value; _preview.Invalidate(); };
             _marginV.SetBounds(left, Y, half, Theme.S(28));
             Controls.Add(_marginV);

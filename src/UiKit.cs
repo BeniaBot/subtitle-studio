@@ -414,7 +414,8 @@ namespace SubtitleStudio
         public Func<double, string> EditText;
         public Func<string, double> Parse;
         private TextBox _box;
-        private bool _committing;
+        private bool _committing, _filling;
+        private double _orig;
         public event EventHandler ValueChanged;
         private bool _drag;
         private readonly Tween _hot;
@@ -477,6 +478,10 @@ namespace SubtitleStudio
                     else if (ke.KeyCode == Keys.Escape) { ke.SuppressKeyPress = true; Commit(false); }
                 };
                 _box.LostFocus += delegate { Commit(true); };
+                // **משפיע תוך כדי הקלדה** (בנימין, 11.10: ״אחרי ההקלדה אם לא לוחצים אנטר זה לא משפיע... הייתי רוצה שזה
+                // ישפיע מיידית״). עד אז רק Enter או יציאה מהתיבה - ולחיצה על ״הפעלה״ לא מוציאה ממנה, אז הכלי רץ על
+                // הערך הקודם. מספר שעוד לא שלם (״1״ בדרך ל-16) משפיע גם הוא; Esc מחזיר את מה שהיה לפני ההקלדה.
+                _box.TextChanged += delegate { if (!_filling) Apply(_box.Text); };
                 Controls.Add(_box);
             }
             _box.BackColor = Theme.PanelAlt;
@@ -485,7 +490,10 @@ namespace SubtitleStudio
             Rectangle r = LabelRect;
             int bh = _box.PreferredHeight;
             _box.SetBounds(r.X + Theme.S(4), r.Y + (r.Height - bh) / 2, r.Width - Theme.S(8), bh);
+            _orig = Value;
+            _filling = true;
             _box.Text = EditText != null ? EditText(Value) : Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            _filling = false;
             _box.Visible = true;
             _box.Focus();
             _box.SelectAll();
@@ -502,27 +510,34 @@ namespace SubtitleStudio
             return double.TryParse(sb.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v) ? v : double.NaN;
         }
 
+        /// <summary>טקסט שהוקלד ← הערך (אם הוא מספר), בתוך גבולות ההקלדה.</summary>
+        private void Apply(string text)
+        {
+            double v = Parse != null ? Parse(text) : ParseNumber(text);
+            if (double.IsNaN(v) || double.IsInfinity(v)) return;
+            double lo = double.IsNaN(TypeMin) ? Min : TypeMin, hi = double.IsNaN(TypeMax) ? Max : TypeMax;
+            if (v < lo) v = lo;
+            if (v > hi) v = hi;
+            SetValue(v);
+        }
+
+        private void SetValue(double v)
+        {
+            if (Math.Abs(v - Value) <= 1e-9) return;
+            Value = v;
+            Invalidate();
+            if (ValueChanged != null) ValueChanged(this, EventArgs.Empty);
+        }
+
+        /// <summary>סוגר את התיבה. <paramref name="apply"/>: הערך שהוקלד נשאר (הוא כבר הוחל תוך כדי); אחרת - מה שהיה.</summary>
         private void Commit(bool apply)
         {
             if (_box == null || !_box.Visible || _committing) return;
             _committing = true;
             try
             {
-                if (apply)
-                {
-                    double v = Parse != null ? Parse(_box.Text) : ParseNumber(_box.Text);
-                    if (!double.IsNaN(v) && !double.IsInfinity(v))
-                    {
-                        double lo = double.IsNaN(TypeMin) ? Min : TypeMin, hi = double.IsNaN(TypeMax) ? Max : TypeMax;
-                        if (v < lo) v = lo;
-                        if (v > hi) v = hi;
-                        if (Math.Abs(v - Value) > 1e-9)
-                        {
-                            Value = v;
-                            if (ValueChanged != null) ValueChanged(this, EventArgs.Empty);
-                        }
-                    }
-                }
+                if (apply) Apply(_box.Text);
+                else SetValue(_orig);
                 _box.Visible = false;
                 Invalidate();
             }
