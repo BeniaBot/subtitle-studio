@@ -59,7 +59,11 @@ function Near([double]$a, [double]$b, [double]$tol) { return [Math]::Abs($a - $b
 # פריים מקובץ, מוקטן ל-320 ברוחב, לקובץ PNG
 function Frame($path, [double]$sec, $png) {
     $so = ''; $se = ''
-    $args2 = '-hide_banner -y -ss ' + $sec.ToString('0.000', [Globalization.CultureInfo]::InvariantCulture) + ' -i "' + $path + '" -frames:v 1 -vf scale=320:-2 "' + $png + '"'
+    # **לפי מספר הפריים מתחילת הסרטון, לא לפי זמן.** קפיצה לפני הקלט ב-TS נחתה 4 שניות אחרי (נמדד על b.ts), ואחרי הקלט -
+    # פריים אחד הצידה (המקור מתחיל ב-1.48, הצרוב ב-0.04). בסרטון שהתמונה בו זזה כל פריים, ״diff top״ יצא 17-23 והצריבה
+    # ״נכשלה״ - והיא הייתה תקינה (נבדק בעין, 0.8.11). מפענח מההתחלה; הצריבה נבדקת רק עד 400 שניות.
+    $n = [int][Math]::Round($sec * 25)
+    $args2 = '-hide_banner -y -i "' + $path + '" -vf "fps=25,select=eq(n\,' + $n + '),scale=320:-2" -frames:v 1 "' + $png + '"'
     $argv = New-Object object[] 5; $argv[0] = $ffexe; $argv[1] = $args2; [void](TY 'Ff').GetMethod('RunSync', $ST).Invoke($null, $argv)
     return (Test-Path $png)
 }

@@ -821,5 +821,71 @@ Check 'גודל: יעד גדול מהקובץ - חסום (עד 0.8.8 יצא קו
 $p5 = Plan 94.32 720 9 2.5
 Check 'גודל: יעד קטן - המעטפת לפי האורך יורדת מהתכנון' ((F $p5 'VideoKbps') -eq 140 -and (F $p5 'AudioKbps') -eq 64) ("video=" + (F $p5 'VideoKbps') + " audio=" + (F $p5 'AudioKbps'))
 
+# ---------- 0.8.10-0.8.11: שמות שאפשר לכתוב, קול לא כבד מהמקור, ״המרת פורמט״ ----------
+Write-Host "סוגי קבצים וקידוד קול"
+$we = $burnT.GetMethod('WritableExt'); $rp2 = $burnT.GetMethod('ReencodePath')
+Check 'שם שאפשר לכתוב: divx ל-AVI, ‏DTS ל-M4A, ‏RealMedia ל-MKV (העתקה) ול-MP4 (קידוד)' (($we.Invoke($null, (Pack '.divx' $false))) -eq '.avi' -and ($we.Invoke($null, (Pack '.dts' $true))) -eq '.m4a' -and ($we.Invoke($null, (Pack '.rm' $false))) -eq '.mkv' -and ($rp2.Invoke($null, @('C:\a\b.rm'))) -eq 'C:\a\b.mp4' -and ($we.Invoke($null, (Pack '.mp4' $false))) -eq '.mp4') ''
+$afm = $burnT.GetMethod('AudioFor', [Type[]]@([string], $miT))
+function AudioSrc($codec, $kbps, $ext) {
+    $m = Probe ("Input #0, x, from 'x':`n  Duration: 00:01:00.00, start: 0.000000, bitrate: 900 kb/s`n  Stream #0:0: Video: h264 (High), yuv420p, 1280x720, 700 kb/s, 25 fps`n  Stream #0:1: Audio: $codec, 48000 Hz, stereo, fltp" + $(if ($kbps) { ", $kbps kb/s" } else { '' }))
+    $miT2.GetField('Path').SetValue($m, 'C:\a\src' + $ext); return ,$m
+}
+$a128 = $afm.Invoke($null, (Pack 'C:\a\o.mp4' (AudioSrc 'aac (LC)' 128 '.mp4')))
+$a125 = $afm.Invoke($null, (Pack 'C:\a\o.mp4' (AudioSrc 'aac (LC)' 125 '.mp4')))
+$a48 = $afm.Invoke($null, (Pack 'C:\a\o.mp4' (AudioSrc 'aac (LC)' 48 '.mp4')))
+$a320 = $afm.Invoke($null, (Pack 'C:\a\o.mp4' (AudioSrc 'aac (LC)' 320 '.mp4')))
+$aMkv = $afm.Invoke($null, (Pack 'C:\a\o.mkv' (AudioSrc 'opus' 0 '.mkv')))
+Check 'קול לא כבד מהמקור: 128 נשאר 128, ‏125 עולה ל-128, ‏48 עולה ל-96, ‏320 נעצר ב-256, ובלי קצב ידוע - 256 (עד 0.8.11 תמיד 256: פי 1.12)' ($a128 -match 'aac -b:a 128k' -and $a125 -match '-b:a 128k' -and $a48 -match '-b:a 96k' -and $a320 -match '-b:a 256k' -and $aMkv -match '-b:a 256k' -and $a128 -match '-ac 2') "$a128 | $a125 | $a48 | $a320 | $aMkv"
+$m195 = $afm.Invoke($null, (Pack 'C:\a\o.mp3' (AudioSrc 'mp3' 195 '.mp3'))); $m320 = $afm.Invoke($null, (Pack 'C:\a\o.mp3' (AudioSrc 'mp3' 320 '.mp3')))
+Check 'MP3: הקצב הקרוב מהטבלה (195 - ‏192, ‏320 - ‏320; עד 0.8.11 קובץ של 320 יצא 128)' ($m195 -match 'libmp3lame -b:a 192k' -and $m320 -match '-b:a 320k') "$m195 | $m320"
+$a129 = $afm.Invoke($null, (Pack 'C:\a\o.mp4' (AudioSrc 'aac (LC)' 129 '.mp4')))
+Check 'עיגול לקרוב ולא למעלה: 129 נשאר 128 (עיגול למעלה של 32 נתן 160, ו-M4A יצא גדול ב-24%)' ($a129 -match '-b:a 128k') $a129
+# קובץ קול: הנמוך מבין הקצב המדווח והקצב מהגודל (Vorbis מדווח 128 בקובץ של 96; ‏Opus לא מדווח)
+$ogg = Probe ("Input #0, ogg, from 'x':`n  Duration: 00:01:34.32, start: 0.000000, bitrate: 96 kb/s`n  Stream #0:0: Audio: vorbis, 48000 Hz, stereo, fltp, 128 kb/s")
+$miT2.GetField('Path').SetValue($ogg, 'C:\a\n.ogg'); $miT2.GetField('SizeBytes').SetValue($ogg, [long](1107 * 1KB))
+$opus = Probe ("Input #0, ogg, from 'x':`n  Duration: 00:01:34.32, start: 0.000000, bitrate: 57 kb/s`n  Stream #0:0: Audio: opus, 48000 Hz, stereo, fltp")
+$miT2.GetField('Path').SetValue($opus, 'C:\a\l.opus'); $miT2.GetField('SizeBytes').SetValue($opus, [long](660 * 1KB))
+$sk = $burnT.GetMethod('SourceAudioKbps', $BF)
+$oggA = $afm.Invoke($null, (Pack 'C:\a\o.ogg' $ogg)); $opusA = $afm.Invoke($null, (Pack 'C:\a\o.opus' $opus))
+Check 'קובץ קול: הקצב גם מהגודל - Vorbis ״128״ שהוא 96, ו-Opus בלי קצב (עד אז ״איזון״ על Opus יצא פי 3)' (($sk.Invoke($null, (Pack $ogg))) -eq 96 -and ($sk.Invoke($null, (Pack $opus))) -eq 57 -and $oggA -match 'libopus -b:a 96k' -and $opusA -match 'libopus -b:a 64k') "$oggA | $opusA"
+$mtT2 = $asm.GetType('SubtitleStudio.MediaTools')
+function MiText($ext, $lines) { $m = Probe ("Input #0, x, from 'x':`n  Duration: 00:00:08.00, start: 0.000000, bitrate: 900 kb/s`n" + ($lines -join "`n")); $miT2.GetField('Path').SetValue($m, 'C:\a\src' + $ext); return ,$m }
+$vH = '  Stream #0:0: Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709), 640x360, 700 kb/s, 25 fps'
+$vH10 = '  Stream #0:0: Video: h264 (High 10), yuv420p10le(tv, progressive), 640x360, 700 kb/s, 25 fps'
+$aA = '  Stream #0:1: Audio: aac (LC), 48000 Hz, stereo, fltp, 128 kb/s'
+$ready = $mtT2.GetMethod('Mp4Ready', $BF)
+Check '״MP4 שנפתח בכל מקום״: H.264 של 8 ביט עם AAC כן; 10 ביט לא; MKV לא' ($ready.Invoke($null, (Pack (MiText '.mp4' @($vH, $aA)))) -and -not $ready.Invoke($null, (Pack (MiText '.mp4' @($vH10, $aA)))) -and -not $ready.Invoke($null, (Pack (MiText '.mkv' @($vH, $aA))))) ''
+$mkvSubs = MiText '.mkv' @($vH, $aA, '  Stream #0:2(heb): Subtitle: subrip (default)', '  Stream #0:3(eng): Subtitle: hdmv_pgs_subtitle', '  Stream #0:4: Attachment: ttf')
+$maps = $mtT2.GetMethod('CopyMaps', $BF); $subc = $mtT2.GetMethod('CopySubCodecs', $BF)
+$m4 = $maps.Invoke($null, (Pack $mkvSubs $true)); $mk = $maps.Invoke($null, (Pack $mkvSubs $false)); $s4 = $subc.Invoke($null, (Pack $mkvSubs $true))
+Check 'העתקה ל-MP4: התמונה, כל הקול, כתוביות הטקסט (לא PGS, לא גופנים) כ-mov_text; ל-MKV - הכול' ($m4 -match '-map 0:0 ' -and $m4 -match '-map 0:a\? ' -and $m4 -match '-map 0:2 ' -and $m4 -notmatch '0:3' -and $m4 -notmatch '0:t' -and $s4 -match '-c:s:0 mov_text' -and $mk -match '-map 0:3 ' -and $mk -match '0:t\?') "$m4 | $s4 | $mk"
+$mp4Mt = MiText '.mp4' @($vH, $aA, '  Stream #0:2(heb): Subtitle: mov_text (tx3g / 0x67337874)')
+Check 'mov_text: ל-MP4 מועתק במפורש (בלי זה ״Encoder not found״), ל-MKV - ‏SRT' (($subc.Invoke($null, (Pack $mp4Mt $true))) -match '-c:s:0 copy' -and ($subc.Invoke($null, (Pack $mp4Mt $false))) -match '-c:s:0 srt') ''
+$fr = $mtT2.GetMethod('FitRange', $BF)
+$fitMi = MiText '.mp4' @($vH, $aA); $miT2.GetField('SizeBytes').SetValue($fitMi, [long](9.2 * 1MB))
+$r9 = $fr.Invoke($null, (Pack $fitMi))
+Check '״התאמה לגודל״ לקובץ של 9.2 מגה: צעד חצי, עד 9, נפתח על 4.5 (עד 0.8.10: 5-500, נפתח על 200 וחסום)' ($r9[0] -eq 0.5 -and $r9[1] -eq 9 -and $r9[2] -eq 4.5 -and $r9[3] -eq 0.5) ($r9 -join ',')
+
+# ---------- פורמטי כתוביות (0.8.10) ----------
+Write-Host "פורמטי כתוביות"
+$ptx = $fmt.GetMethod('ParseText'); $sfT = $asm.GetType('SubtitleStudio.SubFormat')
+function ParseAs($text, $f) { $r = $ptx.Invoke($null, (Pack ([string]$text) ([Enum]::Parse($sfT, $f)))); return ,$prT.GetField('Cues').GetValue($r) }
+function CueTxt($l) { return (@($l) | ForEach-Object { '' + $_.Start + '-' + $_.End + ':' + ($_.Text -replace "`n", '/') }) -join ' | ' }
+$sbv = ParseAs "0:00:01.000,0:00:03.500`r`nשלום`r`nעולם`r`n`r`n0:01:02.050,0:01:04.900`r`nזה [br]שני`r`n" 'Sbv'
+Check 'SBV של יוטיוב: זמנים, שתי שורות, ו-[br]' ((CueTxt $sbv) -eq '1000-3500:שלום/עולם | 62050-64900:זה/שני') (CueTxt $sbv)
+$lrc = ParseAs "[ti:x]`n[offset:+500]`n[00:01.50]ראשונה`n[00:05.00][01:05.00]פזמון`n[00:09.20]<00:09.20>מילה <00:09.80>שנייה`n[00:12.00]`n" 'Lrc'
+Check 'LRC: הזזה של חצי שנייה, פזמון בשני זמנים, זמני מילים יורדים, ושורה ריקה מסיימת' ((CueTxt $lrc) -eq '1000-3000:ראשונה | 4500-6500:פזמון | 8700-10700:מילה שנייה | 64500-66500:פזמון') (CueTxt $lrc)
+$ttml = ParseAs "<tt xmlns=`"http://www.w3.org/ns/ttml`" xmlns:ttp=`"http://www.w3.org/ns/ttml#parameter`" ttp:frameRate=`"25`"><body><div><p begin=`"00:00:01:00`" end=`"00:00:03:12`">א<br/>ב</p><p begin=`"4.5s`" dur=`"1500ms`">ג  &amp;  ד</p></div></body></tt>" 'Ttml'
+Check 'TTML: פריימים בקצב 25, שניות ומילישניות, ‏<br/> וישויות' ((CueTxt $ttml) -eq '1000-3480:א/ב | 4500-6000:ג & ד') (CueTxt $ttml)
+$tick = ParseAs "<tt xmlns=`"http://www.w3.org/ns/ttml`" ttp:tickRate=`"10000000`"><body><p begin=`"10000000t`" end=`"35000000t`">x</p></body></tt>" 'Ttml'
+$tickNoRate = ParseAs "<tt xmlns=`"http://www.w3.org/ns/ttml`"><body><p begin=`"2t`" end=`"5t`">y</p></body></tt>" 'Ttml'
+Check 'TTML: ticks לפי tickRate, ובלי tickRate וקצב פריימים - שנייה לכל tick' ((CueTxt $tick) -eq '1000-3500:x' -and (CueTxt $tickNoRate) -eq '2000-5000:y') ((CueTxt $tick) + ' / ' + (CueTxt $tickNoRate))
+$yt = ParseAs '<transcript><text start="1.2" dur="2.3">a &amp;#39;b&amp;#39;</text></transcript>' 'Ttml'
+Check 'התמליל של יוטיוב: שניות, וישויות מקודדות פעמיים' ((CueTxt $yt) -eq "1200-3500:a 'b'") (CueTxt $yt)
+$smi = ParseAs "<SAMI><BODY><SYNC Start=1000><P Class=HECC>שלום<br>עולם<P Class=ENCC>Hello<SYNC Start=3500><P Class=HECC>&nbsp;<P Class=ENCC>&nbsp;<SYNC Start=4000><P Class=HECC>שנייה ארוכה יותר<P Class=ENCC>x<SYNC Start=6000><P Class=HECC>&nbsp;</BODY></SAMI>" 'Sami'
+Check 'SAMI בשתי שפות: השפה עם הכי הרבה טקסט, ו-&nbsp; מסיים' ((CueTxt $smi) -eq '1000-3500:שלום/עולם | 4000-6000:שנייה ארוכה יותר') (CueTxt $smi)
+$dfT = $fmt.GetMethod('DetectFormat')
+Check 'זיהוי לפי התוכן: SBV, ‏LRC, ‏TTML ו-SAMI בקובץ ‎.txt‎' ("$($dfT.Invoke($null, (Pack 'a.txt' "0:00:01.000,0:00:02.000`nא`n`n0:00:03.000,0:00:04.000`nב")))" -eq 'Sbv' -and "$($dfT.Invoke($null, (Pack 'a.txt' "[00:01.00]א`n[00:02.00]ב")))" -eq 'Lrc' -and "$($dfT.Invoke($null, (Pack 'a.xml' '<tt xmlns="http://www.w3.org/ns/ttml"><p begin="1s">x</p></tt>')))" -eq 'Ttml' -and "$($dfT.Invoke($null, (Pack 'a.txt' '<SAMI><SYNC Start=0>x')))" -eq 'Sami') ''
+
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }
