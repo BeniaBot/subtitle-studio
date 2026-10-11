@@ -2,6 +2,42 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.12",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "t": "major",
+          "s": "העוזר החכם, מחדש: עושה כל מה שאפשר לעשות בתוכנה - כל פקודה בתפריטים, וגם ממלא חלונות ולוחץ בהם - ומסביר איך עושים דברים",
+          "en": "The smart assistant, rebuilt: it does anything you can do in the program - every menu command, and it fills in windows and clicks in them - and explains how to do things"
+        },
+        {
+          "t": "major",
+          "s": "״תראה לי את הקטע שבו רואים...״ - העוזר מסתכל על הסרט, מוצא את הסצנה ומקפיץ אליה את הנגן",
+          "en": "'Show me the part where you see...' - the assistant looks at the video, finds the scene and moves the player there"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר מקריא את התשובות בקול, ואפשר לדבר אליו במיקרופון",
+          "en": "The assistant reads its answers aloud, and you can talk to it with the microphone"
+        },
+        {
+          "t": "feature",
+          "s": "בהגדרות: מה העוזר רשאי לעשות - לכל סוג פעולה מותר, לשאול אותי או אסור",
+          "en": "In Settings: what the assistant may do - for each kind of action allowed, ask me, or not allowed"
+        },
+        {
+          "t": "feature",
+          "s": "״לבטל את מה שעשיתי״ אחרי כל בקשה, ושאלות עם תשובות לבחירה בלחיצה",
+          "en": "'Undo what I did' after every request, and questions with answers you pick with a click"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר: בלי השגיאות באמצע בקשה של כמה שלבים, כל הפעולות שביקש מתבצעות, ותשובות ארוכות לא נחתכות",
+          "en": "The assistant: no more errors in the middle of a request with several steps, every action it asks for is done, and long answers are no longer cut off"
+        }
+      ]
+    },
+    {
       "v": "0.8.11",
       "date": "2026-10-11",
       "items": [

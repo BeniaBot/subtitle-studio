@@ -41,11 +41,11 @@ namespace SubtitleStudio
         private const int MaxRounds = 12;
         private static readonly string[] Chips = new string[]
         {
+            Lang.T("אני רוצה כתוביות לסרט"),
             Lang.T("תרגם את הכתוביות לאנגלית"),
-            Lang.T("תקן חפיפות וכתוביות קצרות מדי"),
             Lang.T("כל הכתוביות מאחרות בחצי שנייה"),
             Lang.T("תגדיל את הכתוביות ותשים למעלה"),
-            Lang.T("תכין גרסה שנכנסת ב-200 מגה")
+            Lang.T("מה אתה יודע לעשות?")
         };
 
         public AiChatForm(IAiHost host)

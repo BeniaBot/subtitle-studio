@@ -108,6 +108,7 @@ function MenuSample
 
 $forms = @(
     @{ n = 'Settings';    make = { NewOf 'SettingsDlg' @((MainWith 1200 800 $false)) } },
+    @{ n = 'AiPerms';     make = { NewOf 'AiPermsDlg' @() } },
     @{ n = 'About';       make = { NewOf 'AboutDlg' @() } },
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },

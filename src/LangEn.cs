@@ -1514,9 +1514,11 @@ namespace SubtitleStudio
             "לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון", "Nothing was heard - try again, closer to the microphone",
             "מקשיב... לחיצה - שולח", "Listening... click to send",
             "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
-            "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
+            "אני רוצה כתוביות לסרט", "I want subtitles for the video",
         };
         private static readonly string[] P5 = new string[] {
+            "מה אתה יודע לעשות?", "What can you do?",
+            "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
             "ליצור קבצים חדשים מהסרט", "Make new files from the video",
             "לפתוח ולשמור קבצים", "Open and save files",
             "לשלוח את הקול או תמונות מהסרט", "Send the sound or pictures from the video",

@@ -1581,6 +1581,8 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון	Nothing was heard - try again, closer to the microphone
 מקשיב... לחיצה - שולח	Listening... click to send
 הודעה קולית ({0} שניות)	Voice message ({0} seconds)
+אני רוצה כתוביות לסרט	I want subtitles for the video
+מה אתה יודע לעשות?	What can you do?
 # ---- AiPerms.cs ----
 לערוך את הכתוביות והעיצוב	Edit the subtitles and the style
 ליצור קבצים חדשים מהסרט	Make new files from the video
