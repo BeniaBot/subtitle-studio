@@ -129,8 +129,9 @@ foreach ($f in $files) {
             $mo = Probe $o
             $okDur = Near $mo.DurationSec $dur ([Math]::Max(0.6, $dur * 0.01))
             $okA = ($mo.HasAudio -eq $mi.HasAudio)
-            # הכתובית באמת בתמונה: באמצע הכתובית השנייה השליש התחתון שונה מהמקור, והעליון לא
-            $t = ($times[1] + 800) / 1000.0
+            # הכתובית באמת בתמונה: באמצע הכתובית השנייה השליש התחתון שונה מהמקור, והעליון לא.
+            # באמצע באמת: עד 9.10 ״+800ms״, ובקובץ של 8 שניות הכתובית נגמרת בדיוק שם - ״אין כתובית״ בארבעה סוגים תקינים
+            $t = ($times[1] + [Math]::Min(2500, $dur * 100) / 2) / 1000.0
             $pa = Join-Path $Out ($tag + '-src.png'); $pb = Join-Path $Out ($tag + '-out.png')
             $fa = Frame $f $t $pa; $fb = Frame $o $t $pb
             $d = if ($fa -and $fb) { BottomDiff $pa $pb } else { @(-1, -1) }
@@ -191,7 +192,10 @@ foreach ($f in $files) {
             # העתקה של קול: כל חיבור מוסיף פריים (MP3 - ‏26ms), ובקובץ ארוך התחילה מעוגלת לפריים
             $tol = if ($pl.fast -and $vid) { 10.0 } else { 0.6 }
             $okD = ($mo.DurationSec -ge $want - 0.6) -and ($mo.DurationSec -le $want + $tol)
-            $sameFmt = $vid -or ([IO.Path]::GetExtension($o) -eq [IO.Path]::GetExtension($f))
+            # העתקה - אותו פורמט (בשם שאפשר לכתוב: ‎.divx‎ הוא AVI); קידוד מחדש בכוונה (‏AMR, ‏DTS ל-M4A) - לא נדרש
+            $copies = (TY 'CutPlan').GetMethod('Copies', $ST).Invoke($null, (Pk $mi ([bool]$pl.fast)))
+            $wext = (TY 'Burn').GetMethod('WritableExt', $ST).Invoke($null, (Pk ([IO.Path]::GetExtension($f)) (-not $vid)))
+            $sameFmt = $vid -or -not $copies -or ([IO.Path]::GetExtension($o) -eq $wext)
             Rep $name ('trim ' + $pl.n) ($okD -and $sameFmt -and (($mo.FirstVideo() -ne $null) -eq $vid) -and $mo.HasAudio -eq $mi.HasAudio) ('dur {0:0.00} want {1:0.00}  video {2} audio {3}  {4}' -f $mo.DurationSec, $want, ($mo.FirstVideo() -ne $null), $mo.HasAudio, [IO.Path]::GetFileName($o))
         }
     }
@@ -219,7 +223,8 @@ foreach ($f in $files) {
             # ״הפעלה״ כבויה (MediaTool.Block, 8.10): מותר רק כשבאמת אין מה לעשות - קובץ שכבר קטן מהיעד
             $blocked = $dlg.GetType().GetProperty('Blocked', $IN).GetValue($dlg, $null)
             if ($blocked) {
-                $okBlock = ($tn -match 'גודל קובץ' -and $srcMb -le $slider0.Value) -or ($tn -match 'שינוי רזולוציה' -and [Math]::Min($mi.Width, $mi.Height) -le 360)
+                # וכלי קול בסרט בלי קול (‏NeedsAudio, ‏0.8.10)
+                $okBlock = ($tn -match 'גודל קובץ' -and $srcMb -le $slider0.Value) -or ($tn -match 'שינוי רזולוציה' -and [Math]::Min($mi.Width, $mi.Height) -le 360) -or ($tool.NeedsAudio -and -not $mi.HasAudio)
                 Rep $name ('tool ' + $ti + ' ' + $tn) $okBlock ('blocked: ' + $blocked); $dlg.Dispose(); continue
             }
             $sugg = $dlg.GetType().GetField('_out', $IN).GetValue($dlg).Text

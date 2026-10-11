@@ -20,6 +20,9 @@ namespace SubtitleStudio
         public int Width, Height;
         public double Fps;
         public int Channels;
+        /// <summary>קול שהמפענח לא מסמן את סידור הערוצים שלו (״1 channels״ במקום ״mono״ - ‏Speex, ‏TTA). ‏AAC ו-FLAC
+        /// מסרבים לקודד אותו (״Unsupported channel layout״), ו-<see cref="Burn.LayoutArgs"/> מוסיף ‏-ac.</summary>
+        public bool NoLayout;
         public int SampleRate;          // קול: הרץ. ‏0 = לא ידוע
         public long BitRate;
         public bool Default;
@@ -468,7 +471,7 @@ namespace SubtitleStudio
                         else
                         {
                             Match ch = Regex.Match(tail, @"(\d+)\s*channels");
-                            if (ch.Success) cur.Channels = (int)D(ch.Groups[1].Value);
+                            if (ch.Success) { cur.Channels = (int)D(ch.Groups[1].Value); cur.NoLayout = true; }
                         }
                     }
                     cur.Default = tail.Contains("(default)");

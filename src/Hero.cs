@@ -297,8 +297,8 @@ namespace SubtitleStudio
                     catch { }
                     Ico ic = Ico.Film;
                     if (ext == ".subtext") ic = Ico.Layers;
-                    else if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".txt") ic = Ico.TextIcon;
-                    else if (ext == ".mp3" || ext == ".wav" || ext == ".m4a" || ext == ".flac") ic = Ico.Speaker;
+                    else if (FileTypes.Is(FileTypes.Subtitles, path) || ext == ".txt" || ext == ".xml") ic = Ico.TextIcon;
+                    else if (FileTypes.Is(FileTypes.Audio, path)) ic = Ico.Speaker;
 
                     Icons.Draw(g, ic, Theme.Mir(r, new RectangleF(r.Right - Theme.S(26), r.Y + (r.Height - Theme.S(16)) / 2, Theme.S(16), Theme.S(16))),
                         exists ? (hover ? Theme.Accent : Theme.TextDim) : Theme.TextFaint, 1.8f);

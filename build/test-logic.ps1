@@ -753,7 +753,7 @@ Check 'קטע ל-WEBM: הקול ב-Opus' (($aa.Invoke($null, @($mi, 'x.webm', $t
 $rp = $burnT.GetMethod('ReencodePath')
 Check 'קידוד מחדש של WEBM יוצא MP4 (WEBM לא מקבל H.264)' (($rp.Invoke($null, @('C:\a\b.webm'))) -eq 'C:\a\b.mp4') ($rp.Invoke($null, @('C:\a\b.webm')))
 Check 'MKV נשאר MKV' (($rp.Invoke($null, @('C:\a\b.mkv'))) -eq 'C:\a\b.mkv') ''
-$af = $burnT.GetMethod('AudioFor')
+$af = $burnT.GetMethod('AudioFor', [Type[]]@([string]))    # 0.8.10: יש גם AudioFor(נתיב, MediaInfo)
 Check 'כלי קול על MP3: הקודק של MP3, לא AAC בתוך .mp3' (($af.Invoke($null, @('C:\a\b.mp3'))) -match 'libmp3lame') ($af.Invoke($null, @('C:\a\b.mp3')))
 Check 'כלי קול על WMA: הקודק של WMA' (($af.Invoke($null, @('C:\a\b.wma'))) -match 'wmav2') ($af.Invoke($null, @('C:\a\b.wma')))
 Check 'כלי קול על MP4: AAC' (($af.Invoke($null, @('C:\a\b.mp4'))) -match 'aac') ''

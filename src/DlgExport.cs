@@ -155,21 +155,92 @@ namespace SubtitleStudio
         {
             ext = (ext ?? "").ToLowerInvariant();
             return !(ext == ".webm" || ext == ".ogv" || ext == ".ogg" || ext == ".mpg" || ext == ".mpeg" ||
-                     ext == ".vob" || ext == ".wmv" || ext == ".asf" || ext == ".rm" || ext == ".rmvb");
+                     ext == ".vob" || ext == ".wmv" || ext == ".asf" || ext == ".rm" || ext == ".rmvb" || ext == ".mxf");
+        }
+
+        /// <summary>סיומת שמנוע הווידאו יודע לכתוב, לקובץ שנשמר מקובץ בסיומת <paramref name="ext"/>.
+        ///
+        /// **נמצא בסבב על 48 סוגי קבצים (9.10.2026):** ‏‎.divx‎ הוא AVI, אבל ffmpeg לא מכיר את השם - וכל כלי, וכל
+        /// חיתוך, נכשל ב״Invalid argument״. ‏DTS נכתב רק במקודד ניסיוני (״Nothing was written״), ‏AMR ו-Speex הם קידוד
+        /// טלפוני של 8kHz, ו-RealMedia אי אפשר לכתוב בכלל. אותו מיכל בשם אחר - הסיומת הרגילה שלו; מה שאי אפשר לכתוב -
+        /// ‏M4A לקול ו-MKV לסרט (מקבל כל קידוד, גם כשהתמונה מועתקת).</summary>
+        public static string WritableExt(string ext, bool audioOnly)
+        {
+            switch ((ext ?? "").ToLowerInvariant())
+            {
+                case ".divx": case ".xvid": return ".avi";
+                case ".mod": case ".tod": case ".m2p": case ".mpe": case ".vro": return ".mpg";
+                case ".trp": case ".tp": return ".ts";
+                case ".qt": return ".mov";
+                case ".weba": return ".webm";
+                case ".m4r": return ".m4a";
+                case ".spx": return ".opus";
+                case ".dts": case ".amr": case ".awb": case ".3ga": return ".m4a";
+                case ".rm": case ".rmvb": case ".ra": case ".ram": case ".dv": case ".amv": case ".mj2":
+                case ".m2v": case ".h264": case ".264": case ".hevc": case ".265":
+                    return audioOnly ? ".m4a" : ".mkv";
+            }
+            return ext;
+        }
+
+        /// <summary><see cref="WritableExt"/> על נתיב שלם.</summary>
+        public static string WritablePath(string path, bool audioOnly)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            try
+            {
+                string e = Path.GetExtension(path);
+                string w = WritableExt(e, audioOnly);
+                return string.Equals(e, w, StringComparison.OrdinalIgnoreCase) ? path : Path.ChangeExtension(path, w);
+            }
+            catch { return path; }
         }
 
         /// <summary>דגלי קלט להעתקה (בלי קידוד). ב-AVI של DivX/Xvid יש מסגרות בלי חותמת
         /// זמן, ו-MKV מסרב להן: ״ערוץ נפרד״ מ-AVI ל-MKV נכשל עד 0.8.1 (נמצא בסבב על
-        /// קבצים אמיתיים). ‏genpts משלים את החותמות.</summary>
+        /// קבצים אמיתיים). ‏genpts משלים את החותמות. **וכך גם MPEG-PS** (‏.mpg של מצלמה ישנה): ״ערוץ נפרד״ נכשל ב-״Timestamps
+        /// are unset״ עד 0.8.10 (הסבב על 48 סוגים; ‏VOB של DVD עבר גם בלי).</summary>
         public static string CopyInputFlags(MediaInfo mi)
         {
             try
             {
-                string ext = Path.GetExtension(mi != null ? mi.Path : "").ToLowerInvariant();
-                if (ext == ".avi" || ext == ".divx") return "-fflags +genpts ";
+                switch (Path.GetExtension(mi != null ? mi.Path : "").ToLowerInvariant())
+                {
+                    case ".avi": case ".divx": case ".xvid":
+                    case ".mpg": case ".mpeg": case ".vob": case ".m2p": case ".mpe": case ".mod": case ".tod": case ".vro":
+                        return "-fflags +genpts ";
+                }
             }
             catch { }
             return "";
+        }
+
+        /// <summary>‏-ac במספר הערוצים של המקור. בלי זה AAC ו-FLAC מסרבים לקול שהמפענח לא מסמן את סידור הערוצים שלו
+        /// (״Unsupported channel layout״), וההמרה, ההיפוך והחיתוך של Speex ו-TTA נכשלו (הסבב על 48 סוגים). **תמיד, ולא רק
+        /// כש-<see cref="MediaStream.NoLayout"/>:** ‏ffmpeg -i אומר ״mono״ על Speex - הסידור חסר רק בפענוח. בקובץ רגיל זה
+        /// אותו מספר ערוצים, כלומר לא משנה כלום.</summary>
+        public static string LayoutArgs(MediaInfo mi)
+        {
+            MediaStream a = mi != null ? mi.FirstAudio() : null;
+            if (a == null || a.Channels <= 0 || a.Channels > 8) return "";
+            return " -ac " + a.Channels.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>קול AAC לכלים שמטרתם קובץ קטן (״דחיסה״, ״וואטסאפ״): עד <paramref name="maxK"/>, **אבל לא כבד מהקול
+        /// שבמקור** (ולא פחות מ-48k). עד 0.8.10 תמיד 128k, וסרטון דחוס עם קול דל יצא מ״דחיסה״ גדול מהמקור (הסבב על 48 סוגים).
+        /// קצב לא ידוע (MKV, ‏OGG) - <paramref name="maxK"/>.</summary>
+        public static string SmallAudio(MediaInfo mi, int maxK)
+        {
+            MediaStream a = mi != null ? mi.FirstAudio() : null;
+            int k = maxK;
+            if (a != null && a.BitRate > 0) k = Math.Max(48, Math.Min(maxK, (int)Math.Ceiling(a.BitRate / 1000.0)));
+            return "-c:a aac -b:a " + k.ToString(CultureInfo.InvariantCulture) + "k";
+        }
+
+        /// <summary><see cref="AudioFor(string)"/>, ועם ‏-ac כשצריך (<see cref="LayoutArgs"/>).</summary>
+        public static string AudioFor(string outPath, MediaInfo mi)
+        {
+            return AudioFor(outPath) + LayoutArgs(mi);
         }
 
         /// <summary>קידוד הקול לקובץ שהתמונה בו מועתקת: Opus ל-WEBM (שלא מקבל AAC),
@@ -182,11 +253,26 @@ namespace SubtitleStudio
             switch (ext)
             {
                 case ".webm": case ".ogv": case ".ogg": case ".opus": return "-c:a libopus -b:a 192k";
-                // קובץ קול: הקודק של המיכל. עד 0.8.1 ״היפוך״ על MP3 כתב AAC לתוך ‎.mp3 ונכשל
+                // ‏‎.oga‎ הוא בדרך כלל FLAC בתוך Ogg - נשאר בלי אובדן
+                case ".oga": return "-c:a flac";
+                // קובץ קול: הקודק של המיכל. עד 0.8.1 ״היפוך״ על MP3 כתב AAC לתוך ‎.mp3 ונכשל, ועד 0.8.9 גם על AIFF,
+                // ‏AU, ‏CAF, ‏AC3 ו-EAC3 (הסבב על 48 סוגים, 9.10)
                 case ".mp3": return "-c:a libmp3lame -q:a 2";
                 case ".wav": return "-c:a pcm_s16le";
-                case ".wma": case ".asf": return "-c:a wmav2 -b:a 192k";
+                case ".wma": case ".wmv": case ".asf": return "-c:a wmav2 -b:a 192k";
                 case ".flac": return "-c:a flac";
+                case ".aif": case ".aiff": case ".aifc": case ".au": return "-c:a pcm_s16be";
+                case ".caf": return "-c:a pcm_s16le";
+                case ".wv": return "-c:a wavpack";
+                case ".tta": return "-c:a tta";
+                // ‏AC3 בוחר קצב לפי מספר הערוצים (גם 5.1); ‏MP2 - ‏160k מותר בכל קצב דגימה ובמונו
+                case ".ac3": return "-c:a ac3";
+                case ".eac3": return "-c:a eac3";
+                case ".mp2": case ".m2a": case ".mpa": return "-c:a mp2 -b:a 160k";
+                // ‏MPEG-PS (תקליטור DVD, מצלמה ישנה) לא מקבל AAC
+                case ".mpg": case ".mpeg": case ".vob": return "-c:a ac3 -ar 48000";
+                // ‏MXF מקבל רק PCM ב-48kHz
+                case ".mxf": return "-c:a pcm_s16le -ar 48000";
                 default: return Q.MaxAudio;
             }
         }
@@ -219,7 +305,15 @@ namespace SubtitleStudio
         /// <summary>נתיב לקובץ שמקודד מחדש ל-H.264: אותו שם, ו-MP4 כשהמיכל המקורי לא מתאים.</summary>
         public static string ReencodePath(string path)
         {
-            try { return TakesH264(Path.GetExtension(path)) ? path : Path.ChangeExtension(path, ".mp4"); }
+            try
+            {
+                // מיכל שאי אפשר לכתוב: ממילא מקודדים מחדש, אז MP4 (לא ה-MKV של העתקה)
+                string e = Path.GetExtension(path);
+                string w = WritableExt(e, false);
+                if (w == ".mkv" && !string.Equals(e, ".mkv", StringComparison.OrdinalIgnoreCase)) w = ".mp4";
+                if (!TakesH264(w)) w = ".mp4";
+                return string.Equals(e, w, StringComparison.OrdinalIgnoreCase) ? path : Path.ChangeExtension(path, w);
+            }
             catch { return path; }
         }
     }

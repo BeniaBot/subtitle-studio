@@ -231,6 +231,12 @@ namespace SubtitleStudio
         /// <summary>הקידוד של קובץ קול שלא נחתך בהעתקה, והסיומת שמתאימה לו: באותו פורמט כשאפשר.</summary>
         internal static string AudioCodecArgs(MediaInfo mi, out string ext)
         {
+            // ‏Speex ו-TTA: בלי ‏-ac מקודד ה-FLAC וה-AAC מסרבים (הסבב על 48 סוגים)
+            return CodecOnly(mi, out ext) + Burn.LayoutArgs(mi);
+        }
+
+        private static string CodecOnly(MediaInfo mi, out string ext)
+        {
             string src = Path.GetExtension(mi.Path).ToLowerInvariant();
             string c = AudioCodec(mi);
             // ‏FLAC אחרי atrim: בלי גודל מסגרת קבוע המקודד נופל על מסגרת ראשונה של דגימה אחת (״invalid block size: 1״)
@@ -251,7 +257,7 @@ namespace SubtitleStudio
         internal static string FinalPath(MediaInfo mi, string outPath, bool fast)
         {
             if (string.IsNullOrEmpty(outPath)) return outPath;
-            if (Copies(mi, fast)) return outPath;
+            if (Copies(mi, fast)) return Burn.WritablePath(outPath, AudioOnly(mi));
             if (!AudioOnly(mi)) return Burn.ReencodePath(outPath);
             string ext;
             AudioCodecArgs(mi, out ext);

@@ -4,6 +4,55 @@ using Microsoft.Win32;
 
 namespace SubtitleStudio
 {
+    /// <summary>סוגי הקבצים שהתוכנה פותחת - **רשימה אחת** לחלון הפתיחה, ל״פתיחה באמצעות״ ולכלים (0.8.10). עד אז שלוש
+    /// רשימות שונות (21, 26 ו-6 סוגים), ובנימין שאל ״התוכנה תומכת בכל הפורמטים והקודקים?״. כל סוג כאן עבר את real-sweep
+    /// ‏-Tools על קובץ אמיתי (``D:\Claude\_ss-formats``). **סוג חדש - קודם לסבב, אחר כך לכאן.** בקובץ הזה ולא ב-Formats,
+    /// כי המתקין מהדר אותו (``OpenWith``).</summary>
+    internal static class FileTypes
+    {
+        public static readonly string[] Video = new string[]
+        {
+            ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts", ".mts", ".m2t",
+            ".3gp", ".3g2", ".vob", ".ogv", ".asf", ".f4v", ".divx", ".mxf", ".dv", ".qt", ".mod"
+            // לא ברשימה: ‏RealMedia (‏.rm, ‏.rmvb, ‏.ra). נפתח ונצרב, אבל אי אפשר להעתיק את התמונה שלו לשום מיכל (גם MKV:
+            // ״does not yet support muxing rv20״), אז כל כלי ששומר את התמונה כמו שהיא נכשל. לא מבטיחים מה שלא עובד עד הסוף.
+        };
+
+        public static readonly string[] Audio = new string[]
+        {
+            ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".opus", ".amr", ".aiff", ".aif", ".ac3", ".eac3",
+            ".dts", ".mka", ".m4b", ".caf", ".weba", ".au", ".mp2", ".wv", ".tta", ".oga", ".spx"
+        };
+
+        public static readonly string[] Subtitles = new string[]
+        {
+            ".srt", ".vtt", ".ass", ".ssa", ".sub", ".sbv", ".lrc", ".ttml", ".dfxp", ".smi", ".sami"
+        };
+
+        public static string[] All(params string[][] lists)
+        {
+            System.Collections.Generic.List<string> l = new System.Collections.Generic.List<string>();
+            foreach (string[] a in lists) l.AddRange(a);
+            return l.ToArray();
+        }
+
+        public static bool Is(string[] list, string path)
+        {
+            string e;
+            try { e = System.IO.Path.GetExtension(path ?? "").ToLowerInvariant(); }
+            catch { return false; }
+            return e.Length > 0 && Array.IndexOf(list, e) >= 0;
+        }
+
+        /// <summary>‏״*.mp4;*.mkv;...״ לחלון בחירת קובץ.</summary>
+        public static string Pattern(params string[][] lists)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            foreach (string e in All(lists)) { if (sb.Length > 0) sb.Append(';'); sb.Append('*').Append(e); }
+            return sb.ToString();
+        }
+    }
+
     /// <summary>״פתיחה באמצעות ▸ Subtext״ בקליק ימני על סרט, קובץ קול או כתוביות (בנימין, 9.10.2026).
     ///
     /// **מוסיף לרשימה, לא חוטף:** הסיומות מקבלות את ‏Subtext.Media תחת OpenWithProgids, והתוכנה שפותחת את הקובץ בלחיצה
@@ -20,12 +69,8 @@ namespace SubtitleStudio
         public const string Classes = "Software\\Classes";
         public const string Name = "Subtext";
 
-        public static readonly string[] Extensions = new string[]
-        {
-            ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts", ".3gp",
-            ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".opus",
-            ".srt", ".vtt", ".ass", ".ssa", ".sub"
-        };
+        /// <summary>כל מה שהתוכנה פותחת (<see cref="FileTypes"/>), בלי ‎.txt‎ - קובץ טקסט רגיל לא צריך אותנו בתפריט.</summary>
+        public static readonly string[] Extensions = FileTypes.All(FileTypes.Video, FileTypes.Audio, FileTypes.Subtitles);
 
         [DllImport("shell32.dll")]
         private static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);

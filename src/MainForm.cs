@@ -2645,12 +2645,18 @@ namespace SubtitleStudio
         }
 
         // ---------- קבצים ----------
+        // הסוגים מ-FileTypes (0.8.10); רק השמות מתורגמים
+        private static readonly string MediaPattern = FileTypes.Pattern(FileTypes.Video, FileTypes.Audio);
+        private static readonly string SubsPattern = FileTypes.Pattern(FileTypes.Subtitles) + ";*.txt;*.xml";
         private static readonly string MediaFilter =
-            Lang.T("קובצי וידאו ואודיו|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus|כל הקבצים|*.*");
+            Lang.T("סרטים וקובצי קול") + "|" + MediaPattern + "|" + Lang.T("כל הקבצים") + "|*.*";
+        private static readonly string SubsFilter =
+            Lang.T("קובצי כתוביות") + "|" + SubsPattern + "|" + Lang.T("כל הקבצים") + "|*.*";
         private static readonly string AnyFilter =
-            Lang.T("כל הקבצים שאני מכיר|*.subtext;*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus;*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|") +
-            Lang.T("סרטים וקובצי קול|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg;*.wma;*.opus|") +
-            Lang.T("קובצי כתוביות|*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|פרויקטים|*.subtext|כל הקבצים|*.*");
+            Lang.T("כל הקבצים שאני מכיר") + "|*" + Project.Extension + ";" + MediaPattern + ";" + SubsPattern + "|" +
+            Lang.T("סרטים וקובצי קול") + "|" + MediaPattern + "|" +
+            Lang.T("קובצי כתוביות") + "|" + SubsPattern + "|" +
+            Lang.T("פרויקטים") + "|*" + Project.Extension + "|" + Lang.T("כל הקבצים") + "|*.*";
 
         private void OpenMediaDialog()
         {
@@ -2666,7 +2672,7 @@ namespace SubtitleStudio
         private void OpenSubsDialog()
         {
             OpenFileDialog d = new OpenFileDialog();
-            d.Filter = Lang.T("קובצי כתוביות|*.srt;*.vtt;*.ass;*.ssa;*.sub;*.txt|כל הקבצים|*.*");
+            d.Filter = SubsFilter;
             d.Title = Lang.T("בחירת קובץ כתוביות");
             if (d.ShowDialog(this) == DialogResult.OK) OpenAny(d.FileName);
         }
@@ -2686,7 +2692,8 @@ namespace SubtitleStudio
             if (!File.Exists(path)) { MissingFile(path); return; }
             string ext = Path.GetExtension(path).ToLowerInvariant();
             if (ext == Project.Extension) { OpenProject(path); return; }
-            if (ext == ".srt" || ext == ".vtt" || ext == ".ass" || ext == ".ssa" || ext == ".sub" || ext == ".txt")
+            // ‏‎.xml‎ - רק אם בפנים כתוביות (‏TTML, התמליל של יוטיוב); כל XML אחר הוא לא שלנו
+            if (FileTypes.Is(FileTypes.Subtitles, path) || ext == ".txt" || (ext == ".xml" && Formats.LooksLikeXmlSubs(path)))
                 ImportSubs(path);
             else OpenMedia(path);
         }
