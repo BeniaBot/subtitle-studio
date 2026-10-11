@@ -7,7 +7,8 @@ using System.Text.RegularExpressions;
 
 namespace SubtitleStudio
 {
-    internal enum SubFormat { Srt, Vtt, Ass, Ssa, Sub, Txt, Unknown }
+    // החדשים בסוף: הערכים המספריים של הישנים לא זזים (0.8.10)
+    internal enum SubFormat { Srt, Vtt, Ass, Ssa, Sub, Txt, Unknown, Sbv, Lrc, Ttml, Sami }
 
     internal class ParseResult
     {
@@ -172,14 +173,50 @@ namespace SubtitleStudio
             if (ext == ".vtt") return SubFormat.Vtt;
             if (ext == ".srt") return SubFormat.Srt;
             if (ext == ".sub") return SubFormat.Sub;
+            if (ext == ".sbv") return SubFormat.Sbv;
+            if (ext == ".lrc") return SubFormat.Lrc;
+            if (ext == ".ttml" || ext == ".dfxp") return SubFormat.Ttml;
+            if (ext == ".smi" || ext == ".sami") return SubFormat.Sami;
             if (content != null)
             {
                 if (content.IndexOf("[Script Info]", StringComparison.OrdinalIgnoreCase) >= 0) return SubFormat.Ass;
                 if (content.StartsWith("WEBVTT")) return SubFormat.Vtt;
                 if (Regex.IsMatch(content, @"\d\d:\d\d:\d\d[,.]\d\d\d\s*-->")) return SubFormat.Srt;
                 if (Regex.IsMatch(content, @"^\{\d+\}\{\d+\}", RegexOptions.Multiline)) return SubFormat.Sub;
+                if (IsXmlSubs(content)) return SubFormat.Ttml;
+                if (Regex.IsMatch(content, @"<SAMI\b", RegexOptions.IgnoreCase) && Regex.IsMatch(content, @"<SYNC\b", RegexOptions.IgnoreCase)) return SubFormat.Sami;
+                if (Regex.Matches(content, @"^\s*\d{1,2}:\d{1,2}:\d{1,2}(?:[.,]\d{1,3})?\s*,\s*\d{1,2}:\d{1,2}:\d{1,2}(?:[.,]\d{1,3})?\s*$", RegexOptions.Multiline).Count >= 2) return SubFormat.Sbv;
+                if (Regex.Matches(content, @"^\s*\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]", RegexOptions.Multiline).Count >= 2) return SubFormat.Lrc;
             }
             return SubFormat.Txt;
+        }
+
+        /// <summary>XML שיש בו כתוביות: ‏TTML/DFXP, או אחד משני פורמטי ה-XML של יוטיוב.</summary>
+        private static bool IsXmlSubs(string content)
+        {
+            if (content == null || content.IndexOf('<') < 0) return false;
+            // ‏DFXP ישן: ‏xmlns של ttaf1, לא ttml
+            return Regex.IsMatch(content, @"<(?:[\w-]+:)?tt\b[^>]*(?:ttml|ttaf1)", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(content, @"<transcript\b[^>]*>\s*<text\b[^>]*\bstart\s*=", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(content, @"<timedtext\b", RegexOptions.IgnoreCase);
+        }
+
+        /// <summary>האם קובץ ‎.xml‎ הוא כתוביות (גרירה, ״פתיחה״) - בודק רק את ההתחלה.</summary>
+        public static bool LooksLikeXmlSubs(string path)
+        {
+            try
+            {
+                byte[] b;
+                using (FileStream fs = File.OpenRead(path))
+                {
+                    b = new byte[(int)Math.Min(fs.Length, 8192)];
+                    int n = 0;
+                    while (n < b.Length) { int r = fs.Read(b, n, b.Length - n); if (r <= 0) break; n += r; }
+                }
+                string enc;
+                return IsXmlSubs(DecodeSmart(b, out enc));
+            }
+            catch { return false; }
         }
 
         // ---------- קריאה ----------
@@ -208,6 +245,10 @@ namespace SubtitleStudio
                 case SubFormat.Ass:
                 case SubFormat.Ssa: r.Cues = ParseAss(text); break;
                 case SubFormat.Sub: r.Cues = ParseMicroDvd(text, MicroDvdFps(text, VideoFps)); break;
+                case SubFormat.Sbv: r.Cues = ParseSbv(text); break;
+                case SubFormat.Lrc: r.Cues = ParseLrc(text); break;
+                case SubFormat.Ttml: r.Cues = ParseTtml(text); break;
+                case SubFormat.Sami: r.Cues = ParseSami(text); break;
                 default: r.Cues = ParseSrt(text); break;   // ניסיון אחרון
             }
             r.Cues.Sort(delegate (Cue a, Cue b) { return a.Start.CompareTo(b.Start); });
@@ -430,6 +471,278 @@ namespace SubtitleStudio
                 }
             }
             return list;
+        }
+
+        // ---------- פורמטים נוספים לקריאה (0.8.10) ----------
+        // בנימין (9.10): ״אני מקווה שהתוכנה תומכת בכל הפורמטים... כל סוגי הקבצים שעלולים להגיע אליה״.
+        // נפתחים, ונשמרים ״בשם״ כ-SRT (CanSaveInPlace לא מכיר אותם - כמו ‎.sub‎).
+
+        private static readonly Regex RxSbvTime = new Regex(
+            @"^\s*(\d{1,2}:\d{1,2}:\d{1,2}(?:[.,]\d{1,3})?)\s*,\s*(\d{1,2}:\d{1,2}:\d{1,2}(?:[.,]\d{1,3})?)\s*$", RegexOptions.Compiled);
+
+        /// <summary>‏SBV - מה שיוטיוב מוריד (״0:00:01.000,0:00:03.500״, הטקסט מתחת, שורה ריקה בין כתוביות).
+        /// שבירת שורה בתוך הטקסט: שורה חדשה, או ‏[br].</summary>
+        public static List<Cue> ParseSbv(string text)
+        {
+            List<Cue> list = new List<Cue>();
+            string[] lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            int i = 0;
+            while (i < lines.Length)
+            {
+                Match m = RxSbvTime.Match(lines[i]);
+                if (!m.Success) { i++; continue; }
+                long a = Tc.Parse(m.Groups[1].Value), b = Tc.Parse(m.Groups[2].Value);
+                i++;
+                StringBuilder sb = new StringBuilder();
+                while (i < lines.Length && lines[i].Trim().Length > 0 && !RxSbvTime.IsMatch(lines[i]))
+                {
+                    if (sb.Length > 0) sb.Append('\n');
+                    sb.Append(lines[i].Trim());
+                    i++;
+                }
+                string t = Regex.Replace(sb.ToString(), @"\s*\[br\]\s*", "\n", RegexOptions.IgnoreCase);
+                t = CleanTags(t);
+                if (t.Length == 0) continue;
+                if (b <= a) b = a + 1200;
+                list.Add(new Cue(a, b, t));
+            }
+            return list;
+        }
+
+        private static readonly Regex RxLrcTag = new Regex(@"\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]", RegexOptions.Compiled);
+        private static readonly Regex RxLrcOffset = new Regex(@"^\s*\[offset:\s*([+-]?\d+)\s*\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex RxLrcWord = new Regex(@"<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>", RegexOptions.Compiled);
+
+        /// <summary>‏LRC - מילים של שירים (״[01:02.50]שורה״). לשורה אין סוף: היא נגמרת כשהבאה מתחילה, אבל לא יותר
+        /// ממה שצריך לקרוא אותה (בהפסקה מוזיקלית ארוכה הכתובית לא נשארת עשרים שניות). כמה זמנים לאותה שורה (פזמון)
+        /// - כתובית לכל אחד; שורה ריקה עם זמן - סוף השורה הקודמת; ‏[offset:+500] - הכול מוקדם בחצי שנייה;
+        /// זמנים של מילים בודדות (‏&lt;01:02.50&gt;) יורדים.</summary>
+        public static List<Cue> ParseLrc(string text)
+        {
+            long offset = 0;
+            List<long> starts = new List<long>();
+            List<string> texts = new List<string>();
+            foreach (string raw in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                Match off = RxLrcOffset.Match(raw);
+                if (off.Success) { long.TryParse(off.Groups[1].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out offset); continue; }
+                string ln = raw.Trim();
+                List<long> at = new List<long>();
+                int pos = 0;
+                while (pos < ln.Length)
+                {
+                    Match m = RxLrcTag.Match(ln, pos);
+                    if (!m.Success || m.Index != pos) break;
+                    long mm = long.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                    long ss = long.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+                    long frac = 0;
+                    if (m.Groups[3].Success)
+                    {
+                        string f = m.Groups[3].Value;
+                        frac = long.Parse(f, CultureInfo.InvariantCulture) * (f.Length == 1 ? 100 : f.Length == 2 ? 10 : 1);
+                    }
+                    at.Add(mm * 60000 + ss * 1000 + frac);
+                    pos = m.Index + m.Length;
+                    while (pos < ln.Length && ln[pos] == ' ') pos++;
+                }
+                if (at.Count == 0) continue;               // תגיות כמו [ar:...] ו-[ti:...], או טקסט בלי זמן
+                string t = RxLrcWord.Replace(ln.Substring(pos), "").Trim();
+                t = Regex.Replace(t, @"\s{2,}", " ");
+                foreach (long a in at) { starts.Add(Math.Max(0, a - offset)); texts.Add(t); }
+            }
+            // לפי הזמן (פזמון עם כמה זמנים מופיע פעם אחת בקובץ)
+            int[] idx = new int[starts.Count];
+            for (int k = 0; k < idx.Length; k++) idx[k] = k;
+            Array.Sort(idx, delegate (int x, int y) { int c = starts[x].CompareTo(starts[y]); return c != 0 ? c : x.CompareTo(y); });
+            List<Cue> list = new List<Cue>();
+            for (int k = 0; k < idx.Length; k++)
+            {
+                string t = texts[idx[k]];
+                if (t.Length == 0) continue;
+                long a = starts[idx[k]];
+                long next = k + 1 < idx.Length ? starts[idx[k + 1]] : long.MaxValue;
+                long read = Math.Min(7000, Math.Max(2000, 1000 + t.Length * 70));
+                long b = Math.Min(next, a + read);
+                if (b - a < 300) b = a + 300;
+                list.Add(new Cue(a, b, t));
+            }
+            return list;
+        }
+
+        /// <summary>זמן של TTML: ‏״00:01:02.500״, ‏״00:01:02:12״ (פריימים), ‏״62.5s״, ‏״1500ms״, ‏״90f״, ‏״625000000t״.
+        /// ‏-1 = לא הבנתי.</summary>
+        internal static long TtmlTime(string s, double fps, double tickRate)
+        {
+            if (string.IsNullOrEmpty(s)) return -1;
+            s = s.Trim();
+            Match m = Regex.Match(s, @"^(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d+))?(?::(\d+(?:\.\d+)?))?$");
+            if (m.Success)
+            {
+                double sec = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) * 3600
+                           + double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) * 60
+                           + double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
+                if (m.Groups[4].Success) sec += double.Parse("0." + m.Groups[4].Value, CultureInfo.InvariantCulture);
+                if (m.Groups[5].Success) sec += double.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture) / (fps > 0 ? fps : 30);
+                return (long)Math.Round(sec * 1000);
+            }
+            m = Regex.Match(s, @"^(\d+(?:\.\d+)?)(h|m|s|ms|f|t)$");
+            if (!m.Success) return -1;
+            double v = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            switch (m.Groups[2].Value)
+            {
+                case "h": return (long)Math.Round(v * 3600000);
+                case "m": return (long)Math.Round(v * 60000);
+                case "s": return (long)Math.Round(v * 1000);
+                case "ms": return (long)Math.Round(v);
+                case "f": return (long)Math.Round(v * 1000 / (fps > 0 ? fps : 30));
+                default: return (long)Math.Round(v * 1000 / (tickRate > 0 ? tickRate : 1));
+            }
+        }
+
+        private static string XmlAttr(string tag, string name)
+        {
+            // עם קידומת או בלי (begin, ‏tt:begin), במירכאות כפולות או בודדות
+            Match m = Regex.Match(tag, @"(?:^|\s)(?:[\w-]+:)?" + name + @"\s*=\s*(""([^""]*)""|'([^']*)')", RegexOptions.IgnoreCase);
+            if (!m.Success) return null;
+            return m.Groups[2].Success && m.Groups[2].Length > 0 ? m.Groups[2].Value : m.Groups[3].Value;
+        }
+
+        /// <summary>הטקסט שבתוך אלמנט XML: ‏&lt;br/&gt; - שורה חדשה, שאר התגיות יורדות, רווחים של XML מתכווצים, ישויות מפוענחות.</summary>
+        private static string XmlText(string inner)
+        {
+            string t = Regex.Replace(inner, @"<(?:[\w-]+:)?br\s*/?>", "\u0001", RegexOptions.IgnoreCase);
+            t = Regex.Replace(t, @"<[^>]+>", "");
+            t = Regex.Replace(t, @"\s+", " ");
+            // פעמיים: התמליל הישן של יוטיוב מקודד פעמיים (״&amp;#39;״)
+            try { t = System.Net.WebUtility.HtmlDecode(System.Net.WebUtility.HtmlDecode(t)); }
+            catch { }
+            string[] parts = t.Split('\u0001');
+            StringBuilder sb = new StringBuilder();
+            foreach (string p in parts)
+            {
+                string q = p.Trim();
+                if (q.Length == 0) continue;
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(q);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>‏TTML / DFXP (שירותי צפייה, שידור) - וגם שני פורמטי ה-XML של יוטיוב: ‏&lt;text start= dur=&gt; (שניות)
+        /// ו-srv3 ‏&lt;p t= d=&gt; (אלפיות). זמנים: ‏begin עם end או dur, בכל צורה של TTML (``TtmlTime``), כולל ‏ttp:tickRate
+        /// ו-ttp:frameRate מהשורש.</summary>
+        public static List<Cue> ParseTtml(string text)
+        {
+            List<Cue> list = new List<Cue>();
+            Match root = Regex.Match(text, @"<(?:[\w-]+:)?tt\b[^>]*>", RegexOptions.IgnoreCase);
+            double fps = 30, tick = 0; bool hasFps = false;
+            if (root.Success)
+            {
+                double v;
+                string fr = XmlAttr(root.Value, "frameRate");
+                if (fr != null && double.TryParse(fr, NumberStyles.Float, CultureInfo.InvariantCulture, out v) && v > 0) { fps = v; hasFps = true; }
+                string mul = XmlAttr(root.Value, "frameRateMultiplier");
+                if (mul != null)
+                {
+                    string[] ab = mul.Trim().Split(' ');
+                    double n, d;
+                    if (ab.Length == 2 && double.TryParse(ab[0], NumberStyles.Float, CultureInfo.InvariantCulture, out n) &&
+                        double.TryParse(ab[1], NumberStyles.Float, CultureInfo.InvariantCulture, out d) && d > 0) fps = fps * n / d;
+                }
+                string tr = XmlAttr(root.Value, "tickRate");
+                if (tr != null && double.TryParse(tr, NumberStyles.Float, CultureInfo.InvariantCulture, out v) && v > 0) tick = v;
+            }
+            if (tick <= 0) tick = hasFps ? fps : 1;   // ברירת המחדל של התקן: קצב הפריימים אם הוגדר, אחרת 1
+            // ‏<p> של TTML ושל srv3, ו-<text> של התמליל הישן של יוטיוב
+            foreach (Match m in Regex.Matches(text, @"<((?:[\w-]+:)?(?:p|text))\b([^>]*)>(.*?)</\1\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline))
+            {
+                string attrs = m.Groups[2].Value;
+                string body = XmlText(m.Groups[3].Value);
+                if (body.Length == 0) continue;
+                long a = -1, b = -1;
+                string begin = XmlAttr(attrs, "begin"), end = XmlAttr(attrs, "end"), dur = XmlAttr(attrs, "dur");
+                if (begin != null)
+                {
+                    a = TtmlTime(begin, fps, tick);
+                    if (end != null) b = TtmlTime(end, fps, tick);
+                    else if (dur != null) { long d = TtmlTime(dur, fps, tick); if (a >= 0 && d >= 0) b = a + d; }
+                }
+                else
+                {
+                    string st = XmlAttr(attrs, "start"), t = XmlAttr(attrs, "t"), d2 = XmlAttr(attrs, "d");
+                    double sv, dv;
+                    if (st != null && double.TryParse(st, NumberStyles.Float, CultureInfo.InvariantCulture, out sv))
+                    {
+                        a = (long)Math.Round(sv * 1000);
+                        if (dur != null && double.TryParse(dur, NumberStyles.Float, CultureInfo.InvariantCulture, out dv)) b = a + (long)Math.Round(dv * 1000);
+                    }
+                    else if (t != null && double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out sv))
+                    {
+                        a = (long)Math.Round(sv);
+                        if (d2 != null && double.TryParse(d2, NumberStyles.Float, CultureInfo.InvariantCulture, out dv)) b = a + (long)Math.Round(dv);
+                    }
+                }
+                if (a < 0) continue;
+                if (b <= a) b = a + 2000;
+                list.Add(new Cue(a, b, body));
+            }
+            return list;
+        }
+
+        /// <summary>‏SAMI (‏.smi, ‏Windows Media) - ‏&lt;SYNC Start=1000&gt;&lt;P Class=HECC&gt;טקסט. כתובית נגמרת ב-SYNC הבא
+        /// (״&amp;nbsp;״ לבד = ניקוי המסך). קובץ עם כמה שפות (Class לכל שפה) - השפה שיש לה הכי הרבה טקסט.</summary>
+        public static List<Cue> ParseSami(string text)
+        {
+            MatchCollection syncs = Regex.Matches(text, @"<SYNC\b([^>]*)>", RegexOptions.IgnoreCase);
+            List<long> at = new List<long>();
+            List<Dictionary<string, string>> body = new List<Dictionary<string, string>>();
+            Dictionary<string, int> count = new Dictionary<string, int>();
+            for (int k = 0; k < syncs.Count; k++)
+            {
+                Match sm = Regex.Match(syncs[k].Groups[1].Value, @"Start\s*=\s*[""']?(-?\d+)", RegexOptions.IgnoreCase);
+                if (!sm.Success) continue;
+                int from = syncs[k].Index + syncs[k].Length;
+                int to = k + 1 < syncs.Count ? syncs[k + 1].Index : text.Length;
+                string chunk = text.Substring(from, to - from);
+                int bodyEnd = chunk.IndexOf("</BODY", StringComparison.OrdinalIgnoreCase);
+                if (bodyEnd >= 0) chunk = chunk.Substring(0, bodyEnd);
+                Dictionary<string, string> per = new Dictionary<string, string>();
+                MatchCollection ps = Regex.Matches(chunk, @"<P\b([^>]*)>", RegexOptions.IgnoreCase);
+                if (ps.Count == 0) per[""] = SamiText(chunk);
+                for (int j = 0; j < ps.Count; j++)
+                {
+                    Match cm = Regex.Match(ps[j].Groups[1].Value, @"Class\s*=\s*[""']?([\w-]+)", RegexOptions.IgnoreCase);
+                    string cls = cm.Success ? cm.Groups[1].Value.ToUpperInvariant() : "";
+                    int f2 = ps[j].Index + ps[j].Length;
+                    int t2 = j + 1 < ps.Count ? ps[j + 1].Index : chunk.Length;
+                    string s = SamiText(chunk.Substring(f2, t2 - f2));
+                    per[cls] = s;
+                    if (s.Length > 0) { int c; count.TryGetValue(cls, out c); count[cls] = c + s.Length; }
+                }
+                at.Add(Math.Max(0, long.Parse(sm.Groups[1].Value, CultureInfo.InvariantCulture)));
+                body.Add(per);
+            }
+            string lang = null; int best = -1;
+            foreach (KeyValuePair<string, int> kv in count) if (kv.Value > best) { best = kv.Value; lang = kv.Key; }
+            List<Cue> list = new List<Cue>();
+            for (int k = 0; k < at.Count; k++)
+            {
+                string t;
+                if (!body[k].TryGetValue(lang ?? "", out t) && !body[k].TryGetValue("", out t)) continue;
+                if (string.IsNullOrEmpty(t)) continue;
+                long a = at[k];
+                long b = k + 1 < at.Count ? at[k + 1] : a + 3000;
+                if (b <= a) b = a + 1200;
+                list.Add(new Cue(a, b, t));
+            }
+            return list;
+        }
+
+        private static string SamiText(string html)
+        {
+            string t = Regex.Replace(html, @"<!--.*?-->", "", RegexOptions.Singleline);
+            t = Regex.Replace(t, @"&nbsp;?", " ", RegexOptions.IgnoreCase);
+            return XmlText(t);
         }
 
         public static string CleanTags(string s)
