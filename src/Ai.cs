@@ -91,6 +91,9 @@ namespace SubtitleStudio
         /// בשיחה: ״Function call is missing a thought_signature״ - כל בקשה של שני שלבים נפלה בשלב השני (נמדד, 11.10.2026).</summary>
         public List<object> Parts;
 
+        /// <summary>תמונות JPEG (base64) שנשלחות עם הטקסט - מהסרט, כשהעוזר מסתכל עליו (0.8.12).</summary>
+        public List<string> Images;
+
         /// <summary>תור תשובות לכמה פעולות שהמודל ביקש יחד - אחת לכל בקשה, באותו סדר.</summary>
         public List<AiCall> Calls;
         public List<Dictionary<string, object>> Results;
@@ -619,6 +622,16 @@ namespace SubtitleStudio
                         { "functionCall", new Dictionary<string, object> {
                             { "name", m.Call.Name },
                             { "args", m.Call.Args != null ? (object)m.Call.Args : new Dictionary<string, object>() } } } } };
+                }
+                else if (m.Images != null && m.Images.Count > 0)
+                {
+                    List<object> ps = new List<object>();
+                    ps.Add(new Dictionary<string, object> { { "text", m.Text ?? "" } });
+                    foreach (string b64 in m.Images)
+                        ps.Add(new Dictionary<string, object> { { "inline_data", new Dictionary<string, object> {
+                            { "mime_type", "image/jpeg" }, { "data", b64 } } } });
+                    item["role"] = "user";
+                    item["parts"] = ps.ToArray();
                 }
                 else if (!string.IsNullOrEmpty(m.AudioB64))
                 {

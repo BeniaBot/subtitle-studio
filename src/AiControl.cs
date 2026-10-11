@@ -341,6 +341,16 @@ namespace SubtitleStudio
         /// <summary>תיאור קצר של בקשה, לחלון האישור.</summary>
         private string AiDescribe(AiCall call)
         {
+            // השאלות הרגישות - בניסוח של בן אדם, לא בתיאור של הפעולה למודל
+            switch (call.Name)
+            {
+                case "find_scene":
+                    return Lang.F("לשלוח לגוגל תמונות קטנות מהסרט (בערך אחת לכמה שניות), כדי למצוא: {0}?", call.Str("description", ""));
+                case "look_at":
+                    return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי שהעוזר יראה מה יש בה?");
+                case "transcribe_media":
+                    return Lang.T("לשלוח את הקול של הסרט לתמלול באינטרנט?");
+            }
             string desc = call.Name;
             foreach (AiTool t in AiTools()) if (t.Name == call.Name) { desc = t.Desc; break; }
             int cut = desc.IndexOf(". ");
@@ -360,6 +370,65 @@ namespace SubtitleStudio
                 }
             }
             return sb.ToString();
+        }
+
+        // ---------- ראייה: להסתכל, ולמצוא סצנה ----------
+        private Dictionary<string, object> AiLookAt(AiCall call)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasVideo) { r["error"] = Lang.T("אין סרט פתוח - אין על מה להסתכל"); return r; }
+            double at = call.Args.ContainsKey("seconds") ? call.Num("seconds", 0) : _engine.Position / 1000.0;
+            int count = (int)Math.Max(1, Math.Min(6, call.Num("count", 1)));
+            double step = Math.Max(0.04, Math.Min(120, call.Num("step_sec", 1)));
+            List<long> times = new List<long>();
+            double first = at - step * (count - 1) / 2.0;
+            for (int i = 0; i < count; i++)
+            {
+                long ms = (long)Math.Round((first + i * step) * 1000);
+                if (ms < 0 || ms > _mi.DurationMs) continue;
+                times.Add(ms);
+            }
+            if (times.Count == 0) times.Add(Math.Max(0, Math.Min(_mi.DurationMs - 1, (long)(at * 1000))));
+            string path = _mi.Path; int sw = _mi.Width, sh = _mi.Height;
+            r["done"] = Lang.F("מסתכל על הסרט ב-{0}", Theme.Ltr(Tc.Short(times[0])));
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                w["_images"] = AiVision.Frames(path, sw, sh, times, null);
+                List<string> ts = new List<string>();
+                foreach (long t in times) ts.Add(Tc.Short(t));
+                w["frames_at"] = ts.ToArray();
+                w["how_to_read"] = "התמונות מצורפות בהודעה הבאה, לפי הסדר, ועל כל אחת הזמן שלה בצהוב";
+                return w;
+            };
+            return r;
+        }
+
+        private Dictionary<string, object> AiFindScene(AiCall call)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasVideo) { r["error"] = Lang.T("אין סרט פתוח - אין על מה להסתכל"); return r; }
+            string what = call.Str("description", "").Trim();
+            long from = (long)(Math.Max(0, call.Num("from_sec", 0)) * 1000);
+            long to = call.Args.ContainsKey("to_sec") ? (long)(call.Num("to_sec", 0) * 1000) : _mi.DurationMs;
+            if (to > _mi.DurationMs || to <= from) to = _mi.DurationMs;
+            // עד 6 דפים של 16; לא צפוף משתי שניות - בקטע קצר יוצא פחות
+            List<long> times = AiVision.Times(from, to, AiVision.Cols * AiVision.Rows * 6, 2000);
+            string path = _mi.Path; int sw = _mi.Width, sh = _mi.Height;
+            r["done"] = Lang.F("מסתכל על {0} תמונות מהסרט", times.Count);
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                List<byte[]> sheets = AiVision.Sheets(path, sw, sh, times, null);
+                w["_images"] = sheets;
+                w["sheets"] = sheets.Count;
+                w["every_sec"] = times.Count > 1 ? Math.Round((times[1] - times[0]) / 1000.0, 1) : 0;
+                w["how_to_read"] = "בהודעה הבאה " + sheets.Count + " דפים; בכל דף עד 16 תמונות מהסרט לפי סדר הזמן (שורה אחרי שורה, משמאל לימין), " +
+                    "ועל כל אחת הזמן שלה בצהוב. מצא את מה שמתאים ל״" + what + "״, ואז seek לזמן הזה (הנגן עוצר שם). " +
+                    "כדי לדייק - look_at סביב הזמן עם step_sec קטן. לא מצאת - אמור את זה; אפשר לחפש שוב בקטע חשוד (from_sec/to_sec) בצפיפות גבוהה יותר";
+                return w;
+            };
+            return r;
         }
 
         // ---------- המדריך ----------

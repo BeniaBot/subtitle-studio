@@ -65,6 +65,16 @@ namespace SubtitleStudio
                     "התשובה שלו חוזרת כתוצאה. שאלה אחת בכל פעם")
                 .Req("question", "string", "השאלה, קצרה")
                 .Req("options", "string", "2-4 תשובות קצרות, מופרדות ב-| (למשל: גוגל|Groq). אפשר להוסיף הסבר קצר אחרי מקף"));
+            t.Add(new AiTool("look_at", "מסתכל על הסרט: פריים אחד או כמה, כתמונות - כדי לענות ״מה רואים כאן״, לבדוק שכתובית לא מסתירה " +
+                    "משהו, או לדייק את הזמן של סצנה. התמונות נשלחות לגוגל")
+                .P("seconds", "number", "באיזה זמן. ברירת מחדל: איפה שהנגן עומד")
+                .P("count", "integer", "כמה פריימים, 1-6, סביב הזמן. ברירת מחדל 1")
+                .P("step_sec", "number", "המרווח בין הפריימים בשניות. ברירת מחדל 1"));
+            t.Add(new AiTool("find_scene", "מוצא בסרט סצנה לפי מה שרואים בה (״איפה רואים את...״, ״תראה לי את הקטע ש...״): עוברת על הסרט " +
+                    "בתמונות קטנות עם זמנים, ואז seek לזמן שמתאים. מה שנאמר - מהכתוביות (list_cues), לא מכאן. התמונות נשלחות לגוגל")
+                .Req("description", "string", "מה רואים בסצנה, במילים של המשתמש")
+                .P("from_sec", "number", "לחפש רק מהזמן הזה")
+                .P("to_sec", "number", "ועד הזמן הזה"));
             t.Add(new AiTool("select_cue", "בוחר כתובית ברשימה: היא נפתחת בעורך, והנגן קופץ אליה")
                 .Req("index", "integer", "מספר הכתובית, מ-1"));
             t.Add(new AiTool("redo", "מבצע מחדש את מה שבוטל"));
@@ -278,6 +288,8 @@ namespace SubtitleStudio
                     case "ui_read": return AiUiRead();
                     case "ui_set": return AiUiSet(call, out refused);
                     case "ui_click": return AiUiClick(call, out refused);
+                    case "look_at": return AiLookAt(call);
+                    case "find_scene": return AiFindScene(call);
                     case "select_cue": return AiSelectCue(call);
                     case "redo": return AiRedo();
                     case "set_setting": return AiSetSetting(call);

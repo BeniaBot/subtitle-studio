@@ -1501,7 +1501,22 @@ namespace SubtitleStudio
             "אין למה לחזור - בינתיים נפתח קובץ אחר", "Nothing to go back to - another file was opened since",
             "הכתוביות והעיצוב חזרו למצב שלפני הבקשה (Ctrl+Z מחזיר)", "The subtitles and the style are back to how they were before the request (Ctrl+Z brings it back)",
             "גוגל עמוס רגע - ממשיך בעוד {0} שניות", "Google is busy for a moment - continuing in {0} seconds",
+            "לשלוח לגוגל תמונות קטנות מהסרט (בערך אחת לכמה שניות), כדי למצוא: {0}?", "Send Google small pictures from the video (about one every few seconds), to find: {0}?",
+            "לשלוח לגוגל תמונה מהסרט, כדי שהעוזר יראה מה יש בה?", "Send Google a picture from the video, so the assistant can see what's in it?",
+            "לשלוח את הקול של הסרט לתמלול באינטרנט?", "Send the video's sound for transcription on the internet?",
+            "אין סרט פתוח - אין על מה להסתכל", "No video is open - there is nothing to look at",
+            "מסתכל על הסרט ב-{0}", "Looking at the video at {0}",
+            "מסתכל על {0} תמונות מהסרט", "Looking at {0} pictures from the video",
+            "לא נמצא מיקרופון, או שווינדוס חוסם את הגישה אליו (הגדרות ← פרטיות ← מיקרופון).", "No microphone was found, or Windows blocks access to it (Settings > Privacy > Microphone).",
+            "לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח", "Talk to the assistant: click - it listens, click again - it sends",
+            "ההקראה דלוקה - העוזר מקריא כל תשובה. לחיצה מכבה", "Reading aloud is on - the assistant reads every answer. Click to turn off",
+            "להקריא את התשובות בקול", "Read the answers aloud",
+            "לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון", "Nothing was heard - try again, closer to the microphone",
+            "מקשיב... לחיצה - שולח", "Listening... click to send",
+            "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
             "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
+        };
+        private static readonly string[] P5 = new string[] {
             "ליצור קבצים חדשים מהסרט", "Make new files from the video",
             "לפתוח ולשמור קבצים", "Open and save files",
             "לשלוח את הקול או תמונות מהסרט", "Send the sound or pictures from the video",
@@ -1515,8 +1530,6 @@ namespace SubtitleStudio
             "לשאול אותי", "Ask me",
             "אסור", "Not allowed",
             "קבצים חדשים", "new files",
-        };
-        private static readonly string[] P5 = new string[] {
             "פתיחה ושמירה", "opening and saving",
             "שליחה החוצה", "sending out",
             "הכול מותר", "Everything allowed",

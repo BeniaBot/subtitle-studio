@@ -148,6 +148,35 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_keyBtn, Lang.T("המפתח של גוגל, שהעוזר עובד איתו"));
             Controls.Add(_keyBtn);
 
+            // **קול (0.8.12):** הקראת התשובות, ודיבור אל העוזר
+            _speak = new Btn();
+            _speak.IconOnly = true;
+            _speak.IconSize = Theme.S(15);
+            _speak.Kind = BtnKind.Tool;
+            _speak.BackColor = Theme.Panel;
+            _speak.Size = new Size(Theme.S(32), Theme.S(32));
+            _speak.Click += delegate
+            {
+                AiVoice.SpeakOn = !AiVoice.SpeakOn;
+                if (!AiVoice.SpeakOn) AiVoice.Stop();
+                Settings.SaveAll();
+                SpeakLook();
+            };
+            SpeakLook();
+            Controls.Add(_speak);
+
+            _mic = new Btn();
+            _mic.Icon = Ico.Mic;
+            _mic.IconOnly = true;
+            _mic.IconSize = Theme.S(17);
+            _mic.Kind = BtnKind.Tool;
+            _mic.BackColor = Theme.Panel;
+            _mic.Radius = Theme.S(17);
+            _mic.Size = new Size(Theme.S(34), Theme.S(34));
+            _mic.Click += delegate { MicClick(); };
+            Ui.Tip.SetToolTip(_mic, Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח"));
+            Controls.Add(_mic);
+
             KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) Close(); };
             MouseDown += delegate (object s, MouseEventArgs e)
             {
@@ -162,6 +191,85 @@ namespace SubtitleStudio
             Load += delegate { Native.SetRoundedCorners(Handle); Greet(); ShowHint(); };
             Resize += delegate { DoLayout(); };
             DoLayout();
+        }
+
+        private Btn _speak, _mic;
+        private MicRecorder _rec;
+        private System.Windows.Forms.Timer _recTimer;
+        /// <summary>הקלטה שנשלחה כתשובה לשאלה עם אפשרויות - נכנסת לשיחה מיד אחרי התשובה לפעולה.</summary>
+        private string _audioAfterTool;
+        /// <summary>הטקסט האחרון של העוזר בבקשה הזאת - מה שמוקרא כשהוא מסיים.</summary>
+        private string _lastBot;
+
+        private void SpeakLook()
+        {
+            _speak.Icon = AiVoice.SpeakOn ? Ico.Speaker : Ico.SpeakerOff;
+            _speak.Tint = AiVoice.SpeakOn ? Theme.Accent : Color.Empty;
+            Ui.Tip.SetToolTip(_speak, AiVoice.SpeakOn ? Lang.T("ההקראה דלוקה - העוזר מקריא כל תשובה. לחיצה מכבה")
+                                                      : Lang.T("להקריא את התשובות בקול"));
+            _speak.Invalidate();
+        }
+
+        /// <summary>לחיצה ראשונה מקשיבה, השנייה שולחת. אפשר גם בזמן שהעוזר מקריא - ההקראה נעצרת.</summary>
+        private void MicClick()
+        {
+            if (_rec != null && _rec.Recording)
+            {
+                byte[] wav = _rec.Stop();
+                double sec = _rec.Seconds;
+                _rec = null;
+                if (_recTimer != null) { _recTimer.Stop(); _recTimer.Dispose(); _recTimer = null; }
+                MicLook(false);
+                if (wav == null) { _view.AddAction(Lang.T("לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון"), false); return; }
+                SendVoice(wav, sec);
+                return;
+            }
+            if (_busy) return;
+            AiVoice.Stop();
+            _rec = new MicRecorder();
+            string err = _rec.Start();
+            if (err != null) { _rec = null; _view.AddAction(err, false); return; }
+            MicLook(true);
+            _recTimer = new System.Windows.Forms.Timer();
+            _recTimer.Interval = 120;
+            _recTimer.Tick += delegate
+            {
+                // ההקלטה נעצרה לבד (שתי דקות) - שולחים
+                if (_rec != null && !_rec.Recording) MicClick();
+                else if (_rec != null) { _mic.Tint = Theme.Mix(Theme.Bad, Theme.Accent, 1f - Math.Min(1f, _rec.Level * 1.5f)); _mic.Invalidate(); }
+            };
+            _recTimer.Start();
+        }
+
+        private void MicLook(bool on)
+        {
+            _mic.Kind = on ? BtnKind.Primary : BtnKind.Tool;
+            _mic.Tint = on ? Theme.Bad : Color.Empty;
+            Ui.Tip.SetToolTip(_mic, on ? Lang.T("מקשיב... לחיצה - שולח") : Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח"));
+            _mic.Invalidate();
+        }
+
+        /// <summary>הודעה קולית: ההקלטה עצמה נשלחת לעוזר - הוא מבין עברית מדוברת, בלי תמלול נפרד.</summary>
+        private void SendVoice(byte[] wav, double sec)
+        {
+            string b64 = Convert.ToBase64String(wav);
+            string label = "🎤  " + Lang.F("הודעה קולית ({0} שניות)", Theme.Ltr(Math.Max(1, (int)Math.Round(sec)).ToString()));
+            if (_ask != null)
+            {
+                // תשובה בקול לשאלה עם אפשרויות: התשובה לפעולה אומרת ״בקול״, וההקלטה אחריה
+                _audioAfterTool = b64;
+                AnswerAsk(label, "המשתמש ענה בקול - ההקלטה מצורפת בהודעה הבאה");
+                return;
+            }
+            _hint = false;
+            _view.HideChips();
+            _view.AddUser(label);
+            AiMsg m = new AiMsg();
+            m.Role = "user";
+            m.Text = "(המשתמש דיבר אליך בקול - ההקלטה מצורפת. התייחס אליה בדיוק כמו לבקשה כתובה. אם לא שמעת ברור - שאל.)";
+            m.AudioB64 = b64;
+            m.AudioMime = "audio/wav";
+            BeginRequest(m);
         }
 
         private static string Placeholder { get { return Lang.T("מה לעשות? למשל: תרגם לאנגלית"); } }
@@ -198,6 +306,7 @@ namespace SubtitleStudio
             _close.SetBounds(pad, Theme.S(13), _close.Width, _close.Height);
             _reset.SetBounds(pad + _close.Width + Theme.S(4), Theme.S(13), _reset.Width, _reset.Height);
             _keyBtn.SetBounds(_reset.Right + Theme.S(4), Theme.S(13), _keyBtn.Width, _keyBtn.Height);
+            _speak.SetBounds(_keyBtn.Right + Theme.S(4), Theme.S(13), _speak.Width, _speak.Height);
 
             int compTop = ClientSize.Height - ComposerH - pad;
             _view.SetBounds(pad, HeadH + Theme.S(6), ClientSize.Width - pad * 2,
@@ -205,13 +314,14 @@ namespace SubtitleStudio
 
             int sendD = _send.Height;
             _send.SetBounds(pad + Theme.S(11), compTop + (ComposerH - sendD) / 2, _send.Width, sendD);
-            int ix = _send.Right + Theme.S(10);
+            _mic.SetBounds(_send.Right + Theme.S(6), compTop + (ComposerH - _mic.Height) / 2, _mic.Width, _mic.Height);
+            int ix = _mic.Right + Theme.S(8);
             _input.SetBounds(ix, compTop + Theme.S(17), Math.Max(Theme.S(40), ClientSize.Width - pad - Theme.S(20) - ix),
                 ComposerH - Theme.S(34));
             // המיקומים כאן בעברית. באנגלית הכותרת ותיבת הכתיבה משתקפות: הכפתורים בצד ימין
             // והשליחה בסוף השורה. עד 0.8.1 החלון נשאר כמו בעברית (נמצא בסבב של 0.8.1)
             if (!Lang.Rtl)
-                foreach (Control c in new Control[] { _close, _reset, _keyBtn, _send, _input })
+                foreach (Control c in new Control[] { _close, _reset, _keyBtn, _speak, _send, _mic, _input })
                     c.Left = ClientSize.Width - c.Right;
             Invalidate();
         }
@@ -235,7 +345,7 @@ namespace SubtitleStudio
 
             // בקואורדינטות של עברית (הכפתורים משמאל), ומשתקף באנגלית
             float tx = Width - Theme.S(14) - d - Theme.S(10);
-            float tleft = Theme.S(12) + _close.Width + Theme.S(4) + _reset.Width + Theme.S(4) + _keyBtn.Width + Theme.S(8);
+            float tleft = Theme.S(12) + _close.Width + Theme.S(4) + _reset.Width + Theme.S(4) + _keyBtn.Width + Theme.S(4) + _speak.Width + Theme.S(8);
             Theme.Str(g, Lang.T("עוזר AI"), Theme.Big, Theme.Text,
                 Theme.Mir(all, new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22))), Theme.SfUi);
             Theme.Str(g, Lang.T("מבקשים במילים רגילות - והוא מבצע"), Theme.Small, Theme.TextDim,
@@ -297,10 +407,31 @@ namespace SubtitleStudio
             AiMsg m = new AiMsg();
             m.Role = "user";
             m.Text = text;
+            BeginRequest(m);
+        }
+
+        /// <summary>בקשה חדשה מהמשתמש (כתובה או קולית).</summary>
+        private void BeginRequest(AiMsg m)
+        {
+            if (!Ai.HasKey)
+            {
+                AiSetupDlg d = new AiSetupDlg();
+                d.ShowDialog(this);
+                if (!Ai.HasKey) return;
+            }
+            AiVoice.Stop();
             _history.Add(m);
             _nudged = false;
             _waits = 0;
+            _lastBot = null;
             _snap = _host.AiSnapshot();
+            // תמונות וקול מבקשה קודמת לא נשלחים שוב בכל סבב - כל דף תמונות הוא כאלף טוקנים מהמכסה
+            foreach (AiMsg old in _history)
+            {
+                if (old == m) continue;
+                if (old.Images != null) { old.Images = null; old.Text += " (התמונות עצמן כבר לא מצורפות)"; }
+                if (old.AudioB64 != null) { old.AudioB64 = null; old.Text += " (ההקלטה עצמה כבר לא מצורפת)"; }
+            }
             Turn(0);
         }
 
@@ -314,12 +445,15 @@ namespace SubtitleStudio
         private PendingAsk _ask;
 
         /// <summary>התשובה לשאלה שבהמתנה - לחיצה על אחת האפשרויות או טקסט שהקליד - וממשיכים מאותה נקודה.</summary>
-        private void AnswerAsk(string answer)
+        private void AnswerAsk(string answer) { AnswerAsk(answer, answer); }
+
+        private void AnswerAsk(string shown, string answer)
         {
             PendingAsk a = _ask;
             _ask = null;
+            AiVoice.Stop();
             _view.HideChips();
-            _view.AddUser(answer);
+            _view.AddUser(shown);
             Dictionary<string, object> res = new Dictionary<string, object>();
             res["answer"] = answer;
             a.Results.Add(res);
@@ -452,7 +586,7 @@ namespace SubtitleStudio
                 return;
             }
 
-            if (!string.IsNullOrEmpty(r.Text)) _view.AddBot(Plain(r.Text));
+            if (!string.IsNullOrEmpty(r.Text)) { _view.AddBot(Plain(r.Text)); _lastBot = r.Text; }
 
             // **התור של המודל נשמר כמו שהגיע** - טקסט ובקשות יחד, עם החתימות (`AiMsg.Parts`). עד 0.8.12 הוא פוצל
             // לשתי הודעות והחתימה נזרקה, וכל בקשה של שני שלבים נפלה בשלב השני
@@ -487,7 +621,7 @@ namespace SubtitleStudio
                     _ask = new PendingAsk();
                     _ask.Reply = r; _ask.Index = i; _ask.Results = results; _ask.Round = round;
                     string q = call.Str("question", "").Trim();
-                    if (q.Length > 0) _view.AddBot(Plain(q));
+                    if (q.Length > 0) { _view.AddBot(Plain(q)); if (AiVoice.SpeakOn) AiVoice.Speak(q); }
                     List<string> opts = new List<string>();
                     foreach (string o in call.Str("options", "").Split('|'))
                         if (o.Trim().Length > 0 && opts.Count < 6) opts.Add(o.Trim());
@@ -518,6 +652,41 @@ namespace SubtitleStudio
                 results.Add(res);
                 ShowResult(res, refused);
                 if (refused) stopped = true;
+                // **עבודה כבדה ברקע** (להסתכל על הסרט: עשרות פריימים): הפעולה מחזירה אותה, היא רצה בחוט, והתוצאה
+                // מצטרפת לתוצאה של הפעולה. ההמשך - אחריה
+                object work;
+                if (res.TryGetValue("_work", out work))
+                {
+                    res.Remove("_work");
+                    Func<Dictionary<string, object>> fn = work as Func<Dictionary<string, object>>;
+                    if (fn != null)
+                    {
+                        int next = i + 1;
+                        bool st = stopped;
+                        Dictionary<string, object> mine = res;
+                        _view.Thinking = true;
+                        Thread th = new Thread(delegate ()
+                        {
+                            Dictionary<string, object> extra = null;
+                            string err = null;
+                            try { extra = fn(); }
+                            catch (Exception ex) { err = ex.Message; }
+                            try
+                            {
+                                BeginInvoke((MethodInvoker)delegate
+                                {
+                                    if (extra != null) foreach (KeyValuePair<string, object> kv in extra) mine[kv.Key] = kv.Value;
+                                    else mine["error"] = err ?? "נכשל";
+                                    RunCalls(r, next, results, st, round, null);
+                                });
+                            }
+                            catch { }
+                        });
+                        th.IsBackground = true;
+                        th.Start();
+                        return;
+                    }
+                }
                 if (_host.AiTakeDeferred())
                 {
                     int next = i + 1;
@@ -534,6 +703,17 @@ namespace SubtitleStudio
                 }
             }
 
+            // תמונות מהסרט (look_at, find_scene) לא נכנסות לתשובת הפעולה (JSON) - הן הודעה משלהן מיד אחריה
+            List<string> images = new List<string>();
+            foreach (Dictionary<string, object> res in results)
+            {
+                object im;
+                if (res == null || !res.TryGetValue("_images", out im)) continue;
+                res.Remove("_images");
+                List<byte[]> list = im as List<byte[]>;
+                if (list != null) foreach (byte[] b in list) images.Add(Convert.ToBase64String(b));
+            }
+
             AiMsg tool = new AiMsg();
             tool.Role = "tool";
             tool.Calls = r.Calls;
@@ -542,6 +722,26 @@ namespace SubtitleStudio
             tool.ToolResult = results[0];
             tool.Hidden = true;
             _history.Add(tool);
+            if (_audioAfterTool != null)
+            {
+                AiMsg voice = new AiMsg();
+                voice.Role = "user";
+                voice.Hidden = true;
+                voice.Text = "(התשובה של המשתמש לשאלה, בקול:)";
+                voice.AudioB64 = _audioAfterTool;
+                voice.AudioMime = "audio/wav";
+                _history.Add(voice);
+                _audioAfterTool = null;
+            }
+            if (images.Count > 0)
+            {
+                AiMsg pics = new AiMsg();
+                pics.Role = "user";
+                pics.Hidden = true;
+                pics.Text = "(הודעה מהתוכנה: אלה התמונות מהסרט שהפעולה הקודמת הביאה, לפי הסדר. הזמן כתוב בצהוב על כל אחת.)";
+                pics.Images = images;
+                _history.Add(pics);
+            }
 
             // גם הסבב הבא בתור ההודעות: אחרי כל מה שהפעולות שלחו לתור (חלון שנפתח, לחיצה)
             try { BeginInvoke((MethodInvoker)delegate { if (!IsDisposed) Turn(round + 1); }); }
@@ -591,6 +791,9 @@ namespace SubtitleStudio
             _send.Enabled = true;
             _view.Thinking = false;
             if (_snap != null && _host.AiChangedSince(_snap)) _view.AddChips(new string[] { UndoChip });
+            // ההקראה - של התשובה האחרונה, כשהעוזר סיים (לא של כל שלב באמצע)
+            if (AiVoice.SpeakOn && !string.IsNullOrEmpty(_lastBot)) AiVoice.Speak(_lastBot);
+            _lastBot = null;
             Invalidate();
             _input.Focus();
         }
