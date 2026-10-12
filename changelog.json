@@ -29,6 +29,11 @@
           "t": "fix",
           "s": "העוזר: ״המכסה נגמרה״ אומר מתי היא מתאפסת, כשגוגל עמוס הוא ממתין וממשיך לבד, ומי שמדבר אליו - שומע תשובה",
           "en": "The assistant: 'the quota ran out' says when it resets, when Google is busy it waits and goes on by itself, and if you talk to it - you hear the answer"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר לא נתקע יותר כשהמכסה של דגם אחד נגמרת באמצע שיחה - הוא ממשיך בדגם אחר",
+          "en": "The assistant no longer gets stuck when one model's quota runs out in the middle of a conversation - it goes on with another model"
         }
       ]
     },
