@@ -2,6 +2,36 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.17",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "t": "major",
+          "s": "העוזר צופה בסרט - תמונה וקול - ואפשר לשוחח איתו עליו: ״על מה הסרט?״, ״מי מופיע?״, ״מתי הוא אומר...?״, ״תפרק לסצנות״",
+          "en": "The assistant watches the video - picture and sound - and you can chat with it about it: 'what is it about?', 'who appears?', 'when does he say...?', 'split it into scenes'"
+        },
+        {
+          "t": "major",
+          "s": "כתוביות שצרובות בתמונה הופכות לכתוביות רגילות, עם זמנים - גם בעברית (״שליפת כתוביות מהסרט״, או בבקשה לעוזר)",
+          "en": "Subtitles burned into the picture become regular subtitles, with times - in Hebrew too ('Subtitles from the video', or ask the assistant)"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר קורא טקסט מהתמונה: שלט, כותרת, כתובית צרובה, מסך",
+          "en": "The assistant reads text from the picture: a sign, a title, a burned-in subtitle, a screen"
+        },
+        {
+          "t": "feature",
+          "s": "ערוץ כתוביות שעשוי מתמונות (PGS/VobSub) - העוזר קורא אותו והופך לכתוביות",
+          "en": "A subtitle track made of pictures (PGS/VobSub) - the assistant reads it and turns it into subtitles"
+        },
+        {
+          "t": "fix",
+          "s": "עבודה ארוכה של העוזר אומרת בשיחה מה היא עושה עכשיו, ו״עצירה״ עוצרת גם אותה",
+          "en": "A long job of the assistant says in the chat what it is doing, and 'Stop' stops it too"
+        }
+      ]
+    },    {
       "v": "0.8.16",
       "date": "2026-10-12",
       "items": [
