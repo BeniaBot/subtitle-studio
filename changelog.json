@@ -2,6 +2,36 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.15",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "t": "major",
+          "s": "״אני רוצה כתוביות בעברית״ לסרט באנגלית - העוזר שואל במה לתמלל (בלחצנים), מתמלל, ומתרגם לעברית לבד",
+          "en": "'I want Hebrew subtitles' for an English video - the assistant asks which service to use (with buttons), transcribes, and translates to Hebrew by itself"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר שומר, חותך ויוצר סרט בלי להיתקע בחלון של ווינדוס: בשם פנוי ליד הסרט, ובלי לדרוס קבצים",
+          "en": "The assistant saves, cuts and creates videos without getting stuck on a Windows dialog: under a free name next to the video, without overwriting files"
+        },
+        {
+          "t": "feature",
+          "s": "כשעבודה ארוכה של העוזר מסתיימת (סרט, הקטנה לוואטסאפ) - השיחה אומרת מה נשמר ואיפה",
+          "en": "When a long job the assistant started ends (a video, shrinking for WhatsApp) - the chat says what was saved and where"
+        },
+        {
+          "t": "fix",
+          "s": "פיצול כתובית של שורה אחת מחלק את הטקסט בין שני החלקים, במקום לשכפל אותו (גם מהתפריט)",
+          "en": "Splitting a one-line subtitle divides the text between the two parts instead of duplicating it (also from the menu)"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר: ״תפעיל מדקה וחצי״ גם מנגן, מוצא את הכלי הנכון מהפעם הראשונה, ותשובה ריקה מגוגל - מנסה שוב לבד",
+          "en": "The assistant: 'play from a minute and a half' also plays, it finds the right tool the first time, and an empty reply from Google - it retries by itself"
+        }
+      ]
+    },    {
       "v": "0.8.14",
       "date": "2026-10-12",
       "items": [
