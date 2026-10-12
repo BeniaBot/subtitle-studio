@@ -852,6 +852,22 @@ namespace SubtitleStudio
             tool.ToolResult = results[0];
             tool.Hidden = true;
             _history.Add(tool);
+            // קול מהסרט (listen) - הודעה משלו, כמו התמונות
+            foreach (Dictionary<string, object> res in results)
+            {
+                object au;
+                if (res == null || !res.TryGetValue("_audio", out au)) continue;
+                res.Remove("_audio");
+                byte[] mp3 = au as byte[];
+                if (mp3 == null) continue;
+                AiMsg clip = new AiMsg();
+                clip.Role = "user";
+                clip.Hidden = true;
+                clip.Text = "(הודעה מהתוכנה: זה הקטע מהסרט שביקשת לשמוע.)";
+                clip.AudioB64 = Convert.ToBase64String(mp3);
+                clip.AudioMime = "audio/mp3";
+                _history.Add(clip);
+            }
             if (_audioAfterTool != null)
             {
                 AiMsg voice = new AiMsg();

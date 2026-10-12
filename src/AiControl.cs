@@ -348,6 +348,8 @@ namespace SubtitleStudio
                     return Lang.F("לשלוח לגוגל תמונות קטנות מהסרט (בערך אחת לכמה שניות), כדי למצוא: {0}?", call.Str("description", ""));
                 case "look_at":
                     return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי שהעוזר יראה מה יש בה?");
+                case "listen":
+                    return Lang.T("לשלוח לגוגל קטע קול מהסרט, כדי שהעוזר ישמע מה נאמר?");
                 case "transcribe_media":
                     return Lang.T("לשלוח את הקול של הסרט לתמלול באינטרנט?");
             }
@@ -399,6 +401,46 @@ namespace SubtitleStudio
                 foreach (long t in times) ts.Add(Tc.Short(t));
                 w["frames_at"] = ts.ToArray();
                 w["how_to_read"] = "התמונות מצורפות בהודעה הבאה, לפי הסדר, ועל כל אחת הזמן שלה בצהוב";
+                return w;
+            };
+            return r;
+        }
+
+        /// <summary>להקשיב לקטע: לפי כתובית (או כמה רצופות) או לפי זמנים. עד דקה בכל פעם.</summary>
+        private Dictionary<string, object> AiListen(AiCall call)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasAudio) { r["error"] = Lang.T("אין קול לשמוע - לא פתוח קובץ עם פס קול"); return r; }
+            long a, b;
+            int idx = (int)call.Num("index", 0);
+            if (idx > 0)
+            {
+                Cue c = AiCueAt(idx);
+                if (c == null) { r["error"] = Lang.F("אין כתובית מספר {0}", idx); return r; }
+                Cue c2 = AiCueAt((int)call.Num("to_index", idx)) ?? c;
+                // קצת לפני ואחרי: התחלה שנחתכה היא בדיוק מה שבודקים
+                a = Math.Max(0, c.Start - 400);
+                b = Math.Min(_mi.DurationMs, Math.Max(c.End, c2.End) + 400);
+            }
+            else
+            {
+                a = (long)(Math.Max(0, call.Num("from_sec", _engine.Position / 1000.0)) * 1000);
+                b = call.Args.ContainsKey("to_sec") ? (long)(call.Num("to_sec", 0) * 1000) : a + 15000;
+            }
+            if (b - a > 60000) b = a + 60000;
+            if (b <= a) { r["error"] = Lang.T("טווח לא תקין"); return r; }
+            string path = _mi.Path;
+            long fa = a, fb = b;
+            r["done"] = Lang.F("מקשיב לקטע {0}", Theme.Ltr(Tc.Short(a) + "-" + Tc.Short(b)));
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                string err;
+                byte[] mp3 = AiVision.Audio(path, fa, fb, out err);
+                if (mp3 == null) { w["error"] = "לא הצלחתי לחלץ את הקול: " + err; return w; }
+                w["_audio"] = mp3;
+                w["clip"] = Tc.Short(fa) + "-" + Tc.Short(fb);
+                w["how_to_read"] = "הקטע מצורף בהודעה הבאה. הקשב ותשווה לטקסט של הכתוביות שבזמן הזה; אם יש הבדל - תקן (edit_cue) רק אחרי שהמשתמש ביקש לתקן";
                 return w;
             };
             return r;

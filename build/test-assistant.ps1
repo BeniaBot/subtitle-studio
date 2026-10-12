@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 45 בדיקות.
+# צפוי: 52 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -181,6 +181,33 @@ $tn = @($tools | ForEach-Object { $_.Name })
 Check 'הפעולות החדשות ברשימה (ask_user, look_at, find_scene, ui_*, run_command, app_help)' ((@('ask_user', 'look_at', 'find_scene', 'ui_read', 'ui_set', 'ui_click', 'run_command', 'list_commands', 'app_help', 'select_cue', 'redo', 'set_setting') | Where-Object { $tn -notcontains $_ }).Count -eq 0) ("" + $tn.Count + " פעולות")
 $bodyT = $ai.GetMethod('BuildBody', $ST).Invoke($null, (Pack 'sys' $hist $tools $false 'm'))
 Check 'הגדרות הפעולות נבנות לסכמה תקינה' ($ser.DeserializeObject($bodyT)['tools'][0]['functionDeclarations'].Count -eq $tools.Count) ''
+
+# ---------- 12. עם סרט: להקשיב, להסתכל, למצוא סצנה; הכתוביות במצב; שעת האיפוס ----------
+$tmpDir = Join-Path $env:TEMP ('ss-asst-' + [guid]::NewGuid().ToString('N').Substring(0, 6)); New-Item -ItemType Directory $tmpDir | Out-Null
+$clip = Join-Path $tmpDir 'clip.mp4'
+$ffx = (TY 'Ff').GetProperty('Exe', $ST).GetValue($null)
+& $ffx -hide_banner -v error -f lavfi -i 'testsrc=size=320x180:rate=25:duration=6' -f lavfi -i 'sine=frequency=440:duration=6' -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -y $clip 2>&1 | Out-Null
+[void]$mfT.GetMethod('OpenMedia', $IN, $null, [Type[]]@([string]), $null).Invoke($mf, @([string]$clip))
+$cues = (TY 'Doc').GetField('Cues', $IN).GetValue($mfT.GetField('_doc', $IN).GetValue($mf))
+if ($cues.Count -eq 0) { foreach ($c in @(@(1000, 2500, 'ברוכים הבאים'), @(3000, 5000, 'היום נלמד'))) { $cues.Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2]))) } }
+function RunWork($res) { $fn = $res['_work']; if (-not $fn) { return $null }; return $fn.Invoke() }
+$res = Call 'listen' @{ index = 1 }
+$w = RunWork $res
+Check 'listen: קטע הקול של הכתובית יוצא (MP3)' ($w -ne $null -and $w['_audio'] -ne $null -and $w['_audio'].Length -gt 1000) ($(if ($w) { '' + $w['clip'] + ' ' + $(if ($w['_audio']) { $w['_audio'].Length } else { $w['error'] }) }))
+$res = Call 'look_at' @{ seconds = 2 }
+$w = RunWork $res
+Check 'look_at: תמונה אחת מהסרט' ($w -ne $null -and $w['_images'].Count -eq 1) ''
+$res = Call 'find_scene' @{ description = 'מה שהוא' }
+$w = RunWork $res
+Check 'find_scene: דף תמונות עם זמנים' ($w -ne $null -and $w['_images'].Count -ge 1 -and $w['sheets'] -ge 1) ''
+$state = $mfT.GetMethod('AiStateFull', $IN).Invoke($mf, @())
+Check 'המצב כולל את הכתוביות עצמן (בלי סבב list_cues)' ($state.Contains('הכתוביות:') -and $state.Contains('ברוכים הבאים')) ''
+$qr = (TY 'Ai').GetMethod('QuotaResetText', $ST, $null, [Type[]]@([DateTime]), $null)
+Check 'שעת איפוס המכסה: לפני - ״היום״, אחרי - ״מחר״' ($qr.Invoke($null, @([DateTime]'2026-10-12 04:30')).Contains('היום') -and $qr.Invoke($null, @([DateTime]'2026-10-12 11:00')).Contains('מחר')) ''
+Check 'listen נחשבת שליחה החוצה' ($cat.Invoke($null, @('listen')) -eq 3) ''
+$tn2 = @($mfT.GetMethod('AiTools').Invoke($mf, @()) | ForEach-Object { $_.Name })
+Check 'listen ברשימת הפעולות' ($tn2 -contains 'listen') ''
+try { Remove-Item $tmpDir -Recurse -Force } catch { }
 
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())

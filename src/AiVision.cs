@@ -134,6 +134,26 @@ namespace SubtitleStudio
             return res;
         }
 
+        /// <summary>**להקשיב (0.8.13):** קטע קול מהסרט כ-MP3 קטן (מונו, 16kHz, ‏32kbps - כ-4KB לשנייה), כדי שהעוזר ישמע מה נאמר:
+        /// לתקן כתובית מול הדיבור, לבדוק מילה שהתמלול לא היה בטוח בה. null - לא הצליח.</summary>
+        public static byte[] Audio(string path, long fromMs, long toMs, out string error)
+        {
+            error = null;
+            string tmp = Path.Combine(Ff.TempDir(), "listen-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".mp3");
+            try
+            {
+                string args = "-hide_banner -nostdin -v error -ss " + (fromMs / 1000.0).ToString("0.###", CultureInfo.InvariantCulture) +
+                              " -t " + ((toMs - fromMs) / 1000.0).ToString("0.###", CultureInfo.InvariantCulture) +
+                              " -i " + Ff.Q(path) + " -vn -sn -ac 1 -ar 16000 -c:a libmp3lame -b:a 32k -y " + Ff.Q(tmp);
+                string so, se;
+                int rc = Ff.RunSync(Ff.Exe, args, out so, out se, null);
+                if (rc != 0 || !File.Exists(tmp)) { error = Ff.LastLines(se, 2); return null; }
+                return File.ReadAllBytes(tmp);
+            }
+            catch (Exception ex) { error = ex.Message; return null; }
+            finally { try { if (File.Exists(tmp)) File.Delete(tmp); } catch { } }
+        }
+
         public static byte[] Jpeg(Bitmap b, long quality)
         {
             ImageCodecInfo codec = null;
