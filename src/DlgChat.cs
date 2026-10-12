@@ -759,6 +759,8 @@ namespace SubtitleStudio
 
         /// <summary>בבקשה הזאת כבר הוזכר למודל להמשיך אחרי תשובה ריקה / כבר חיכינו למכסה (כמה פעמים).</summary>
         private bool _nudged;
+        /// <summary>הסבב הבא מתחיל מהדגם שאחרי זה (אחרי תשובה ריקה ממנו).</summary>
+        private string _startAfter;
         private int _waits;
 
         /// <summary>סבב אחד מול המודל. אם הוא ביקש פעולה - מריצים ושולחים תוצאה בחזרה.</summary>
@@ -783,10 +785,13 @@ namespace SubtitleStudio
             int gen = _gen;
             StopToken stop = new StopToken();
             _stopToken = stop;
+            // אחרי תשובה ריקה - מהדגם שאחרי זה שהחזיר אותה
+            string after0 = _startAfter;
+            _startAfter = null;
             Thread t = new Thread(delegate ()
             {
                 StopToken.Attach(stop);
-                string slow = null;
+                string slow = after0;
                 // **גוגל איטי - גם דגם אחר, במקביל** (`Ai.Race`, 0.8.14): אותה בקשה לוקחת פעם 3 שניות ופעם 33
                 try
                 {
@@ -795,7 +800,7 @@ namespace SubtitleStudio
                         {
                             // בשיחה: מכסה דקתית או עומס - דגם אחר מיד, לא המתנה של חצי דקה בכל סבב (נמדד: 59 שניות לבקשה אחת)
                             Ai.PreferSwitch = true;
-                            if (i > 0) Ai.StartAfter = slow;
+                            if (i > 0 || after0 != null) Ai.StartAfter = slow;
                             return Ai.Send(sys, snapshot, tools, false);
                         },
                         delegate (AiReply x) { return x.Ok; },
@@ -941,15 +946,20 @@ namespace SubtitleStudio
 
             // **תשובה ריקה באמצע בקשה** (אחרי תוצאה של פעולה): נמדד - ״תוסיף כתובית ואז תזיז הכול״ נעצר אחרי הצעד
             // הראשון בלי מילה. מזכירים פעם אחת להמשיך, או לפחות לומר מה נעשה
-            if (r != null && r.Empty && round > 0 && !_nudged)
+            // **וגם בתחילת בקשה** (0.8.15): נמדד 12.10 - ״הכתוביות מאחרות בחצי שנייה״ קיבל תשובה ריקה, והמשתמש ראה רק ״המודל לא
+            // החזיר תשובה״. ניסיון אחד נוסף, בדגם הבא
+            if (r != null && r.Empty && !_nudged)
             {
                 _nudged = true;
                 AiMsg nudge = new AiMsg();
                 nudge.Role = "user";
                 nudge.Hidden = true;
-                nudge.Text = "(הודעה מהתוכנה, לא מהמשתמש: לא כתבת כלום. אם נשאר חלק מהבקשה שעוד לא ביצעת - בצע אותו עכשיו. " +
-                             "אם הכול בוצע - כתוב למשתמש במשפט אחד מה נעשה.)";
+                nudge.Text = round > 0
+                    ? "(הודעה מהתוכנה, לא מהמשתמש: לא כתבת כלום. אם נשאר חלק מהבקשה שעוד לא ביצעת - בצע אותו עכשיו. " +
+                      "אם הכול בוצע - כתוב למשתמש במשפט אחד מה נעשה.)"
+                    : "(הודעה מהתוכנה, לא מהמשתמש: התשובה שלך הגיעה ריקה. ענה עכשיו לבקשה האחרונה של המשתמש - בצע אותה, או כתוב לו.)";
                 _history.Add(nudge);
+                _startAfter = Ai.LastModelUsed;
                 Turn(round + 1);
                 return;
             }
@@ -1178,9 +1188,13 @@ namespace SubtitleStudio
         /// <summary>שורת ״✓ בוצע״ / ״הפעולה בוטלה״ / השגיאה, מתחת לתשובה.</summary>
         private void ShowResult(Dictionary<string, object> res, bool refused)
         {
-            object done;
+            object done, msg;
             if (res.TryGetValue("done", out done) && Convert.ToString(done).Length > 0)
                 _view.AddAction(Convert.ToString(done), true);
+            // הודעה שהתוכנה הייתה מציגה בחלון (״חלק מהתמלול נעשה בדגם אחר״) - כאן, בלי לעצור את השיחה
+            if (res.TryGetValue("message_for_user", out msg) && Convert.ToString(msg).Length > 0)
+                foreach (string m in Convert.ToString(msg).Split(new string[] { " | " }, StringSplitOptions.RemoveEmptyEntries))
+                    _view.AddAction(m, false);
             else if (refused)
                 _view.AddAction(Lang.T("הפעולה בוטלה"), false);
             else if (res.ContainsKey("error"))
@@ -1255,7 +1269,8 @@ namespace SubtitleStudio
             sb.Append("**איך מתחילים כתוביות מאפס** - זו השאלה הנפוצה ביותר, ויש בדיוק ארבע תשובות:\n");
             sb.Append("0. **יש סרט ואין טקסט בכלל (״אני רוצה כתוביות לסרט״) - תמלול.** קודם ask_user: באיזה שירות לתמלל ");
             sb.Append("(האפשרויות והמצב שלהן בשורת ״שירותי תמלול״ למטה; תאר כל אחת בכמה מילים), ואז transcribe_media עם service. ");
-            sb.Append("התוכנה מקשיבה וכותבת לבד, עם תזמונים. ");
+            sb.Append("התוכנה מקשיבה וכותבת לבד, עם תזמונים, בשפה שמדברים בסרט. ביקש כתוביות בשפה אחרת (״כתוביות בעברית״ לסרט באנגלית) - ");
+            sb.Append("מיד אחרי התמלול translate_subtitles לשפה שביקש, בלי לשאול. ");
             sb.Append("זו התשובה הראשונה שצריך לשקול כשיש סרט פתוח. היא פותחת חלון אישור כי הקול נשלח ");
             sb.Append("החוצה, והמשתמש מאשר בעצמו - אל תבטיח לו שזה נשאר במחשב, ואל תנסה שוב אם הוא סגר.\n");
             sb.Append("1. הטקסט כבר כתוב אצל המשתמש (תמליל, מסמך) - open_text_import פותח לו את החלון להדביק בו. ");
@@ -1286,7 +1301,9 @@ namespace SubtitleStudio
             sb.Append(AiKnow.Overview).Append("\n\n");
 
             sb.Append("**כשיש כמה דרכים והבחירה של המשתמש** (שירות, צריבה או ערוץ נפרד, שפה, להחליף או לצרף) - ask_user עם 2-4 ");
-            sb.Append("תשובות קצרות שהוא לוחץ עליהן, במקום שאלה פתוחה. שאלה אחת בכל פעם, ורק כשבאמת צריך - מה שאפשר להחליט לבד, תחליט.\n");
+            sb.Append("תשובות קצרות שהוא לוחץ עליהן. **אף פעם לא שאלה כזו בטקסט:** לא ״באיזה שירות לתמלל? גוגל או Groq?״ בתשובה, אלא ");
+            sb.Append("ask_user(question=״באיזה שירות לתמלל?״, options=״גוגל - מדויק, מזהה דוברים|Groq - מהיר מאוד״). ");
+            sb.Append("שאלה אחת בכל פעם, ורק כשבאמת צריך - מה שאפשר להחליט לבד, תחליט. ואל תמציא פרטים על שירותים - רק מה שכתוב במצב.\n");
 
             sb.Append("**הצעד הבא:** אחרי משימה גדולה (תמלול, תרגום, תזמון, צריבה) - הצע בשאלה עם אפשרויות (ask_user) את מה שבדרך כלל עושים אחריה: ");
             sb.Append("אחרי תמלול - לבדוק שגיאות / להקשיב למילים הלא בטוחות / לתרגם / ליצור סרט; אחרי תרגום - לבדוק שגיאות / ליצור סרט. רק אחת כזו, בסוף.\n");

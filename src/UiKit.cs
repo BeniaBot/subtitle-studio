@@ -1120,6 +1120,8 @@ namespace SubtitleStudio
         {
             if (buttons == null || buttons.Length == 0) buttons = new string[] { Lang.T("אישור") };
             Form f = new Form();
+            // השם - גם בלי מסגרת: כך העוזר יודע איזו הודעה פתוחה (עד 0.8.15 ראה ״״ ולחצן ״הבנתי״)
+            f.Text = title ?? "";
             f.FormBorderStyle = FormBorderStyle.None;
             f.StartPosition = FormStartPosition.CenterParent;
             f.BackColor = Theme.Panel;

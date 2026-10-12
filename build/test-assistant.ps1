@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 64 בדיקות.
+# צפוי: 67 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -245,6 +245,21 @@ Check 'תמלול של הודעה קולית: בלי מרכאות, בלי ״Tran
 Check 'עברית עם אותיות ערביות באמצע (״הכתوبות״) - משובש; עברית נקייה ואנגלית - לא' (($garbled.Invoke($null, @([string]'תגדיל את הכתوبות בבקשה'))) -and -not ($garbled.Invoke($null, @([string]'תגדיל את הכתוביות'))) -and -not ($garbled.Invoke($null, @([string]'make it bigger')))) ''
 $nr = [Activator]::CreateInstance($replyT)
 Check 'התשובה נושאת את הקוד שלה (לא סטטי משותף לשתי בקשות מקבילות)' ($replyT.GetField('HttpCode') -ne $null -and $replyT.GetField('QuotaDaily') -ne $null -and $ai.GetField('LastHttpCode', $ST).GetCustomAttributes([ThreadStaticAttribute], $false).Count -eq 1) ''
+$free = (TY 'CutDlg').GetMethod('FreeName', $ST)
+$fdir = Join-Path ([IO.Path]::GetTempPath()) ('ss-free-' + [guid]::NewGuid().ToString('N').Substring(0, 6)); New-Item -ItemType Directory $fdir | Out-Null
+$f1 = Join-Path $fdir 'סרט - חתוך.mp4'
+$n1 = $free.Invoke($null, @([string]$f1)); [IO.File]::WriteAllText($f1, 'x'); $n2 = $free.Invoke($null, @([string]$f1)); [IO.File]::WriteAllText($n2, 'x'); $n3 = $free.Invoke($null, @([string]$f1))
+Check 'חיתוך שהעוזר לחץ עליו: שם פנוי ליד המקור, בלי ״שמירה בשם״ (״(2)״, ״(3)״)' ($n1 -eq $f1 -and $n2.EndsWith('סרט - חתוך (2).mp4') -and $n3.EndsWith('סרט - חתוך (3).mp4')) ([IO.Path]::GetFileName($n3))
+[IO.Directory]::Delete($fdir, $true)
+$cueList = (TY 'Doc').GetField('Cues', $IN).GetValue((NewOf 'Doc' @()))
+foreach ($s in @('Only house', 'and the rest of it', 'שלום')) { $cueList.Add((NewOf 'Cue' @([int64]0, [int64]1000, [string]$s))) }
+$tl = (TY 'MainForm').GetMethod('TextLanguage', $ST)
+Check 'שפת הכתוביות אחרי תמלול: אנגלית / עברית (״כתוביות בעברית״ לסרט באנגלית - לתרגם)' (($tl.Invoke($null, @($cueList, 0))) -like 'אנגלית*' -and ($tl.Invoke($null, @($cueList, 2))) -eq 'עברית') ''
+$nf = $mfT.GetField('_aiNotices', $IN); $nl0 = New-Object 'System.Collections.Generic.List[string]'; $nf.SetValue($mf, $nl0)
+$forms0 = [Windows.Forms.Application]::OpenForms.Count
+$mfT.GetMethod('Notice', $IN).Invoke($mf, @([string]'חלק מהתמלול נעשה בדגם אחר', [string]"כדאי לעבור`nעל התזמון"))
+$nf.SetValue($mf, $null)
+Check 'הודעה בזמן פעולה של העוזר - לשיחה, לא חלון שעוצר אותה עד ״הבנתי״' ($nl0.Count -eq 1 -and $nl0[0] -eq 'חלק מהתמלול נעשה בדגם אחר: כדאי לעבור על התזמון' -and [Windows.Forms.Application]::OpenForms.Count -eq $forms0) ($nl0 -join ' | ')
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
 Write-Host ''

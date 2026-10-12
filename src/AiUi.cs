@@ -170,6 +170,10 @@ namespace SubtitleStudio
             StringBuilder sb = new StringBuilder();
             if (f is ProgressDlg) sb.Append("(חלון התקדמות - עבודה רצה, נגמרת לבד) ");
             sb.Append("״").Append(Title(f)).Append("״ - ");
+            // חלון הודעה: מה כתוב בו, לא רק ״הבנתי״
+            if (!(f is Dlg))
+                foreach (Item it in Items(f))
+                    if (it.Kind == "label" && it.Label != Title(f)) { sb.Append(Short(it.Label, 200)).Append(" - "); break; }
             int k = 0;
             foreach (Item it in Items(f))
             {
@@ -250,16 +254,71 @@ namespace SubtitleStudio
             return "אי אפשר לקבוע ערך לפקד הזה - אפשר ללחוץ עליו";
         }
 
+        /// <summary>**העוזר לוחץ עכשיו** (בתוך `Click`). חלון שהיה פותח ״שמירה בשם״ של ווינדוס בוחר לבד שם פנוי ליד המקור
+        /// (`CutDlg.Pick`): בחלון של ווינדוס העוזר לא רואה כלום ולא יכול ללחוץ, והשיחה נתקעה עליו (נמדד 12.10).</summary>
+        public static bool Driving;
+
         /// <summary>לוחץ. מחזיר null כשהצליח, או הסבר.</summary>
         public static string Click(Item it)
         {
             Control c = it.C;
             if (!c.Enabled) return "הכפתור כבוי עכשיו";
             Btn b = c as Btn;
-            if (b != null) return b.PerformClick() ? null : "הכפתור לא זמין";
+            if (b != null)
+            {
+                Driving = true;
+                try { return b.PerformClick() ? null : "הכפתור לא זמין"; }
+                finally { Driving = false; }
+            }
             Toggle tg = c as Toggle;
             if (tg != null) { tg.Checked = !tg.Checked; return null; }
             return "אפשר ללחוץ רק על כפתור או מתג";
+        }
+
+        // ---------- חלונות של ווינדוס ----------
+        private delegate bool EnumProc(IntPtr h, IntPtr l);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool EnumThreadWindows(uint tid, EnumProc cb, IntPtr l);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr h);
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+
+        /// <summary>**חלון של ווינדוס שפתוח עכשיו בתוכנה** - ״שמירה בשם״, ״פתיחה״, בחירת תיקייה, הודעת מערכת (המחלקה #32770). הוא לא
+        /// ב-OpenForms: העוזר לא ראה אותו, ניסה לעבוד בחלון שמתחתיו, ונתקע (נמדד 12.10, בחיתוך). Zero - אין. רק מחוט הממשק.</summary>
+        public static IntPtr NativeDialog(out string title)
+        {
+            IntPtr found = IntPtr.Zero;
+            string t = null;
+            try
+            {
+                EnumThreadWindows(GetCurrentThreadId(), delegate (IntPtr h, IntPtr l)
+                {
+                    if (!IsWindowVisible(h)) return true;
+                    StringBuilder cls = new StringBuilder(64);
+                    GetClassName(h, cls, 64);
+                    if (cls.ToString() != "#32770") return true;
+                    StringBuilder sb = new StringBuilder(256);
+                    GetWindowText(h, sb, 256);
+                    found = h;
+                    t = sb.ToString();
+                    return false;
+                }, IntPtr.Zero);
+            }
+            catch { }
+            title = t ?? "";
+            return found;
+        }
+
+        /// <summary>מה לומר לעוזר כשחלון של ווינדוס פתוח (null - אין).</summary>
+        public static string NativeNote()
+        {
+            string t;
+            if (NativeDialog(out t) == IntPtr.Zero) return null;
+            return "פתוח חלון של ווינדוס" + (t.Length > 0 ? ": ״" + t + "״" : "") + " (בחירת קובץ או תיקייה, או הודעה). " +
+                   "אתה לא רואה אותו ולא יכול ללחוץ בו - רק המשתמש. אמור לו בקצרה מה לבחור שם ועל מה ללחוץ. " +
+                   "עד שהוא ייסגר אי אפשר לעבוד בשום חלון אחר";
         }
 
         // ---------- עזר ----------

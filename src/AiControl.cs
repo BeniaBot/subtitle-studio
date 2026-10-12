@@ -28,7 +28,9 @@ namespace SubtitleStudio
             try
             {
                 Form f = AiWindow();
-                if (f == null) res["window_now"] = "אין חלון פתוח - רק המסך הראשי";
+                string native = AiUi.NativeNote();
+                if (native != null) res["window_now"] = native;
+                else if (f == null) res["window_now"] = "אין חלון פתוח - רק המסך הראשי";
                 else if (AiWinCat(f) == -2) res["window_now"] = "״" + AiUi.Title(f) + "״ - בחלון הזה רק המשתמש עובד";
                 else
                 {
@@ -264,6 +266,14 @@ namespace SubtitleStudio
 
         private Dictionary<string, object> AiUiRead()
         {
+            string native = AiUi.NativeNote();
+            if (native != null)
+            {
+                Dictionary<string, object> nat = new Dictionary<string, object>();
+                nat["window"] = "חלון של ווינדוס";
+                nat["note"] = native;
+                return nat;
+            }
             Form f = AiWindow();
             if (f == null)
             {
@@ -286,6 +296,8 @@ namespace SubtitleStudio
         {
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
+            string native = AiUi.NativeNote();
+            if (native != null) { r["error"] = native; return r; }
             Form f = AiWindow();
             if (f == null) { r["error"] = "אין חלון פתוח"; return r; }
             int cat = AiWinCat(f);
@@ -303,6 +315,8 @@ namespace SubtitleStudio
         {
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
+            string native = AiUi.NativeNote();
+            if (native != null) { r["error"] = native; return r; }
             Form f = AiWindow();
             if (f == null) { r["error"] = "אין חלון פתוח"; return r; }
             int cat = AiWinCat(f);
@@ -652,11 +666,15 @@ namespace SubtitleStudio
                 if (_doc.CanUndo) sb.Append("הפעולה האחרונה שאפשר לבטל: ").Append(_doc.UndoLabel).Append(". ");
                 sb.Append("ממשק ").Append(Lang.IsEn ? "באנגלית" : "בעברית").Append(", מצב ").Append(Theme.Dark ? "כהה" : "בהיר").Append(". ");
                 // כדי שיציע רק מה שעובד, ויידע מה ייפתח
-                sb.Append("שירותי תמלול: גוגל - ").Append(Stt.Gemini.HasKey ? "מחובר" : "אין מפתח")
-                  .Append("; Groq - ").Append(Stt.Groq.HasKey ? "מחובר" : "אין מפתח (מתחברים בחינם מחלון התמלול, בכמה לחיצות)")
-                  .Append(". אין עדיין תמלול במחשב עצמו. ");
+                // **עם התיאור הנכון של כל אחד:** בלעדיו העוזר המציא ״גוגל - יקר, Groq - זול יותר״ (נמדד 12.10; שניהם חינם)
+                sb.Append("שירותי תמלול (שניהם חינם): גוגל - ").Append(Stt.Gemini.HasKey ? "מחובר" : "אין מפתח")
+                  .Append(" (מדויק, מזהה דוברים ומסמן מילים לא בטוחות; המכסה היומית קטנה - שיעור ארוך עלול למצות אותה); Groq - ")
+                  .Append(Stt.Groq.HasKey ? "מחובר" : "אין מפתח (מתחברים בחינם מחלון התמלול, בכמה לחיצות)")
+                  .Append(" (מהיר מאוד, עד 8 שעות קול ביום, בלי זיהוי דוברים). אין עדיין תמלול במחשב עצמו. ");
+                string native = AiUi.NativeNote();
                 Form w = AiWindow();
-                if (w != null)
+                if (native != null) sb.Append('\n').Append(native).Append('.');
+                else if (w != null)
                 {
                     if (AiWinCat(w) == -2) sb.Append("\nפתוח חלון ״").Append(AiUi.Title(w)).Append("״ - בו רק המשתמש עובד.");
                     else sb.Append("\nחלון פתוח מעל המסך הראשי: ").Append(AiUi.Brief(w)).Append(" (פרטים מלאים ב-ui_read).");

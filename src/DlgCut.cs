@@ -1525,9 +1525,30 @@ namespace SubtitleStudio
             return true;
         }
 
+        /// <summary>השם, ואם הוא תפוס - ״שם (2)״, ״שם (3)״...</summary>
+        internal static string FreeName(string path)
+        {
+            if (!File.Exists(path)) return path;
+            string dir = Path.GetDirectoryName(path), name = Path.GetFileNameWithoutExtension(path), ext = Path.GetExtension(path);
+            for (int i = 2; i < 1000; i++)
+            {
+                string p = Path.Combine(dir, name + " (" + i.ToString(CultureInfo.InvariantCulture) + ")" + ext);
+                if (!File.Exists(p)) return p;
+            }
+            return path;
+        }
+
         /// <summary>חלון הבחירה: קובץ לשמירה, או תיקייה כשכל קטע נשמר לחוד.</summary>
         private string Pick(bool split, string suggest, string ext)
         {
+            // **העוזר לחץ** (ההרשאה ״מותר״): בלי ״שמירה בשם״ של ווינדוס - הוא לא רואה אותו ולא יכול ללחוץ בו. נמדד 12.10: ״תחתוך
+            // את חמש השניות הראשונות״ - החלון נפתח מוכן, הלחיצה פתחה חלון שמירה, והשיחה נתקעה. שם פנוי ליד המקור
+            if (AiUi.Driving)
+            {
+                string dir = Path.GetDirectoryName(_mi.Path);
+                if (split) return dir;
+                return FreeName(Path.Combine(dir, suggest));
+            }
             if (split)
             {
                 using (FolderBrowserDialog fd = new FolderBrowserDialog())

@@ -9,7 +9,7 @@
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
 #  9. גוגל איטי - אותה בקשה גם לדגם אחר, במקביל (0.8.14)
 #  10-13. הודעה קולית: המילים בבועה / תמלול נכשל - ההקלטה עצמה / בלי דיבור / עצירה באמצע
-# צפוי: 30 בדיקות.
+# צפוי: 31 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -202,6 +202,11 @@ $r2 = Req $srv 2
 Check 'אחרי תשובה ריקה - הבקשה הבאה מזכירה להמשיך' ($r2.Contains('לא כתבת כלום')) ''
 Check 'ואז מגיעה התשובה, בלי שגיאה למשתמש' ((LastModelText) -eq 'יש שתי כתוביות.') (LastModelText)
 
+# ---------- 2א. תשובה ריקה כבר בתחילת הבקשה - עוד ניסיון לבד, בדגם הבא (0.8.15) ----------
+$srv = StartServer @((Ok200 '{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"STOP"}]}'), (Reply (Txt 'הזזתי.')))
+Say 'הכתוביות מאחרות בחצי שנייה'
+$e1 = Req $srv 1; $em0 = ModelOf (ReqLine $srv 0); $em1 = ModelOf (ReqLine $srv 1)
+Check 'תשובה ריקה בהתחלה: עוד ניסיון לבד, בדגם אחר - והתשובה מגיעה (עד 0.8.15: ״המודל לא החזיר תשובה״)' ($e1.Contains('התשובה שלך הגיעה ריקה') -and (LastModelText) -eq 'הזזתי.' -and $em0 -ne $em1) ("$em0 / $em1")
 # ---------- 3. שאלה עם תשובות לבחירה ----------
 $srv = StartServer @(
     (Reply (Call 'ask_user' '{"question":"באיזה שירות לתמלל?","options":"גוגל|Groq"}' $null)),

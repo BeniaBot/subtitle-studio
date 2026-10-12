@@ -63,6 +63,7 @@ namespace SubtitleStudio
                 .Req("control", "string", "המזהה (למשל c7) או הטקסט של הכפתור"));
             t.Add(new AiTool("ask_user", "שואל את המשתמש שאלה עם כמה תשובות מוכנות - הן מופיעות כלחצנים בצ'אט, והוא לוחץ (או כותב משהו אחר). " +
                     "השתמש בזה כשיש כמה דרכים והבחירה שלו: איזה שירות, צריבה או ערוץ נפרד, איזו שפה, להמשיך או לא. " +
+                    "**כל שאלה שיש לה תשובות מוכנות - רק דרך זה, אף פעם לא בטקסט** (״גוגל או Groq?״ בטקסט מכריח אותו להקליד). " +
                     "התשובה שלו חוזרת כתוצאה. שאלה אחת בכל פעם")
                 .Req("question", "string", "השאלה, קצרה")
                 .Req("options", "string", "2-4 תשובות קצרות, מופרדות ב-| (למשל: גוגל|Groq). אפשר להוסיף הסבר קצר אחרי מקף"));
@@ -272,7 +273,32 @@ namespace SubtitleStudio
         public string AiStateLine() { return AiStateFull(); }
 
         // ---------- ביצוע ----------
+        /// <summary>**הודעות בזמן שהעוזר מפעיל** (0.8.15) - null כשלא. ״חלק מהתמלול נעשה בדגם אחר״ קפץ כחלון שעוצר את השיחה עד
+        /// ״הבנתי״, והעוזר לא ידע מה כתוב בו (נמדד 12.10). עכשיו הוא מצטרף לתוצאה, מוצג בשיחה, והעוזר יודע.</summary>
+        private List<string> _aiNotices;
+
+        /// <summary>הודעה למשתמש: בחלון - או, כשהעוזר מפעיל, בשיחה.</summary>
+        private void Notice(string title, string body)
+        {
+            if (_aiNotices != null) { _aiNotices.Add(title + ": " + (body ?? "").Replace("\r\n", " ").Replace("\n", " ")); return; }
+            Ui.Info(this, title, body);
+        }
+
         public Dictionary<string, object> RunAiAction(AiCall call, out bool refused)
+        {
+            List<string> outer = _aiNotices;
+            _aiNotices = new List<string>();
+            try
+            {
+                Dictionary<string, object> r = RunAiActionCore(call, out refused);
+                if (r != null && _aiNotices.Count > 0)
+                    r["message_for_user"] = string.Join(" | ", _aiNotices.ToArray());
+                return r;
+            }
+            finally { _aiNotices = outer; }
+        }
+
+        private Dictionary<string, object> RunAiActionCore(AiCall call, out bool refused)
         {
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
@@ -1166,7 +1192,35 @@ namespace SubtitleStudio
                 ? Lang.F("התמלול הסתיים, יש עכשיו {0} כתוביות", now)
                 : Lang.T("המשתמש סגר את חלון האישור בלי לתמלל");
             r["cue_count"] = now;
+            // **השפה של מה שיצא** (0.8.15): ״אני רוצה כתוביות בעברית״ על סרט באנגלית - העוזר תמלל באנגלית ונעצר (נמדד 12.10)
+            if (now > before)
+            {
+                string lang = TextLanguage(_doc.Cues, before);
+                r["subtitles_language"] = lang;
+                r["note"] = "הכתוביות יצאו ב" + lang + " (שפת הסרט). אם המשתמש ביקש כתוביות בשפה אחרת - תרגם עכשיו " +
+                            "(translate_subtitles) בלי לשאול, ואחר כך הצע את הצעד הבא";
+            }
             return r;
+        }
+
+        /// <summary>״עברית״ / ״אנגלית״ / ״ערבית״... לפי האותיות של הכתוביות מ-<paramref name="from"/> והלאה.</summary>
+        internal static string TextLanguage(List<Cue> cues, int from)
+        {
+            int he = 0, lat = 0, ar = 0, cyr = 0;
+            for (int i = Math.Max(0, from); i < cues.Count; i++)
+                foreach (char ch in cues[i].Text ?? "")
+                {
+                    if (ch >= 0x05D0 && ch <= 0x05EA) he++;
+                    else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) lat++;
+                    else if (ch >= 0x0600 && ch <= 0x06FF) ar++;
+                    else if (ch >= 0x0400 && ch <= 0x04FF) cyr++;
+                }
+            int max = Math.Max(Math.Max(he, lat), Math.Max(ar, cyr));
+            if (max == 0) return "שפה לא ידועה";
+            if (max == he) return "עברית";
+            if (max == ar) return "ערבית";
+            if (max == cyr) return "רוסית";
+            return "אנגלית (או שפה אחרת באותיות לטיניות)";
         }
 
         private Dictionary<string, object> AiStartTap()

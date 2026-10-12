@@ -1142,7 +1142,7 @@ namespace SubtitleStudio
         private void TellUntranslated(int n)
         {
             if (n <= 0) return;
-            Ui.Info(this, n == 1 ? Lang.T("כתובית אחת לא תורגמה") : Lang.F("{0} כתוביות לא תורגמו", Theme.Ltr(n.ToString(CultureInfo.InvariantCulture))),
+            Notice(n == 1 ? Lang.T("כתובית אחת לא תורגמה") : Lang.F("{0} כתוביות לא תורגמו", Theme.Ltr(n.ToString(CultureInfo.InvariantCulture))),
                 Lang.T("המודל דילג עליהן גם בניסיון השני, והן נשארו בשפת המקור. אפשר לתרגם אותן ביד, או לתרגם שוב."));
         }
 
@@ -3058,7 +3058,7 @@ namespace SubtitleStudio
                 if (title == null) { title = Lang.T("חלק מהתמלול נעשה בדגם אחר של גוגל"); body = fb; }
                 else body += Environment.NewLine + Environment.NewLine + fb;
             }
-            if (title != null) Ui.Info(this, title, body);
+            if (title != null) Notice(title, body);
         }
 
         /// <summary>מה עושים כשהמכסה נגמרה - לפי השירות, ועם הצעה לשירות השני.</summary>
