@@ -6,7 +6,8 @@
 #  4. פקודה שפותחת חלון: המילוי והלחיצה רצים בתוך החלון, והחלון מצורף לתוצאה
 #  5. ״לבטל את מה שעשיתי״
 #  6. עצירה באמצע
-# צפוי: 16 בדיקות.
+#  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
+# צפוי: 18 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -182,6 +183,25 @@ $sw = [Diagnostics.Stopwatch]::StartNew()
 $chT.GetMethod('StopRequest', $IN).Invoke($chat, @())
 Pump 10
 Check 'עצירה: השיחה פנויה תוך שניות, לא אחרי שהשרת עונה' ((-not $fBusy.GetValue($chat)) -and $sw.Elapsed.TotalSeconds -lt 5) ("" + [Math]::Round($sw.Elapsed.TotalSeconds, 1) + " שניות")
+
+# ---------- 7. כל הדגמים עמוסים לרגע (מכסה דקתית): ממתין וממשיך לבד ----------
+$models = (TY 'Ai').GetField('Models', $ST).GetValue($null)
+$busy429 = @{ status = '429 Too Many Requests'; body = '{"error":{"code":429,"message":"quota","details":[{"retryDelay":"1s"}]}}' }
+$seq = @(); foreach ($x in $models) { $seq += $busy429 }; $seq += (Reply (Txt 'אחרי המתנה - הנה.'))
+$srv = StartServer $seq
+$sw = [Diagnostics.Stopwatch]::StartNew()
+Say 'שאלה כשהכול עמוס' 40
+$acts = @($view.GetType().GetField('_items', $IN).GetValue($view) | Where-Object { $_.GetType().GetField('Text').GetValue($_) -like '*עמוס*' })
+Check 'כולם עמוסים - ״גוגל עמוס רגע״, המתנה, והמשך לבד (בלי ללחוץ ״לנסות שוב״)' ($acts.Count -ge 1 -and (LastModelText) -eq 'אחרי המתנה - הנה.') ("" + [Math]::Round($sw.Elapsed.TotalSeconds) + " שניות")
+
+# ---------- 8. המכסה היומית נגמרה בכל הדגמים: ההודעה אומרת מתי מתאפס ----------
+$daily = @{ status = '429 Too Many Requests'; body = '{"error":{"code":429,"message":"GenerateRequestsPerDayPerProjectPerModel exceeded"}}' }
+$seq = @(); foreach ($x in $models) { $seq += $daily }
+$srv = StartServer $seq
+Say 'שאלה כשהמכסה נגמרה' 30
+$items = @($view.GetType().GetField('_items', $IN).GetValue($view))
+$lastTxt = $items[$items.Count - 1].GetType().GetField('Text').GetValue($items[$items.Count - 1])
+Check 'מכסה יומית בכולם - ההודעה אומרת מתי היא מתאפסת' ($lastTxt.Contains('מתאפסת') -and ($lastTxt.Contains('בשעה'))) ($lastTxt -replace "`r?`n", ' ')
 
 $guard.Stop()
 Write-Host ''
