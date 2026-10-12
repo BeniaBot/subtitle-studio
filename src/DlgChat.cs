@@ -73,6 +73,7 @@ namespace SubtitleStudio
                 _hint = false; _input.Text = text; Send();
             };
             _view.RetryClicked += delegate { Retry(); };
+            _view.Copied += delegate { _view.AddAction(Lang.T("הועתק ללוח"), true); };
             Controls.Add(_view);
 
             _input = new TextBox();
@@ -691,6 +692,7 @@ namespace SubtitleStudio
                 int sec = Math.Max(5, Math.Min(45, Ai.LastRetrySec > 0 ? Ai.LastRetrySec : 20));
                 _view.AddAction(Lang.F("גוגל עמוס רגע - ממשיך בעוד {0} שניות", sec), true);
                 _view.Thinking = true;
+                _view.Status = Lang.F("גוגל עמוס רגע - ממשיך בעוד {0} שניות", sec);
                 System.Windows.Forms.Timer wait = new System.Windows.Forms.Timer();
                 wait.Interval = sec * 1000;
                 int again = round;
@@ -788,6 +790,8 @@ namespace SubtitleStudio
                         Dictionary<string, object> mine = res;
                         _view.Thinking = true;
                         int g2 = _gen;
+                        object doneTxt;
+                        if (res.TryGetValue("done", out doneTxt)) _view.Status = Convert.ToString(doneTxt) + "...";
                         Thread th = new Thread(delegate ()
                         {
                             Dictionary<string, object> extra = null;
@@ -799,6 +803,7 @@ namespace SubtitleStudio
                                 BeginInvoke((MethodInvoker)delegate
                                 {
                                     if (g2 != _gen) return;
+                                    _view.Status = "";
                                     if (extra != null) foreach (KeyValuePair<string, object> kv in extra) mine[kv.Key] = kv.Value;
                                     else mine["error"] = err ?? "נכשל";
                                     RunCalls(r, next, results, st, round, null);
@@ -916,6 +921,7 @@ namespace SubtitleStudio
             _busy = false;
             SendLook(false);
             _view.Thinking = false;
+            _view.Status = "";
             if (_snap != null && _host.AiChangedSince(_snap)) _view.AddChips(new string[] { UndoChip });
             // ההקראה - של התשובה האחרונה, כשהעוזר סיים (לא של כל שלב באמצע)
             // מי שדיבר - שומע תשובה, גם כשההקראה כבויה
@@ -1071,9 +1077,43 @@ namespace SubtitleStudio
             public void AddUser(string t) { Add(Kind.User, t, true, false); }
             public void AddBot(string t) { Add(Kind.Bot, t, true, false); }
             public void AddError(string t) { Add(Kind.Bot, t, false, true); }
-            public void AddAction(string t, bool good) { Add(Kind.Action, t, good, false); }
+            /// <summary>שורת ״✓ בוצע״. **רצופות מתקבצות לבועה אחת** (שורה לכל פעולה, עד 8): בקשה של שש פעולות ציירה שש
+            /// גלולות זו מתחת לזו, והשיחה עצמה נדחקה למעלה.</summary>
+            public void AddAction(string t, bool good)
+            {
+                Item last = _items.Count > 0 ? _items[_items.Count - 1] : null;
+                if (last != null && last.Kind == Kind.Action && last.Good == good && last.Text.Split('\n').Length < 8 && !string.IsNullOrEmpty(t))
+                {
+                    last.Text += "\n" + t;
+                    Measure();
+                    ScrollToEnd();
+                    return;
+                }
+                Add(Kind.Action, t, good, false);
+            }
+
+            /// <summary>מה העוזר עושה עכשיו - ליד שלוש הנקודות (״מסתכל על 38 תמונות מהסרט״). ריק - רק הנקודות.</summary>
+            public string Status
+            {
+                get { return _status; }
+                set { _status = value ?? ""; Invalidate(); }
+            }
+            private string _status = "";
+
+            /// <summary>הודעה (משתמש, עוזר או שורת פעולה) שנמצאת בנקודה, או null - להעתקה בקליק ימני.</summary>
+            public string TextAt(Point p)
+            {
+                float y = -_scroll;
+                foreach (Item it in _items)
+                {
+                    if (p.Y >= y && p.Y < y + it.H && it.Kind != Kind.Chips) return it.Text;
+                    y += it.H + Gap;
+                }
+                return null;
+            }
 
             public event EventHandler RetryClicked;
+            public event EventHandler Copied;
 
             public void AddChips(string[] chips)
             {
@@ -1166,7 +1206,7 @@ namespace SubtitleStudio
             }
 
             private float ActionMaxW { get { return Width - Theme.S(20); } }
-            private static string ActionText(Item it) { return (it.Good ? "✓  " : "·  ") + it.Text; }
+            private static string ActionText(Item it) { string mark = it.Good ? "✓  " : "·  "; return mark + it.Text.Replace("\n", "\n" + mark); }
 
             private float TotalH
             {
@@ -1208,6 +1248,18 @@ namespace SubtitleStudio
 
             protected override void OnMouseDown(MouseEventArgs e)
             {
+                // קליק ימני על הודעה - מעתיק אותה (בועה מצוירת, אין בה סימון טקסט)
+                if (e.Button == MouseButtons.Right)
+                {
+                    string t = TextAt(e.Location);
+                    if (!string.IsNullOrEmpty(t))
+                    {
+                        try { Clipboard.SetText(t); if (Copied != null) Copied(this, EventArgs.Empty); }
+                        catch { }
+                    }
+                    base.OnMouseDown(e);
+                    return;
+                }
                 int h = HitChip(e.Location);
                 if (h >= 0 && _chipItem != null && ChipClicked != null)
                 {
@@ -1318,13 +1370,20 @@ namespace SubtitleStudio
                 if (_thinking)
                 {
                     float h = Theme.S(36);
-                    RectangleF r = new RectangleF(AvatarD + Theme.S(8), y, Theme.S(74), h);
+                    // עם מה שהוא עושה עכשיו (״מסתכל על הסרט...״) - הבועה מתרחבת לטקסט
+                    float tw = 0;
+                    if (_status.Length > 0)
+                        tw = Math.Min(Width - AvatarD - Theme.S(110), TextSize(_status, Theme.Small, int.MaxValue / 4, IsRtlText(_status)).Width + Theme.S(4));
+                    RectangleF r = new RectangleF(AvatarD + Theme.S(8), y, Theme.S(74) + (tw > 0 ? tw + Theme.S(10) : 0), h);
                     Theme.FillRound(g, r, rad, Theme.Panel);
                     Theme.DrawRound(g, r, rad, Theme.BorderSoft, 1f);
+                    if (tw > 0)
+                        Theme.Str(g, _status, Theme.Small, Theme.TextDim, new RectangleF(r.X + Theme.S(68), r.Y, tw, h),
+                            IsRtlText(_status) ? Theme.SfRtl : Theme.SfNear);
                     float dd = Theme.S(6);
                     for (int i = 0; i < 3; i++)
                     {
-                        float cx = r.X + r.Width / 2 + (i - 1) * Theme.S(13);
+                        float cx = r.X + Theme.S(37) + (i - 1) * Theme.S(13);
                         float cy = r.Y + h / 2;
                         float sz = i == _phase ? dd * 1.3f : dd * 0.8f;
                         using (SolidBrush b = new SolidBrush(i == _phase ? Theme.Accent : Theme.TextFaint))

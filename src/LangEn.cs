@@ -1526,6 +1526,7 @@ namespace SubtitleStudio
             "המכסה היומית של המפתח החינמי נגמרה בכל הדגמים.\r\nהיא מתאפסת {0}. אפשר גם להפיק מפתח חדש בדף של גוגל.", "The free key's daily quota has run out on every model.\r\nIt resets {0}. You can also create a new key on Google's page.",
             "המכסה היומית של המפתח החינמי נגמרה - בכל הדגמים.\r\nהיא מתאפסת {0}. אפשר גם להפיק מפתח חדש בדף של גוגל.", "The free key's daily quota has run out - on every model.\r\nIt resets {0}. You can also create a new key on Google's page.",
             "לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)", "Talk to the assistant: click - it listens, click again - it sends (Ctrl+M)",
+            "הועתק ללוח", "Copied",
             "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
             "ליצור קבצים חדשים מהסרט", "Make new files from the video",
             "לפתוח ולשמור קבצים", "Open and save files",
