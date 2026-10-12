@@ -1518,6 +1518,7 @@ namespace SubtitleStudio
         };
         private static readonly string[] P5 = new string[] {
             "מה אתה יודע לעשות?", "What can you do?",
+            "נעצר", "Stopped",
             "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
             "ליצור קבצים חדשים מהסרט", "Make new files from the video",
             "לפתוח ולשמור קבצים", "Open and save files",

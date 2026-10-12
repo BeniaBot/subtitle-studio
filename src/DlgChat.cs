@@ -100,7 +100,7 @@ namespace SubtitleStudio
             _send.Kind = BtnKind.Primary;
             _send.Radius = Theme.S(19);
             _send.Size = new Size(Theme.S(38), Theme.S(38));
-            _send.Click += delegate { Send(); };
+            _send.Click += delegate { if (_busy) StopRequest(); else Send(); };
             Ui.Tip.SetToolTip(_send, Lang.T("שליחה (Enter)"));
             Controls.Add(_send);
 
@@ -458,7 +458,7 @@ namespace SubtitleStudio
             res["answer"] = answer;
             a.Results.Add(res);
             _busy = true;
-            _send.Enabled = false;
+            SendLook(true);
             RunCalls(a.Reply, a.Index + 1, a.Results, false, a.Round, null);
         }
 
@@ -514,19 +514,23 @@ namespace SubtitleStudio
                 return;
             }
             _busy = true;
-            _send.Enabled = false;
+            SendLook(true);
             _view.Thinking = true;
             Invalidate();
 
             string sys = SystemPrompt();
             List<AiTool> tools = _host.AiTools();
-            List<AiMsg> snapshot = new List<AiMsg>(_history);
+            List<AiMsg> snapshot = new List<AiMsg>(Trimmed(_history));
 
             AiReply reply = null;
+            int gen = _gen;
+            StopToken stop = new StopToken();
+            _stopToken = stop;
             Thread t = new Thread(delegate ()
             {
                 // בשיחה: מכסה דקתית או עומס - דגם אחר מיד, לא המתנה של חצי דקה בכל סבב (נמדד: 59 שניות לבקשה אחת)
                 Ai.PreferSwitch = true;
+                StopToken.Attach(stop);
                 try { reply = Ai.Send(sys, snapshot, tools, false); }
                 catch (Exception ex)
                 {
@@ -535,11 +539,119 @@ namespace SubtitleStudio
                     reply.Error = ex.Message;
                     Ai.Log("חריגה: " + ex);
                 }
-                try { BeginInvoke((MethodInvoker)delegate { AfterReply(reply, round); }); }
+                finally { StopToken.Attach(null); }
+                try { BeginInvoke((MethodInvoker)delegate { if (gen == _gen) AfterReply(reply, round); }); }
                 catch { }
             });
             t.IsBackground = true;
             t.Start();
+        }
+
+        // ---------- עצירה (0.8.12) ----------
+        /// <summary>מספר הבקשה: עצירה מקדמת אותו, ותשובה או המשך שמגיעים אחריה - של בקשה ישנה - נזרקים.</summary>
+        private int _gen;
+        private StopToken _stopToken;
+
+        /// <summary>כפתור השליחה הוא ״עצירה״ כל עוד העוזר עובד.</summary>
+        private void SendLook(bool working)
+        {
+            _send.Icon = working ? Ico.Stop : Ico.Sparkles;
+            _send.Enabled = true;
+            Ui.Tip.SetToolTip(_send, working ? Lang.T("עצירה") : Lang.T("שליחה (Enter)"));
+            _send.Invalidate();
+        }
+
+        /// <summary>עוצר: הבקשה שבדרך נקטעת, פעולות שעוד לא רצו לא ירוצו, והשיחה נשארת תקינה להמשך.</summary>
+        private void StopRequest()
+        {
+            if (!_busy && _ask == null) return;
+            _gen++;
+            if (_stopToken != null) _stopToken.Stop();
+            AiVoice.Stop();
+            if (_ask != null) { _ask = null; _view.HideChips(); }
+            SealHistory();
+            _view.AddAction(Lang.T("נעצר"), false);
+            Done();
+        }
+
+        /// <summary>אחרי עצירה באמצע: לכל בקשה של המודל שעוד אין לה תשובה - תשובה ״נעצר״. אחרת הבקשה הבאה לגוגל נדחית
+        /// (קריאה לפעולה בלי תשובה).</summary>
+        private void SealHistory()
+        {
+            if (_history.Count == 0) return;
+            AiMsg last = _history[_history.Count - 1];
+            if (last.Role != "model" || last.Parts == null) return;
+            List<AiCall> calls = new List<AiCall>();
+            foreach (object po in last.Parts)
+            {
+                Dictionary<string, object> pd = po as Dictionary<string, object>;
+                object fc;
+                if (pd == null || !pd.TryGetValue("functionCall", out fc)) continue;
+                Dictionary<string, object> f = fc as Dictionary<string, object>;
+                AiCall c = new AiCall();
+                object nm, id;
+                if (f != null && f.TryGetValue("name", out nm)) c.Name = Convert.ToString(nm);
+                if (f != null && f.TryGetValue("id", out id)) c.Id = Convert.ToString(id);
+                calls.Add(c);
+            }
+            if (calls.Count == 0) return;
+            List<Dictionary<string, object>> res = new List<Dictionary<string, object>>();
+            foreach (AiCall c in calls)
+            {
+                Dictionary<string, object> d = new Dictionary<string, object>();
+                d["stopped"] = "המשתמש עצר את הבקשה - הפעולה לא בוצעה (או לא הסתיימה)";
+                res.Add(d);
+            }
+            AiMsg tool = new AiMsg();
+            tool.Role = "tool";
+            tool.Calls = calls;
+            tool.Results = res;
+            tool.ToolName = calls[0].Name;
+            tool.ToolResult = res[0];
+            tool.Hidden = true;
+            _history.Add(tool);
+        }
+
+        // ---------- היסטוריה רזה ----------
+        /// <summary>השיחה שנשלחת: רק 40 ההודעות האחרונות (ומתחילה בהודעה של המשתמש), ותוצאות ארוכות מבקשות קודמות - מקוצרות.
+        /// כל סבב שולח את כל השיחה; רשימת כתוביות של שיעור (200 שורות) שנשארת בה עולה אלפי טוקנים בכל סבב אחריה.</summary>
+        private List<AiMsg> Trimmed(List<AiMsg> all)
+        {
+            int lastUser = -1;
+            for (int i = all.Count - 1; i >= 0; i--) if (all[i].Role == "user" && !all[i].Hidden) { lastUser = i; break; }
+            int start = Math.Max(0, all.Count - 40);
+            while (start < all.Count && start > 0 && (all[start].Role != "user" || all[start].Hidden)) start++;
+            if (start >= all.Count) start = Math.Max(0, lastUser);
+            List<AiMsg> res = new List<AiMsg>();
+            for (int i = start; i < all.Count; i++)
+            {
+                AiMsg m = all[i];
+                if (i < lastUser && m.Role == "tool" && m.Results != null && Big(m.Results))
+                {
+                    AiMsg s = new AiMsg();
+                    s.Role = "tool"; s.Hidden = true; s.Calls = m.Calls; s.ToolName = m.ToolName;
+                    s.Results = new List<Dictionary<string, object>>();
+                    foreach (Dictionary<string, object> r in m.Results)
+                    {
+                        Dictionary<string, object> d = new Dictionary<string, object>();
+                        object v;
+                        if (r != null && r.TryGetValue("done", out v)) d["done"] = v;
+                        if (r != null && r.TryGetValue("error", out v)) d["error"] = v;
+                        d["note"] = "התוצאה המלאה קוצרה - היא מבקשה קודמת. אם צריך שוב - לקרוא שוב";
+                        s.Results.Add(d);
+                    }
+                    s.ToolResult = s.Results.Count > 0 ? s.Results[0] : null;
+                    res.Add(s);
+                }
+                else res.Add(m);
+            }
+            return res;
+        }
+
+        private static bool Big(List<Dictionary<string, object>> results)
+        {
+            try { return new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(results).Length > 3000; }
+            catch { return false; }
         }
 
         private void AfterReply(AiReply r, int round)
@@ -573,7 +685,8 @@ namespace SubtitleStudio
                 System.Windows.Forms.Timer wait = new System.Windows.Forms.Timer();
                 wait.Interval = sec * 1000;
                 int again = round;
-                wait.Tick += delegate { wait.Stop(); wait.Dispose(); if (!IsDisposed) Turn(again); };
+                int g4 = _gen;
+                wait.Tick += delegate { wait.Stop(); wait.Dispose(); if (!IsDisposed && g4 == _gen) Turn(again); };
                 wait.Start();
                 return;
             }
@@ -627,7 +740,7 @@ namespace SubtitleStudio
                         if (o.Trim().Length > 0 && opts.Count < 6) opts.Add(o.Trim());
                     _view.AddChips(opts.ToArray());
                     _busy = false;
-                    _send.Enabled = true;
+                    SendLook(false);
                     _view.Thinking = false;
                     Invalidate();
                     _input.Focus();
@@ -665,6 +778,7 @@ namespace SubtitleStudio
                         bool st = stopped;
                         Dictionary<string, object> mine = res;
                         _view.Thinking = true;
+                        int g2 = _gen;
                         Thread th = new Thread(delegate ()
                         {
                             Dictionary<string, object> extra = null;
@@ -675,6 +789,7 @@ namespace SubtitleStudio
                             {
                                 BeginInvoke((MethodInvoker)delegate
                                 {
+                                    if (g2 != _gen) return;
                                     if (extra != null) foreach (KeyValuePair<string, object> kv in extra) mine[kv.Key] = kv.Value;
                                     else mine["error"] = err ?? "נכשל";
                                     RunCalls(r, next, results, st, round, null);
@@ -697,7 +812,8 @@ namespace SubtitleStudio
                     // טיימר מגיע רק כשהתור ריק, כלומר אחרי שהחלון נפתח וצויר
                     System.Windows.Forms.Timer go = new System.Windows.Forms.Timer();
                     go.Interval = 150;
-                    go.Tick += delegate { go.Stop(); go.Dispose(); if (!IsDisposed) RunCalls(r, next, results, st, round, mine); };
+                    int g1 = _gen;
+                    go.Tick += delegate { go.Stop(); go.Dispose(); if (!IsDisposed && g1 == _gen) RunCalls(r, next, results, st, round, mine); };
                     go.Start();
                     return;
                 }
@@ -744,7 +860,8 @@ namespace SubtitleStudio
             }
 
             // גם הסבב הבא בתור ההודעות: אחרי כל מה שהפעולות שלחו לתור (חלון שנפתח, לחיצה)
-            try { BeginInvoke((MethodInvoker)delegate { if (!IsDisposed) Turn(round + 1); }); }
+            int g3 = _gen;
+            try { BeginInvoke((MethodInvoker)delegate { if (!IsDisposed && g3 == _gen) Turn(round + 1); }); }
             catch { }
         }
 
@@ -788,7 +905,7 @@ namespace SubtitleStudio
         private void Done()
         {
             _busy = false;
-            _send.Enabled = true;
+            SendLook(false);
             _view.Thinking = false;
             if (_snap != null && _host.AiChangedSince(_snap)) _view.AddChips(new string[] { UndoChip });
             // ההקראה - של התשובה האחרונה, כשהעוזר סיים (לא של כל שלב באמצע)
