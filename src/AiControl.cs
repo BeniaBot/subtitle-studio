@@ -407,6 +407,8 @@ namespace SubtitleStudio
                     return Lang.T("לשלוח לגוגל עותק מוקטן של הסרט (תמונה וקול), כדי שהעוזר יצפה בו ויענה על השאלה?");
                 case "read_text_on_screen":
                     return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי לקרוא את הטקסט שבה?");
+                case "extract_burned_subtitles":
+                    return Lang.T("לשלוח לגוגל רצועות מהתחתית של הסרט (רק איפה שיש כתובית), כדי לקרוא את הכתוביות הצרובות?");
                 case "listen":
                     return Lang.T("לשלוח לגוגל קטע קול מהסרט, כדי שהעוזר ישמע מה נאמר?");
                 case "transcribe_media":
@@ -585,6 +587,66 @@ namespace SubtitleStudio
                 if (text == null) { w["error"] = "הקריאה לא הצליחה: " + err; return w; }
                 w["text_on_screen"] = text;
                 w["at"] = Tc.Short(at);
+                return w;
+            };
+            return r;
+        }
+
+        private Dictionary<string, object> AiExtractBurned(AiCall call)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasVideo) { r["error"] = Lang.T("אין סרט פתוח - אין על מה להסתכל"); return r; }
+            string mode = call.Str("mode", "").Trim().ToLowerInvariant();
+            if (_doc.Cues.Count > 0 && mode != "replace" && mode != "add")
+            {
+                r["error"] = "יש כבר " + _doc.Cues.Count + " כתוביות. שאל את המשתמש (ask_user) אם להחליף אותן או להוסיף, וקרא שוב עם mode=replace או mode=add";
+                return r;
+            }
+            long from = (long)(Math.Max(0, call.Num("from_sec", 0)) * 1000);
+            long to = call.Args.ContainsKey("to_sec") ? (long)(call.Num("to_sec", 0) * 1000) : _mi.DurationMs;
+            to = Math.Min(to <= 0 ? _mi.DurationMs : to, _mi.DurationMs);
+            if (to <= from) { r["error"] = Lang.T("טווח לא תקין"); return r; }
+            string path = _mi.Path, region = call.Str("region", "bottom");
+            int sw = _mi.Width, sh = _mi.Height;
+            long fa = from, fb = to;
+            bool replace = mode == "replace";
+            int stream = call.Args.ContainsKey("subtitle_stream") ? (int)call.Num("subtitle_stream", -1) : -1;
+            r["done"] = Lang.T("מחלץ את הכתוביות הצרובות");
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                string err;
+                Action<string> status = delegate (string s) { AiUi.Status(s); };
+                List<BurnedSubs.Seg> segs = BurnedSubs.Segments(path, fa, fb, sw, sh, region, status, stream, out err);
+                if (segs == null) { w["error"] = "החיפוש בתמונה לא הצליח: " + err; return w; }
+                if (segs.Count == 0)
+                {
+                    w["error"] = Lang.T("לא נמצא טקסט שנראה כמו כתוביות באזור הזה. אולי הן למעלה, או שהן לא בהירות עם מתאר");
+                    w["hint"] = "אפשר לנסות region=top או region=full";
+                    return w;
+                }
+                bool ok = BurnedSubs.Read(segs, status, out err);
+                List<Cue> cues = BurnedSubs.ToCues(segs);
+                if (cues.Count == 0) { w["error"] = ok ? Lang.T("גוגל לא מצא כתוביות ברצועות שנשלחו") : "הקריאה לא הצליחה: " + err; return w; }
+                w["_apply"] = (MethodInvoker)delegate
+                {
+                    _doc.Push(Lang.T("כתוביות צרובות"));
+                    if (replace) _doc.Cues.RemoveAll(delegate (Cue c) { return c.Start >= fa && c.Start < fb; });
+                    _doc.Cues.AddRange(cues);
+                    _doc.Sort();
+                    _doc.FixOverlaps(80);
+                    _doc.Dirty = true;
+                    _doc.RaiseChanged();
+                    SyncAfterDocChange();
+                };
+                w["result_line"] = Lang.F("נוספו {0} כתוביות מהתמונה", cues.Count);
+                w["found"] = cues.Count;
+                List<string> sample = new List<string>();
+                for (int i = 0; i < cues.Count && i < 6; i++) sample.Add(Tc.Short(cues[i].Start) + " " + cues[i].Text.Replace("\n", " / "));
+                w["first"] = sample.ToArray();
+                if (!ok) w["note"] = "חלק מהקריאה נכשל (" + err + ") - יש רק מה שנקרא";
+                w["how_to_use"] = "הכתוביות נוספו למסמך (Ctrl+Z מבטל). הזמנים מדויקים בערך לחצי שנייה. הצע את הצעד הבא בשאלה " +
+                                  "(לתרגם / לבדוק שגיאות / להצמיד לדיבור עם auto_time_by_speech)";
                 return w;
             };
             return r;

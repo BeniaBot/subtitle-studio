@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 71 בדיקות.
+# צפוי: 74 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -271,6 +271,22 @@ $runTool = $mfT.GetMethod('AiTool_', $IN)
 $toolCall = [Activator]::CreateInstance($callT); $toolCall.Name = 'run_media_tool'; $toolCall.Args['tool'] = 'בוואטסאפ'
 $tr = $runTool.Invoke($mf, @($toolCall)); [void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
 Check 'run_media_tool עם חלק מהשם - נפתח הכלי הנכון, בלי סבב של list_media_tools' (('' + $tr['done']) -like '*וואטסאפ*') ('' + $tr['done'] + $tr['error'])
+# ---------- 0.8.17: צפייה, כתוביות צרובות ----------
+$aw = TY 'AiWatch'
+$tt = $aw.GetMethod('Times', $ST).Invoke($null, @([string]'נכנס ב-[[1:05]], ויוצא ב-[[0:03]]', [int64]60000))
+Check 'צפייה בקטע: [[M:SS]] מתחילת הקטע ← הזמן בסרט המלא' ($tt -eq 'נכנס ב-2:05, ויוצא ב-1:03') $tt
+$wb = $aw.GetMethod('Body', $ST).Invoke($null, @([string]'על מה הסרט?', [string]'https://x/files/1', [string]'video/mp4', [int64]0, $true))
+Check 'הבקשה של הצפייה: הקובץ קודם, ואז השאלה; ברזולוציה הנמוכה, בלי חשיבה' ($wb.IndexOf('file_data') -lt $wb.IndexOf('על מה הסרט') -and $wb.Contains('MEDIA_RESOLUTION_LOW') -and $wb.Contains('thinkingBudget')) ''
+$masks = New-Object 'System.Collections.Generic.List[bool[]]'; $tms = New-Object 'System.Collections.Generic.List[long]'; $str = New-Object 'System.Collections.Generic.Dictionary[int,byte[]]'
+for ($q = 0; $q -lt 12; $q++) {
+    $m = New-Object bool[] 100
+    for ($c = 0; $c -lt 8; $c++) { $m[90 + $c] = $true }                         # לוגו - בכל הפריימים
+    if ($q -ge 2 -and $q -le 4) { for ($c = 0; $c -lt 12; $c++) { $m[10 + $c] = $true } }
+    if ($q -ge 7 -and $q -le 9) { for ($c = 0; $c -lt 12; $c++) { $m[40 + $c] = $true } }
+    $masks.Add($m); $tms.Add([int64]($q * 500)); $str[$q] = [byte[]]@(1, 2, 3)
+}
+$gs = @((TY 'BurnedSubs').GetMethod('Group', $ST).Invoke($null, (Pack $masks.psobject.BaseObject $tms.psobject.BaseObject $str.psobject.BaseObject ([int64]500))))
+Check 'כתוביות צרובות: לוגו שדולק בכל הפריימים לא נחשב כתובית, ושתי הכתוביות - בזמנים שלהן' ($gs.Count -eq 2 -and $gs[0].A -eq 1000 -and $gs[0].B -eq 2500 -and $gs[1].A -eq 3500 -and $gs[1].B -eq 5000) (($gs | ForEach-Object { '' + $_.A + '-' + $_.B }) -join ', ')
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
 Write-Host ''

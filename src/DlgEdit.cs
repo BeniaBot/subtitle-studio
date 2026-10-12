@@ -364,6 +364,10 @@ namespace SubtitleStudio
         private List<MediaStream> _subs;
         public List<Cue> Loaded;
         public string LoadedName;
+        /// <summary>״לקרוא מהתמונה״: אין ערוץ כתוביות, והכתוביות צרובות - העוזר יקרא אותן (0.8.17).</summary>
+        public bool ReadBurned;
+        /// <summary>ערוץ של תמונות (PGS/VobSub) שהעוזר יקרא - המספר שלו בקובץ; ‏-1 - לא.</summary>
+        public int ReadImageStream = -1;
 
         public ExtractSubsDlg(MainForm main, MediaInfo mi) : base(Lang.T("כתוביות מתוך הסרט"), Ico.Layers, 560)
         {
@@ -375,8 +379,16 @@ namespace SubtitleStudio
 
             if (_subs.Count == 0)
             {
-                Lbl l = Hint(Lang.T("אם הכתוביות ״צרובות״ בתוך התמונה, אי אפשר לחלץ אותן - צריך להקליד מחדש.") +
-                    Environment.NewLine + Lang.T("אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחה״."));
+                if (mi.HasVideo)
+                {
+                    // **צרובות בתמונה - העוזר קורא אותן** (גוגל). עד 0.8.17: ״אי אפשר לחלץ אותן - צריך להקליד מחדש״
+                    Lbl lb = Hint(Lang.T("אם הכתוביות צרובות בתוך התמונה - העוזר יכול לקרוא אותן ולהפוך אותן לכתוביות רגילות (רצועות מהתמונה נשלחות לגוגל).") +
+                        Environment.NewLine + Lang.T("אפשר גם לטעון קובץ כתוביות חיצוני מכפתור ״פתיחה״."));
+                    Row(lb, 60, 8);
+                    Buttons(Lang.T("לקרוא מהתמונה"), Ico.Eye, Lang.T("סגירה"));
+                    return;
+                }
+                Lbl l = Hint(Lang.T("אפשר לטעון קובץ כתוביות חיצוני מכפתור ״פתיחה״."));
                 Row(l, 60, 8);
                 Buttons(Lang.T("סגירה"), Ico.Close, null);
                 return;
@@ -436,13 +448,18 @@ namespace SubtitleStudio
 
         protected override bool OnOk()
         {
+            if (_subs.Count == 0) { ReadBurned = _mi.HasVideo; return true; }
             MediaStream s = Selected();
             if (s == null) return true;
             if (s.IsImageSubtitle)
             {
-                Ui.Error(this, Lang.T("לא ניתן לעריכה"),
-                    Lang.T("הערוץ מכיל תמונות ולא טקסט, ולכן אי אפשר לפתוח אותו לעריכה. אפשר לשמור אותו כקובץ בלבד."));
-                return false;
+                // ערוץ של תמונות - העוזר קורא אותו כמו כתוביות צרובות (0.8.17). עד כאן: ״אי אפשר לפתוח לעריכה״
+                if (!Ui.Confirm(this, Lang.T("כתוביות שעשויות מתמונות"),
+                        Lang.T("הערוץ הזה מכיל תמונות ולא טקסט (PGS/VobSub). העוזר יכול לקרוא אותן ולהפוך אותן לכתוביות רגילות - רצועות מהתמונה נשלחות לגוגל."),
+                        Lang.T("לקרוא בעזרת העוזר"), Lang.T("ביטול")))
+                    return false;
+                ReadImageStream = s.Index;
+                return true;
             }
             string tmp = Path.Combine(Ff.TempDir(), "extract_" + DateTime.Now.Ticks + (s.Codec.ToLowerInvariant() == "ass" ? ".ass" : ".srt"));
             if (!ExtractTo(tmp, s)) return false;

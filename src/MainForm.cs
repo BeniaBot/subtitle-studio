@@ -383,6 +383,7 @@ namespace SubtitleStudio
             ext.Enabled = media;
             items.Add(ext);
 
+
             items.Add(MenuItem.Group(Lang.T("תזמון")));
             MenuItem shift = MenuItem.Make(Lang.T("הזזת תזמון"), Lang.T("כשהכתוביות מקדימות או מאחרות באופן קבוע"), Ico.ShiftLR,
                 delegate { ShiftTiming(); });
@@ -3319,6 +3320,20 @@ namespace SubtitleStudio
             if (_mi == null) { Ui.Info(this, Lang.T("אין סרט פתוח"), Lang.T("פתחו קודם קובץ וידאו.")); return; }
             ExtractSubsDlg d = new ExtractSubsDlg(this, _mi);
             d.ShowDialog(this);
+            // **כתוביות שצרובות בתמונה, או ערוץ של תמונות (PGS/VobSub) - העוזר קורא אותן** (0.8.17). עד כאן: ״צריך להקליד מחדש״
+            if (d.Ok && d.ReadBurned)
+            {
+                d.Dispose();
+                AskAssistant(Lang.T("תוציא את הכתוביות שצרובות בתמונה של הסרט"), true);
+                return;
+            }
+            if (d.Ok && d.ReadImageStream >= 0)
+            {
+                int idx = d.ReadImageStream;
+                d.Dispose();
+                AskAssistant(Lang.F("תקרא את ערוץ הכתוביות שעשוי מתמונות (ערוץ {0} בקובץ) ותהפוך אותו לכתוביות", idx), true);
+                return;
+            }
             if (d.Ok && d.Loaded != null)
             {
                 if (_doc.Cues.Count > 0)

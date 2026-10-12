@@ -9,7 +9,7 @@
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
 #  9. גוגל איטי - אותה בקשה גם לדגם אחר, במקביל (0.8.14)
 #  10-13. הודעה קולית: המילים בבועה / תמלול נכשל - ההקלטה עצמה / בלי דיבור / עצירה באמצע
-# צפוי: 36 בדיקות.
+# צפוי: 40 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -384,6 +384,28 @@ $srv = StartServer @(
 Say 'מה כתוב על המסך?' 40
 $o1 = Req $srv 1; $o2 = Req $srv 2
 Check 'קריאת טקסט: תמונה ברזולוציה מלאה נשלחת, והטקסט חוזר לעוזר' ($o1.Contains('inline_data') -and $o1.Contains('image/jpeg') -and $o2.Contains('text_on_screen') -and $o2.Contains('היום נלמד על כתוביות')) ''
+# ---------- 17. כתוביות צרובות ← כתוביות: חיפוש בתמונה (בלי רשת), רצועות לגוגל, וכתוביות עם זמנים (0.8.17) ----------
+$synth = Join-Path $env:TEMP 'ss-burn-synth.mp4'
+if (-not (Test-Path $synth)) {
+    $ffx = (TY 'Ff').GetProperty('Exe', $ST).GetValue($null, $null)
+    $vfx = "drawtext=fontfile='C\:/Windows/Fonts/arial.ttf':text='HELLO WORLD':fontsize=40:fontcolor=white:borderw=3:bordercolor=black:x=(w-tw)/2:y=h-70:enable='between(t,1,3)',drawtext=fontfile='C\:/Windows/Fonts/arial.ttf':text='SECOND LINE HERE':fontsize=40:fontcolor=white:borderw=3:bordercolor=black:x=(w-tw)/2:y=h-70:enable='between(t,4,6.5)'"
+    & $ffx -hide_banner -v error -y -f lavfi -i "testsrc2=size=640x360:rate=25:duration=8" -vf $vfx -c:v libx264 -pix_fmt yuv420p $synth 2>&1 | Out-Null
+}
+[void]$mfT.GetMethod('OpenMedia', $IN).Invoke($mf, @([string]$synth))
+for ($k = 0; $k -lt 20; $k++) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 30 }
+$srv = StartServer @(
+    (Reply (Call 'extract_burned_subtitles' '{}' $null)),
+    (Reply (Call 'extract_burned_subtitles' '{"mode":"replace"}' $null)),
+    (Reply (Txt '[{\"n\":1,\"text\":\"HELLO WORLD\"},{\"n\":2,\"text\":\"SECOND LINE HERE\"}]')),
+    (Reply (Txt 'הוצאתי שתי כתוביות מהתמונה.')))
+Say 'תוציא את הכתוביות הצרובות מהסרט' 60
+$b1 = Req $srv 1; $b2 = Req $srv 2
+$bc = Cues
+Check 'כתוביות צרובות כשיש כבר כתוביות: העוזר מקבל ״לשאול אם להחליף או להוסיף״ לפני שמשהו נמחק' ($b1.Contains('mode=replace')) ''
+Check 'הרצועות נשלחות לגוגל כתמונה, עם ההוראה' ($b2.Contains('inline_data') -and $b2.Contains('image/jpeg') -and $b2.Contains('רצועות ממוספרות')) ''
+$s0 = if ($bc.Count -gt 0) { (TY 'Cue').GetField('Start').GetValue($bc[0]) } else { -1 }; $s1 = if ($bc.Count -gt 1) { (TY 'Cue').GetField('Start').GetValue($bc[1]) } else { -1 }
+Check 'שתי הכתוביות במסמך, עם הטקסט ובזמן (בתוך חצי שנייה)' ($bc.Count -eq 2 -and (CueText 0) -eq 'HELLO WORLD' -and (CueText 1) -eq 'SECOND LINE HERE' -and [Math]::Abs($s0 - 1000) -le 500 -and [Math]::Abs($s1 - 4000) -le 500) ("" + $bc.Count + ": " + $s0 + ", " + $s1)
+Check 'בשיחה: ״נוספו 2 כתוביות מהתמונה״' (@($view.GetType().GetField('_items', $IN).GetValue($view) | Where-Object { $_.GetType().GetField('Text').GetValue($_) -like '*נוספו 2 כתוביות מהתמונה*' }).Count -ge 1) ''
 Check 'בלי חריגות בחלון השיחה' ($script:crashes.Count -eq 0) ("" + $script:crashes.Count)
 $guard.Stop()
 Write-Host ''

@@ -216,7 +216,8 @@ namespace SubtitleStudio
 
             Load += delegate { Native.SetRoundedCorners(Handle); Greet(); ShowHint(); };
             ProgressDlg.Ended += OnJobEnded;
-            FormClosed += delegate { ProgressDlg.Ended -= OnJobEnded; };
+            AiUi.WorkStatus += OnWorkStatus;
+            FormClosed += delegate { ProgressDlg.Ended -= OnJobEnded; AiUi.WorkStatus -= OnWorkStatus; };
             Resize += delegate { DoLayout(); };
             DoLayout();
         }
@@ -782,6 +783,12 @@ namespace SubtitleStudio
 
         private readonly List<string> _jobNotes = new List<string>();
 
+        private void OnWorkStatus(string s)
+        {
+            try { BeginInvoke((MethodInvoker)delegate { if (_busy && !IsDisposed) _view.Status = s + "..."; }); }
+            catch { }
+        }
+
         /// <summary>בבקשה הזאת כבר הוזכר למודל להמשיך אחרי תשובה ריקה / כבר חיכינו למכסה (כמה פעמים).</summary>
         private bool _nudged;
         /// <summary>הסבב הבא מתחיל מהדגם שאחרי זה (אחרי תשובה ריקה ממנו).</summary>
@@ -1107,12 +1114,16 @@ namespace SubtitleStudio
                         int g2 = _gen;
                         object doneTxt;
                         if (res.TryGetValue("done", out doneTxt)) _view.Status = Convert.ToString(doneTxt) + "...";
+                        StopToken workStop = _stopToken;
                         Thread th = new Thread(delegate ()
                         {
                             Dictionary<string, object> extra = null;
                             string err = null;
+                            // עצירה קוטעת גם עבודה כבדה (צפייה, חילוץ כתוביות) - לא רק את הבקשה לעוזר
+                            StopToken.Attach(workStop);
                             try { extra = fn(); }
                             catch (Exception ex) { err = ex.Message; }
+                            finally { StopToken.Attach(null); }
                             try
                             {
                                 BeginInvoke((MethodInvoker)delegate
@@ -1121,6 +1132,19 @@ namespace SubtitleStudio
                                     _view.Status = "";
                                     if (extra != null) foreach (KeyValuePair<string, object> kv in extra) mine[kv.Key] = kv.Value;
                                     else mine["error"] = err ?? "נכשל";
+                                    // שינוי במסמך שהעבודה הכינה - כאן, בחוט הממשק
+                                    object ap;
+                                    if (mine.TryGetValue("_apply", out ap))
+                                    {
+                                        mine.Remove("_apply");
+                                        MethodInvoker apply = ap as MethodInvoker;
+                                        if (apply != null)
+                                        {
+                                            try { apply(); }
+                                            catch (Exception ex) { mine["error"] = ex.Message; }
+                                        }
+                                    }
+                                    ShowResultLate(mine);
                                     RunCalls(r, next, results, st, round, null);
                                 });
                             }
@@ -1208,6 +1232,14 @@ namespace SubtitleStudio
             int g3 = _gen;
             try { BeginInvoke((MethodInvoker)delegate { if (!IsDisposed && g3 == _gen) Turn(round + 1); }); }
             catch { }
+        }
+
+        /// <summary>אחרי עבודה כבדה: מה שהיא מצאה (״נוספו 42 כתוביות״) - שורה משלו, בלי לחזור על ״done״ שכבר הוצג.</summary>
+        private void ShowResultLate(Dictionary<string, object> res)
+        {
+            object v;
+            if (res.TryGetValue("result_line", out v) && Convert.ToString(v).Length > 0) _view.AddAction(Convert.ToString(v), true);
+            else if (res.TryGetValue("error", out v) && Convert.ToString(v).Length > 0) _view.AddAction(Convert.ToString(v), false);
         }
 
         /// <summary>שורת ״✓ בוצע״ / ״הפעולה בוטלה״ / השגיאה, מתחת לתשובה.</summary>
@@ -1324,6 +1356,9 @@ namespace SubtitleStudio
             sb.Append("גוגל צופה בסרט (תמונה וקול) ועונה. מה שכבר ידוע (במצב: ״מה כבר ידוע לך על תוכן הסרט״) - ענה ממנו בלי לצפות שוב. ");
             sb.Append("אפשר לשאול כמה שאלות בבקשה אחת (״מי מופיע, ומה הנושא, ופרק לסצנות״). זה בסיס גם לפעולות: ״תחתוך את הסצנה ש...״ - קודם watch_video לזמנים\n");
             sb.Append("· **טקסט על המסך** (״מה כתוב בשלט?״, ״תעתיק את הכותרת״, ״מה הכתובית הצרובה אומרת?״) - read_text_on_screen\n");
+            sb.Append("· **כתוביות צרובות בסרט** (״תוציא את הכתוביות מהסרט״, ״יש לו כתוביות בתמונה - אני רוצה לתרגם אותן״) - extract_burned_subtitles, ");
+            sb.Append("ואז מה שביקש (תרגום וכו׳). לא extract_subtitles_from_video - זה רק לערוץ כתוביות של טקסט בקובץ. ");
+            sb.Append("ערוץ כתוביות שעשוי מתמונות (PGS/VobSub) - extract_burned_subtitles עם subtitle_stream\n");
             sb.Append("· ״איפה רואים...״ / ״מה רואים כאן?״ - find_scene / look_at (תמונות בלבד, מהיר); כשצריך גם את הקול או את ההקשר - watch_video\n");
             sb.Append("· ״איפה אומרים...״ / ״איפה מדברים על...״ - חפש בכתוביות, ענה, **וגם select_cue לכתובית** כדי שהנגן יקפוץ אליה\n");
 

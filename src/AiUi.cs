@@ -261,6 +261,14 @@ namespace SubtitleStudio
         /// <summary>פעולה שהעוזר דחה (פתיחת חלון, לחיצה) רצה עכשיו - גם עבודה שהתחילה בתוכה (`ProgressDlg.Ended` ← הצ׳אט).</summary>
         public static int DeferredDepth;
 
+        /// <summary>**מה עבודה ארוכה של העוזר עושה עכשיו** (״קורא את הכתוביות · 2 מתוך 5״) - מכל חוט; הצ׳אט מציג ליד הנקודות.</summary>
+        public static event Action<string> WorkStatus;
+        public static void Status(string s)
+        {
+            Action<string> h = WorkStatus;
+            if (h != null) { try { h(s); } catch { } }
+        }
+
         /// <summary>לוחץ. מחזיר null כשהצליח, או הסבר.</summary>
         public static string Click(Item it)
         {

@@ -84,6 +84,14 @@ namespace SubtitleStudio
                      "אפשר להוסיף רקע - למשל מה המשתמש מחפש")
                 .P("from_sec", "number", "מאיזו שנייה (ברירת מחדל: מההתחלה)")
                 .P("to_sec", "number", "עד איזו שנייה (ברירת מחדל: עד הסוף, ולא יותר מ-30 דקות)"));
+            t.Add(new AiTool("extract_burned_subtitles", "**כתוביות שצרובות בתמונה ← כתוביות רגילות**, עם זמנים: מחפש את הכתוביות בתמונה (בלי רשת), " +
+                "ושולח לגוגל רצועה אחת מכל כתובית כדי לקרוא אותה - בעברית ובכל שפה. בשביל ״יש לי סרט עם כתוביות צרובות, תוציא אותן״, " +
+                "או לפני תרגום של סרט כזה. הזמנים מדויקים בערך לחצי שנייה. לוקח דקה-שתיים לכמה דקות של סרט")
+                .P("from_sec", "number", "מאיזו שנייה (ברירת מחדל: מההתחלה)")
+                .P("to_sec", "number", "עד איזו שנייה (ברירת מחדל: עד הסוף)")
+                .P("region", "string", "איפה הכתוביות: bottom (ברירת מחדל - השליש התחתון), top, או full")
+                .P("mode", "string", "כשיש כבר כתוביות: replace (להחליף) או add (להוסיף). בלי כתוביות - לא צריך")
+                .P("subtitle_stream", "integer", "רק לערוץ כתוביות שעשוי מתמונות (PGS/VobSub) בקובץ: המספר שלו. הוא מונח על התמונה ונקרא כמו כתוביות צרובות"));
             t.Add(new AiTool("read_text_on_screen", "**קורא טקסט מהתמונה** - שלט, כותרת, כתובית צרובה, מסמך או מסך מחשב בסרט - בעברית ובכל שפה, " +
                 "מפריים אחד ברזולוציה מלאה. מדויק יותר מ-look_at לטקסט (שם התמונה מוקטנת). הפריים נשלח לגוגל")
                 .P("seconds", "number", "באיזה זמן. ברירת מחדל: איפה שהנגן עומד"));
@@ -357,6 +365,7 @@ namespace SubtitleStudio
                     case "look_at": return AiLookAt(call);
                     case "watch_video": return AiWatchVideo(call);
                     case "read_text_on_screen": return AiReadText(call);
+                    case "extract_burned_subtitles": return AiExtractBurned(call);
                     case "listen": return AiListen(call);
                     case "find_scene": return AiFindScene(call);
                     case "select_cue": return AiSelectCue(call);
