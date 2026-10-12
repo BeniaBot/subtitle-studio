@@ -182,8 +182,10 @@ namespace SubtitleStudio
 
             // שלוש רמות מוכנות, בשורה אחת
             Lbl quick = Row(Hint(Lang.T("בבת אחת:")), 30, 14);
+            int rowTop = quick.Top;
             int x = Pad + ContentW - Theme.S(90);
-            quick.SetBounds(x, quick.Top, Theme.S(90), quick.Height);
+            // באמצע הגובה של הכפתורים שלידה
+            quick.SetBounds(x, quick.Top + Theme.S(7), Theme.S(90), quick.Height - Theme.S(7));
             string[] names = { Lang.T("הכול מותר"), Lang.T("ברירת המחדל"), Lang.T("רק לייעץ") };
             for (int i = 0; i < names.Length; i++)
             {
@@ -194,7 +196,7 @@ namespace SubtitleStudio
                 b.Font = Theme.Small;
                 int w = Math.Max(Theme.S(100), b.NeedWidth());
                 x -= w + Theme.S(8);
-                b.SetBounds(x, quick.Top, w, Theme.S(30));
+                b.SetBounds(x, rowTop, w, Theme.S(30));
                 b.Click += delegate { Preset(which); };
                 Controls.Add(b);
             }
@@ -203,7 +205,9 @@ namespace SubtitleStudio
             for (int cat = 0; cat < AiPerms.Count; cat++)
             {
                 Lbl t = Row(Label(AiPerms.Title(cat), true, Theme.Text), 22, 0);
-                Lbl h = Row(Hint(AiPerms.Hint(cat)), 20, 12);
+                // ההסבר בעמודה הצרה שליד הבחירה: הגובה לפי הרוחב הזה (באנגלית שני הסברים גלשו לשורה שנייה ונחתכו)
+                int needPx = Theme.TextHeight(AiPerms.Hint(cat), Theme.Small, ContentW - cw - Theme.S(12));
+                Lbl h = Row(Hint(AiPerms.Hint(cat)), Math.Max(20, (int)Math.Ceiling(needPx / Theme.Scale) + 2), 12);
                 t.SetBounds(t.Left + cw + Theme.S(12), t.Top, t.Width - cw - Theme.S(12), t.Height);
                 h.SetBounds(h.Left + cw + Theme.S(12), h.Top, h.Width - cw - Theme.S(12), h.Height);
                 Combo c = new Combo();

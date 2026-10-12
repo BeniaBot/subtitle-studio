@@ -904,6 +904,9 @@ namespace SubtitleStudio
                 return true;
             }
 
+            private static readonly StringFormat SfCenterRtl = new StringFormat(StringFormatFlags.DirectionRightToLeft | StringFormatFlags.NoWrap)
+            { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+
             private readonly List<Item> _items = new List<Item>();
             private int _scroll;
             private int _hoverChip = -1;
@@ -1151,7 +1154,9 @@ namespace SubtitleStudio
                                 bool hot = i == _hoverChip;
                                 Theme.FillRound(g, r, r.Height / 2f, hot ? Theme.AccentSoft : Theme.Panel);
                                 Theme.DrawRound(g, r, r.Height / 2f, hot ? Theme.Accent : Theme.Border, 1f);
-                                Theme.Str(g, it.Chips[i], Theme.Small, hot ? Theme.Accent : Theme.TextDim, r, Theme.SfCenter);
+                                // בכיוון של הטקסט: ״מה אתה יודע לעשות?״ בכיוון משמאל לימין הציג את סימן השאלה בהתחלה
+                                Theme.Str(g, it.Chips[i], Theme.Small, hot ? Theme.Accent : Theme.TextDim, r,
+                                    IsRtlText(it.Chips[i]) ? SfCenterRtl : Theme.SfCenter);
                             }
                         }
                         else
