@@ -9,7 +9,7 @@
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
 #  9. גוגל איטי - אותה בקשה גם לדגם אחר, במקביל (0.8.14)
 #  10-13. הודעה קולית: המילים בבועה / תמלול נכשל - ההקלטה עצמה / בלי דיבור / עצירה באמצע
-# צפוי: 32 בדיקות.
+# צפוי: 36 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -52,7 +52,8 @@ $server = {
             [IO.File]::WriteAllBytes((Join-Path $logDir ("req-$k.bin")), $raw)
             if ($resp.hold) { $until = [DateTime]::UtcNow.AddSeconds($resp.hold); while ([DateTime]::UtcNow -lt $until) { if ($c.Client.Poll(200000, [Net.Sockets.SelectMode]::SelectRead) -and $c.Client.Available -eq 0) { break } } }
             $body = [Text.Encoding]::UTF8.GetBytes($resp.body)
-            $head = "HTTP/1.1 " + $resp.status + " X`r`nContent-Type: application/json`r`nContent-Length: " + $body.Length + "`r`nConnection: close`r`n`r`n"
+            $extra = ""; if ($resp.headers) { $extra = ($resp.headers -replace '\{PORT\}', [string]$port) + "`r`n" }
+            $head = "HTTP/1.1 " + $resp.status + " X`r`nContent-Type: application/json`r`n" + $extra + "Content-Length: " + $body.Length + "`r`nConnection: close`r`n`r`n"
             $hb = [Text.Encoding]::ASCII.GetBytes($head)
             try { $ns.Write($hb, 0, $hb.Length); $ns.Write($body, 0, $body.Length); $ns.Flush() } catch { }
             $c.Close()
@@ -349,6 +350,40 @@ $endLine = LastItemText
 $srv = StartServer @((Reply (Txt 'הקובץ נשמר ליד הסרט.')))
 Say 'איפה הקובץ?'
 Check 'סוף עבודה שהעוזר הפעיל: ״נשמר: ...״ בשיחה, ובבקשה הבאה העוזר יודע' ($endLine -like '*נשמר*וואטסאפ*' -and (Req $srv 0).Contains('העבודה שהפעלת קודם הסתיימה')) $endLine
+# ---------- 15. צפייה בסרט: העלאה פעם אחת, שאלה, זמנים של הסרט המלא, ושאלה נוספת בלי להעלות שוב (0.8.17) ----------
+[void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
+$wmedia = Join-Path $env:TEMP 'ss-gallery\test.mp4'
+if (-not (Test-Path $wmedia)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'build\make-testmedia.ps1') | Out-Null }
+[void]$mfT.GetMethod('OpenMedia', $IN).Invoke($mf, @([string]$wmedia))
+for ($k = 0; $k -lt 20; $k++) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 30 }
+$fileJson = '{"file":{"name":"files/abc123","uri":"https://generativelanguage.googleapis.com/v1beta/files/abc123","state":"ACTIVE","mimeType":"video/mp4"}}'
+$srv = StartServer @(
+    (Reply (Call 'watch_video' '{"question":"על מה הסרט?"}' $null)),
+    @{ status = '200 OK'; body = '{}'; headers = 'X-Goog-Upload-URL: http://127.0.0.1:{PORT}/upload-session' },
+    (Ok200 $fileJson),
+    (Reply (Txt 'יש בו מלך שיושב על כס, ב-[[0:43]].')),
+    (Reply (Txt 'בסרט יש מלך על כס, ב-0:43.')),
+    (Reply (Call 'watch_video' '{"question":"מי עוד מופיע?"}' $null)),
+    (Reply (Txt 'אין עוד דמויות.')),
+    (Reply (Txt 'אין עוד דמויות.')))
+(TY 'Ai').GetField('UploadRoot', $ST).SetValue($null, "http://127.0.0.1:$($srv.Port)/upload/v1beta/files")
+(TY 'Ai').GetField('FilesRoot', $ST).SetValue($null, "http://127.0.0.1:$($srv.Port)/v1beta/")
+Say 'על מה הסרט?' 60
+$w3 = Req $srv 3; $w4 = Req $srv 4
+Check 'צפייה: הקובץ עלה (שתי בקשות), והשאלה נשלחה עם הקובץ וברזולוציה הנמוכה' ((ReqLine $srv 1) -like '*upload/v1beta/files*' -and (ReqLine $srv 2) -like '*upload-session*' -and $w3.Contains('file_data') -and $w3.Contains('files/abc123') -and $w3.Contains('MEDIA_RESOLUTION_LOW')) (ReqLine $srv 3)
+Check 'התשובה חוזרת לעוזר עם הזמן של הסרט (״0:43״, בלי [[ ]])' ($w4.Contains('0:43') -and -not $w4.Contains('[[0:43]]') -and (LastModelText) -eq 'בסרט יש מלך על כס, ב-0:43.') ''
+Say 'מי עוד מופיע?' 60
+$w5 = Req $srv 5
+Check 'שאלה נוספת על אותו סרט - בלי להעלות שוב, ומה שכבר הובן נמצא במצב' ((ModelOf (ReqLine $srv 6)) -ne '' -and (ReqLine $srv 6) -like '*generateContent*' -and (Req $srv 6).Contains('files/abc123') -and $w5.Contains('מה כבר ידוע לך על תוכן הסרט') -and (LastModelText) -eq 'אין עוד דמויות.') (ReqLine $srv 6)
+
+# ---------- 16. טקסט מהתמונה: פריים ברזולוציה מלאה, והטקסט חוזר לעוזר ----------
+$srv = StartServer @(
+    (Reply (Call 'read_text_on_screen' '{"seconds":2}' $null)),
+    (Reply (Txt 'כתובית: היום נלמד על כתוביות')),
+    (Reply (Txt 'כתוב: היום נלמד על כתוביות.')))
+Say 'מה כתוב על המסך?' 40
+$o1 = Req $srv 1; $o2 = Req $srv 2
+Check 'קריאת טקסט: תמונה ברזולוציה מלאה נשלחת, והטקסט חוזר לעוזר' ($o1.Contains('inline_data') -and $o1.Contains('image/jpeg') -and $o2.Contains('text_on_screen') -and $o2.Contains('היום נלמד על כתוביות')) ''
 Check 'בלי חריגות בחלון השיחה' ($script:crashes.Count -eq 0) ("" + $script:crashes.Count)
 $guard.Stop()
 Write-Host ''

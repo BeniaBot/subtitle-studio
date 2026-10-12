@@ -123,6 +123,10 @@ namespace SubtitleStudio
         /// חלקים - ההוראה והשמע.</summary>
         public string AudioB64;
         public string AudioMime = "audio/mp3";
+
+        /// <summary>**קובץ שכבר הועלה לגוגל** (Files API, 0.8.17) - סרטון שהעוזר ״צופה״ בו. נשלח כ-file_data לצד הטקסט.</summary>
+        public string FileUri;
+        public string FileMime;
     }
 
     /// <summary>בקשה של המודל להפעיל פעולה בתוכנה.</summary>
@@ -389,6 +393,156 @@ namespace SubtitleStudio
 
         /// <summary>בקשה **לדגם אחד**, בלי פעולות ובלי מעבר לדגם אחר - לניסיון אחד במרוץ (`AiVoice.Hear`). דגם שדוחה את כיבוי
         /// החשיבה - שוב בלעדיו, כמו ב-`Send`.</summary>
+        /// <summary>בקשה מוכנה (JSON שנבנה בחוץ - עם הגדרות שאין ב-`BuildBody`, כמו mediaResolution) לדגם אחד. דגם שדוחה את
+        /// thinkingConfig - שוב בלעדיו. ‏(0.8.17, צפייה בסרט)</summary>
+        internal static AiReply SendJson(string model, string json)
+        {
+            AiReply r = new AiReply();
+            if (!HasKey) { r.Error = Lang.T("לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."); return r; }
+            LastHttpCode = 0; LastRetrySec = 0; LastQuotaIsDaily = false;
+            if (IsExhausted(model)) { r.Error = "exhausted"; r.HttpCode = 429; r.QuotaDaily = true; return r; }
+            Trying = model;
+            string reply, err;
+            bool sent = Post(Endpoint(model), json, out reply, out err);
+            if (!sent && LastHttpCode == 400 && err != null && json.Contains("\"thinkingConfig\"") &&
+                (err.IndexOf("thinking", StringComparison.OrdinalIgnoreCase) >= 0 || err.IndexOf("invalid argument", StringComparison.OrdinalIgnoreCase) >= 0))
+                sent = Post(Endpoint(model), Regex.Replace(json, ",?\"thinkingConfig\":\\{[^}]*\\}", ""), out reply, out err);
+            if (!sent)
+            {
+                if (LastHttpCode == 429 && LastQuotaIsDaily) MarkExhausted(model);
+                r.Error = err ?? Lang.T("לא התקבלה תשובה מהשרת.");
+                r.HttpCode = LastHttpCode; r.RetrySec = LastRetrySec; r.QuotaDaily = LastQuotaIsDaily;
+                if (!StopToken.Here) Log("נכשל (" + model + "): " + Safe(r.Error));
+                return r;
+            }
+            ParseReply(r, reply);
+            return r;
+        }
+
+        // ---------- העלאת קובץ (Files API, 0.8.17) ----------
+        /// <summary>לבדיקות: הכתובות של ההעלאה ושל מצב הקובץ (שרת מדומה).</summary>
+        internal static string UploadRoot = "https://generativelanguage.googleapis.com/upload/v1beta/files";
+        internal static string FilesRoot = "https://generativelanguage.googleapis.com/v1beta/";
+
+        /// <summary>**מעלה קובץ לגוגל** (העלאה ״נמשכת״ בשתי בקשות), ומחכה שיהיה מוכן (וידאו עובר עיבוד). מחזיר את ה-uri, או null
+        /// עם הסבר. גוגל שומר את הקובץ 48 שעות - שאלה נוספת על אותו סרט לא מעלה שוב (`AiWatch`). עצירה קוטעת.</summary>
+        internal static string UploadFile(string path, string mime, out string error)
+        {
+            error = null;
+            if (!HasKey) { error = Lang.T("לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."); return null; }
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
+                long len = new FileInfo(path).Length;
+                // 1. פתיחה - מקבלים כתובת להעלאה
+                HttpWebRequest start = (HttpWebRequest)WebRequest.Create(UploadRoot + "?key=" + Uri.EscapeDataString(Key));
+                StopToken.Track(start);
+                start.Method = "POST";
+                start.KeepAlive = false;
+                start.Timeout = 60000;
+                start.ContentType = "application/json";
+                start.Headers["X-Goog-Upload-Protocol"] = "resumable";
+                start.Headers["X-Goog-Upload-Command"] = "start";
+                start.Headers["X-Goog-Upload-Header-Content-Length"] = len.ToString(CultureInfo.InvariantCulture);
+                start.Headers["X-Goog-Upload-Header-Content-Type"] = mime;
+                byte[] meta = Encoding.UTF8.GetBytes("{\"file\":{\"display_name\":\"subtext-" + Guid.NewGuid().ToString("N").Substring(0, 8) + "\"}}");
+                start.ContentLength = meta.Length;
+                using (Stream s = start.GetRequestStream()) s.Write(meta, 0, meta.Length);
+                string uploadUrl;
+                using (HttpWebResponse res = (HttpWebResponse)start.GetResponse()) uploadUrl = res.Headers["X-Goog-Upload-URL"];
+                if (string.IsNullOrEmpty(uploadUrl)) { error = "גוגל לא החזיר כתובת להעלאה"; return null; }
+
+                // 2. הקובץ עצמו
+                HttpWebRequest up = (HttpWebRequest)WebRequest.Create(uploadUrl);
+                StopToken.Track(up);
+                up.Method = "POST";
+                up.KeepAlive = false;
+                up.Timeout = 600000;
+                up.ReadWriteTimeout = 600000;
+                up.AllowWriteStreamBuffering = false;
+                up.ContentLength = len;
+                up.Headers["X-Goog-Upload-Offset"] = "0";
+                up.Headers["X-Goog-Upload-Command"] = "upload, finalize";
+                using (Stream s = up.GetRequestStream())
+                using (FileStream fs = File.OpenRead(path))
+                {
+                    byte[] buf = new byte[256 * 1024];
+                    int n;
+                    while ((n = fs.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                        s.Write(buf, 0, n);
+                    }
+                }
+                string body;
+                using (HttpWebResponse res = (HttpWebResponse)up.GetResponse())
+                using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8)) body = sr.ReadToEnd();
+                Dictionary<string, object> file = FileOf(body);
+                if (file == null) { error = "תשובה לא צפויה מההעלאה"; return null; }
+                string uri = Convert.ToString(Get(file, "uri")), name = Convert.ToString(Get(file, "name")), state = Convert.ToString(Get(file, "state"));
+
+                // 3. וידאו עובר עיבוד אצל גוגל לפני שאפשר לשאול עליו
+                DateTime until = DateTime.UtcNow.AddMinutes(5);
+                while (state == "PROCESSING" && DateTime.UtcNow < until)
+                {
+                    StopToken.Sleep(2000);
+                    if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                    HttpWebRequest get = (HttpWebRequest)WebRequest.Create(FilesRoot + name + "?key=" + Uri.EscapeDataString(Key));
+                    StopToken.Track(get);
+                    get.KeepAlive = false;
+                    get.Timeout = 30000;
+                    using (HttpWebResponse res = (HttpWebResponse)get.GetResponse())
+                    using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8)) body = sr.ReadToEnd();
+                    Dictionary<string, object> f2 = FileOf(body);
+                    if (f2 != null) state = Convert.ToString(Get(f2, "state"));
+                }
+                if (state != "ACTIVE" && state != "") { error = "הקובץ לא עבר עיבוד אצל גוגל (" + state + ")"; return null; }
+                Log("הועלה לגוגל: " + (len / 1024) + " KB, " + name);
+                return uri;
+            }
+            catch (WebException wex)
+            {
+                if (wex.Status == WebExceptionStatus.RequestCanceled && StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                string detail = "";
+                int code = 0;
+                try
+                {
+                    using (HttpWebResponse res = wex.Response as HttpWebResponse)
+                        if (res != null)
+                        {
+                            code = (int)res.StatusCode;
+                            using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8)) detail = sr.ReadToEnd();
+                        }
+                }
+                catch { }
+                error = Explain(code, detail, wex.Message);
+                Log("העלאה נכשלה: " + Safe(error));
+                return null;
+            }
+            catch (Exception ex) { error = ex.Message; return null; }
+            finally { StopToken.Track(null); }
+        }
+
+        /// <summary>האובייקט ״file״ מתשובה של Files API (או התשובה עצמה, כשהיא הקובץ).</summary>
+        private static Dictionary<string, object> FileOf(string json)
+        {
+            try
+            {
+                Dictionary<string, object> root = Ser().DeserializeObject(json) as Dictionary<string, object>;
+                if (root == null) return null;
+                object f;
+                if (root.TryGetValue("file", out f)) return f as Dictionary<string, object>;
+                return root.ContainsKey("uri") ? root : null;
+            }
+            catch { return null; }
+        }
+
+        private static object Get(Dictionary<string, object> d, string k)
+        {
+            object v;
+            return d != null && d.TryGetValue(k, out v) ? v : "";
+        }
+
         internal static AiReply SendTo(string model, string system, List<AiMsg> history)
         {
             AiReply r = new AiReply();
@@ -848,6 +1002,15 @@ namespace SubtitleStudio
                             { "mime_type", "image/jpeg" }, { "data", b64 } } } });
                     item["role"] = "user";
                     item["parts"] = ps.ToArray();
+                }
+                else if (!string.IsNullOrEmpty(m.FileUri))
+                {
+                    // הקובץ קודם, ואז השאלה - כך ממליץ גוגל לסרטונים
+                    item["role"] = "user";
+                    item["parts"] = new object[] {
+                        new Dictionary<string, object> { { "file_data", new Dictionary<string, object> {
+                            { "mime_type", m.FileMime ?? "video/mp4" }, { "file_uri", m.FileUri } } } },
+                        new Dictionary<string, object> { { "text", m.Text ?? "" } } };
                 }
                 else if (!string.IsNullOrEmpty(m.AudioB64))
                 {

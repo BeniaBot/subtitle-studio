@@ -104,7 +104,7 @@ namespace SubtitleStudio
                     return Media;
                 case "open_file": case "save_subtitles": case "save_subtitles_as": case "save_project": case "extract_subtitles_from_video":
                     return Files;
-                case "transcribe_media": case "look_at": case "find_scene": case "listen":
+                case "transcribe_media": case "look_at": case "find_scene": case "listen": case "watch_video": case "read_text_on_screen":
                     return Send;
                 case "set_theme": case "set_setting":
                     return Prefs;

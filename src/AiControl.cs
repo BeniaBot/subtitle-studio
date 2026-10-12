@@ -403,6 +403,10 @@ namespace SubtitleStudio
                     return Lang.F("לשלוח לגוגל תמונות קטנות מהסרט (בערך אחת לכמה שניות), כדי למצוא: {0}?", call.Str("description", ""));
                 case "look_at":
                     return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי שהעוזר יראה מה יש בה?");
+                case "watch_video":
+                    return Lang.T("לשלוח לגוגל עותק מוקטן של הסרט (תמונה וקול), כדי שהעוזר יצפה בו ויענה על השאלה?");
+                case "read_text_on_screen":
+                    return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי לקרוא את הטקסט שבה?");
                 case "listen":
                     return Lang.T("לשלוח לגוגל קטע קול מהסרט, כדי שהעוזר ישמע מה נאמר?");
                 case "transcribe_media":
@@ -496,6 +500,91 @@ namespace SubtitleStudio
                 w["_audio"] = mp3;
                 w["clip"] = Tc.Short(fa) + "-" + Tc.Short(fb);
                 w["how_to_read"] = "הקטע מצורף בהודעה הבאה. הקשב ותשווה לטקסט של הכתוביות שבזמן הזה; אם יש הבדל - תקן (edit_cue) רק אחרי שהמשתמש ביקש לתקן";
+                return w;
+            };
+            return r;
+        }
+
+        // ---------- צפייה ושיחה על הסרט (0.8.17) ----------
+        /// <summary>מה כבר הובן על התוכן (שאלה ← תשובה), לסרט הפתוח - נכנס למצב, כדי שאפשר יהיה לפטפט על הסרט בלי לצפות שוב
+        /// בכל שאלה. מתאפס כשנפתח קובץ אחר.</summary>
+        private readonly List<string[]> _videoNotes = new List<string[]>();
+        private string _videoNotesFor;
+
+        private void AddVideoNote(string media, string q, string a)
+        {
+            lock (_videoNotes)
+            {
+                if (_videoNotesFor != media) { _videoNotes.Clear(); _videoNotesFor = media; }
+                _videoNotes.Add(new string[] { q, a });
+                while (_videoNotes.Count > 4) _videoNotes.RemoveAt(0);
+            }
+        }
+
+        /// <summary>לשורת המצב: מה ידוע על תוכן הסרט הפתוח (מקוצר).</summary>
+        private string VideoNotesLine()
+        {
+            lock (_videoNotes)
+            {
+                if (_mi == null || _videoNotesFor != _mi.Path || _videoNotes.Count == 0) return "";
+                StringBuilder sb = new StringBuilder("\nמה כבר ידוע לך על תוכן הסרט (מצפייה קודמת - אפשר לענות מזה בלי לצפות שוב): ");
+                foreach (string[] n in _videoNotes)
+                    sb.Append("[שאלה: ").Append(Short(n[0], 160)).Append(" ← ").Append(Short(n[1], 900)).Append("] ");
+                return sb.ToString();
+            }
+        }
+
+        private Dictionary<string, object> AiWatchVideo(AiCall call)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח - אין במה לצפות"); return r; }
+            string q = call.Str("question", "").Trim();
+            if (q.Length == 0) { r["error"] = "חסרה שאלה (question)"; return r; }
+            long from = (long)(Math.Max(0, call.Num("from_sec", 0)) * 1000);
+            long to = call.Args.ContainsKey("to_sec") ? (long)(call.Num("to_sec", 0) * 1000) : _mi.DurationMs;
+            to = Math.Min(to <= 0 ? _mi.DurationMs : to, _mi.DurationMs);
+            if (to <= from) { r["error"] = Lang.T("טווח לא תקין"); return r; }
+            bool cut = false;
+            if (to - from > AiWatch.MaxSpanMs) { to = from + AiWatch.MaxSpanMs; cut = true; }
+            // כל הסרט - בלי ‎-ss/-t (הכי מהיר, ואותו מפתח בזיכרון של ההעלאות)
+            if (from == 0 && to >= _mi.DurationMs - 500) to = 0;
+            string path = _mi.Path; bool video = _mi.HasVideo; int sh = _mi.Height;
+            long fa = from, fb = to;
+            r["done"] = to == 0 ? Lang.T("צופה בסרט") : Lang.F("צופה בקטע {0}", Theme.Ltr(Tc.Short(from) + "-" + Tc.Short(to)));
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                string err;
+                string answer = AiWatch.Ask(q, path, fa, fb, video, sh, out err);
+                if (answer == null) { w["error"] = "הצפייה לא הצליחה: " + err; return w; }
+                AddVideoNote(path, q, answer);
+                w["answer"] = answer;
+                w["watched"] = fb == 0 ? "כל הסרט" : AiWatch.Clock(fa / 1000) + "-" + AiWatch.Clock(fb / 1000);
+                if (cut) w["note"] = "הסרט ארוך מ-30 דקות - נצפו רק 30 הדקות האלה. על המשך - שאל שוב עם from_sec";
+                w["how_to_use"] = "זו תשובה של מי שצפה בסרט. העבר אותה למשתמש בניסוח שלך (אפשר לקצר). הזמנים בה הם של הסרט המלא - " +
+                                  "seek / select_cue כדי להראות לו";
+                return w;
+            };
+            return r;
+        }
+
+        private Dictionary<string, object> AiReadText(AiCall call)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasVideo) { r["error"] = Lang.T("אין סרט פתוח - אין על מה להסתכל"); return r; }
+            long ms = call.Args.ContainsKey("seconds") ? (long)(call.Num("seconds", 0) * 1000) : _engine.Position;
+            ms = Math.Max(0, Math.Min(_mi.DurationMs - 1, ms));
+            string path = _mi.Path; int sw = _mi.Width, sh = _mi.Height;
+            long at = ms;
+            r["done"] = Lang.F("קורא את הטקסט שבתמונה ב-{0}", Theme.Ltr(Tc.Short(ms)));
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                string err;
+                string text = AiWatch.ReadText(path, at, sw, sh, out err);
+                if (text == null) { w["error"] = "הקריאה לא הצליחה: " + err; return w; }
+                w["text_on_screen"] = text;
+                w["at"] = Tc.Short(at);
                 return w;
             };
             return r;
@@ -689,6 +778,7 @@ namespace SubtitleStudio
                 }
             }
             catch (Exception ex) { sb.Append(" (שגיאה בקריאת המצב: ").Append(ex.Message).Append(')'); }
+            sb.Append(VideoNotesLine());
             return sb.ToString();
         }
 

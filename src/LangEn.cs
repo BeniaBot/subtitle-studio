@@ -1599,6 +1599,12 @@ namespace SubtitleStudio
             "העוזר החכם - מבקשים במילים רגילות, והוא עושה בתוכנה (Ctrl+K)", "The smart assistant - ask in plain words, and it does it in the program (Ctrl+K)",
             "הוזזו {0} כתוביות: {1} שניות מוקדם יותר", "Shifted {0} subtitles {1} seconds earlier",
             "הוזזו {0} כתוביות: {1} שניות מאוחר יותר", "Shifted {0} subtitles {1} seconds later",
+            "אין סרט פתוח - אין במה לצפות", "No video is open - nothing to watch",
+            "צופה בסרט", "Watching the video",
+            "צופה בקטע {0}", "Watching {0}",
+            "קורא את הטקסט שבתמונה ב-{0}", "Reading the text in the picture at {0}",
+            "לשלוח לגוגל עותק מוקטן של הסרט (תמונה וקול), כדי שהעוזר יצפה בו ויענה על השאלה?", "Send Google a small copy of the video (picture and sound) so the assistant can watch it and answer?",
+            "לשלוח לגוגל תמונה מהסרט, כדי לקרוא את הטקסט שבה?", "Send Google a picture from the video to read the text in it?",
         };
 
         public static void Fill(Dictionary<string, string> d)
