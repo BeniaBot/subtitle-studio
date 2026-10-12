@@ -9,7 +9,7 @@
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
 #  9. גוגל איטי - אותה בקשה גם לדגם אחר, במקביל (0.8.14)
 #  10-13. הודעה קולית: המילים בבועה / תמלול נכשל - ההקלטה עצמה / בלי דיבור / עצירה באמצע
-# צפוי: 31 בדיקות.
+# צפוי: 32 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -341,6 +341,14 @@ $sw = [Diagnostics.Stopwatch]::StartNew()
 $chT.GetMethod('StopRequest', $IN).Invoke($chat, @())
 Pump 10
 Check 'עצירה באמצע התמלול: פנוי תוך שניות, והבועה לא נשארת על ״…״' ((-not $fBusy.GetValue($chat)) -and $sw.Elapsed.TotalSeconds -lt 5 -and (LastVoiceText) -ne '…') ("" + [Math]::Round($sw.Elapsed.TotalSeconds, 1) + " שניות, " + (LastVoiceText))
+# ---------- 14. עבודה שהעוזר הפעיל הסתיימה - שורה בשיחה, והעוזר יודע בבקשה הבאה (0.8.15) ----------
+(TY 'AiUi').GetField('DeferredDepth', $ST).SetValue($null, 1)
+$chT.GetMethod('OnJobEnded', $IN).Invoke($chat, @($true, $false, [string]'נשמר: סרט - וואטסאפ.mp4 · 4.1 MB', [string]'D:\x\סרט - וואטסאפ.mp4'))
+(TY 'AiUi').GetField('DeferredDepth', $ST).SetValue($null, 0)
+$endLine = LastItemText
+$srv = StartServer @((Reply (Txt 'הקובץ נשמר ליד הסרט.')))
+Say 'איפה הקובץ?'
+Check 'סוף עבודה שהעוזר הפעיל: ״נשמר: ...״ בשיחה, ובבקשה הבאה העוזר יודע' ($endLine -like '*נשמר*וואטסאפ*' -and (Req $srv 0).Contains('העבודה שהפעלת קודם הסתיימה')) $endLine
 Check 'בלי חריגות בחלון השיחה' ($script:crashes.Count -eq 0) ("" + $script:crashes.Count)
 $guard.Stop()
 Write-Host ''

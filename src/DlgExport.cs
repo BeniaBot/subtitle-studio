@@ -510,7 +510,9 @@ namespace SubtitleStudio
                 { Ui.Error(this, Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור. בחרו שם אחר.")); return false; }
             }
             catch { }
-            if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("כבר קיים קובץ בשם הזה. להחליף אותו?"), Lang.T("להחליף"), Lang.T("ביטול")))
+            // העוזר לחץ (0.8.15): שם פנוי, בלי לדרוס קובץ קיים
+            if (AiUi.Driving) outPath = CutDlg.FreeName(outPath);
+            else if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("כבר קיים קובץ בשם הזה. להחליף אותו?"), Lang.T("להחליף"), Lang.T("ביטול")))
                 return false;
 
             // מנוע זר (הפריסה שלנו נכשלה) בלי libass/fribidi יוציא עברית

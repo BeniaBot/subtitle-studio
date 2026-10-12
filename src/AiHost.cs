@@ -142,7 +142,8 @@ namespace SubtitleStudio
                 .P("margin_percent", "number", "המרחק מהקצה (מלמטה או מלמעלה) באחוזים מגובה התמונה, 0-30"));
 
             t.Add(new AiTool("seek", "מקפיץ את הנגן לזמן מסוים")
-                .Req("seconds", "number", "הזמן בשניות"));
+                .Req("seconds", "number", "הזמן בשניות")
+                .P("play", "boolean", "true - גם להתחיל לנגן משם (״תפעיל מדקה וחצי״, ״תנגן מהכתובית החמישית״)"));
 
             t.Add(new AiTool("save_subtitles", "שומר את קובץ הכתוביות"));
 
@@ -157,8 +158,11 @@ namespace SubtitleStudio
                 .P("sections", "string", "הקטעים, מופרדים ב-; - למשל: 0-60 remove; 2:00-3:30 keep. זמנים בשניות או דקות:שניות, end = הסוף")
                 .P("mode", "string", "keep או remove - לקטעים שלא כתוב לידם. ברירת מחדל keep"));
 
+            // **השמות עצמם בהגדרה** (0.8.15): ״תקטין לוואטסאפ״ ניחש ״דחיסה לוואטסאפ״, נכשל, וביקש את הרשימה - סבב נוסף (נמדד 12.10, 56 שניות)
+            List<string> toolNames = new List<string>();
+            foreach (MediaTool mt in MediaTools.All()) toolNames.Add(mt.Name);
             t.Add(new AiTool("run_media_tool", "מפעיל כלי על קובץ הווידאו: עוצמה, המרה, דחיסה, מהירות, סיבוב, היפוך, GIF, חילוץ פס קול ועוד")
-                .P("tool", "string", "שם הכלי בדיוק כפי שהוא חוזר מ-list_media_tools. בלי שם - נפתחת רשימת הכלים"));
+                .P("tool", "string", "שם הכלי, בדיוק אחד מאלה: " + string.Join(" | ", toolNames.ToArray()) + ". בלי שם - נפתחת רשימת הכלים"));
 
             t.Add(new AiTool("list_media_tools", "מחזיר את שמות כל הכלים שאפשר להפעיל על הסרט"));
 
@@ -221,7 +225,7 @@ namespace SubtitleStudio
                 .P("play", "boolean", "true לנגן, false לעצור. אם חסר - מחליף"));
 
             t.Add(new AiTool("set_playback_speed", "משנה את מהירות ההשמעה בתוכנה (לא את הקובץ)")
-                .Req("speed", "number", "בין 0.5 ל-2. למשל 0.5 להאטה"));
+                .Req("speed", "number", "בין 0.25 ל-4. למשל 0.5 להאטה"));
 
             t.Add(new AiTool("undo", "מבטל את הפעולה האחרונה"));
 
@@ -733,7 +737,9 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             long ms = (long)(c.Num("seconds", 0) * 1000);
             Seek(ms);
-            r["done"] = Lang.F("הנגן עבר ל-{0}", Tc.Short(ms));
+            // ״תפעיל מדקה וחצי״ - עד 0.8.15 הנגן רק עבר לשם ועמד (נמדד 12.10)
+            if (c.Bool("play", false) && _mi != null && !_engine.IsPlaying) TogglePlay();
+            r["done"] = Lang.F("הנגן עבר ל-{0}", Tc.Short(ms)) + (_engine.IsPlaying ? " · " + Lang.T("מנגן") : "");
             return r;
         }
 
@@ -741,8 +747,11 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             bool ok = SaveSubtitles(false);
-            if (ok) r["done"] = Lang.T("הכתוביות נשמרו");
-            else r["error"] = Lang.T("השמירה לא בוצעה");
+            if (ok) r["done"] = Lang.T("הכתוביות נשמרו") + (_doc.FilePath != null ? ": " + Path.GetFileName(_doc.FilePath) : "");
+            // בלי סרט פתוח נפתח חלון השמירה של ווינדוס - ומי שסגר אותו בלי לבחור מקום, ביטל. לא ״אולי הקובץ פתוח בתוכנה אחרת״
+            else r["error"] = _doc.Cues.Count == 0 ? "אין כתוביות לשמור"
+                : "השמירה לא בוצעה - המשתמש סגר את חלון השמירה בלי לבחור מקום, או שהכתיבה נכשלה (אז הוצגה לו הודעה)";
+            if (ok && _doc.FilePath != null) r["folder"] = Path.GetDirectoryName(_doc.FilePath);
             return r;
         }
 
@@ -847,12 +856,54 @@ namespace SubtitleStudio
                     r["done"] = Lang.F("נפתח הכלי {0}", t.Name);
                     return r;
                 }
-                r["error"] = Lang.T("אין כלי בשם הזה. קרא ל-list_media_tools כדי לראות את השמות.");
+                // מילים משותפות (בלי אותיות שימוש: ״לוואטסאפ״ = ״וואטסאפ״) - הכלי היחיד עם הכי הרבה
+                MediaTool best = null;
+                int bestScore = 0, ties = 0;
+                List<string> close = new List<string>();
+                foreach (MediaTool t in MediaTools.All())
+                {
+                    int s = SharedWords(want, t.Name);
+                    if (s > 0) close.Add(t.Name);
+                    if (s > bestScore) { best = t; bestScore = s; ties = 0; }
+                    else if (s == bestScore && s > 0) ties++;
+                }
+                if (best != null && ties == 0)
+                {
+                    string name3 = best.Name; long a3 = _tl.InPoint, b3 = _tl.OutPoint, pos3 = _engine.Position; MediaInfo mi3 = _mi;
+                    _aiLastWinCat = AiPerms.Media;
+                    AiDefer(delegate { ToolsDlg.RunNamed(this, name3, mi3, a3, b3, pos3); });
+                    r["done"] = Lang.F("נפתח הכלי {0}", best.Name);
+                    return r;
+                }
+                r["error"] = close.Count > 0
+                    ? "אין כלי בשם הזה בדיוק. הקרובים: " + string.Join(" | ", close.ToArray()) + " - קרא שוב עם השם המדויק"
+                    : Lang.T("אין כלי בשם הזה. קרא ל-list_media_tools כדי לראות את השמות.");
                 return r;
             }
             _aiLastWinCat = AiPerms.Media;
             AiDefer(delegate { OpenTools(); });
             r["done"] = Lang.T("נפתח חלון הכלים");
+            return r;
+        }
+
+        /// <summary>כמה מילים משותפות לשני שמות (שלוש אותיות ומעלה, בלי אות שימוש בהתחלה).</summary>
+        internal static int SharedWords(string a, string b)
+        {
+            List<string> wa = Stems(a), wb = Stems(b);
+            int n = 0;
+            foreach (string w in wa) if (wb.Contains(w)) n++;
+            return n;
+        }
+
+        private static List<string> Stems(string s)
+        {
+            List<string> r = new List<string>();
+            foreach (string raw in (s ?? "").ToLowerInvariant().Split(new char[] { ' ', '-', '–', ',', '(', ')', '/', '·' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string w = raw;
+                while (w.Length > 3 && "לבהומשכ".IndexOf(w[0]) >= 0) w = w.Substring(1);
+                if (w.Length >= 3 && !r.Contains(w)) r.Add(w);
+            }
             return r;
         }
 
@@ -961,23 +1012,27 @@ namespace SubtitleStudio
             { r["error"] = Lang.T("נקודת הפיצול חייבת להיות בתוך הכתובית"); return r; }
             _doc.Push(Lang.T("פיצול מהצ׳אט"));
             Cue b = a.Clone();
+            double frac = (at - a.Start) / (double)Math.Max(1, a.End - a.Start);
             b.Start = at;
             b.End = a.End;
             a.End = at - 40;
-            string[] lines = a.Text.Replace("\r\n", "\n").Split('\n');
-            if (lines.Length > 1)
+            string ta, tb;
+            bool split = Qa.SplitText(a.Text, frac, out ta, out tb);
+            if (split)
             {
-                int half = lines.Length / 2;
-                a.Text = string.Join("\n", lines, 0, half);
-                b.Text = string.Join("\n", lines, half, lines.Length - half);
-                a.Doubt = Qa.DoubtIn(b.Doubt, a.Text, b.Text);
-                b.Doubt = Qa.DoubtIn(b.Doubt, b.Text, a.Text);
+                string d = b.Doubt;
+                a.Text = ta;
+                b.Text = tb;
+                a.Doubt = Qa.DoubtIn(d, ta, tb);
+                b.Doubt = Qa.DoubtIn(d, tb, ta);
             }
             _doc.Cues.Add(b);
             _doc.Sort();
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = Lang.F("הכתובית פוצלה ב-{0}", Theme.Ltr(Tc.Short(at)));
+            r["texts"] = new string[] { a.Text, b.Text };
+            if (!split) r["note"] = "בכתובית מילה אחת - הזמן פוצל, והמילה בשני החלקים. אפשר לתקן אחד מהם ב-edit_cue";
             return r;
         }
 

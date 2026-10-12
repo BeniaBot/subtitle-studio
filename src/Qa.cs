@@ -207,6 +207,45 @@ namespace SubtitleStudio
             return string.Join("|", r.ToArray());
         }
 
+        /// <summary>**פיצול של כתובית ביד** (תפריט, עוזר): הטקסט מתחלק בין שני החלקים. שתי שורות - שורה לכל אחד; שורה אחת - בין
+        /// המילים, בנקודה שמתאימה לזמן הפיצול (<paramref name="frac"/>: 0-1 מאורך הכתובית), ועדיפות לסימן פיסוק קרוב. מילה אחת -
+        /// לא מתחלקת (false; שני החלקים מקבלים אותה). **עד 0.8.15 שורה אחת שוכפלה בשני החלקים** (נמדד 12.10: ״אנחנו קרובים
+        /// ל-AGI.״ פעמיים) - גם בפיצול מהתפריט.</summary>
+        internal static bool SplitText(string text, double frac, out string first, out string second)
+        {
+            string t = (text ?? "").Replace("\r\n", "\n").Trim();
+            first = t; second = t;
+            string[] lines = t.Split('\n');
+            if (lines.Length > 1)
+            {
+                int half = lines.Length / 2;
+                first = string.Join("\n", lines, 0, half).Trim();
+                second = string.Join("\n", lines, half, lines.Length - half).Trim();
+                return true;
+            }
+            string[] words = t.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length < 2) return false;
+            if (double.IsNaN(frac) || frac <= 0 || frac >= 1) frac = 0.5;
+            int k = (int)Math.Round(frac * words.Length);
+            k = Math.Max(1, Math.Min(words.Length - 1, k));
+            // סימן פיסוק בסוף מילה, עד שתי מילים מהנקודה - שם המשפט נשבר באופן טבעי
+            for (int d = 0; d <= 2; d++)
+            {
+                int[] tryAt = d == 0 ? new int[] { k } : new int[] { k - d, k + d };
+                bool found = false;
+                foreach (int j in tryAt)
+                {
+                    if (j < 1 || j > words.Length - 1) continue;
+                    char last = words[j - 1][words[j - 1].Length - 1];
+                    if (",.?!:;״\"".IndexOf(last) >= 0) { k = j; found = true; break; }
+                }
+                if (found) break;
+            }
+            first = string.Join(" ", words, 0, k);
+            second = string.Join(" ", words, k, words.Length - k);
+            return true;
+        }
+
         // ---------- מילים ----------
 
         /// <summary>שם קצר לסוג, עם מספר: ״3 חופפות״. ‏n=1 בלי מספר.</summary>

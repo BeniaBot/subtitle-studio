@@ -1082,7 +1082,9 @@ namespace SubtitleStudio
                 { Ui.Error(this, Lang.T("אותו קובץ"), Lang.T("אי אפשר לכתוב על קובץ המקור.")); return false; }
             }
             catch { }
-            if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("להחליף את הקובץ הקיים?"), Lang.T("להחליף"), Lang.T("ביטול"))) return false;
+            // העוזר לחץ (0.8.15): שם פנוי, בלי לדרוס - נמדד 12.10: הוא ענה ״להחליף״ בעצמו ודרס קובץ קיים
+            if (AiUi.Driving) outPath = CutDlg.FreeName(outPath);
+            else if (File.Exists(outPath) && !Ui.Confirm(this, Lang.T("הקובץ קיים"), Lang.T("להחליף את הקובץ הקיים?"), Lang.T("להחליף"), Lang.T("ביטול"))) return false;
 
             FfJob job = BuildJob(outPath);
             ProgressDlg.Run(_main, _tool.Name, job);

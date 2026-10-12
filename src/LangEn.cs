@@ -1586,6 +1586,9 @@ namespace SubtitleStudio
             "שומע מה אמרת...", "Listening to what you said...",
             "לא שמעתי מילים בהקלטה - נסו שוב, קרוב יותר למיקרופון", "I didn't hear any words in the recording - try again, closer to the microphone",
             "מקריא - לחיצה עוצרת את ההקראה", "Reading aloud - click to stop",
+            "העבודה הסתיימה", "The job is done",
+            "העבודה בוטלה", "The job was cancelled",
+            "העבודה נכשלה", "The job failed",
         };
 
         public static void Fill(Dictionary<string, string> d)

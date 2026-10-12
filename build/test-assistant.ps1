@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 67 בדיקות.
+# צפוי: 71 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -260,6 +260,17 @@ $forms0 = [Windows.Forms.Application]::OpenForms.Count
 $mfT.GetMethod('Notice', $IN).Invoke($mf, @([string]'חלק מהתמלול נעשה בדגם אחר', [string]"כדאי לעבור`nעל התזמון"))
 $nf.SetValue($mf, $null)
 Check 'הודעה בזמן פעולה של העוזר - לשיחה, לא חלון שעוצר אותה עד ״הבנתי״' ($nl0.Count -eq 1 -and $nl0[0] -eq 'חלק מהתמלול נעשה בדגם אחר: כדאי לעבור על התזמון' -and [Windows.Forms.Application]::OpenForms.Count -eq $forms0) ($nl0 -join ' | ')
+$split = (TY 'Qa').GetMethod('SplitText', $ST)
+function SplitAt($s, $f) { $a = @([string]$s, [double]$f, $null, $null); $ok = $split.Invoke($null, $a); return @($ok, $a[2], $a[3]) }
+$s1 = SplitAt 'אנחנו קרובים ל-AGI.' 0.5; $s2 = SplitAt 'שלום לכולם, היום נלמד על כתוביות' 0.45; $s3 = SplitAt "שורה ראשונה`nשורה שנייה" 0.5; $s4 = SplitAt 'תודה' 0.5
+Check 'פיצול כתובית של שורה אחת: הטקסט מתחלק בין המילים (עד 0.8.15 שוכפל בשני החלקים)' ($s1[0] -and $s1[1] -eq 'אנחנו קרובים' -and $s1[2] -eq 'ל-AGI.') ($s1[1] + ' / ' + $s1[2])
+Check 'פיצול: ליד סימן פיסוק - שם; שתי שורות - שורה לכל חלק; מילה אחת - לא מתחלקת' ($s2[1] -eq 'שלום לכולם,' -and $s3[1] -eq 'שורה ראשונה' -and $s3[2] -eq 'שורה שנייה' -and -not $s4[0]) ($s2[1] + ' / ' + $s2[2])
+$sw = (TY 'MainForm').GetMethod('SharedWords', $ST)
+Check 'שם כלי לא מדויק: מילים משותפות בלי אותיות שימוש (״לוואטסאפ״ = ״בוואטסאפ״)' (($sw.Invoke($null, @([string]'דחיסה לוואטסאפ', [string]'הכנה לשליחה בוואטסאפ'))) -eq 1 -and ($sw.Invoke($null, @([string]'סיבוב', [string]'עוצמת הקול'))) -eq 0) ''
+$runTool = $mfT.GetMethod('AiTool_', $IN)
+$toolCall = [Activator]::CreateInstance($callT); $toolCall.Name = 'run_media_tool'; $toolCall.Args['tool'] = 'בוואטסאפ'
+$tr = $runTool.Invoke($mf, @($toolCall)); [void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
+Check 'run_media_tool עם חלק מהשם - נפתח הכלי הנכון, בלי סבב של list_media_tools' (('' + $tr['done']) -like '*וואטסאפ*') ('' + $tr['done'] + $tr['error'])
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
 Write-Host ''

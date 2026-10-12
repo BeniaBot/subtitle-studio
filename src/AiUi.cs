@@ -258,6 +258,9 @@ namespace SubtitleStudio
         /// (`CutDlg.Pick`): בחלון של ווינדוס העוזר לא רואה כלום ולא יכול ללחוץ, והשיחה נתקעה עליו (נמדד 12.10).</summary>
         public static bool Driving;
 
+        /// <summary>פעולה שהעוזר דחה (פתיחת חלון, לחיצה) רצה עכשיו - גם עבודה שהתחילה בתוכה (`ProgressDlg.Ended` ← הצ׳אט).</summary>
+        public static int DeferredDepth;
+
         /// <summary>לוחץ. מחזיר null כשהצליח, או הסבר.</summary>
         public static string Click(Item it)
         {

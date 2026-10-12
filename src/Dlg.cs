@@ -403,6 +403,9 @@ namespace SubtitleStudio
     /// <summary>חלון התקדמות להרצת ffmpeg.</summary>
     internal class ProgressDlg : Form
     {
+        /// <summary>**עבודה הסתיימה** (הצליחה, בוטלה, הסיכום - ״נשמר: שם · גודל״ או השגיאה, הקובץ). הצ׳אט אומר את זה כשהעוזר
+        /// הפעיל אותה (0.8.15): עד אז הוא כתב ״התחלתי״ ונעלם, וסוף העבודה לא נאמר בשיחה.</summary>
+        public static event Action<bool, bool, string, string> Ended;
         private FfJob _job;
         private double _prog;
         private string _status = Lang.T("מתחיל...");
@@ -510,6 +513,11 @@ namespace SubtitleStudio
                 if (_done)
                 {
                     _timer.Stop();
+                    if (Ended != null)
+                    {
+                        try { Ended(_success, _cancelled, _success ? _saved : _error, job.OutputPath); }
+                        catch { }
+                    }
                     // שלב הכנה (למשל איתור חיתוכים) - ההודעה האמיתית באה מיד
                     // אחריו, ו״הפעולה הושלמה״ + ״סגירה״ היו לחיצה מיותרת
                     if (_success && CloseOnSuccess) { Close(); return; }

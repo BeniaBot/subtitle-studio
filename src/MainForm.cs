@@ -2554,17 +2554,18 @@ namespace SubtitleStudio
             _doc.Push(Lang.T("פיצול"));
             Cue a = _editing;
             Cue b = a.Clone();
+            double frac = (pos - a.Start) / (double)Math.Max(1, a.End - a.Start);
             b.Start = pos;
             b.End = a.End;
             a.End = pos - 40;
-            string[] lines = a.Text.Replace("\r\n", "\n").Split('\n');
-            if (lines.Length > 1)
+            string ta, tb;
+            if (Qa.SplitText(a.Text, frac, out ta, out tb))
             {
-                int half = lines.Length / 2;
-                a.Text = string.Join("\n", lines, 0, half);
-                b.Text = string.Join("\n", lines, half, lines.Length - half);
-                a.Doubt = Qa.DoubtIn(b.Doubt, a.Text, b.Text);
-                b.Doubt = Qa.DoubtIn(b.Doubt, b.Text, a.Text);
+                string d = b.Doubt;
+                a.Text = ta;
+                b.Text = tb;
+                a.Doubt = Qa.DoubtIn(d, ta, tb);
+                b.Doubt = Qa.DoubtIn(d, tb, ta);
             }
             _doc.Cues.Add(b);
             _doc.Sort();
@@ -3097,6 +3098,14 @@ namespace SubtitleStudio
             bool keepOriginal = !asNew && !string.IsNullOrEmpty(path) && !Formats.CanSaveInPlace(path);
             if (asNew || string.IsNullOrEmpty(path) || keepOriginal)
             {
+                // **העוזר שומר** (0.8.15): בלי ״שמירה בשם״ של ווינדוס - הוא לא רואה אותו. נמדד 12.10: ״תשמור את הכתוביות״ פתח את
+                // החלון, והעוזר אמר אחר כך ״אולי הקובץ פתוח בתוכנה אחרת״. SRT ליד הסרט, בשם שלו (שם פנוי - לא דורסים קובץ קיים)
+                if (!asNew && _aiNotices != null)
+                {
+                    string near = keepOriginal ? path : _mediaPath;
+                    if (!string.IsNullOrEmpty(near))
+                        return WriteSubtitles(CutDlg.FreeName(Path.Combine(Path.GetDirectoryName(near), Path.GetFileNameWithoutExtension(near) + ".srt")));
+                }
                 SaveFileDialog d = new SaveFileDialog();
                 d.Filter = Lang.T("קובץ כתוביות SRT (הכי נפוץ)|*.srt|WebVTT|*.vtt|ASS מעוצב|*.ass|טקסט לתרגום|*.txt");
                 d.Title = keepOriginal ? Lang.T("שמירה כקובץ SRT - הקובץ המקורי לא ישתנה") : Lang.T("שמירת קובץ הכתוביות");

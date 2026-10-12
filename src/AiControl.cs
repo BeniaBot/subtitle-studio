@@ -50,7 +50,15 @@ namespace SubtitleStudio
         private void AiDefer(MethodInvoker a)
         {
             _aiDeferred = true;
-            try { BeginInvoke(a); }
+            try
+            {
+                BeginInvoke((MethodInvoker)delegate
+                {
+                    AiUi.DeferredDepth++;
+                    try { a(); }
+                    finally { AiUi.DeferredDepth--; }
+                });
+            }
             catch { _aiDeferred = false; }
         }
 

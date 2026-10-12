@@ -241,6 +241,8 @@ namespace SubtitleStudio
             MouseUp += delegate { _dragging = false; };
 
             Load += delegate { Native.SetRoundedCorners(Handle); Greet(); ShowHint(); };
+            ProgressDlg.Ended += OnJobEnded;
+            FormClosed += delegate { ProgressDlg.Ended -= OnJobEnded; };
             Resize += delegate { DoLayout(); };
             DoLayout();
         }
@@ -673,6 +675,16 @@ namespace SubtitleStudio
                 if (!Ai.HasKey) return;
             }
             AiVoice.Stop();
+            // עבודות שהסתיימו מאז - לפני הבקשה, כדי שהעוזר יידע (״איפה הסרט שיצרת?״)
+            foreach (string note in _jobNotes)
+            {
+                AiMsg jn = new AiMsg();
+                jn.Role = "user";
+                jn.Hidden = true;
+                jn.Text = note;
+                _history.Add(jn);
+            }
+            _jobNotes.Clear();
             _history.Add(m);
             _nudged = false;
             _waits = 0;
@@ -756,6 +768,19 @@ namespace SubtitleStudio
             note.Text = "(הודעה מהתוכנה: המשתמש ביטל את כל מה שעשית בבקשה הקודמת - הכתוביות והעיצוב חזרו למצב שלפניה.)";
             _history.Add(note);
         }
+
+        /// <summary>עבודה שהעוזר הפעיל הסתיימה: שורה בשיחה, והעוזר יודע בבקשה הבאה (באמצע בקשה אי אפשר להכניס הודעה לשיחה -
+        /// היא הייתה נופלת בין בקשה לפעולה לבין התשובה לה).</summary>
+        private void OnJobEnded(bool ok, bool cancelled, string text, string path)
+        {
+            if (AiUi.DeferredDepth <= 0 || IsDisposed) return;
+            string line = ok ? (string.IsNullOrEmpty(text) ? Lang.T("העבודה הסתיימה") : text.Replace("  ·  ", " · "))
+                : cancelled ? Lang.T("העבודה בוטלה") : Lang.T("העבודה נכשלה") + (string.IsNullOrEmpty(text) ? "" : ": " + text);
+            _view.AddAction(line, ok);
+            _jobNotes.Add("(הודעה מהתוכנה: העבודה שהפעלת קודם הסתיימה - " + line + (ok && !string.IsNullOrEmpty(path) ? " (" + path + ")" : "") + ")");
+        }
+
+        private readonly List<string> _jobNotes = new List<string>();
 
         /// <summary>בבקשה הזאת כבר הוזכר למודל להמשיך אחרי תשובה ריקה / כבר חיכינו למכסה (כמה פעמים).</summary>
         private bool _nudged;
@@ -1296,6 +1321,7 @@ namespace SubtitleStudio
             sb.Append("· לדחוס לגודל יעד, להפוך לריוורס, להוציא פס קול - run_media_tool\n");
             sb.Append("· לבדוק כתובית מול מה שבאמת נאמר, או מילה שהתמלול לא היה בטוח בה (מסומנת במצב) - listen, ואז להציע תיקון\n");
             sb.Append("· ״איפה רואים...״ / ״מה רואים כאן?״ - find_scene / look_at\n");
+            sb.Append("· ״איפה אומרים...״ / ״איפה מדברים על...״ - חפש בכתוביות, ענה, **וגם select_cue לכתובית** כדי שהנגן יקפוץ אליה\n");
 
             sb.Append("**התוכנה (השמות המדויקים - כשאתה מזכיר כפתור או תפריט, רק בשמות האלה ומ-app_help, אף פעם לא בשם שהמצאת):** ");
             sb.Append(AiKnow.Overview).Append("\n\n");
@@ -1309,6 +1335,7 @@ namespace SubtitleStudio
             sb.Append("אחרי תמלול - לבדוק שגיאות / להקשיב למילים הלא בטוחות / לתרגם / ליצור סרט; אחרי תרגום - לבדוק שגיאות / ליצור סרט. רק אחת כזו, בסוף.\n");
             sb.Append("\nכללי עבודה: ");
             sb.Append("אל תמציא נתונים - מספרי כתוביות, זמנים וטקסט קח מ-list_cues ומהמצב. ");
+            sb.Append("**אל תכתוב שעשית משהו (״העברתי את הנגן״, ״שמרתי״, ״שיניתי״) בלי שקראת לפעולה שעושה אותו** - קודם הפעולה, ואז המשפט. ");
             sb.Append("בקשה של כמה שלבים (״תוסיף ואז תזיז״) - בצע את כולם לפני שאתה מסיים; אפשר כמה פעולות בתשובה אחת, והן מתבצעות לפי הסדר. ");
             sb.Append("פעולה שדורשת אישור - התוכנה מציגה אותו בעצמה, אל תשאל פעמיים. ");
             sb.Append("פעולה שנכשלה - אמור בפשטות למה ומה אפשר לעשות; אל תנסה שוב את אותו דבר יותר מפעם אחת. ");
