@@ -22,11 +22,29 @@ namespace SubtitleStudio
         private readonly object _lock = new object();
         private volatile bool _stopped;
         private WebRequest _req;
+        /// <summary>טוקנים של בקשות מקבילות (`Ai.Race`) - נעצרים עם זה.</summary>
+        private List<StopToken> _kids;
 
         [ThreadStatic] private static StopToken _current;
 
         /// <summary>מחבר את החוט הנוכחי לטוקן (null - מנתק).</summary>
         public static void Attach(StopToken t) { _current = t; }
+
+        /// <summary>הטוקן של החוט הנוכחי (או null).</summary>
+        public static StopToken Current { get { return _current; } }
+
+        /// <summary>טוקן לבקשה מקבילה: נעצר כשזה נעצר, ואפשר לעצור אותו לבד (המפסיד במרוץ).</summary>
+        public StopToken Child()
+        {
+            StopToken k = new StopToken();
+            lock (_lock)
+            {
+                if (_kids == null) _kids = new List<StopToken>();
+                _kids.Add(k);
+            }
+            if (_stopped) k.Stop();
+            return k;
+        }
 
         /// <summary>ביקשו לעצור את העבודה של החוט הזה.</summary>
         public static bool Here
@@ -41,12 +59,14 @@ namespace SubtitleStudio
         {
             _stopped = true;
             WebRequest r;
-            lock (_lock) r = _req;
+            List<StopToken> kids;
+            lock (_lock) { r = _req; kids = _kids != null ? new List<StopToken>(_kids) : null; }
             if (r != null)
             {
                 try { r.Abort(); }
                 catch { }
             }
+            if (kids != null) foreach (StopToken k in kids) k.Stop();
         }
 
         /// <summary>הבקשה שבדרך בחוט הזה (null אחרי שהסתיימה). אם כבר עצרו - נקטעת מיד.</summary>
@@ -159,6 +179,10 @@ namespace SubtitleStudio
         public List<object> Parts;
         public string Error;
         public string Finish = "";      // סיבת סיום מהשרת (MAX_TOKENS וכדומה)
+        /// <summary>קוד ה-HTTP של הכישלון, המתנה שהשרת ביקש, ואם זו המכסה היומית - **של הבקשה הזאת** (0.8.14). ‏`Ai.LastHttpCode`
+        /// הוא של החוט ששלח; הצ׳אט קורא את התשובה בחוט אחר, ושתי בקשות מקבילות (`Ai.Race`) היו דורסות זו את זו.</summary>
+        public int HttpCode, RetrySec;
+        public bool QuotaDaily;
         /// <summary>תשובה ריקה - בלי טקסט ובלי בקשה (לא חסימה ולא קיטוע). קורה אחרי תוצאה של פעולה: הצ׳אט מזכיר למודל להמשיך.</summary>
         public bool Empty;
         public bool Ok { get { return Error == null; } }
@@ -188,6 +212,10 @@ namespace SubtitleStudio
         [ThreadStatic] public static bool PreferSwitch;
         /// <summary>הבקשה האחרונה בחוט הזה נפלה בחיבור עצמו (לא תשובה מהשרת).</summary>
         [ThreadStatic] private static bool LastTransportFail;
+        /// <summary>בחוט הזה: להתחיל מהדגם **שאחרי** זה ברשימה (הבקשה המקבילה של `Race` - לא לחכות לאותו דגם איטי).</summary>
+        [ThreadStatic] public static string StartAfter;
+        /// <summary>הדגם שהבקשה האחרונה נשלחה אליו עכשיו - כדי שהבקשה המקבילה תבחר דגם אחר.</summary>
+        public static volatile string Trying = "";
 
         /// <summary>דגמים לניסיון, לפי הסדר.
         ///
@@ -351,6 +379,139 @@ namespace SubtitleStudio
         /// <summary>שולח שיחה ומחזיר טקסט או בקשה להפעיל פעולה.</summary>
         public static AiReply Send(string system, List<AiMsg> history, List<AiTool> tools, bool jsonOut)
         {
+            LastHttpCode = 0; LastRetrySec = 0; LastQuotaIsDaily = false;
+            AiReply r = SendCore(system, history, tools, jsonOut);
+            r.HttpCode = LastHttpCode;
+            r.RetrySec = LastRetrySec;
+            r.QuotaDaily = LastQuotaIsDaily;
+            return r;
+        }
+
+        /// <summary>בקשה **לדגם אחד**, בלי פעולות ובלי מעבר לדגם אחר - לניסיון אחד במרוץ (`AiVoice.Hear`). דגם שדוחה את כיבוי
+        /// החשיבה - שוב בלעדיו, כמו ב-`Send`.</summary>
+        internal static AiReply SendTo(string model, string system, List<AiMsg> history)
+        {
+            AiReply r = new AiReply();
+            if (!HasKey) { r.Error = Lang.T("לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."); return r; }
+            LastHttpCode = 0; LastRetrySec = 0; LastQuotaIsDaily = false;
+            if (IsExhausted(model)) { r.Error = "exhausted"; r.HttpCode = 429; r.QuotaDaily = true; return r; }
+            Trying = model;
+            string reply, err;
+            string body = BuildBody(system, history, null, false, model);
+            // הדגמים הקלים לא חושבים ממילא, ו-flash-lite-latest דוחה את השדה (בקשה מבוזבזת, נמדד 12.10)
+            if (model.IndexOf("lite", StringComparison.OrdinalIgnoreCase) >= 0)
+                body = body.Replace(",\"thinkingConfig\":{\"thinkingBudget\":0}", "");
+            bool sent = Post(Endpoint(model), body, out reply, out err);
+            if (!sent && LastHttpCode == 400 && !NoThinking(model) && err != null &&
+                (err.IndexOf("thinking", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 err.IndexOf("invalid argument", StringComparison.OrdinalIgnoreCase) >= 0))
+            {
+                MarkNoThinking(model);
+                sent = Post(Endpoint(model), BuildBody(system, history, null, false, model), out reply, out err);
+            }
+            if (!sent)
+            {
+                if (LastHttpCode == 429 && LastQuotaIsDaily) MarkExhausted(model);
+                r.Error = err ?? Lang.T("לא התקבלה תשובה מהשרת.");
+                r.HttpCode = LastHttpCode; r.RetrySec = LastRetrySec; r.QuotaDaily = LastQuotaIsDaily;
+                // המפסיד במרוץ נקטע בכוונה - זה לא כישלון
+                if (!StopToken.Here) Log("נכשל (" + model + "): " + Safe(r.Error));
+                return r;
+            }
+            ParseReply(r, reply);
+            return r;
+        }
+
+        /// <summary>**מרוץ (0.8.14):** ניסיון ראשון בחוט משלו; אם הוא לא ענה תוך <paramref name="hedgeMs"/> - ניסיון נוסף במקביל
+        /// (‏<paramref name="onHedge"/> נקרא רגע לפניו), והראשון שמצליח מנצח. השני נקטע. ‏<paramref name="nextOnFail"/> - כישלון
+        /// מתחיל מיד את הניסיון הבא (כל ניסיון הוא דגם אחד); בלעדיו רק האיטיות מתחילה ניסיון נוסף (`Send` כבר עובר בין הדגמים).
+        ///
+        /// בנימין, 12.10: ״אמרתי היי שלום... והוא עדיין חושב ולא עונה לי״. נמדד באותה שעה: הדגם הראשון החזיר ״עמוס״, והשני ענה
+        /// אחרי 32 שניות - כשאותה בקשה, בדגם אחר, חזרה ב-3. אצל גוגל אותה בקשה לוקחת פעם 2 שניות ופעם 33. עצירה של החוט
+        /// שקורא (`StopToken`) עוצרת את כל הניסיונות.</summary>
+        internal static T Race<T>(int attempts, int hedgeMs, bool nextOnFail, Func<int, T> attempt, Func<T, bool> ok, Action<int> onHedge)
+            where T : class
+        {
+            StopToken parent = StopToken.Current;
+            object gate = new object();
+            T winner = null, lastFail = null;
+            int running = 0, started = 0;
+            List<StopToken> kids = new List<StopToken>();
+            System.Threading.AutoResetEvent changed = new System.Threading.AutoResetEvent(false);
+            Action launch = delegate
+            {
+                int idx = started++;
+                StopToken kid = parent != null ? parent.Child() : new StopToken();
+                kids.Add(kid);
+                running++;
+                System.Threading.Thread th = new System.Threading.Thread(delegate ()
+                {
+                    StopToken.Attach(kid);
+                    T res = null;
+                    try { res = attempt(idx); }
+                    catch (Exception ex) { Log("חריגה בניסיון " + idx + ": " + ex.Message); }
+                    finally { StopToken.Attach(null); }
+                    lock (gate)
+                    {
+                        running--;
+                        if (res != null && ok(res)) { if (winner == null) winner = res; }
+                        else if (res != null && !kid.Stopped) lastFail = res;
+                        else if (res != null && lastFail == null) lastFail = res;
+                    }
+                    changed.Set();
+                });
+                th.IsBackground = true;
+                th.Start();
+            };
+            DateTime lastStart = DateTime.UtcNow;
+            lock (gate) launch();
+            while (true)
+            {
+                changed.WaitOne(100);
+                bool hedge = false;
+                lock (gate)
+                {
+                    if (winner != null) break;
+                    if (parent != null && parent.Stopped) break;
+                    bool slow = (DateTime.UtcNow - lastStart).TotalMilliseconds >= hedgeMs;
+                    if (started < attempts && ((running == 0 && nextOnFail) || (running > 0 && slow))) hedge = running > 0;
+                    else if (running == 0) break;
+                    else continue;
+                }
+                if (hedge && onHedge != null)
+                {
+                    try { onHedge(started); }
+                    catch { }
+                }
+                lock (gate)
+                {
+                    if (winner != null) break;      // הראשון ענה בינתיים
+                    launch();
+                    lastStart = DateTime.UtcNow;
+                }
+            }
+            // המפסיד (או מי שעוד רץ אחרי עצירה) - נקטע. מי שסיים - לא מושפע
+            lock (gate) foreach (StopToken k in kids) k.Stop();
+            return winner ?? lastFail;
+        }
+
+        /// <summary>הסדר של הדגמים לבקשה: הפעיל קודם, ואז השאר. בבקשה המקבילה (`StartAfter`) - מהדגם שאחרי זה שעוד לא ענה,
+        /// בסיבוב, והוא עצמו אחרון.</summary>
+        internal static List<string> ModelOrder(string active, string startAfter)
+        {
+            List<string> order = new List<string>();
+            order.Add(active);
+            foreach (string m in Models) if (m != active) order.Add(m);
+            if (string.IsNullOrEmpty(startAfter)) return order;
+            int i = order.IndexOf(startAfter);
+            if (i < 0) return order;
+            List<string> rot = new List<string>();
+            for (int k = 1; k <= order.Count; k++) rot.Add(order[(i + k) % order.Count]);
+            return rot;
+        }
+
+        private static AiReply SendCore(string system, List<AiMsg> history, List<AiTool> tools, bool jsonOut)
+        {
             AiReply r = new AiReply();
             if (!HasKey) { r.Error = Lang.T("לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."); return r; }
 
@@ -359,9 +520,7 @@ namespace SubtitleStudio
             string reply = null, err = null;
 
             // אם שם הדגם לא קיים בחשבון - מנסים את הבא ברשימה
-            List<string> tryModels = new List<string>();
-            tryModels.Add(Model);
-            foreach (string m in Models) if (m != Model) tryModels.Add(m);
+            List<string> tryModels = ModelOrder(Model, StartAfter);
 
             bool logged = false;
             bool anyTried = false;
@@ -375,6 +534,7 @@ namespace SubtitleStudio
                 // עליו בקשה, בטח לא 66 פעם בתמלול של שיעור
                 if (IsExhausted(model)) continue;
                 anyTried = true;
+                Trying = model;
                 // הגוף נבנה מחדש לכל דגם, כי thinkingConfig קיים רק בחלקם
                 if (model != Model) json = BuildBody(system, history, tools, jsonOut, model);
                 if (!logged)
@@ -453,7 +613,7 @@ namespace SubtitleStudio
             {
                 r.Error = err != null ? err : Lang.T("לא התקבלה תשובה מהשרת.");
                 LastError = r.Error;
-                Log("נכשל: " + Safe(r.Error));
+                if (!StopToken.Here) Log("נכשל: " + Safe(r.Error));
                 return r;
             }
             Log("תשובה: " + reply.Length + " תווים");
@@ -791,11 +951,13 @@ namespace SubtitleStudio
         /// ברצף וצריך להבדיל בין שלושה מצבים: מכסה שנגמרה (‏429 - כדאי
         /// לעצור ולהגיד למשתמש), שרת עמוס (‏5xx - כדאי לנסות שוב), ושגיאה
         /// אמיתית שאין טעם לחזור עליה.</summary>
-        public static int LastHttpCode;
-        public static int LastRetrySec;
+        /// **לכל חוט בנפרד** (0.8.14): שתי בקשות מקבילות (`Race`) דרסו זו לזו את הקוד בין השליחה לבדיקה. מי שקורא אותם
+        /// מחוט אחר - מ-`AiReply` (`HttpCode`, ‏`RetrySec`, ‏`QuotaDaily`).
+        [ThreadStatic] public static int LastHttpCode;
+        [ThreadStatic] public static int LastRetrySec;
 
         /// <summary>המכסה שנגמרה היא היומית ולא הדקתית - אין טעם להמתין.</summary>
-        public static bool LastQuotaIsDaily;
+        [ThreadStatic] public static bool LastQuotaIsDaily;
 
         /// <summary>דגמים שהמכסה **היומית** שלהם נגמרה בסשן הזה.
         ///

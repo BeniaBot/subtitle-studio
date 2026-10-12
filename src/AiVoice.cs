@@ -27,19 +27,37 @@ namespace SubtitleStudio
         private static System.Media.SoundPlayer _player;
         private static readonly object _lock = new object();
 
+        /// <summary>**מכינים או מקריאים עכשיו** (0.8.14) - כפתור הרמקול בצ׳אט דולק, ולחיצה עליו עוצרת. עד אז לא היה סימן שהקראה
+        /// בדרך (ההכנה לוקחת כמה שניות), ולא הייתה דרך להשתיק אותה באמצע.</summary>
+        public static bool Busy { get { return _preparing || DateTime.UtcNow < _playingUntil; } }
+        private static volatile bool _preparing;
+        private static DateTime _playingUntil = DateTime.MinValue;
+
         /// <summary>מקריא ברקע. תשובה חדשה קוטעת את הקודמת.</summary>
         public static void Speak(string text)
         {
             string t = Clean(text);
-            if (t.Length == 0 || !Ai.HasKey) return;
+            if (t.Length == 0) return;
+            LastSpoken = t;
             int gen = Interlocked.Increment(ref _gen);
+            _preparing = true;
             Thread th = new Thread(delegate ()
             {
-                string err;
-                byte[] pcm = Tts(t, out err);
-                if (pcm == null) { LastError = err ?? ""; Ai.Log("הקראה נכשלה: " + LastError); return; }
+                // **קודם הקול של ווינדוס** (מיידי, בלי רשת ובלי מכסה); אין קול לשפה הזאת - הדגם של גוגל
+                byte[] wav = null;
+                string err = null;
+                try { wav = WinVoice.Synth(t, HasHebrew(t) ? "he" : "en"); }
+                catch (Exception ex) { Ai.Log("הקול של ווינדוס לא זמין: " + ex.Message); }
+                if (wav == null && gen == _gen && Ai.HasKey)
+                {
+                    byte[] pcm = Tts(t, out err);
+                    if (pcm != null) wav = Wav(pcm, 24000);
+                }
                 if (gen != _gen) return;
-                Play(Wav(pcm, 24000));
+                _preparing = false;
+                if (wav == null) { LastError = err ?? ""; Ai.Log("הקראה נכשלה: " + LastError); return; }
+                _playingUntil = DateTime.UtcNow.AddSeconds(WavSeconds(wav) + 0.3);
+                Play(wav);
             });
             th.IsBackground = true;
             th.Start();
@@ -48,6 +66,8 @@ namespace SubtitleStudio
         public static void Stop()
         {
             Interlocked.Increment(ref _gen);
+            _preparing = false;
+            _playingUntil = DateTime.MinValue;
             lock (_lock)
             {
                 try { if (_player != null) _player.Stop(); }
@@ -55,8 +75,13 @@ namespace SubtitleStudio
             }
         }
 
+        /// <summary>מה הוקרא אחרון (אחרי הניקוי) - לבדיקות.</summary>
+        internal static string LastSpoken = "";
+
         private static void Play(byte[] wav)
         {
+            // בבדיקות לא משמיעים: הקול של ווינדוס עובד גם מול גוגל מדומה, וזה נשמע ברמקולים של מי שליד המחשב
+            if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1") return;
             lock (_lock)
             {
                 try
@@ -67,6 +92,94 @@ namespace SubtitleStudio
                 }
                 catch (Exception ex) { Ai.Log("השמעת ההקראה נכשלה: " + ex.Message); }
             }
+        }
+
+        // ---------- הודעה קולית: קודם מילים (0.8.14) ----------
+        /// <summary>**ההקלטה הופכת למילים לפני שהיא נשלחת לעוזר.** עד 0.8.14 ההקלטה עצמה נשלחה לדגם של השיחה, והבועה אמרה
+        /// ״הודעה קולית (2 שניות)״ - בלי לדעת מה נשמע. בנימין: ״אמרתי היי שלום, ונכתב רק הודעה קולית שתי שניות... והוא עדיין
+        /// חושב ולא עונה לי״. נמדד 12.10 (״תגדיל את הכתוביות בבקשה״, ״היי, שלום״): הדגמים הקלים - 1.4-7 שניות ומדויקים;
+        /// 3.5-lite כתב פעם ״הכתوبות״ (אותיות ערביות) - ההנחיה מבקשת אותיות עבריות, ותשובה מעורבבת עוברת לדגם הבא;
+        /// ‏gemini-flash-latest (3.8) עם חשיבה - 23-33 שניות, ולכן הוא אחרון, ובלי חשיבה.</summary>
+        public static readonly string[] HearModels = { "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest" };
+        /// <summary>אחרי כמה זמן בלי תשובה - גם הדגם הבא, במקביל.</summary>
+        public static int HearHedgeMs = 2500;
+        internal const string HearPrompt = "Transcribe this short voice message exactly, word for word, in the language spoken (usually Hebrew). " +
+            "Hebrew must be written in Hebrew letters only. Output only the words, without quotes or comments. If there is no speech, output nothing.";
+
+        /// <summary>מה נאמר בהקלטה: המילים, ״״ כשאין בה דיבור, או null עם הסבר כשלא הצליח (ואז שולחים את ההקלטה עצמה).</summary>
+        internal static string Hear(byte[] wav, out string error)
+        {
+            error = null;
+            if (!Ai.HasKey) { error = Lang.T("לא הוגדר מפתח של גוגל. אפשר להזין אותו בהגדרות, תחת ״שירותים באינטרנט״."); return null; }
+            string b64 = Convert.ToBase64String(wav);
+            // **יש מפתח של Groq - הוא ראשון:** ‏Whisper שם עונה בדרך כלל בפחות משנייה, ולמכסה שלו אין קשר לשיחה
+            List<string> plan = new List<string>();
+            if (!string.IsNullOrEmpty(Stt.GroqKey)) plan.Add(GroqPlan);
+            plan.AddRange(HearModels);
+            AiReply r = Ai.Race<AiReply>(plan.Count, HearHedgeMs, true,
+                delegate (int i)
+                {
+                    if (plan[i] == GroqPlan) return HearGroq(wav);
+                    Ai.PreferSwitch = true;
+                    AiMsg m = new AiMsg();
+                    m.Role = "user";
+                    m.Text = HearPrompt;
+                    m.AudioB64 = b64;
+                    m.AudioMime = "audio/wav";
+                    AiReply x = Ai.SendTo(plan[i], null, new List<AiMsg> { m });
+                    // תשובה ריקה = לא היה דיבור
+                    if (x.Empty) { x.Error = null; x.Text = ""; }
+                    if (x.Ok) x.Text = CleanHeard(x.Text);
+                    return x;
+                },
+                delegate (AiReply x) { return x.Ok && !Garbled(x.Text); },
+                null);
+            if (r == null) { error = Lang.T("לא התקבלה תשובה מהשרת."); return null; }
+            if (!r.Ok) { error = r.Error; return null; }
+            return r.Text ?? "";
+        }
+
+        private const string GroqPlan = "groq";
+
+        /// <summary>ההקלטה ב-Groq (מופע משלו - בלי השפה הנעולה של תמלול הסרט).</summary>
+        private static AiReply HearGroq(byte[] wav)
+        {
+            AiReply x = new AiReply();
+            OpenAiStt g = new OpenAiStt();
+            // ממשק בעברית - עברית. קטע קצר זוהה כאנגלית (נמדד: ״היי, שלום״ ← "Hey, Shalom!"); בממשק אנגלי - זיהוי לבד
+            if (Lang.Rtl) g.Language = "he";
+            string err;
+            List<Ai.TrLine> lines = g.TranscribeChunk(wav, "audio/wav", "", out err);
+            if (lines == null) { x.Error = err ?? "Groq"; return x; }
+            StringBuilder sb = new StringBuilder();
+            foreach (Ai.TrLine l in lines) { if (sb.Length > 0) sb.Append(' '); sb.Append((l.Text ?? "").Trim()); }
+            x.Text = CleanHeard(sb.ToString());
+            return x;
+        }
+
+        /// <summary>בלי מרכאות סביב, בלי ״תמלול:״, ושורה אחת.</summary>
+        internal static string CleanHeard(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            s = s.Replace("\r", " ").Replace("\n", " ").Trim();
+            while (s.Contains("  ")) s = s.Replace("  ", " ");
+            foreach (string pre in new string[] { "תמלול:", "Transcription:", "Transcript:" })
+                if (s.StartsWith(pre, StringComparison.OrdinalIgnoreCase)) s = s.Substring(pre.Length).Trim();
+            if (s.Length >= 2 && "\"״'”“".IndexOf(s[0]) >= 0 && "\"״'”“".IndexOf(s[s.Length - 1]) >= 0) s = s.Substring(1, s.Length - 2).Trim();
+            return s;
+        }
+
+        /// <summary>עברית עם אותיות ערביות באמצע (״הכתوبות״) - תמלול משובש.</summary>
+        internal static bool Garbled(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            bool he = false, ar = false;
+            foreach (char c in s)
+            {
+                if (c >= 0x05D0 && c <= 0x05EA) he = true;
+                else if (c >= 0x0600 && c <= 0x06FF) ar = true;
+            }
+            return he && ar;
         }
 
         /// <summary>בלי סימנים שלא מקריאים, ולא יותר מ-700 תווים (עד סוף משפט) - תשובה ארוכה מוקראת בתחילתה.</summary>
@@ -155,6 +268,30 @@ namespace SubtitleStudio
             return all.ToArray();
         }
 
+        internal static bool HasHebrew(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            foreach (char c in s) if (c >= 0x05D0 && c <= 0x05EA) return true;
+            return false;
+        }
+
+        /// <summary>האורך של WAV בשניות, מהכותרת (קצב הבייטים והגודל של ״data״). לא WAV - אפס.</summary>
+        internal static double WavSeconds(byte[] wav)
+        {
+            if (wav == null || wav.Length < 44 || wav[0] != 'R' || wav[1] != 'I' || wav[8] != 'W') return 0;
+            int byteRate = BitConverter.ToInt32(wav, 28);
+            if (byteRate <= 0) return 0;
+            for (int i = 12; i + 8 <= wav.Length; )
+            {
+                int len = BitConverter.ToInt32(wav, i + 4);
+                if (wav[i] == 'd' && wav[i + 1] == 'a' && wav[i + 2] == 't' && wav[i + 3] == 'a')
+                    return Math.Min(len, wav.Length - i - 8) / (double)byteRate;
+                if (len < 0) break;
+                i += 8 + len + (len & 1);
+            }
+            return (wav.Length - 44) / (double)byteRate;
+        }
+
         /// <summary>WAV סביב PCM של 16 ביט, מונו.</summary>
         public static byte[] Wav(byte[] pcm, int rate)
         {
@@ -177,6 +314,56 @@ namespace SubtitleStudio
                 w.Flush();
                 return ms.ToArray();
             }
+        }
+    }
+
+    /// <summary>**הקול של ווינדוס (0.8.14)** - ‏Windows.Media.SpeechSynthesis, הקולות שבאים עם ווינדוס 10/11 (בעברית: ״Asaf״,
+    /// גבר). נמדד 12.10, אותם שני משפטים: 0.08 שניות, מול 5-36 שניות בדגם ההקראה של גוגל - שגם המכסה היומית שלו נגמרה אחרי
+    /// כמה עשרות תשובות. בלי רשת ובלי מכסה.
+    ///
+    /// **מחלקה משלה:** הטיפוסים של ווינדוס נטענים רק כשקוראים לה, ובמחשב בלעדיהם - חריגה שנתפסת אצל מי שקרא, וגוגל במקום.
+    /// בלי Windows.winmd של ה-SDK אין AsTask - ההמתנה לפעולה בלולאה.</summary>
+    internal static class WinVoice
+    {
+        /// <summary>WAV של הטקסט בקול לשפה (״he״, ״en״) - גבר אם יש; null כשאין קול לשפה.</summary>
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        internal static byte[] Synth(string text, string lang)
+        {
+            Windows.Media.SpeechSynthesis.VoiceInformation pick = null;
+            foreach (Windows.Media.SpeechSynthesis.VoiceInformation v in Windows.Media.SpeechSynthesis.SpeechSynthesizer.AllVoices)
+            {
+                if (!v.Language.StartsWith(lang, StringComparison.OrdinalIgnoreCase)) continue;
+                if (pick == null || (v.Gender == Windows.Media.SpeechSynthesis.VoiceGender.Male && pick.Gender != Windows.Media.SpeechSynthesis.VoiceGender.Male)) pick = v;
+            }
+            if (pick == null) return null;
+            using (Windows.Media.SpeechSynthesis.SpeechSynthesizer s = new Windows.Media.SpeechSynthesis.SpeechSynthesizer())
+            {
+                s.Voice = pick;
+                using (Windows.Media.SpeechSynthesis.SpeechSynthesisStream st = Wait(s.SynthesizeTextToStreamAsync(text)))
+                {
+                    uint size = (uint)st.Size;
+                    using (Windows.Storage.Streams.DataReader r = new Windows.Storage.Streams.DataReader(st.GetInputStreamAt(0)))
+                    {
+                        Wait(r.LoadAsync(size));
+                        byte[] buf = new byte[size];
+                        r.ReadBytes(buf);
+                        return buf;
+                    }
+                }
+            }
+        }
+
+        private static T Wait<T>(Windows.Foundation.IAsyncOperation<T> op)
+        {
+            DateTime until = DateTime.UtcNow.AddSeconds(20);
+            while (op.Status == Windows.Foundation.AsyncStatus.Started)
+            {
+                if (DateTime.UtcNow > until) { op.Cancel(); throw new TimeoutException(); }
+                Thread.Sleep(5);
+            }
+            if (op.Status != Windows.Foundation.AsyncStatus.Completed)
+                throw new InvalidOperationException("WinRT " + op.Status + (op.ErrorCode != null ? ": " + op.ErrorCode.Message : ""));
+            return op.GetResults();
         }
     }
 
@@ -204,6 +391,10 @@ namespace SubtitleStudio
         private volatile bool _running;
         /// <summary>עוצמה אחרונה, 0-1 - לציור של ״מקשיב״.</summary>
         public volatile float Level;
+        /// <summary>העוצמה הגבוהה בכל ההקלטה - שקט לגמרי לא נשלח לגוגל (מיקרופון מושתק, או הלא נכון).</summary>
+        public volatile float MaxLevel;
+        /// <summary>מתחת לזה - ההקלטה שקטה לגמרי: שיא של 60 מתוך 32,767 (‏-55dB). מיקרופון מושתק נותן אפס; דיבור - פי מאה.</summary>
+        public const float SilentBelow = 0.003f;
 
         public bool Recording { get { return _running; } }
         public double Seconds { get { lock (_pcm) return _pcm.Length / (double)(Rate * 2); } }
@@ -258,6 +449,7 @@ namespace SubtitleStudio
                 Marshal.Copy(hd.lpData, b, 0, b.Length);
                 lock (_pcm) _pcm.Write(b, 0, b.Length);
                 Level = Peak(b);
+                if (Level > MaxLevel) MaxLevel = Level;
                 hd.dwBytesRecorded = 0;
                 hd.dwFlags &= ~Native.WHDR_DONE;
                 Marshal.StructureToPtr(hd, _hdr[i], false);

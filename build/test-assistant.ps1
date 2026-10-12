@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 58 בדיקות.
+# צפוי: 64 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -230,6 +230,21 @@ Check 'קטע שלא מובן - שגיאה עם דוגמה, לא חלון' (('' 
 [void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
 try { Remove-Item $tmpDir -Recurse -Force } catch { }
 
+# ---------- 0.8.14: המרוץ, ההודעה הקולית ----------
+$order = $ai.GetMethod('ModelOrder', $ST)
+$models = $ai.GetField('Models', $ST).GetValue($null)
+$o1 = @($order.Invoke($null, (Pack 'gemini-flash-latest' $null)))
+$o2 = @($order.Invoke($null, (Pack 'gemini-flash-latest' 'gemini-flash-latest')))
+$o3 = @($order.Invoke($null, (Pack 'gemini-flash-latest' $models[$models.Count - 1])))
+Check 'סדר הדגמים: הפעיל קודם, ואז כל השאר פעם אחת' ($o1[0] -eq 'gemini-flash-latest' -and $o1.Count -eq $models.Count -and (@($o1 | Select-Object -Unique)).Count -eq $o1.Count) ($o1 -join ',')
+Check 'הבקשה המקבילה: מהדגם שאחרי האיטי, והאיטי עצמו אחרון' ($o2[0] -eq $o1[1] -and $o2[$o2.Count - 1] -eq 'gemini-flash-latest' -and $o2.Count -eq $o1.Count) ($o2 -join ',')
+Check 'אחרי האחרון ברשימה - חוזרים להתחלה' ($o3[0] -eq $o1[0] -and $o3[$o3.Count - 1] -eq $models[$models.Count - 1]) ($o3 -join ',')
+$voice = TY 'AiVoice'
+$clean = $voice.GetMethod('CleanHeard', $ST); $garbled = $voice.GetMethod('Garbled', $ST)
+Check 'תמלול של הודעה קולית: בלי מרכאות, בלי ״Transcription:״, שורה אחת' (($clean.Invoke($null, @([string]'"תגדיל את הכתוביות"')) -eq 'תגדיל את הכתוביות') -and ($clean.Invoke($null, @([string]"Transcription: היי,`nשלום")) -eq 'היי, שלום') -and ($clean.Invoke($null, @([string]'  ')) -eq '')) ''
+Check 'עברית עם אותיות ערביות באמצע (״הכתوبות״) - משובש; עברית נקייה ואנגלית - לא' (($garbled.Invoke($null, @([string]'תגדיל את הכתوبות בבקשה'))) -and -not ($garbled.Invoke($null, @([string]'תגדיל את הכתוביות'))) -and -not ($garbled.Invoke($null, @([string]'make it bigger')))) ''
+$nr = [Activator]::CreateInstance($replyT)
+Check 'התשובה נושאת את הקוד שלה (לא סטטי משותף לשתי בקשות מקבילות)' ($replyT.GetField('HttpCode') -ne $null -and $replyT.GetField('QuotaDaily') -ne $null -and $ai.GetField('LastHttpCode', $ST).GetCustomAttributes([ThreadStaticAttribute], $false).Count -eq 1) ''
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
 Write-Host ''

@@ -53,7 +53,8 @@ namespace SubtitleStudio
         public AiChatForm(IAiHost host)
         {
             _host = host;
-            Text = Lang.T("עוזר AI");
+            // אותו שם כמו הכפתור במסך הפתיחה ובעזרה (עד 0.8.14 ״עוזר AI״ כאן, ״העוזר החכם״ שם)
+            Text = Lang.T("העוזר החכם");
             AutoScaleMode = AutoScaleMode.None;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
@@ -99,7 +100,8 @@ namespace SubtitleStudio
                         if (m.Role == "user" && !m.Hidden && m.AudioB64 == null && !string.IsNullOrEmpty(m.Text) && !m.Text.StartsWith("("))
                         {
                             ClearHint();
-                            _input.Text = m.Text;
+                            // בקשה שנאמרה בקול - חוזרת כטקסט, לתיקון
+                            _input.Text = m.Text.StartsWith(Spoken) ? m.Text.Substring(Spoken.Length) : m.Text;
                             _input.SelectionStart = _input.TextLength;
                             e.SuppressKeyPress = true;
                             break;
@@ -109,11 +111,12 @@ namespace SubtitleStudio
             };
             _input.TextChanged += delegate { if (!_hint) Invalidate(); };
             _input.GotFocus += delegate { ClearHint(); Invalidate(); };
+            _input.Enter += delegate { ClearHint(); };
             _input.LostFocus += delegate { ShowHint(); Invalidate(); };
             Controls.Add(_input);
 
             _send = new Btn();
-            _send.Icon = Ico.Sparkles;
+            _send.Icon = Ico.Send;
             _send.IconOnly = true;
             _send.IconSize = Theme.S(18);
             _send.Kind = BtnKind.Primary;
@@ -176,6 +179,8 @@ namespace SubtitleStudio
             _speak.Size = new Size(Theme.S(32), Theme.S(32));
             _speak.Click += delegate
             {
+                // באמצע הקראה - הלחיצה משתיקה אותה (בלי לשנות את ההגדרה)
+                if (AiVoice.Busy) { AiVoice.Stop(); SpeakLook(); return; }
                 AiVoice.SpeakOn = !AiVoice.SpeakOn;
                 if (!AiVoice.SpeakOn) AiVoice.Stop();
                 Settings.SaveAll();
@@ -183,6 +188,12 @@ namespace SubtitleStudio
             };
             SpeakLook();
             Controls.Add(_speak);
+            // הרמקול דולק כל עוד מכינים או מקריאים
+            _voiceWatch = new System.Windows.Forms.Timer();
+            _voiceWatch.Interval = 250;
+            _voiceWatch.Tick += delegate { if (AiVoice.Busy != _speakBusy) SpeakLook(); };
+            _voiceWatch.Start();
+            FormClosed += delegate { _voiceWatch.Stop(); _voiceWatch.Dispose(); };
 
             _mic = new Btn();
             _mic.Icon = Ico.Mic;
@@ -196,8 +207,25 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_mic, Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)"));
             Controls.Add(_mic);
 
+            // ביטול ההקלטה - בקצה של תיבת הכתיבה, רק בזמן הקלטה
+            _recCancel = new Btn();
+            _recCancel.Icon = Ico.Close;
+            _recCancel.IconOnly = true;
+            _recCancel.IconSize = Theme.S(14);
+            _recCancel.Kind = BtnKind.Tool;
+            _recCancel.BackColor = Theme.Panel;
+            _recCancel.Radius = Theme.S(15);
+            _recCancel.Size = new Size(Theme.S(30), Theme.S(30));
+            _recCancel.Visible = false;
+            _recCancel.Click += delegate { MicFinish(false); };
+            Ui.Tip.SetToolTip(_recCancel, Lang.T("ביטול ההקלטה (Esc)"));
+            Controls.Add(_recCancel);
+
             KeyDown += delegate (object s, KeyEventArgs e)
             {
+                // בזמן הקלטה: Esc מבטל (ולא סוגר את החלון), Enter שולח
+                if (Recording && e.KeyCode == Keys.Escape) { e.SuppressKeyPress = true; e.Handled = true; MicFinish(false); return; }
+                if (Recording && e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; e.Handled = true; MicFinish(true); return; }
                 if (e.KeyCode == Keys.Escape) Close();
                 // מיקרופון מהמקלדת: לחיצה - מקשיב, שוב - שולח
                 if (e.Control && e.KeyCode == Keys.M) { e.SuppressKeyPress = true; MicClick(); }
@@ -217,7 +245,7 @@ namespace SubtitleStudio
             DoLayout();
         }
 
-        private Btn _speak, _mic;
+        private Btn _speak, _mic, _recCancel;
         private MicRecorder _rec;
         private System.Windows.Forms.Timer _recTimer;
         /// <summary>הקלטה שנשלחה כתשובה לשאלה עם אפשרויות - נכנסת לשיחה מיד אחרי התשובה לפעולה.</summary>
@@ -227,8 +255,24 @@ namespace SubtitleStudio
         /// <summary>הבקשה האחרונה נאמרה בקול - התשובה מוקראת גם כשההקראה כבויה.</summary>
         private bool _voiceRequest;
 
+        private System.Windows.Forms.Timer _voiceWatch;
+        private bool _speakBusy;
+
         private void SpeakLook()
         {
+            _speakBusy = AiVoice.Busy;
+            if (_speakBusy)
+            {
+                // מקריא עכשיו: רמקול דולק, בצבע של העוזר, ולחיצה עוצרת
+                _speak.Icon = Ico.Speaker;
+                _speak.Kind = BtnKind.Tool;
+                _speak.Checked = true;
+                _speak.Tint = Theme.Purple;
+                Ui.Tip.SetToolTip(_speak, Lang.T("מקריא - לחיצה עוצרת את ההקראה"));
+                _speak.Invalidate();
+                return;
+            }
+            _speak.Checked = false;
             _speak.Icon = AiVoice.SpeakOn ? Ico.Speaker : Ico.SpeakerOff;
             _speak.Tint = AiVoice.SpeakOn ? Theme.Accent : Color.Empty;
             Ui.Tip.SetToolTip(_speak, AiVoice.SpeakOn ? Lang.T("ההקראה דלוקה - העוזר מקריא כל תשובה. לחיצה מכבה")
@@ -236,69 +280,169 @@ namespace SubtitleStudio
             _speak.Invalidate();
         }
 
-        /// <summary>לחיצה ראשונה מקשיבה, השנייה שולחת. אפשר גם בזמן שהעוזר מקריא - ההקראה נעצרת.</summary>
+        /// <summary>מקליטים עכשיו.</summary>
+        private bool Recording { get { return _rec != null; } }
+        private DateTime _recStart;
+        /// <summary>העוצמה בכל רגע של ההקלטה - הפס שבתיבת הכתיבה בזמן ההקלטה.</summary>
+        private readonly List<float> _levels = new List<float>();
+
+        /// <summary>לחיצה ראשונה מקשיבה, השנייה שולחת. **העוזר באמצע?** מדברים מעליו - הבקשה נעצרת ומקשיבים, כמו לאדם
+        /// (עד 0.8.14 הלחיצה פשוט לא עשתה כלום). גם בזמן הקראה - ההקראה נעצרת.</summary>
         private void MicClick()
         {
-            if (_rec != null && _rec.Recording)
-            {
-                byte[] wav = _rec.Stop();
-                double sec = _rec.Seconds;
-                _rec = null;
-                if (_recTimer != null) { _recTimer.Stop(); _recTimer.Dispose(); _recTimer = null; }
-                MicLook(false);
-                if (wav == null) { _view.AddAction(Lang.T("לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון"), false); return; }
-                SendVoice(wav, sec);
-                return;
-            }
+            if (Recording) { MicFinish(true); return; }
+            if (_busy) StopRequest();
             if (_busy) return;
             AiVoice.Stop();
             _rec = new MicRecorder();
             string err = _rec.Start();
             if (err != null) { _rec = null; _view.AddAction(err, false); return; }
-            MicLook(true);
+            _recStart = DateTime.Now;
+            _levels.Clear();
+            RecLook(true);
             _recTimer = new System.Windows.Forms.Timer();
-            _recTimer.Interval = 120;
+            _recTimer.Interval = 60;
             _recTimer.Tick += delegate
             {
+                if (_rec == null) return;
                 // ההקלטה נעצרה לבד (שתי דקות) - שולחים
-                if (_rec != null && !_rec.Recording) MicClick();
-                else if (_rec != null) { _mic.Tint = Theme.Mix(Theme.Bad, Theme.Accent, 1f - Math.Min(1f, _rec.Level * 1.5f)); _mic.Invalidate(); }
+                if (!_rec.Recording) { MicFinish(true); return; }
+                _levels.Add(_rec.Level);
+                if (_levels.Count > 400) _levels.RemoveAt(0);
+                Invalidate(ComposerRect);
             };
             _recTimer.Start();
         }
 
-        private void MicLook(bool on)
+        /// <summary>סוף ההקלטה: שולחים, או מבטלים (Esc, ✕).</summary>
+        private void MicFinish(bool send)
         {
-            _mic.Kind = on ? BtnKind.Primary : BtnKind.Tool;
-            _mic.Tint = on ? Theme.Bad : Color.Empty;
-            Ui.Tip.SetToolTip(_mic, on ? Lang.T("מקשיב... לחיצה - שולח") : Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)"));
-            _mic.Invalidate();
-        }
-
-        /// <summary>הודעה קולית: ההקלטה עצמה נשלחת לעוזר - הוא מבין עברית מדוברת, בלי תמלול נפרד.</summary>
-        private void SendVoice(byte[] wav, double sec)
-        {
-            string b64 = Convert.ToBase64String(wav);
-            string label = "🎤  " + Lang.F("הודעה קולית ({0} שניות)", Theme.Ltr(Math.Max(1, (int)Math.Round(sec)).ToString()));
-            if (_ask != null)
+            MicRecorder rec = _rec;
+            if (rec == null) return;
+            _rec = null;
+            if (_recTimer != null) { _recTimer.Stop(); _recTimer.Dispose(); _recTimer = null; }
+            byte[] wav = rec.Stop();
+            double sec = rec.Seconds;
+            float max = rec.MaxLevel;
+            RecLook(false);
+            if (!send) return;
+            if (wav == null) { _view.AddAction(Lang.T("לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון"), false); return; }
+            // שקט מוחלט לא נשלח לגוגל: הוא רק יחזיר ״לא שמעתי״ אחרי כמה שניות
+            if (max < MicRecorder.SilentBelow)
             {
-                // תשובה בקול לשאלה עם אפשרויות: התשובה לפעולה אומרת ״בקול״, וההקלטה אחריה
-                _audioAfterTool = b64;
-                AnswerAsk(label, "המשתמש ענה בקול - ההקלטה מצורפת בהודעה הבאה");
+                _view.AddAction(Lang.T("ההקלטה שקטה לגמרי - אולי המיקרופון מושתק, או שווינדוס מקליט ממיקרופון אחר"), false);
                 return;
             }
-            _hint = false;
-            _view.HideChips();
-            _view.AddUser(label);
-            AiMsg m = new AiMsg();
-            m.Role = "user";
-            m.Text = "(המשתמש דיבר אליך בקול - ההקלטה מצורפת. התייחס אליה בדיוק כמו לבקשה כתובה. אם לא שמעת ברור - שאל.)";
-            m.AudioB64 = b64;
-            m.AudioMime = "audio/wav";
-            BeginRequest(m);
-            _voiceRequest = true;
+            SendVoice(wav, sec);
         }
 
+        /// <summary>במצב הקלטה תיבת הכתיבה הופכת לפס של הקול: נקודה אדומה, הזמן, והעוצמה. המיקרופון - ״שליחה״ אדום, ו-✕ מבטל.</summary>
+        private void RecLook(bool on)
+        {
+            _input.Visible = !on;
+            _send.Visible = !on;
+            _recCancel.Visible = on;
+            _mic.Kind = on ? BtnKind.Primary : BtnKind.Tool;
+            _mic.Tint = on ? Theme.Bad : Color.Empty;
+            _mic.Icon = on ? Ico.Send : Ico.Mic;
+            Ui.Tip.SetToolTip(_mic, on ? Lang.T("שליחה (Enter)") : Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)"));
+            _mic.Invalidate();
+            DoLayout();
+            if (on) _mic.Focus();
+            else if (ContainsFocus) _input.Focus();
+        }
+
+        // ---------- הודעה קולית: קודם המילים (0.8.14) ----------
+        /// <summary>הבועה של ההודעה הקולית שעוד לא תומללה, ומה לכתוב בה אם עוצרים.</summary>
+        private object _pendingVoice;
+        private string _pendingLabel;
+
+        /// <summary>**ההקלטה הופכת קודם למילים** (`AiVoice.Hear`, דגם קל, 1-3 שניות), הן מופיעות בבועה, ורק אז נשלחות - כמו בקשה
+        /// כתובה. עד 0.8.14 ההקלטה עצמה נשלחה, והבועה אמרה ״הודעה קולית (2 שניות)״ (בנימין: ״לא נכתב שם איי שלום״). לא הצליח
+        /// לתמלל - ההקלטה עצמה נשלחת, כמו פעם.</summary>
+        private void SendVoice(byte[] wav, double sec)
+        {
+            if (!Ai.HasKey)
+            {
+                AiSetupDlg d = new AiSetupDlg();
+                d.ShowDialog(this);
+                if (!Ai.HasKey) return;
+            }
+            string label = Lang.F("הודעה קולית ({0} שניות)", Theme.Ltr(Math.Max(1, (int)Math.Round(sec)).ToString()));
+            bool answering = _ask != null;
+            _hint = false;
+            if (!answering) _view.HideChips();
+            object bubble = _view.AddVoice("…");
+            _pendingVoice = bubble;
+            _pendingLabel = label;
+            _busy = true;
+            SendLook(true);
+            _view.Thinking = true;
+            _view.Status = Lang.T("שומע מה אמרת...");
+            int gen = _gen;
+            StopToken stop = new StopToken();
+            _stopToken = stop;
+            Thread t = new Thread(delegate ()
+            {
+                StopToken.Attach(stop);
+                string err = null, text = null;
+                try { text = AiVoice.Hear(wav, out err); }
+                catch (Exception ex) { err = ex.Message; }
+                finally { StopToken.Attach(null); }
+                try { BeginInvoke((MethodInvoker)delegate { if (gen == _gen && !IsDisposed) Heard(bubble, label, text, err, wav, answering); }); }
+                catch { }
+            });
+            t.IsBackground = true;
+            t.Start();
+        }
+
+        private void Heard(object bubble, string label, string text, string err, byte[] wav, bool answering)
+        {
+            _pendingVoice = null;
+            _view.Thinking = false;
+            _view.Status = "";
+            _busy = false;
+            if (text == null)
+            {
+                // לא הצליח לתמלל (רשת, מכסה של הדגמים הקלים): ההקלטה עצמה נשלחת, והעוזר שומע אותה בעצמו
+                Ai.Log("תמלול ההודעה הקולית נכשל (" + err + ") - שולחים את ההקלטה עצמה");
+                _view.SetText(bubble, label);
+                string b64 = Convert.ToBase64String(wav);
+                _voiceRequest = true;
+                if (answering && _ask != null)
+                {
+                    _audioAfterTool = b64;
+                    AnswerAsk(null, "המשתמש ענה בקול - ההקלטה מצורפת בהודעה הבאה");
+                    return;
+                }
+                AiMsg m = new AiMsg();
+                m.Role = "user";
+                m.Text = "(המשתמש דיבר אליך בקול - ההקלטה מצורפת. התייחס אליה בדיוק כמו לבקשה כתובה. אם לא שמעת ברור - שאל.)";
+                m.AudioB64 = b64;
+                m.AudioMime = "audio/wav";
+                BeginRequest(m);
+                return;
+            }
+            if (text.Length == 0)
+            {
+                _view.Remove(bubble);
+                _view.AddAction(Lang.T("לא שמעתי מילים בהקלטה - נסו שוב, קרוב יותר למיקרופון"), false);
+                SendLook(false);
+                Invalidate();
+                return;
+            }
+            _view.SetText(bubble, text);
+            _voiceRequest = true;
+            if (answering && _ask != null) { AnswerAsk(null, text); return; }
+            AiMsg u = new AiMsg();
+            u.Role = "user";
+            // ״🎤״ - ההנחיה אומרת לעוזר שזה תומלל, ושייתכנו בו שגיאות שמיעה
+            u.Text = Spoken + text;
+            BeginRequest(u);
+        }
+
+        /// <summary>תחילית של בקשה שנאמרה בקול (בהיסטוריה, לא בבועה).</summary>
+        internal const string Spoken = "🎤 ";
         private static string Placeholder { get { return Lang.T("מה לעשות? למשל: תרגם לאנגלית"); } }
         private bool _hint;
 
@@ -308,6 +452,7 @@ namespace SubtitleStudio
             _hint = true;
             _input.ForeColor = Theme.TextFaint;
             _input.Text = Placeholder;
+            _input.Select(0, 0);
         }
 
         private void ClearHint()
@@ -368,16 +513,63 @@ namespace SubtitleStudio
 
             int sendD = _send.Height;
             _send.SetBounds(pad + Theme.S(11), compTop + (ComposerH - sendD) / 2, _send.Width, sendD);
-            _mic.SetBounds(_send.Right + Theme.S(6), compTop + (ComposerH - _mic.Height) / 2, _mic.Width, _mic.Height);
-            int ix = _mic.Right + Theme.S(8);
-            _input.SetBounds(ix, compTop + Theme.S(17), Math.Max(Theme.S(40), ClientSize.Width - pad - Theme.S(20) - ix),
-                ComposerH - Theme.S(34));
+            // בזמן הקלטה ״שליחה״ מוסתר, והמיקרופון (עכשיו ״שליחה״ אדום) תופס את מקומו
+            int micX = Recording ? pad + Theme.S(11) + (sendD - _mic.Width) / 2 : _send.Right + Theme.S(6);
+            _mic.SetBounds(micX, compTop + (ComposerH - _mic.Height) / 2, _mic.Width, _mic.Height);
+            int ix = _send.Right + Theme.S(6) + _mic.Width + Theme.S(8);
+            // **ממורכז לגובה, לפי גובה שורה אמיתי.** עד 0.8.14 התיבה התחילה 17 פיקסלים מלמעלה, והטקסט ישב מעל הכפתורים
+            int lineH = TextRenderer.MeasureText("Ag", Theme.Ui).Height + Theme.S(2);
+            _input.SetBounds(ix, compTop + (ComposerH - lineH) / 2, Math.Max(Theme.S(40), ClientSize.Width - pad - Theme.S(20) - ix), lineH);
+            _recCancel.SetBounds(ClientSize.Width - pad - Theme.S(12) - _recCancel.Width, compTop + (ComposerH - _recCancel.Height) / 2,
+                _recCancel.Width, _recCancel.Height);
             // המיקומים כאן בעברית. באנגלית הכותרת ותיבת הכתיבה משתקפות: הכפתורים בצד ימין
             // והשליחה בסוף השורה. עד 0.8.1 החלון נשאר כמו בעברית (נמצא בסבב של 0.8.1)
             if (!Lang.Rtl)
-                foreach (Control c in new Control[] { _close, _reset, _keyBtn, _speak, _send, _mic, _input })
+                foreach (Control c in new Control[] { _close, _reset, _keyBtn, _speak, _send, _mic, _input, _recCancel })
                     c.Left = ClientSize.Width - c.Right;
             Invalidate();
+        }
+
+        private Rectangle ComposerRect
+        {
+            get
+            {
+                int pad = Theme.S(12);
+                return new Rectangle(pad - 2, ClientSize.Height - ComposerH - pad - 2, ClientSize.Width - pad * 2 + 4, ComposerH + 4);
+            }
+        }
+
+        /// <summary>תיבת הכתיבה בזמן הקלטה: נקודה אדומה פועמת, כמה זמן, והעוצמה לאורך ההקלטה - שרואים שהוא שומע.</summary>
+        private void PaintRecording(Graphics g, RectangleF box)
+        {
+            RectangleF all = new RectangleF(0, 0, ClientSize.Width, ClientSize.Height);
+            float cy = box.Y + box.Height / 2f;
+            double t = (DateTime.Now - _recStart).TotalSeconds;
+            // נקודה וזמן - ליד ״ביטול״, בקצה של התיבה
+            float right = (Lang.Rtl ? _recCancel.Left : ClientSize.Width - _recCancel.Right) - Theme.S(8);
+            float dot = Theme.S(10);
+            float a = 0.45f + 0.55f * (float)Math.Abs(Math.Cos(t * 2.6));
+            RectangleF dr = Theme.Mir(all, new RectangleF(right - dot, cy - dot / 2f, dot, dot));
+            using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Bad, a))) g.FillEllipse(b, dr);
+            string time = string.Format("{0}:{1:00}", (int)t / 60, (int)t % 60);
+            float tw = TextRenderer.MeasureText(time, Theme.Ui).Width + Theme.S(2);
+            RectangleF trc = Theme.Mir(all, new RectangleF(right - dot - Theme.S(8) - tw, box.Y, tw, box.Height));
+            Theme.Str(g, time, Theme.Ui, Theme.Text, trc, Theme.SfCenter);
+            // העוצמה: עמודה לכל רגע, החדשים ליד הזמן
+            float x1 = (Lang.Rtl ? _mic.Right : ClientSize.Width - _mic.Left) + Theme.S(12);
+            float x2 = right - dot - Theme.S(8) - tw - Theme.S(12);
+            float bw = Theme.S(3), step = Theme.S(5);
+            int n = Math.Max(0, (int)((x2 - x1) / step));
+            float maxH = box.Height * 0.56f;
+            using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.TextFaint, Theme.Text, 0.35f)))
+                for (int i = 0; i < n; i++)
+                {
+                    int li = _levels.Count - 1 - i;
+                    float lv = li >= 0 ? _levels[li] : 0f;
+                    float h = Math.Max(Theme.S(3), (float)Math.Pow(Math.Min(1f, lv * 1.6f), 0.6) * maxH);
+                    RectangleF br = Theme.Mir(all, new RectangleF(x2 - (i + 1) * step + (step - bw), cy - h / 2f, bw, h));
+                    Theme.FillRound(g, br, bw / 2f, b.Color);
+                }
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -400,7 +592,7 @@ namespace SubtitleStudio
             // בקואורדינטות של עברית (הכפתורים משמאל), ומשתקף באנגלית
             float tx = Width - Theme.S(14) - d - Theme.S(10);
             float tleft = Theme.S(12) + _close.Width + Theme.S(4) + _reset.Width + Theme.S(4) + _keyBtn.Width + Theme.S(4) + _speak.Width + Theme.S(8);
-            Theme.Str(g, Lang.T("עוזר AI"), Theme.Big, Theme.Text,
+            Theme.Str(g, Lang.T("העוזר החכם"), Theme.Big, Theme.Text,
                 Theme.Mir(all, new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22))), Theme.SfUi);
             Theme.Str(g, Lang.T("מבקשים במילים רגילות - והוא מבצע"), Theme.Small, Theme.TextDim,
                 Theme.Mir(all, new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18))), Theme.SfUi);
@@ -410,7 +602,13 @@ namespace SubtitleStudio
             int compTop = ClientSize.Height - ComposerH - pad;
             RectangleF box = new RectangleF(pad, compTop, ClientSize.Width - pad * 2, ComposerH);
             Theme.FillRound(g, box, ComposerH / 2f, Theme.Panel);
-            Theme.DrawRound(g, box, ComposerH / 2f, _input.Focused ? Theme.Accent : Theme.Border, _input.Focused ? 1.6f : 1f);
+            if (Recording)
+            {
+                Theme.DrawRound(g, box, ComposerH / 2f, Theme.Mix(Theme.Border, Theme.Bad, 0.6f), 1.6f);
+                PaintRecording(g, box);
+            }
+            else
+                Theme.DrawRound(g, box, ComposerH / 2f, _input.Focused ? Theme.Accent : Theme.Border, _input.Focused ? 1.6f : 1f);
 
 
             Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), Theme.S(12), Theme.Border, 1f);
@@ -509,7 +707,8 @@ namespace SubtitleStudio
             _ask = null;
             AiVoice.Stop();
             _view.HideChips();
-            _view.AddUser(shown);
+            // תשובה בקול - הבועה שלה כבר על המסך (עם המילים)
+            if (shown != null) _view.AddUser(shown);
             Dictionary<string, object> res = new Dictionary<string, object>();
             res["answer"] = answer;
             a.Results.Add(res);
@@ -586,10 +785,28 @@ namespace SubtitleStudio
             _stopToken = stop;
             Thread t = new Thread(delegate ()
             {
-                // בשיחה: מכסה דקתית או עומס - דגם אחר מיד, לא המתנה של חצי דקה בכל סבב (נמדד: 59 שניות לבקשה אחת)
-                Ai.PreferSwitch = true;
                 StopToken.Attach(stop);
-                try { reply = Ai.Send(sys, snapshot, tools, false); }
+                string slow = null;
+                // **גוגל איטי - גם דגם אחר, במקביל** (`Ai.Race`, 0.8.14): אותה בקשה לוקחת פעם 3 שניות ופעם 33
+                try
+                {
+                    reply = Ai.Race<AiReply>(2, HedgeMs, false,
+                        delegate (int i)
+                        {
+                            // בשיחה: מכסה דקתית או עומס - דגם אחר מיד, לא המתנה של חצי דקה בכל סבב (נמדד: 59 שניות לבקשה אחת)
+                            Ai.PreferSwitch = true;
+                            if (i > 0) Ai.StartAfter = slow;
+                            return Ai.Send(sys, snapshot, tools, false);
+                        },
+                        delegate (AiReply x) { return x.Ok; },
+                        delegate (int i)
+                        {
+                            slow = Ai.Trying;
+                            Ai.Log("הדגם " + slow + " לא ענה תוך " + (HedgeMs / 1000) + " שניות - שואלים גם את הבא, במקביל");
+                            try { BeginInvoke((MethodInvoker)delegate { if (gen == _gen) _view.Status = Lang.T("גוגל איטי כרגע - שואל גם דגם נוסף"); }); }
+                            catch { }
+                        });
+                }
                 catch (Exception ex)
                 {
                     // חריגה בחוט הרקע השאירה את הצ'אט תקוע על שלוש נקודות
@@ -605,6 +822,9 @@ namespace SubtitleStudio
             t.Start();
         }
 
+        /// <summary>אחרי כמה זמן בלי תשובה - אותה בקשה גם לדגם הבא (`Ai.Race`). תשובה רגילה בשיחה - 3-7 שניות (נמדד 12.10).</summary>
+        internal static int HedgeMs = 8000;
+
         // ---------- עצירה (0.8.12) ----------
         /// <summary>מספר הבקשה: עצירה מקדמת אותו, ותשובה או המשך שמגיעים אחריה - של בקשה ישנה - נזרקים.</summary>
         private int _gen;
@@ -613,7 +833,7 @@ namespace SubtitleStudio
         /// <summary>כפתור השליחה הוא ״עצירה״ כל עוד העוזר עובד.</summary>
         private void SendLook(bool working)
         {
-            _send.Icon = working ? Ico.Stop : Ico.Sparkles;
+            _send.Icon = working ? Ico.Stop : Ico.Send;
             _send.Enabled = true;
             Ui.Tip.SetToolTip(_send, working ? Lang.T("עצירה") : Lang.T("שליחה (Enter)"));
             _send.Invalidate();
@@ -627,6 +847,8 @@ namespace SubtitleStudio
             if (_stopToken != null) _stopToken.Stop();
             AiVoice.Stop();
             if (_ask != null) { _ask = null; _view.HideChips(); }
+            // עצרו באמצע התמלול של הודעה קולית - הבועה לא נשארת על ״…״
+            if (_pendingVoice != null) { _view.SetText(_pendingVoice, _pendingLabel); _pendingVoice = null; }
             SealHistory();
             _view.AddAction(Lang.T("נעצר"), false);
             Done();
@@ -734,10 +956,10 @@ namespace SubtitleStudio
 
             // **כל הדגמים עמוסים כרגע** (מכסה דקתית או עומס, לא יומית): מחכים כמה שהשרת ביקש וממשיכים לבד - עד פעמיים
             if (r != null && !r.Ok && !r.Empty && _waits < 2 &&
-                ((Ai.LastHttpCode == 429 && !Ai.LastQuotaIsDaily) || Ai.LastHttpCode >= 500))
+                ((r.HttpCode == 429 && !r.QuotaDaily) || r.HttpCode >= 500))
             {
                 _waits++;
-                int sec = Math.Max(5, Math.Min(45, Ai.LastRetrySec > 0 ? Ai.LastRetrySec : 20));
+                int sec = Math.Max(5, Math.Min(45, r.RetrySec > 0 ? r.RetrySec : 20));
                 _view.AddAction(Lang.F("גוגל עמוס רגע - ממשיך בעוד {0} שניות", sec), true);
                 _view.Thinking = true;
                 _view.Status = Lang.F("גוגל עמוס רגע - ממשיך בעוד {0} שניות", sec);
@@ -812,7 +1034,7 @@ namespace SubtitleStudio
                     SendLook(false);
                     _view.Thinking = false;
                     Invalidate();
-                    _input.Focus();
+                    if (ContainsFocus || Form.ActiveForm == this) _input.Focus();
                     return;
                 }
                 if (stopped)
@@ -1002,7 +1224,8 @@ namespace SubtitleStudio
             if ((AiVoice.SpeakOn || _voiceRequest) && !string.IsNullOrEmpty(_lastBot)) AiVoice.Speak(_lastBot);
             _lastBot = null;
             Invalidate();
-            _input.Focus();
+            // רק כשהחלון פעיל: Focus בחלון שברקע השאיר את הטקסט לדוגמה בתיבה מסומן בכחול (בלי GotFocus שמנקה אותו)
+            if (ContainsFocus || Form.ActiveForm == this) _input.Focus();
         }
 
         private string SystemPrompt()
@@ -1010,7 +1233,9 @@ namespace SubtitleStudio
             StringBuilder sb = new StringBuilder();
             sb.Append("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת ווינדוס לכתוביות בעברית: כתיבה, תמלול, תזמון, תרגום, ");
             sb.Append("עיצוב, הטמעה בסרט, חיתוך וכלים לסרט ולקול. ");
-            sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר וברור, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון (בלי כוכביות וסולמיות).\n\n");
+            sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר וברור, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון (בלי כוכביות וסולמיות).\n");
+            sb.Append("הודעה שמתחילה ב-🎤 נאמרה בקול ותומללה אוטומטית - ייתכנו בה שגיאות שמיעה (״איי״ במקום ״היי״, מילה דומה בצליל). ");
+            sb.Append("הבן לפי ההקשר; שאל רק אם באמת לא ברור. לבקשה כזו התשובה מוקראת לו בקול - כתוב אותה כך שתישמע טוב: קצרה, בלי רשימות ארוכות.\n\n");
 
             sb.Append("יש לך גישה לתוכנה כמו למשתמש: אתה רואה את המצב (למטה), קורא את הכתוביות, מפעיל כל פקודה בתפריטים ובסרגל ");
             sb.Append("(list_commands, run_command), ובחלון פתוח - קורא, ממלא ולוחץ (ui_read, ui_set, ui_click). ");
@@ -1096,6 +1321,7 @@ namespace SubtitleStudio
                 public bool Good = true;
                 public bool Rtl = true;      // כיוון לפי התו החזק הראשון
                 public bool Retry;           // בועת שגיאה עם כפתור ניסיון חוזר
+                public bool Voice;           // נאמר בקול: מיקרופון בתחילת הבועה
                 public string[] Chips;
                 public float H;
                 public float W;              // בועה מתכווצת לרוחב הטקסט, לא נמתחת על כל השורה
@@ -1153,6 +1379,25 @@ namespace SubtitleStudio
             public void Clear() { _items.Clear(); _chipItem = null; _scroll = 0; Invalidate(); }
 
             public void AddUser(string t) { Add(Kind.User, t, true, false); }
+            /// <summary>בועה של הודעה קולית - ״…״ עד שהמילים מגיעות (`SetText`).</summary>
+            public object AddVoice(string t) { Item it = Add(Kind.User, t, true, false); it.Voice = true; Measure(); return it; }
+            public void SetText(object item, string t)
+            {
+                Item it = item as Item;
+                if (it == null || !_items.Contains(it)) return;
+                it.Text = t ?? "";
+                it.Rtl = IsRtlText(it.Text);
+                Measure();
+                ScrollToEnd();
+            }
+            public void Remove(object item)
+            {
+                Item it = item as Item;
+                if (it == null) return;
+                _items.Remove(it);
+                Measure();
+                ScrollToEnd();
+            }
             public void AddBot(string t) { Add(Kind.Bot, t, true, false); }
             public void AddError(string t) { Add(Kind.Bot, t, false, true); }
             /// <summary>שורת ״✓ בוצע״. **רצופות מתקבצות לבועה אחת** (שורה לכל פעולה, עד 8): בקשה של שש פעולות ציירה שש
@@ -1213,7 +1458,7 @@ namespace SubtitleStudio
                 Measure();
             }
 
-            private void Add(Kind k, string text, bool good, bool retry)
+            private Item Add(Kind k, string text, bool good, bool retry)
             {
                 Item it = new Item();
                 it.Kind = k;
@@ -1224,7 +1469,11 @@ namespace SubtitleStudio
                 _items.Add(it);
                 Measure();
                 ScrollToEnd();
+                return it;
             }
+
+            private static int VoiceIconW { get { return Theme.S(22); } }
+            private static Color UserFill { get { return Theme.Dark ? Theme.Mix(Theme.Panel, Theme.Accent, 0.34f) : Theme.AccentSoft; } }
 
             private float BubbleW { get { return Math.Max(Theme.S(120), Width * 0.84f - Theme.S(34)); } }
             private static int AvatarD { get { return Theme.S(26); } }
@@ -1263,9 +1512,10 @@ namespace SubtitleStudio
                         }
                         // **נמדד באותו מנוע שמצייר** (TextRenderer, דרך Theme.Str). עד 0.8.12 המדידה היתה של GDI+, והוא
                         // שובר שורות אחרת: הטקסט צויר בשורה אחת יותר מהבועה, והסוף של תשובות ארוכות פשוט לא נראה
-                        Size s = TextSize(it.Text, Theme.Ui, (int)BubbleW - Theme.S(26), it.Rtl);
+                        int vw = it.Voice ? VoiceIconW : 0;
+                        Size s = TextSize(it.Text, Theme.Ui, (int)BubbleW - Theme.S(26) - vw, it.Rtl);
                         it.H = s.Height + Theme.S(26) + (it.Retry ? Theme.S(34) : 0);
-                        it.W = Math.Min(BubbleW, s.Width + Theme.S(30) + 2);
+                        it.W = Math.Min(BubbleW, s.Width + Theme.S(30) + 2 + vw);
                         if (it.Retry) it.W = Math.Max(it.W, Theme.S(150));
                         if (it.W < Theme.S(70)) it.W = Theme.S(70);
                     }
@@ -1424,13 +1674,25 @@ namespace SubtitleStudio
                             RectangleF r = user
                                 ? new RectangleF(Width - w, y, w, it.H)
                                 : new RectangleF(AvatarD + Theme.S(8), y, w, it.H);
-                            Color fill = user ? Theme.Accent
+                            // **רגוע יותר (0.8.14):** הבועה של המשתמש בגוון של הכחול ולא בכחול מלא עם טקסט לבן, ובלי מסגרת סביב
+                            // התשובות (רק בשגיאה, ובערכה הבהירה - קו עדין, כי לבן על אפור בהיר נבלע)
+                            Color fill = user ? UserFill
                                 : (it.Good ? Theme.Panel : Theme.Mix(Theme.Panel, Theme.Bad, 0.10f));
-                            Color fg = user ? Color.White : Theme.Text;
+                            Color fg = Theme.Text;
                             Tail(g, r, rad, fill, user);
-                            if (!user) TailBorder(g, r, rad, it.Good ? Theme.BorderSoft : Theme.Mix(Theme.Border, Theme.Bad, 0.5f));
+                            if (!it.Good) TailBorder(g, r, rad, Theme.Mix(Theme.Border, Theme.Bad, 0.5f));
+                            else if (!Theme.Dark && !user) TailBorder(g, r, rad, Theme.BorderSoft);
                             float th = it.H - Theme.S(20) - (it.Retry ? Theme.S(34) : 0);
                             RectangleF tr = new RectangleF(r.X + Theme.S(13), r.Y + Theme.S(11), r.Width - Theme.S(26), th);
+                            if (it.Voice)
+                            {
+                                // המיקרופון בתחילת השורה הראשונה - בצד שבו הטקסט מתחיל
+                                float isz = Theme.S(15);
+                                float lh = TextRenderer.MeasureText("Ag", Theme.Ui).Height;
+                                float ixx = it.Rtl ? tr.Right - isz : tr.X;
+                                Icons.Draw(g, Ico.Mic, new RectangleF(ixx, tr.Y + (lh - isz) / 2f, isz, isz), Theme.Mix(fg, fill, 0.25f), 1.8f);
+                                tr = new RectangleF(it.Rtl ? tr.X : tr.X + VoiceIconW, tr.Y, tr.Width - VoiceIconW, tr.Height);
+                            }
                             Theme.Str(g, it.Text, Theme.Ui, fg, tr, it.Rtl ? Theme.SfRtlWrap : Theme.SfWrap);
                             if (it.Retry)
                             {

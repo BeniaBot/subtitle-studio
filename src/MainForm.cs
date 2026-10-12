@@ -311,7 +311,7 @@ namespace SubtitleStudio
             Ui.Tip.SetToolTip(_redoBtn, Lang.T("ביצוע מחדש (Ctrl+Y)"));
             _toolbar.Controls.Add(_redoBtn);
 
-            _aiBtn = SmallBtn(Ico.Sparkles, Lang.T("עוזר AI - לבקש פעולות במילים רגילות (Ctrl+K)"),
+            _aiBtn = SmallBtn(Ico.Sparkles, Lang.T("העוזר החכם - לבקש פעולות במילים רגילות (Ctrl+K)"),
                 delegate { OpenAiChat(); });
             _aiBtn.Tint = Theme.Purple;
             _moreBtn = SmallBtn(Ico.Question, Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)"),

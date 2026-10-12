@@ -138,7 +138,8 @@ namespace SubtitleStudio
         /// **תרגום** לאנגלית משובשת (״I am the witness of the Holy Spirit״) - נמדד. זה
         /// הדגם שעוברים אליו כשהמכסה השעתית של הראשון נגמרת, כלומר באמצע שיעור ארוך.</summary>
         private string _lang = "";
-        internal string Language { get { return _lang; } }
+        /// <summary>נקבע מבחוץ רק להודעה קולית בצ׳אט (`AiVoice.HearGroq`): ״היי, שלום״ של שתי שניות זוהה כאנגלית ונכתב "Hey, Shalom!".</summary>
+        internal string Language { get { return _lang; } set { _lang = value ?? ""; } }
 
         public void NewFile() { _lang = ""; }
 

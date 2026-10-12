@@ -7,7 +7,9 @@
 #  5. ״לבטל את מה שעשיתי״
 #  6. עצירה באמצע
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
-# צפוי: 20 בדיקות.
+#  9. גוגל איטי - אותה בקשה גם לדגם אחר, במקביל (0.8.14)
+#  10-13. הודעה קולית: המילים בבועה / תמלול נכשל - ההקלטה עצמה / בלי דיבור / עצירה באמצע
+# צפוי: 30 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -66,7 +68,59 @@ function StartServer($responses) {
     (TY 'Ai').GetField('EndpointRoot', $ST).SetValue($null, "http://127.0.0.1:$port/v1beta/models/")
     return @{ Port = $port; Ps = $ps; Handle = $h; Dir = $dir }
 }
-function Req($srv, $k) { $f = Join-Path $srv.Dir "req-$k.bin"; if (-not (Test-Path $f)) { return '' }; $b = [IO.File]::ReadAllBytes($f); $s = [Text.Encoding]::UTF8.GetString($b); $i = $s.IndexOf("`r`n`r`n"); return $s.Substring($i + 4) }
+# גוגל מדומה **שעונה לכמה בקשות במקביל** (המרוץ, 0.8.14): בקשה עם hold מחכה בצד, והבאות נענות בינתיים
+$serverC = {
+    param($port, $responses, $logDir)
+    $l = New-Object System.Net.Sockets.TcpListener ([Net.IPAddress]::Loopback), $port
+    $l.Start()
+    $pending = New-Object System.Collections.ArrayList
+    $k = 0
+    $deadline = [DateTime]::UtcNow.AddSeconds(90)
+    try {
+        while (($k -lt $responses.Count -or $pending.Count -gt 0) -and [DateTime]::UtcNow -lt $deadline) {
+            if ($k -lt $responses.Count -and $l.Pending()) {
+                $c = $l.AcceptTcpClient()
+                $ns = $c.GetStream(); $ns.ReadTimeout = 15000
+                $ms = New-Object IO.MemoryStream; $buf = New-Object byte[] 65536; $headEnd = -1; $clen = 0
+                while ($true) {
+                    $n = $ns.Read($buf, 0, $buf.Length); if ($n -le 0) { break }
+                    $ms.Write($buf, 0, $n)
+                    $txt = [Text.Encoding]::ASCII.GetString($ms.ToArray())
+                    if ($headEnd -lt 0) { $headEnd = $txt.IndexOf("`r`n`r`n"); if ($headEnd -ge 0) { $m = [regex]::Match($txt.Substring(0, $headEnd), '(?im)^content-length:\s*(\d+)'); if ($m.Success) { $clen = [int]$m.Groups[1].Value } } }
+                    if ($headEnd -ge 0 -and $ms.Length -ge $headEnd + 4 + $clen) { break }
+                }
+                [IO.File]::WriteAllBytes((Join-Path $logDir ("req-$k.bin")), $ms.ToArray())
+                $resp = $responses[$k]
+                $hold = 0; if ($resp.hold) { $hold = [double]$resp.hold }
+                [void]$pending.Add(@{ c = $c; ns = $ns; resp = $resp; until = [DateTime]::UtcNow.AddSeconds($hold) })
+                $k++
+            }
+            foreach ($q in @($pending)) {
+                $gone = $q.c.Client.Poll(0, [Net.Sockets.SelectMode]::SelectRead) -and $q.c.Client.Available -eq 0
+                if ([DateTime]::UtcNow -ge $q.until -or $gone) {
+                    if (-not $gone) {
+                        $body = [Text.Encoding]::UTF8.GetBytes($q.resp.body)
+                        $hb = [Text.Encoding]::ASCII.GetBytes("HTTP/1.1 " + $q.resp.status + " X`r`nContent-Type: application/json`r`nContent-Length: " + $body.Length + "`r`nConnection: close`r`n`r`n")
+                        try { $q.ns.Write($hb, 0, $hb.Length); $q.ns.Write($body, 0, $body.Length); $q.ns.Flush() } catch { }
+                    }
+                    $q.c.Close(); $pending.Remove($q)
+                }
+            }
+            Start-Sleep -Milliseconds 15
+        }
+    } finally { $l.Stop() }
+}
+function StartServerC($responses) {
+    $port = FreePort
+    $dir = Join-Path $work ('srvc-' + $port); New-Item -ItemType Directory $dir | Out-Null
+    $ps = [powershell]::Create(); [void]$ps.AddScript($serverC).AddArgument($port).AddArgument($responses).AddArgument($dir)
+    $h = $ps.BeginInvoke(); Start-Sleep -Milliseconds 300
+    (TY 'Ai').GetField('EndpointRoot', $ST).SetValue($null, "http://127.0.0.1:$port/v1beta/models/")
+    return @{ Port = $port; Ps = $ps; Handle = $h; Dir = $dir }
+}
+# שורת הבקשה (POST /v1beta/models/<דגם>:generateContent...) והדגם שבה
+function ReqLine($srv, $k) { $f = Join-Path $srv.Dir "req-$k.bin"; if (-not (Test-Path $f)) { return '' }; $s = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($f)); return $s.Substring(0, [Math]::Max(0, $s.IndexOf("`r`n"))) }
+function ModelOf($line) { $m = [regex]::Match($line, 'models/([^:?]+):'); if ($m.Success) { return $m.Groups[1].Value }; return '' }function Req($srv, $k) { $f = Join-Path $srv.Dir "req-$k.bin"; if (-not (Test-Path $f)) { return '' }; $b = [IO.File]::ReadAllBytes($f); $s = [Text.Encoding]::UTF8.GetString($b); $i = $s.IndexOf("`r`n`r`n"); return $s.Substring($i + 4) }
 function Ok200($json) { return @{ status = '200 OK'; body = $json } }
 function Reply($partsJson) { return Ok200('{"candidates":[{"content":{"role":"model","parts":[' + $partsJson + ']},"finishReason":"STOP"}]}') }
 function Call($name, $argsJson, $sig) { $s = '{"functionCall":{"name":"' + $name + '","args":' + $argsJson + '}'; if ($sig) { $s += ',"thoughtSignature":"' + $sig + '"' }; return $s + '}' }
@@ -93,23 +147,14 @@ $fInput = $chT.GetField('_input', $IN); $fBusy = $chT.GetField('_busy', $IN); $f
 # חלון שנשאר פתוח יותר מ-20 שניות - נסגר (אחרת ShowDialog תוקע את הבדיקה)
 # חריגה בתוך הצ׳אט - מודפסת, ולא חלון ״Unhandled exception״ שתוקע את הבדיקה
 $script:crashes = New-Object Collections.ArrayList
-[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host ($ev.Exception.StackTrace -split "
-" | Select-Object -First 4 | Out-String) })
+[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host (($ev.Exception.StackTrace -split "`n" | Select-Object -First 4) -join "`n") })
 $script:winSince = $null
 $guard = New-Object Windows.Forms.Timer; $guard.Interval = 500
 $guard.Add_Tick({
     $w = (TY 'AiUi').GetMethod('Current', $ST).Invoke($null, @($mf, $chat))
-    if (-not $w) { # חריגה בתוך הצ׳אט - מודפסת, ולא חלון ״Unhandled exception״ שתוקע את הבדיקה
-$script:crashes = New-Object Collections.ArrayList
-[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host ($ev.Exception.StackTrace -split "
-" | Select-Object -First 4 | Out-String) })
-$script:winSince = $null; return }
+    if (-not $w) { $script:winSince = $null; return }
     if (-not $script:winSince) { $script:winSince = Get-Date }
-    elseif (((Get-Date) - $script:winSince).TotalSeconds -gt 20) { Write-Host "    (חלון נסגר בידי הבדיקה: $($w.Text))"; $w.Close(); # חריגה בתוך הצ׳אט - מודפסת, ולא חלון ״Unhandled exception״ שתוקע את הבדיקה
-$script:crashes = New-Object Collections.ArrayList
-[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host ($ev.Exception.StackTrace -split "
-" | Select-Object -First 4 | Out-String) })
-$script:winSince = $null }
+    elseif (((Get-Date) - $script:winSince).TotalSeconds -gt 20) { Write-Host "    (חלון נסגר בידי הבדיקה: $($w.Text))"; $w.Close(); $script:winSince = $null }
 })
 $guard.Start()
 
@@ -235,7 +280,65 @@ $items = @($view.GetType().GetField('_items', $IN).GetValue($view))
 $lastTxt = $items[$items.Count - 1].GetType().GetField('Text').GetValue($items[$items.Count - 1])
 Check 'מכסה יומית בכולם - ההודעה אומרת מתי היא מתאפסת' ($lastTxt.Contains('מתאפסת') -and ($lastTxt.Contains('בשעה'))) ($lastTxt -replace "`r?`n", ' ')
 
+# ---------- 9. גוגל איטי: אחרי HedgeMs - אותה בקשה גם לדגם אחר, והראשון שעונה מנצח (0.8.14) ----------
+# 8 סימן את כל הדגמים כ״מיצו את המכסה היומית״ - זה נשמר עד סוף הסשן
+(TY 'Ai').GetMethod('ForgetExhausted', $ST).Invoke($null, @())
+$hedge0 = $chT.GetField('HedgeMs', $ST).GetValue($null)
+$chT.GetField('HedgeMs', $ST).SetValue($null, 1500)
+$slowReply = Reply (Txt 'תשובה מאוחרת'); $slowReply.hold = 25
+$srv = StartServerC @($slowReply, (Reply (Txt 'תשובה מהדגם השני.')))
+$sw = [Diagnostics.Stopwatch]::StartNew()
+Say 'שאלה כשגוגל איטי' 30
+$took = $sw.Elapsed.TotalSeconds
+$m0 = ModelOf (ReqLine $srv 0); $m1 = ModelOf (ReqLine $srv 1)
+Check 'גוגל איטי: אחרי שנייה וחצי גם דגם אחר - והתשובה שלו מגיעה, לא אחרי 25 שניות' ((LastModelText) -eq 'תשובה מהדגם השני.' -and $took -lt 10) ("" + [Math]::Round($took, 1) + " שניות")
+Check 'הבקשה המקבילה הלכה לדגם אחר' ($m0 -ne '' -and $m1 -ne '' -and $m0 -ne $m1) ("$m0 / $m1")
+$chT.GetField('HedgeMs', $ST).SetValue($null, $hedge0)
+
+# ---------- 10. הודעה קולית: קודם המילים (דגם קל), הן בבועה, ורק אז הבקשה - בטקסט (0.8.14) ----------
+$pcm = New-Object byte[] (16000 * 2 * 3 / 2)
+for ($q = 0; $q -lt $pcm.Length / 2; $q++) { $v = [int16]([Math]::Sin($q * 2 * [Math]::PI * 220 / 16000) * 9000); $pcm[2 * $q] = [byte]($v -band 0xFF); $pcm[2 * $q + 1] = [byte](($v -shr 8) -band 0xFF) }
+$wav = (TY 'AiVoice').GetMethod('Wav', $ST).Invoke($null, @([byte[]]$pcm, [int]16000))
+$sendVoice = $chT.GetMethod('SendVoice', $IN)
+function VoiceItems { @($view.GetType().GetField('_items', $IN).GetValue($view) | Where-Object { $_.GetType().GetField('Voice').GetValue($_) }) }
+function LastVoiceText { $v = VoiceItems; if ($v.Count -eq 0) { return '' }; return $v[$v.Count - 1].GetType().GetField('Text').GetValue($v[$v.Count - 1]) }
+function LastItemText { $items = @($view.GetType().GetField('_items', $IN).GetValue($view)); $x = $items[$items.Count - 1]; return $x.GetType().GetField('Text').GetValue($x) }
+$hearModels = (TY 'AiVoice').GetField('HearModels', $ST).GetValue($null)
+$srv = StartServer @((Reply (Txt 'תוסיף כתובית בסוף')), (Reply (Txt 'הוספתי.')))
+$sendVoice.Invoke($chat, @([byte[]]$wav, [double]1.5)); Pump 30
+$h0 = Req $srv 0; $h1 = Req $srv 1
+Check 'הודעה קולית: המילים שנשמעו - בבועה (לא ״הודעה קולית (2 שניות)״)' ((LastVoiceText) -eq 'תוסיף כתובית בסוף') (LastVoiceText)
+Check 'התמלול - בדגם קל, עם ההקלטה' ((ModelOf (ReqLine $srv 0)) -eq $hearModels[0] -and $h0.Contains('inline_data') -and $h0.Contains('audio/wav')) (ModelOf (ReqLine $srv 0))
+Check 'והבקשה לעוזר - המילים, בלי ההקלטה, והוא עונה' ($h1.Contains('תוסיף כתובית בסוף') -and -not $h1.Contains('inline_data') -and (LastModelText) -eq 'הוספתי.') ''
+for ($q = 0; $q -lt 10; $q++) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 30 }
+$spoken = (TY 'AiVoice').GetField('LastSpoken', $ST).GetValue($null)
+Check 'מי שדיבר - שומע תשובה (גם כשההקראה כבויה)' ($spoken -eq 'הוספתי.') $spoken
+
+# ---------- 11. התמלול נכשל בכל הדגמים הקלים - ההקלטה עצמה נשלחת לעוזר, כמו עד 0.8.14 ----------
+$denied = @{ status = '403 Forbidden'; body = '{"error":{"code":403,"message":"denied","status":"PERMISSION_DENIED"}}' }
+$seq = @(); foreach ($x in $hearModels) { $seq += $denied }; $seq += (Reply (Txt 'שמעתי את ההקלטה.'))
+$srv = StartServer $seq
+$sendVoice.Invoke($chat, @([byte[]]$wav, [double]1.5)); Pump 30
+$hf = Req $srv $hearModels.Count
+Check 'תמלול נכשל - ההקלטה עצמה הולכת לעוזר, והבועה אומרת ״הודעה קולית״' ($hf.Contains('inline_data') -and (LastVoiceText) -like '*(*' -and (LastModelText) -eq 'שמעתי את ההקלטה.') (LastVoiceText)
+
+# ---------- 12. בהקלטה אין מילים - לא נשלח כלום לעוזר, ונאמר למה ----------
+$srv = StartServer @((Ok200 '{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"STOP"}]}'))
+$n0 = (VoiceItems).Count
+$sendVoice.Invoke($chat, @([byte[]]$wav, [double]1.5)); Pump 15
+Check 'אין דיבור: הבועה יורדת, ״לא שמעתי מילים״, והעוזר פנוי' ((VoiceItems).Count -eq $n0 -and (LastItemText) -like '*לא שמעתי מילים*' -and -not $fBusy.GetValue($chat) -and (Req $srv 1) -eq '') (LastItemText)
+
+# ---------- 13. עצירה באמצע התמלול ----------
+$srv = StartServer @(@{ status = '200 OK'; body = '{}'; hold = 20 })
+$sendVoice.Invoke($chat, @([byte[]]$wav, [double]1.5))
+for ($k = 0; $k -lt 15; $k++) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 40 }
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$chT.GetMethod('StopRequest', $IN).Invoke($chat, @())
+Pump 10
+Check 'עצירה באמצע התמלול: פנוי תוך שניות, והבועה לא נשארת על ״…״' ((-not $fBusy.GetValue($chat)) -and $sw.Elapsed.TotalSeconds -lt 5 -and (LastVoiceText) -ne '…') ("" + [Math]::Round($sw.Elapsed.TotalSeconds, 1) + " שניות, " + (LastVoiceText))
+Check 'בלי חריגות בחלון השיחה' ($script:crashes.Count -eq 0) ("" + $script:crashes.Count)
 $guard.Stop()
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
-if ($fail -gt 0) { exit 1 }
+# שרת מדומה שלא קיבל את כל הבקשות שלו (בדיקה שנכשלה) תקוע ב-AcceptTcpClient ומחזיק את התהליך חי - test-all חיכה לו עד הזמן הקצוב
+[Environment]::Exit($(if ($fail -gt 0) { 1 } else { 0 }))

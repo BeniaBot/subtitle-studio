@@ -1645,3 +1645,10 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 רק לייעץ	Advice only
 כל מה שהעוזר משנה בכתוביות אפשר לבטל - Ctrl+Z, או ״לבטל את מה שעשיתי״ בצ'אט. ״לשאול אותי״ בחלון: העוזר ממלא אותו, ואתם לוחצים על הכפתור האחרון. את המפתחות ואת החלון הזה רק אתם משנים.	Everything the assistant changes in the subtitles can be undone - Ctrl+Z, or 'Undo what I did' in the chat. 'Ask me' in a window: the assistant fills it in, and you click the last button. Only you can change the keys and this window.
 בדיקה עכשיו	Check now
+העוזר החכם - לבקש פעולות במילים רגילות (Ctrl+K)	The smart assistant - ask for actions in plain words (Ctrl+K)
+גוגל איטי כרגע - שואל גם דגם נוסף	Google is slow right now - asking another model too
+ההקלטה שקטה לגמרי - אולי המיקרופון מושתק, או שווינדוס מקליט ממיקרופון אחר	The recording is completely silent - the microphone may be muted, or Windows is recording from a different one
+ביטול ההקלטה (Esc)	Cancel the recording (Esc)
+שומע מה אמרת...	Listening to what you said...
+לא שמעתי מילים בהקלטה - נסו שוב, קרוב יותר למיקרופון	I didn't hear any words in the recording - try again, closer to the microphone
+מקריא - לחיצה עוצרת את ההקראה	Reading aloud - click to stop

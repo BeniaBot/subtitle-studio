@@ -13,6 +13,9 @@ if not exist "%CSC%" (
   echo [ERROR] C# compiler not found in Windows.
   exit /b 1
 )
+for %%I in ("%CSC%") do set FW=%%~dpI
+rem  Windows speech (the built-in Hebrew voice, 0.8.14): WinRT metadata that ships with Windows 10/11.
+set WINMD=%WINDIR%\System32\WinMetadata
 
 if not exist "build\app.ico" (
   echo Creating icon...
@@ -50,6 +53,10 @@ echo Compiling...
   /reference:System.Windows.Forms.dll ^
   /reference:System.Web.Extensions.dll ^
   /reference:System.Security.dll ^
+  /reference:"%WINMD%\Windows.Foundation.winmd" ^
+  /reference:"%WINMD%\Windows.Media.winmd" ^
+  /reference:"%WINMD%\Windows.Storage.winmd" ^
+  /reference:"%FW%System.Runtime.dll" ^
   src\*.cs
 if errorlevel 1 (
   echo.
