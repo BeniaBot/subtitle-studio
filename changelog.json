@@ -2,6 +2,31 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.16",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "t": "major",
+          "s": "חלון העוזר החכם קטן, נקי ועכשווי יותר: נפתח צמוד לחלון, פס עליון דק, ובלי תמונה ליד כל תשובה",
+          "en": "The smart assistant window is smaller, cleaner and more modern: it opens attached to the window, with a thin header and no picture beside every answer"
+        },
+        {
+          "t": "feature",
+          "s": "במסך הפתיחה העוזר הוא כפתור לוגו, כמו שאר הכפתורים בפינה",
+          "en": "On the start screen the assistant is a logo button, like the other corner buttons"
+        },
+        {
+          "t": "feature",
+          "s": "תפריט ״עוד״ בחלון העוזר: שיחה חדשה, מה העוזר רשאי לעשות, והמפתח של גוגל",
+          "en": "A 'More' menu in the assistant window: new conversation, what the assistant may do, and the Google key"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר: ״הוזזו 5 כתוביות: 0.5 שניות מוקדם יותר״ במקום ״ב--0.5 שניות״, ובלי שאלת המשך אחרי פעולה קטנה",
+          "en": "The assistant: 'shifted 5 subtitles: 0.5 seconds earlier' instead of 'by -0.5 seconds', and no follow-up question after a small action"
+        }
+      ]
+    },    {
       "v": "0.8.15",
       "date": "2026-10-12",
       "items": [

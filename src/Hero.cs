@@ -20,7 +20,7 @@ namespace SubtitleStudio
         public event EventHandler HelpClick;
         public event EventHandler ThemeClick;
         public event EventHandler AboutClick;
-        /// <summary>״העוזר החכם״ - הכפתור עם הטקסט ליד האייקונים (0.8.13): מי שלא מכיר את ✦ בסרגל צריך לראות שיש עוזר.</summary>
+        /// <summary>״העוזר החכם״ - הכפתור הרביעי בפינה (הלוגו בלבד מ-0.8.16; ב-0.8.13-0.8.15 עם טקסט).</summary>
         public event EventHandler AssistantClick;
 
         private readonly Btn _open, _openSubs;
