@@ -28,9 +28,16 @@ namespace SubtitleStudio
             _chat.Owner = this;
             try
             {
-                _chat.Location = new System.Drawing.Point(
-                    Math.Max(0, Left - _chat.Width - Theme.S(8) < 0 ? Left + Width - _chat.Width - Theme.S(20) : Left - _chat.Width - Theme.S(8)),
-                    Top + Theme.S(40));
+                // **צמוד לחלון, מתחת לסרגל** (0.8.16), בצד של ✦ (בעברית - שמאל), ובתוך המסך. עד כאן הוא נפתח משמאל לחלון
+                // כולו - ובמסך מלא, מעל המסך הראשי בגובה כמעט מלא
+                System.Drawing.Rectangle wa = Screen.FromControl(this).WorkingArea;
+                System.Drawing.Point client = PointToScreen(System.Drawing.Point.Empty);
+                int y = client.Y + Theme.S(66);
+                int h = Math.Max(_chat.MinimumSize.Height, Math.Min(_chat.Height, Math.Min(wa.Bottom, client.Y + ClientSize.Height) - y - Theme.S(12)));
+                int x = Lang.Rtl ? client.X + Theme.S(12) : client.X + ClientSize.Width - _chat.Width - Theme.S(12);
+                x = Math.Max(wa.Left, Math.Min(x, wa.Right - _chat.Width));
+                y = Math.Max(wa.Top, Math.Min(y, wa.Bottom - h));
+                _chat.SetBounds(x, y, _chat.Width, h);
             }
             catch { }
             _chat.FormClosed += delegate { _chat = null; };
@@ -528,7 +535,10 @@ namespace SubtitleStudio
             _doc.Shift(target, (long)(sec * 1000));
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = Lang.F("הוזזו {0} כתוביות ב-{1} שניות", target.Count, Theme.Ltr((sec > 0 ? "+" : "") + sec.ToString("0.##", CultureInfo.InvariantCulture)));
+            // במילים, לא ״ב--0.5 שניות״ (0.8.16)
+            r["done"] = sec < 0
+                ? Lang.F("הוזזו {0} כתוביות: {1} שניות מוקדם יותר", target.Count, Theme.Ltr((-sec).ToString("0.##", CultureInfo.InvariantCulture)))
+                : Lang.F("הוזזו {0} כתוביות: {1} שניות מאוחר יותר", target.Count, Theme.Ltr(sec.ToString("0.##", CultureInfo.InvariantCulture)));
             return r;
         }
 

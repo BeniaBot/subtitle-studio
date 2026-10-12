@@ -34,7 +34,7 @@ namespace SubtitleStudio
         private readonly IAiHost _host;
         private readonly ChatView _view;
         private readonly TextBox _input;
-        private readonly Btn _send, _close, _reset, _keyBtn;
+        private readonly Btn _send, _close, _more;
         private readonly List<AiMsg> _history = new List<AiMsg>();
         private bool _busy;
         private Point _dragOrigin;
@@ -64,8 +64,9 @@ namespace SubtitleStudio
             RightToLeft = Theme.UiRtl;
             ShowInTaskbar = false;
             KeyPreview = true;
-            MinimumSize = new Size(Theme.S(360), Theme.S(420));
-            ClientSize = new Size(Theme.S(440), Theme.S(660));
+            // **קטן יותר (0.8.16)** - בנימין: ״הוא חלון ענק שתופס מלא מקום... נראה קצת מיושן״. עד כאן 440×660
+            MinimumSize = new Size(Theme.S(300), Theme.S(380));
+            ClientSize = new Size(Theme.S(360), Theme.S(500));
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
 
             _view = new ChatView();
@@ -118,32 +119,21 @@ namespace SubtitleStudio
             _send = new Btn();
             _send.Icon = Ico.Send;
             _send.IconOnly = true;
-            _send.IconSize = Theme.S(18);
+            _send.IconSize = Theme.S(16);
             _send.Kind = BtnKind.Primary;
-            _send.Radius = Theme.S(19);
-            _send.Size = new Size(Theme.S(38), Theme.S(38));
+            _send.Radius = Theme.S(16);
+            _send.Size = new Size(Theme.S(32), Theme.S(32));
             _send.Click += delegate { if (_busy) StopRequest(); else Send(); };
             Ui.Tip.SetToolTip(_send, Lang.T("שליחה (Enter)"));
             Controls.Add(_send);
 
-            _reset = new Btn();
-            _reset.Icon = Ico.Refresh;
-            _reset.IconOnly = true;
-            _reset.IconSize = Theme.S(15);
-            _reset.Kind = BtnKind.Tool;
-            _reset.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
-            _reset.Size = new Size(Theme.S(32), Theme.S(32));
-            _reset.Click += delegate { _history.Clear(); _view.Clear(); Greet(); };
-            Ui.Tip.SetToolTip(_reset, Lang.T("שיחה חדשה"));
-            Controls.Add(_reset);
+            // **שלושה כפתורים בפס, לא ארבעה (0.8.16):** שיחה חדשה, המפתח, והרשאות העוזר - בתפריט ״עוד״
+            _more = HeadBtn(Ico.More, Lang.T("עוד: שיחה חדשה, מה העוזר רשאי לעשות, המפתח של גוגל"));
+            _more.Click += delegate { MoreMenu(); };
+            Controls.Add(_more);
 
-            _close = new Btn();
-            _close.Icon = Ico.Close;
-            _close.IconOnly = true;
-            _close.IconSize = Theme.S(14);
-            _close.Kind = BtnKind.Tool;
-            _close.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
-            _close.Size = new Size(Theme.S(32), Theme.S(32));
+            _close = HeadBtn(Ico.Close, Lang.T("סגירה (Esc) - השיחה נשמרת"));
+            _close.IconSize = Theme.S(13);
             _close.Click += delegate { Close(); };
             Controls.Add(_close);
 
@@ -159,24 +149,8 @@ namespace SubtitleStudio
                 Hide();
             };
 
-            _keyBtn = new Btn();
-            _keyBtn.Icon = Ico.Key;
-            _keyBtn.IconOnly = true;
-            _keyBtn.IconSize = Theme.S(15);
-            _keyBtn.Kind = BtnKind.Tool;
-            _keyBtn.BackColor = Theme.Panel;   // יושב על פס הכותרת, לא על רקע החלון
-            _keyBtn.Size = new Size(Theme.S(32), Theme.S(32));
-            _keyBtn.Click += delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); };
-            Ui.Tip.SetToolTip(_keyBtn, Lang.T("המפתח של גוגל, שהעוזר עובד איתו"));
-            Controls.Add(_keyBtn);
-
             // **קול (0.8.12):** הקראת התשובות, ודיבור אל העוזר
-            _speak = new Btn();
-            _speak.IconOnly = true;
-            _speak.IconSize = Theme.S(15);
-            _speak.Kind = BtnKind.Tool;
-            _speak.BackColor = Theme.Panel;
-            _speak.Size = new Size(Theme.S(32), Theme.S(32));
+            _speak = HeadBtn(Ico.SpeakerOff, "");
             _speak.Click += delegate
             {
                 // באמצע הקראה - הלחיצה משתיקה אותה (בלי לשנות את ההגדרה)
@@ -198,11 +172,11 @@ namespace SubtitleStudio
             _mic = new Btn();
             _mic.Icon = Ico.Mic;
             _mic.IconOnly = true;
-            _mic.IconSize = Theme.S(17);
+            _mic.IconSize = Theme.S(16);
             _mic.Kind = BtnKind.Tool;
             _mic.BackColor = Theme.Panel;
-            _mic.Radius = Theme.S(17);
-            _mic.Size = new Size(Theme.S(34), Theme.S(34));
+            _mic.Radius = Theme.S(15);
+            _mic.Size = new Size(Theme.S(30), Theme.S(30));
             _mic.Click += delegate { MicClick(); };
             Ui.Tip.SetToolTip(_mic, Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)"));
             Controls.Add(_mic);
@@ -211,11 +185,11 @@ namespace SubtitleStudio
             _recCancel = new Btn();
             _recCancel.Icon = Ico.Close;
             _recCancel.IconOnly = true;
-            _recCancel.IconSize = Theme.S(14);
+            _recCancel.IconSize = Theme.S(13);
             _recCancel.Kind = BtnKind.Tool;
             _recCancel.BackColor = Theme.Panel;
-            _recCancel.Radius = Theme.S(15);
-            _recCancel.Size = new Size(Theme.S(30), Theme.S(30));
+            _recCancel.Radius = Theme.S(14);
+            _recCancel.Size = new Size(Theme.S(28), Theme.S(28));
             _recCancel.Visible = false;
             _recCancel.Click += delegate { MicFinish(false); };
             Ui.Tip.SetToolTip(_recCancel, Lang.T("ביטול ההקלטה (Esc)"));
@@ -248,6 +222,35 @@ namespace SubtitleStudio
         }
 
         private Btn _speak, _mic, _recCancel;
+
+        /// <summary>כפתור אייקון קטן בפס העליון - על הרקע של החלון, בלי משטח עד שמרחפים.</summary>
+        private static Btn HeadBtn(Ico icon, string tip)
+        {
+            Btn b = new Btn();
+            b.Icon = icon;
+            b.IconOnly = true;
+            b.IconSize = Theme.S(15);
+            b.Kind = BtnKind.Tool;
+            b.BackColor = Theme.Bg;
+            b.Radius = Theme.S(8);
+            b.Size = new Size(Theme.S(28), Theme.S(28));
+            if (tip.Length > 0) Ui.Tip.SetToolTip(b, tip);
+            return b;
+        }
+
+        /// <summary>״עוד״: שיחה חדשה, ההרשאות של העוזר, והמפתח.</summary>
+        private void MoreMenu()
+        {
+            List<MenuItem> items = new List<MenuItem>();
+            items.Add(MenuItem.Make(Lang.T("שיחה חדשה"), Lang.T("מתחילים מאפס - העוזר שוכח את השיחה הזאת"), Ico.Refresh,
+                delegate { if (_busy) StopRequest(); _history.Clear(); _view.Clear(); Greet(); }));
+            items.Add(MenuItem.Make(Lang.T("מה העוזר רשאי לעשות"), Lang.T("לערוך, ליצור קבצים, לשלוח החוצה - מותר, לשאול, או אסור"), Ico.Sliders,
+                delegate { AiPermsDlg d = new AiPermsDlg(); d.ShowDialog(this); }));
+            items.Add(MenuItem.Make(Lang.T("המפתח של גוגל"), Lang.T("המפתח שהעוזר עובד איתו"), Ico.Key,
+                delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); }));
+            PopupMenu m = new PopupMenu(items, 300);
+            m.ShowUnder(_more);
+        }
         private MicRecorder _rec;
         private System.Windows.Forms.Timer _recTimer;
         /// <summary>הקלטה שנשלחה כתשובה לשאלה עם אפשרויות - נכנסת לשיחה מיד אחרי התשובה לפעולה.</summary>
@@ -465,12 +468,12 @@ namespace SubtitleStudio
             _input.ForeColor = Theme.Text;
         }
 
-        private static int HeadH { get { return Theme.S(58); } }
-        private static int ComposerH { get { return Theme.S(62); } }
+        private static int HeadH { get { return Theme.S(44); } }
+        private static int ComposerH { get { return Theme.S(46); } }
 
         private void Greet()
         {
-            _view.AddBot(Lang.T("שלום. אפשר לבקש ממני דברים במילים רגילות - ואני אעשה אותם בתוכנה."));
+            _view.AddBot(Lang.T("שלום! מה לעשות? אפשר לבקש כל דבר בתוכנה במילים רגילות - בכתב, או בקול (המיקרופון)."));
             string[] s = null;
             try { s = _host.AiSuggestions(); }
             catch { }
@@ -503,31 +506,31 @@ namespace SubtitleStudio
 
         private void DoLayout()
         {
-            int pad = Theme.S(12);
-            _close.SetBounds(pad, Theme.S(13), _close.Width, _close.Height);
-            _reset.SetBounds(pad + _close.Width + Theme.S(4), Theme.S(13), _reset.Width, _reset.Height);
-            _keyBtn.SetBounds(_reset.Right + Theme.S(4), Theme.S(13), _keyBtn.Width, _keyBtn.Height);
-            _speak.SetBounds(_keyBtn.Right + Theme.S(4), Theme.S(13), _speak.Width, _speak.Height);
+            int pad = Theme.S(10);
+            int hy = (HeadH - _close.Height) / 2;
+            _close.SetBounds(Theme.S(8), hy, _close.Width, _close.Height);
+            _more.SetBounds(_close.Right + Theme.S(2), hy, _more.Width, _more.Height);
+            _speak.SetBounds(_more.Right + Theme.S(2), hy, _speak.Width, _speak.Height);
 
             int compTop = ClientSize.Height - ComposerH - pad;
-            _view.SetBounds(pad, HeadH + Theme.S(6), ClientSize.Width - pad * 2,
+            _view.SetBounds(pad, HeadH + Theme.S(8), ClientSize.Width - pad * 2,
                 Math.Max(Theme.S(60), compTop - HeadH - Theme.S(14)));
 
             int sendD = _send.Height;
-            _send.SetBounds(pad + Theme.S(11), compTop + (ComposerH - sendD) / 2, _send.Width, sendD);
+            _send.SetBounds(pad + Theme.S(7), compTop + (ComposerH - sendD) / 2, _send.Width, sendD);
             // בזמן הקלטה ״שליחה״ מוסתר, והמיקרופון (עכשיו ״שליחה״ אדום) תופס את מקומו
-            int micX = Recording ? pad + Theme.S(11) + (sendD - _mic.Width) / 2 : _send.Right + Theme.S(6);
+            int micX = Recording ? pad + Theme.S(7) + (sendD - _mic.Width) / 2 : _send.Right + Theme.S(4);
             _mic.SetBounds(micX, compTop + (ComposerH - _mic.Height) / 2, _mic.Width, _mic.Height);
-            int ix = _send.Right + Theme.S(6) + _mic.Width + Theme.S(8);
+            int ix = _send.Right + Theme.S(4) + _mic.Width + Theme.S(8);
             // **ממורכז לגובה, לפי גובה שורה אמיתי.** עד 0.8.14 התיבה התחילה 17 פיקסלים מלמעלה, והטקסט ישב מעל הכפתורים
             int lineH = TextRenderer.MeasureText("Ag", Theme.Ui).Height + Theme.S(2);
-            _input.SetBounds(ix, compTop + (ComposerH - lineH) / 2, Math.Max(Theme.S(40), ClientSize.Width - pad - Theme.S(20) - ix), lineH);
-            _recCancel.SetBounds(ClientSize.Width - pad - Theme.S(12) - _recCancel.Width, compTop + (ComposerH - _recCancel.Height) / 2,
+            _input.SetBounds(ix, compTop + (ComposerH - lineH) / 2, Math.Max(Theme.S(40), ClientSize.Width - pad - Theme.S(16) - ix), lineH);
+            _recCancel.SetBounds(ClientSize.Width - pad - Theme.S(9) - _recCancel.Width, compTop + (ComposerH - _recCancel.Height) / 2,
                 _recCancel.Width, _recCancel.Height);
             // המיקומים כאן בעברית. באנגלית הכותרת ותיבת הכתיבה משתקפות: הכפתורים בצד ימין
             // והשליחה בסוף השורה. עד 0.8.1 החלון נשאר כמו בעברית (נמצא בסבב של 0.8.1)
             if (!Lang.Rtl)
-                foreach (Control c in new Control[] { _close, _reset, _keyBtn, _speak, _send, _mic, _input, _recCancel })
+                foreach (Control c in new Control[] { _close, _more, _speak, _send, _mic, _input, _recCancel })
                     c.Left = ClientSize.Width - c.Right;
             Invalidate();
         }
@@ -580,37 +583,34 @@ namespace SubtitleStudio
             Theme.Smooth(g);
             using (SolidBrush b = new SolidBrush(Theme.Bg)) g.FillRectangle(b, ClientRectangle);
 
-            // כותרת
-            using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, 0, 0, Width, HeadH);
+            // **פס עליון דק (0.8.16):** על הרקע של החלון, לוגו קטן והשם - בלי שורת משנה ובלי משטח נפרד
             Theme.HLine(g, Theme.BorderSoft, 0, Width, HeadH - 1);
-
-            float d = Theme.S(30);
+            float d = Theme.S(22);
             RectangleF all = new RectangleF(0, 0, Width, Height);
             RectangleF badge = Theme.Mir(all, new RectangleF(Width - Theme.S(14) - d, (HeadH - d) / 2f, d, d));
-            using (SolidBrush b = new SolidBrush(Theme.Mix(Theme.Panel, Theme.Purple, 0.22f))) g.FillEllipse(b, badge);
-            Icons.Draw(g, Ico.Sparkles,
-                new RectangleF(badge.X + d * 0.22f, badge.Y + d * 0.22f, d * 0.56f, d * 0.56f), Theme.Purple, 2f);
+            using (System.Drawing.Drawing2D.LinearGradientBrush lb = new System.Drawing.Drawing2D.LinearGradientBrush(
+                new RectangleF(badge.X, badge.Y, badge.Width + 1, badge.Height + 1), Theme.Accent, Theme.Purple, 45f))
+                g.FillEllipse(lb, badge);
+            Icons.Draw(g, Ico.Sparkles, new RectangleF(badge.X + d * 0.2f, badge.Y + d * 0.2f, d * 0.6f, d * 0.6f), Color.White, 1.8f);
 
             // בקואורדינטות של עברית (הכפתורים משמאל), ומשתקף באנגלית
-            float tx = Width - Theme.S(14) - d - Theme.S(10);
-            float tleft = Theme.S(12) + _close.Width + Theme.S(4) + _reset.Width + Theme.S(4) + _keyBtn.Width + Theme.S(4) + _speak.Width + Theme.S(8);
-            Theme.Str(g, Lang.T("העוזר החכם"), Theme.Big, Theme.Text,
-                Theme.Mir(all, new RectangleF(tleft, Theme.S(10), tx - tleft, Theme.S(22))), Theme.SfUi);
-            Theme.Str(g, Lang.T("מבקשים במילים רגילות - והוא מבצע"), Theme.Small, Theme.TextDim,
-                Theme.Mir(all, new RectangleF(tleft, Theme.S(32), tx - tleft, Theme.S(18))), Theme.SfUi);
+            float tx = Width - Theme.S(14) - d - Theme.S(8);
+            float tleft = Theme.S(8) + _close.Width + _more.Width + _speak.Width + Theme.S(12);
+            Theme.Str(g, Lang.T("העוזר החכם"), Theme.UiBold, Theme.Text,
+                Theme.Mir(all, new RectangleF(tleft, 0, tx - tleft, HeadH)), Theme.SfUi);
 
             // תיבת הכתיבה
-            int pad = Theme.S(12);
+            int pad = Theme.S(10);
             int compTop = ClientSize.Height - ComposerH - pad;
             RectangleF box = new RectangleF(pad, compTop, ClientSize.Width - pad * 2, ComposerH);
             Theme.FillRound(g, box, ComposerH / 2f, Theme.Panel);
             if (Recording)
             {
-                Theme.DrawRound(g, box, ComposerH / 2f, Theme.Mix(Theme.Border, Theme.Bad, 0.6f), 1.6f);
+                Theme.DrawRound(g, box, ComposerH / 2f, Theme.Mix(Theme.Border, Theme.Bad, 0.6f), 1.4f);
                 PaintRecording(g, box);
             }
             else
-                Theme.DrawRound(g, box, ComposerH / 2f, _input.Focused ? Theme.Accent : Theme.Border, _input.Focused ? 1.6f : 1f);
+                Theme.DrawRound(g, box, ComposerH / 2f, _input.Focused ? Theme.Mix(Theme.Border, Theme.Accent, 0.7f) : Theme.BorderSoft, _input.Focused ? 1.4f : 1f);
 
 
             Theme.DrawRound(g, new RectangleF(0, 0, Width - 1, Height - 1), Theme.S(12), Theme.Border, 1f);
@@ -1519,9 +1519,9 @@ namespace SubtitleStudio
             private static int VoiceIconW { get { return Theme.S(22); } }
             private static Color UserFill { get { return Theme.Dark ? Theme.Mix(Theme.Panel, Theme.Accent, 0.34f) : Theme.AccentSoft; } }
 
-            private float BubbleW { get { return Math.Max(Theme.S(120), Width * 0.84f - Theme.S(34)); } }
-            private static int AvatarD { get { return Theme.S(26); } }
-            private static int Gap { get { return Theme.S(10); } }
+            // **בלי אוואטר ליד כל תשובה (0.8.16)** - בחלון הצר הוא לקח רוחב, ונראה מיושן. הלוגו בפס העליון מספיק
+            private float BubbleW { get { return Math.Max(Theme.S(120), Width * 0.86f); } }
+            private static int Gap { get { return Theme.S(8); } }
 
             private void Measure()
             {
@@ -1717,7 +1717,7 @@ namespace SubtitleStudio
                             float w = it.W > 0 ? it.W : bw;
                             RectangleF r = user
                                 ? new RectangleF(Width - w, y, w, it.H)
-                                : new RectangleF(AvatarD + Theme.S(8), y, w, it.H);
+                                : new RectangleF(0, y, w, it.H);
                             // **רגוע יותר (0.8.14):** הבועה של המשתמש בגוון של הכחול ולא בכחול מלא עם טקסט לבן, ובלי מסגרת סביב
                             // התשובות (רק בשגיאה, ובערכה הבהירה - קו עדין, כי לבן על אפור בהיר נבלע)
                             Color fill = user ? UserFill
@@ -1746,7 +1746,7 @@ namespace SubtitleStudio
                                 Theme.DrawRound(g, it.RetryRect, rh / 2f, Theme.Accent, 1f);
                                 Theme.Str(g, Lang.T("לנסות שוב"), Theme.Small, Theme.Accent, it.RetryRect, Theme.SfCenter);
                             }
-                            if (!user) Avatar(g, new RectangleF(0, y + it.H - AvatarD, AvatarD, AvatarD));
+
                         }
                     }
                     y += it.H + Gap;
@@ -1762,8 +1762,8 @@ namespace SubtitleStudio
                     if (st.Length == 0 && waited > 6) st = Lang.F("חושב · {0} שניות", (int)waited);
                     float tw = 0;
                     if (st.Length > 0)
-                        tw = Math.Min(Width - AvatarD - Theme.S(110), TextSize(st, Theme.Small, int.MaxValue / 4, IsRtlText(st)).Width + Theme.S(4));
-                    RectangleF r = new RectangleF(AvatarD + Theme.S(8), y, Theme.S(74) + (tw > 0 ? tw + Theme.S(10) : 0), h);
+                        tw = Math.Min(Width - Theme.S(110), TextSize(st, Theme.Small, int.MaxValue / 4, IsRtlText(st)).Width + Theme.S(4));
+                    RectangleF r = new RectangleF(0, y, Theme.S(74) + (tw > 0 ? tw + Theme.S(10) : 0), h);
                     Theme.FillRound(g, r, rad, Theme.Panel);
                     Theme.DrawRound(g, r, rad, Theme.BorderSoft, 1f);
                     if (tw > 0)
@@ -1778,7 +1778,6 @@ namespace SubtitleStudio
                         using (SolidBrush b = new SolidBrush(i == _phase ? Theme.Accent : Theme.TextFaint))
                             g.FillEllipse(b, cx - sz / 2, cy - sz / 2, sz, sz);
                     }
-                    Avatar(g, new RectangleF(0, y + h - AvatarD, AvatarD, AvatarD));
                 }
 
                 float total = TotalH;
@@ -1822,16 +1821,6 @@ namespace SubtitleStudio
                     g.DrawPath(pen, p);
             }
 
-            private void Avatar(Graphics g, RectangleF box)
-            {
-                using (System.Drawing.Drawing2D.LinearGradientBrush b = new System.Drawing.Drawing2D.LinearGradientBrush(
-                    new RectangleF(box.X, box.Y, box.Width + 1, box.Height + 1), Theme.Accent, Theme.Purple, 45f))
-                using (System.Drawing.Drawing2D.GraphicsPath p = Theme.RoundRect(box, box.Width * 0.33f))
-                    g.FillPath(b, p);
-                Icons.Draw(g, Ico.Sparkles,
-                    new RectangleF(box.X + box.Width * 0.24f, box.Y + box.Height * 0.24f, box.Width * 0.52f, box.Height * 0.52f),
-                    Color.White, 2f);
-            }
         }
     }
 }

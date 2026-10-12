@@ -1655,3 +1655,14 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 העבודה הסתיימה	The job is done
 העבודה בוטלה	The job was cancelled
 העבודה נכשלה	The job failed
+עוד: שיחה חדשה, מה העוזר רשאי לעשות, המפתח של גוגל	More: new conversation, what the assistant may do, the Google key
+סגירה (Esc) - השיחה נשמרת	Close (Esc) - the conversation is kept
+מתחילים מאפס - העוזר שוכח את השיחה הזאת	Start over - the assistant forgets this conversation
+מה העוזר רשאי לעשות	What the assistant may do
+לערוך, ליצור קבצים, לשלוח החוצה - מותר, לשאול, או אסור	Edit, create files, send out - allowed, ask, or not allowed
+המפתח של גוגל	The Google key
+המפתח שהעוזר עובד איתו	The key the assistant works with
+שלום! מה לעשות? אפשר לבקש כל דבר בתוכנה במילים רגילות - בכתב, או בקול (המיקרופון).	Hello! What shall we do? Ask for anything in the program in plain words - typed, or out loud (the microphone).
+העוזר החכם - מבקשים במילים רגילות, והוא עושה בתוכנה (Ctrl+K)	The smart assistant - ask in plain words, and it does it in the program (Ctrl+K)
+הוזזו {0} כתוביות: {1} שניות מוקדם יותר	Shifted {0} subtitles {1} seconds earlier
+הוזזו {0} כתוביות: {1} שניות מאוחר יותר	Shifted {0} subtitles {1} seconds later

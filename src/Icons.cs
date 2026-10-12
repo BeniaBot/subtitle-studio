@@ -11,7 +11,7 @@ namespace SubtitleStudio
         ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Copy, Split, Merge, ZoomIn, ZoomOut,
         Import, Export, Info, Warning, Sliders, TextIcon, Sun, Moon, Flame, Layers, ShiftLR, List,
         Refresh, Download, Upload, Image, Sparkles, Translate, Mic, Cut, Eye, Grid, Question, Sync, Target, Chat, Key,
-        Gauge, Send
+        Gauge, Send, More
     }
 
     /// <summary>אייקונים וקטוריים מצוירים בקוד - בלי גופן אייקונים ובלי קבצים.</summary>
@@ -364,6 +364,8 @@ namespace SubtitleStudio
                 case Ico.Mic: d.Rect(9, 2.5f, 6, 12, 3f); d.Arc(5.5f, 8, 13, 12, 20, 140); d.L(12, 18, 12, 21.5f); break;
                 // שליחה בצ׳אט: חץ למעלה - בלי כיוון, אותו דבר בעברית ובאנגלית (0.8.14; עד אז ״ניצוצות״, שלא אמרו ״לשלוח״)
                 case Ico.Send: d.L(12, 19.5f, 12, 5); d.Poly(6.2f, 10.8f, 12, 5, 17.8f, 10.8f); break;
+                // ״עוד״ - שלוש נקודות (0.8.16: תפריט בפס של העוזר)
+                case Ico.More: d.FEll(4.2f, 10.4f, 3.2f, 3.2f); d.FEll(10.4f, 10.4f, 3.2f, 3.2f); d.FEll(16.6f, 10.4f, 3.2f, 3.2f); break;
                 case Ico.Eye:
                     d.Curve(2.5f, 12, 7, 6.4f, 12, 5.6f, 17, 6.4f, 21.5f, 12);
                     d.Curve(2.5f, 12, 7, 17.6f, 12, 18.4f, 17, 17.6f, 21.5f, 12);

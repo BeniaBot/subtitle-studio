@@ -174,7 +174,7 @@ namespace SubtitleStudio
                 if (l == 0) tip = Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)");
                 else if (l == 1) tip = Theme.Dark ? Lang.T("מעבר למצב בהיר") : Lang.T("מעבר למצב כהה");
                 else if (l == 2) tip = Lang.T("על התוכנה, מנוע הווידאו ועדכונים");
-                else if (l == 3) tip = Lang.T("מבקשים במילים רגילות - והוא עושה בתוכנה (Ctrl+K)");
+                else if (l == 3) tip = Lang.T("העוזר החכם - מבקשים במילים רגילות, והוא עושה בתוכנה (Ctrl+K)");
                 Ui.Tip.SetToolTip(this, tip);
                 Invalidate();
             }
@@ -346,10 +346,11 @@ namespace SubtitleStudio
                 new RectangleF(cb - (wb + pad) / 2f, top, wb + pad, h), Theme.SfCenter);
         }
 
-        /// <summary>שלושה כפתורי אייקון בפינה - אותה שפה של הסרגל במסך העבודה.</summary>
+        /// <summary>ארבעה כפתורי אייקון בפינה - אותה שפה של הסרגל במסך העבודה. **העוזר - רק הלוגו** (0.8.16), בצבע שלו;
+        /// השם מופיע בריחוף. בנימין: ״העוזר החכם לא צריך להיות ככה, מספיק רק הלוגו״ (ב-0.8.13-0.8.15 - כפתור עם טקסט).</summary>
         private void DrawLinks(Graphics g, float y)
         {
-            Ico[] icons = new Ico[] { Ico.Question, Theme.Dark ? Ico.Sun : Ico.Moon, Ico.Info };
+            Ico[] icons = new Ico[] { Ico.Question, Theme.Dark ? Ico.Sun : Ico.Moon, Ico.Info, Ico.Sparkles };
             float d = Theme.S(38);
             float gap = Theme.S(6);
             float x = Theme.S(18);
@@ -365,28 +366,11 @@ namespace SubtitleStudio
                 if (hot > 0.01f)
                     Surface.Rim(g, r, rad, Theme.Mix(Theme.Panel, Theme.Accent, 0.75f * hot), Theme.Mix(Theme.Panel, Theme.Accent, 0.45f * hot));
                 float ic = Theme.S(19);
-                Color icoC = Theme.Mix(Theme.Mix(Theme.TextDim, Theme.Text, 0.55f), Theme.Accent, hot);
+                Color icoC = icons[i] == Ico.Sparkles
+                    ? Theme.Mix(Theme.Purple, Theme.Accent, 0.4f * hot)
+                    : Theme.Mix(Theme.Mix(Theme.TextDim, Theme.Text, 0.55f), Theme.Accent, hot);
                 Icons.Draw(g, icons[i], new RectangleF(r.X + (d - ic) / 2, r.Y + (d - ic) / 2, ic, ic), icoC, 1.9f);
                 x += d + gap;
-            }
-
-            // ״העוזר החכם״ - עם טקסט, בצבע של העוזר
-            {
-                string label = Lang.T("העוזר החכם");
-                float tw = TextRenderer.MeasureText(label, Theme.UiBold, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
-                float w = tw + Theme.S(52);
-                RectangleF r = Theme.Mir(new RectangleF(0, 0, Width, Height), new RectangleF(x + Theme.S(4), y - Theme.S(6), w, d));
-                _links[3] = r;
-                float hot = _linkHot[3].Eased;
-                float rad = Theme.S(11);
-                Surface.Raised(g, r, rad, Theme.Mix(Theme.Panel, Theme.Purple, 0.12f + 0.10f * hot), hot, 0f, 1f);
-                Surface.Rim(g, r, rad, Theme.Mix(Theme.Panel, Theme.Purple, 0.55f + 0.3f * hot), Theme.Mix(Theme.Panel, Theme.Purple, 0.35f));
-                float ic = Theme.S(18);
-                RectangleF all = new RectangleF(0, 0, Width, Height);
-                RectangleF icR = Theme.Mir(all, new RectangleF(x + Theme.S(4) + w - Theme.S(14) - ic, y - Theme.S(6) + (d - ic) / 2, ic, ic));
-                Icons.Draw(g, Ico.Sparkles, icR, Theme.Purple, 1.9f);
-                RectangleF tr = Theme.Mir(all, new RectangleF(x + Theme.S(4) + Theme.S(12), y - Theme.S(6), w - Theme.S(14) - ic - Theme.S(18), d));
-                Theme.Str(g, label, Theme.UiBold, Theme.Mix(Theme.Text, Theme.Purple, 0.25f + 0.4f * hot), tr, Theme.SfCenter);
             }
         }
 
