@@ -7,7 +7,7 @@
 #  5. ״לבטל את מה שעשיתי״
 #  6. עצירה באמצע
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
-# צפוי: 19 בדיקות.
+# צפוי: 20 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -207,6 +207,14 @@ Say 'תשנה את הראשונה'
 $mid = CueText 0
 Say 'תבטל את מה שעשית'
 Check 'undo_last_request: הכתובית חוזרת למה שהייתה לפני הבקשה הקודמת' ($mid -eq 'שונה בבקשה' -and (CueText 0) -eq $before) ("$mid ← " + (CueText 0))
+
+# ---------- 6ב. דגם שדוחה את כיבוי החשיבה ב-״invalid argument״ בלי לומר על מה - ניסיון בלעדיו ----------
+$srv = StartServer @(
+    @{ status = '400 Bad Request'; body = '{"error":{"code":400,"message":"Request contains an invalid argument.","status":"INVALID_ARGUMENT"}}' },
+    (Reply (Txt 'עניתי בלי כיבוי החשיבה.')))
+Say 'שאלה לדגם הקל'
+$r6b = Req $srv 1
+Check '״invalid argument״ - ניסיון נוסף בלי thinkingConfig, והתשובה מגיעה' ((LastModelText) -eq 'עניתי בלי כיבוי החשיבה.' -and -not $r6b.Contains('thinkingConfig')) ''
 
 # ---------- 7. כל הדגמים עמוסים לרגע (מכסה דקתית): ממתין וממשיך לבד ----------
 $models = (TY 'Ai').GetField('Models', $ST).GetValue($null)

@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 56 בדיקות.
+# צפוי: 58 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -44,6 +44,15 @@ $b = $ser.DeserializeObject($body); $cont = $b['contents']
 Check 'החתימות חוזרות לשרת (thoughtSignature בשתי הבקשות)' ($body.Contains('SIG-A') -and $body.Contains('SIG-B')) ''
 Check 'תור המודל אחד, עם כל החלקים' ($cont.Count -eq 3 -and $cont[1]['role'] -eq 'model' -and $cont[1]['parts'].Count -eq 4) ("" + $cont.Count)
 Check 'תשובה לכל בקשה, באותו תור ובאותו סדר' ($cont[2]['parts'].Count -eq 2 -and $cont[2]['parts'][0]['functionResponse']['name'] -eq 'add_cue' -and $cont[2]['parts'][1]['functionResponse']['response']['done'] -eq 'ok2') ''
+
+# ---------- 2א. מעבר בין דגמים: בקשה בלי חתימה ----------
+# דגם 2.5 בלי חשיבה לא נותן חתימה; כשהשיחה עוברת לדגם 3 (מכסה) - הוא דוחה אותה בלי הערך הרשמי של גוגל (נמדד 12.10)
+$np = New-Object 'Collections.Generic.List[object]'; $np.Add($ser.DeserializeObject('{"functionCall":{"name":"list_cues","args":{}}}'))
+$h3 = [Activator]::CreateInstance($listT); $u3 = [Activator]::CreateInstance($msgT); $msgT.GetField('Text').SetValue($u3, 'כמה?'); $h3.Add($u3)
+$m3 = [Activator]::CreateInstance($msgT); $msgT.GetField('Role').SetValue($m3, 'model'); $msgT.GetField('Parts').SetValue($m3, $np); $h3.Add($m3)
+$b3 = $ai.GetMethod('BuildBody', $ST).Invoke($null, (Pack 'sys' $h3 $null $false 'm'))
+Check 'בקשה בלי חתימה נשלחת עם skip_thought_signature_validator (אחרת דגם 3 דוחה את השיחה)' ($b3.Contains('skip_thought_signature_validator')) ''
+Check 'ובקשה עם חתימה - החתימה שלה, בלי הערך המדומה' ($body.Contains('SIG-A') -and -not $body.Contains('skip_thought_signature_validator')) ''
 
 # ---------- 3. תשובה ריקה וחסימה ----------
 $r2 = [Activator]::CreateInstance($replyT); $ai.GetMethod('ParseReply', $ST).Invoke($null, (Pack $r2 '{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"STOP"}]}'))

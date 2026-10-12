@@ -244,6 +244,29 @@ namespace SubtitleStudio
             catch { }
         }
 
+        /// <summary>**בקשה לפעולה בלי חתימה - הערך הרשמי של גוגל לדילוג על הבדיקה.** דגם 2.5 עם חשיבה כבויה לא נותן חתימה;
+        /// כשהמכסה שלו נגמרת באמצע שיחה והיא עוברת לדגם 3, הוא דוחה את כל השיחה (״Function call is missing a
+        /// thought_signature״) - נמדד 12.10: אחרי המעבר שלוש בקשות רצופות נכשלו, והשיחה נתקעה. גוגל מתעדים את הערך הזה בדיוק
+        /// להיסטוריה מדגם שלא נותן חתימות. בקשה שהגיעה **עם** חתימה - נשלחת כמו שהיא.</summary>
+        internal const string NoSignature = "skip_thought_signature_validator";
+
+        private static List<object> Signed(List<object> parts)
+        {
+            List<object> res = new List<object>(parts.Count);
+            foreach (object po in parts)
+            {
+                Dictionary<string, object> pd = po as Dictionary<string, object>;
+                if (pd != null && pd.ContainsKey("functionCall") && !pd.ContainsKey("thoughtSignature") && !pd.ContainsKey("thought_signature"))
+                {
+                    Dictionary<string, object> copy = new Dictionary<string, object>(pd);
+                    copy["thoughtSignature"] = NoSignature;
+                    res.Add(copy);
+                }
+                else res.Add(po);
+            }
+            return res;
+        }
+
         /// <summary>מתי המכסה היומית של גוגל מתאפסת, בשעון של המחשב: ״היום בשעה 10:00״ / ״מחר בשעה 10:00״. גוגל מאפס בחצות
         /// לפי שעון קליפורניה (בארץ - 9:00 או 10:00, לפי שעון הקיץ). עד 0.8.12 נאמר ״מחר״ - גם כשזה היה בעוד שעה.</summary>
         internal static string QuotaResetText() { return QuotaResetText(DateTime.Now); }
@@ -372,9 +395,12 @@ namespace SubtitleStudio
                 // הדגם דחה את בקשת כיבוי החשיבה. זו לא שגיאה של
                 // המשתמש ואין טעם להציג לו אותה - שולחים שוב בלעדיה,
                 // ורושמים שהדגם הזה לא מקבל את השדה.
+                // ‏gemini-flash-lite-latest דוחה את thinkingBudget=0 ב-״Request contains an invalid argument״ בלי לומר
+                // על מה (נמדד 12.10) - וכל הבקשות אליו נכשלו. ניסיון אחד בלי השדה עולה בקשה אחת
                 if (LastHttpCode == 400 && !NoThinking(model) && err != null &&
                     (err.IndexOf("thinking", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     err.IndexOf("thought", StringComparison.OrdinalIgnoreCase) >= 0))
+                     err.IndexOf("invalid argument", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     (err.IndexOf("thought", StringComparison.OrdinalIgnoreCase) >= 0 && err.IndexOf("signature", StringComparison.OrdinalIgnoreCase) < 0)))
                 {
                     MarkNoThinking(model);
                     json = BuildBody(system, history, tools, jsonOut, model);
@@ -618,7 +644,7 @@ namespace SubtitleStudio
                 {
                     // התור של המודל כמו שהגיע - עם החתימות. כל שינוי בו (גם השמטה של חלק טקסט) שובר את השיחה
                     item["role"] = "model";
-                    item["parts"] = m.Parts.ToArray();
+                    item["parts"] = Signed(m.Parts).ToArray();
                 }
                 else if (m.Role == "tool" && m.Calls != null && m.Results != null)
                 {
@@ -650,7 +676,8 @@ namespace SubtitleStudio
                     item["parts"] = new object[] { new Dictionary<string, object> {
                         { "functionCall", new Dictionary<string, object> {
                             { "name", m.Call.Name },
-                            { "args", m.Call.Args != null ? (object)m.Call.Args : new Dictionary<string, object>() } } } } };
+                            { "args", m.Call.Args != null ? (object)m.Call.Args : new Dictionary<string, object>() } } },
+                        { "thoughtSignature", NoSignature } } };
                 }
                 else if (m.Images != null && m.Images.Count > 0)
                 {
