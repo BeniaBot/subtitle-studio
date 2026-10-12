@@ -244,6 +244,27 @@ namespace SubtitleStudio
             catch { }
         }
 
+        /// <summary>מתי המכסה היומית של גוגל מתאפסת, בשעון של המחשב: ״היום בשעה 10:00״ / ״מחר בשעה 10:00״. גוגל מאפס בחצות
+        /// לפי שעון קליפורניה (בארץ - 9:00 או 10:00, לפי שעון הקיץ). עד 0.8.12 נאמר ״מחר״ - גם כשזה היה בעוד שעה.</summary>
+        internal static string QuotaResetText() { return QuotaResetText(DateTime.Now); }
+
+        internal static string QuotaResetText(DateTime nowLocal)
+        {
+            try
+            {
+                TimeZoneInfo pt = TimeZoneInfo.FindSystemTimeZoneById("Pacific Standard Time");
+                DateTime nowUtc = nowLocal.ToUniversalTime();
+                DateTime ptNow = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, pt);
+                DateTime ptMidnight = ptNow.Date.AddDays(1);
+                DateTime resetUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(ptMidnight, DateTimeKind.Unspecified), pt);
+                DateTime resetLocal = resetUtc.ToLocalTime();
+                string hm = resetLocal.ToString("H:mm", CultureInfo.InvariantCulture);
+                if (resetLocal.Date == nowLocal.Date) return Lang.F("היום בשעה {0}", Theme.Ltr(hm));
+                if (resetLocal.Date == nowLocal.Date.AddDays(1)) return Lang.F("מחר בשעה {0}", Theme.Ltr(hm));
+                return Lang.F("בשעה {0}", Theme.Ltr(hm));
+            }
+            catch { return Lang.T("מחר"); }
+        }
         /// <summary>מסתיר את המפתח מכל מחרוזת לפני כתיבה ליומן.</summary>
         private static string Safe(string s)
         {
@@ -395,7 +416,7 @@ namespace SubtitleStudio
             {
                 LastHttpCode = 429;
                 LastQuotaIsDaily = true;
-                r.Error = Lang.T("המכסה היומית של המפתח החינמי נגמרה בכל הדגמים.\r\nהיא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.");
+                r.Error = Lang.F("המכסה היומית של המפתח החינמי נגמרה בכל הדגמים.\r\nהיא מתאפסת {0}. אפשר גם להפיק מפתח חדש בדף של גוגל.", QuotaResetText());
                 LastError = r.Error;
                 return r;
             }
@@ -941,7 +962,7 @@ namespace SubtitleStudio
                 // יומית הוא שקר שגורם למשתמש לנסות שוב ושוב לחינם.
                 case 429:
                     if (detail != null && detail.IndexOf("PerDay", StringComparison.OrdinalIgnoreCase) >= 0)
-                        return Lang.T("המכסה היומית של המפתח החינמי נגמרה - בכל הדגמים.\r\nהיא מתאפסת מחר. אפשר גם להפיק מפתח חדש בדף של גוגל.");
+                        return Lang.F("המכסה היומית של המפתח החינמי נגמרה - בכל הדגמים.\r\nהיא מתאפסת {0}. אפשר גם להפיק מפתח חדש בדף של גוגל.", QuotaResetText());
                     return Lang.T("המפתח החינמי מוגבל לכמה בקשות בדקה, והמכסה נגמרה כרגע. המתינו דקה ונסו שוב.");
                 case 500:
                 case 503: return Lang.T("השרת של גוגל עמוס כרגע. נסו שוב בעוד רגע.");

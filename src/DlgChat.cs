@@ -174,10 +174,15 @@ namespace SubtitleStudio
             _mic.Radius = Theme.S(17);
             _mic.Size = new Size(Theme.S(34), Theme.S(34));
             _mic.Click += delegate { MicClick(); };
-            Ui.Tip.SetToolTip(_mic, Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח"));
+            Ui.Tip.SetToolTip(_mic, Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)"));
             Controls.Add(_mic);
 
-            KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) Close(); };
+            KeyDown += delegate (object s, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Escape) Close();
+                // מיקרופון מהמקלדת: לחיצה - מקשיב, שוב - שולח
+                if (e.Control && e.KeyCode == Keys.M) { e.SuppressKeyPress = true; MicClick(); }
+            };
             MouseDown += delegate (object s, MouseEventArgs e)
             {
                 if (e.Y < HeadH) { _dragging = true; _dragOrigin = e.Location; }
@@ -200,6 +205,8 @@ namespace SubtitleStudio
         private string _audioAfterTool;
         /// <summary>הטקסט האחרון של העוזר בבקשה הזאת - מה שמוקרא כשהוא מסיים.</summary>
         private string _lastBot;
+        /// <summary>הבקשה האחרונה נאמרה בקול - התשובה מוקראת גם כשההקראה כבויה.</summary>
+        private bool _voiceRequest;
 
         private void SpeakLook()
         {
@@ -245,7 +252,7 @@ namespace SubtitleStudio
         {
             _mic.Kind = on ? BtnKind.Primary : BtnKind.Tool;
             _mic.Tint = on ? Theme.Bad : Color.Empty;
-            Ui.Tip.SetToolTip(_mic, on ? Lang.T("מקשיב... לחיצה - שולח") : Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח"));
+            Ui.Tip.SetToolTip(_mic, on ? Lang.T("מקשיב... לחיצה - שולח") : Lang.T("לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח (Ctrl+M)"));
             _mic.Invalidate();
         }
 
@@ -270,6 +277,7 @@ namespace SubtitleStudio
             m.AudioB64 = b64;
             m.AudioMime = "audio/wav";
             BeginRequest(m);
+            _voiceRequest = true;
         }
 
         private static string Placeholder { get { return Lang.T("מה לעשות? למשל: תרגם לאנגלית"); } }
@@ -407,6 +415,7 @@ namespace SubtitleStudio
             AiMsg m = new AiMsg();
             m.Role = "user";
             m.Text = text;
+            _voiceRequest = false;
             BeginRequest(m);
         }
 
@@ -734,7 +743,7 @@ namespace SubtitleStudio
                     _ask = new PendingAsk();
                     _ask.Reply = r; _ask.Index = i; _ask.Results = results; _ask.Round = round;
                     string q = call.Str("question", "").Trim();
-                    if (q.Length > 0) { _view.AddBot(Plain(q)); if (AiVoice.SpeakOn) AiVoice.Speak(q); }
+                    if (q.Length > 0) { _view.AddBot(Plain(q)); if (AiVoice.SpeakOn || _voiceRequest) AiVoice.Speak(q); }
                     List<string> opts = new List<string>();
                     foreach (string o in call.Str("options", "").Split('|'))
                         if (o.Trim().Length > 0 && opts.Count < 6) opts.Add(o.Trim());
@@ -909,7 +918,8 @@ namespace SubtitleStudio
             _view.Thinking = false;
             if (_snap != null && _host.AiChangedSince(_snap)) _view.AddChips(new string[] { UndoChip });
             // ההקראה - של התשובה האחרונה, כשהעוזר סיים (לא של כל שלב באמצע)
-            if (AiVoice.SpeakOn && !string.IsNullOrEmpty(_lastBot)) AiVoice.Speak(_lastBot);
+            // מי שדיבר - שומע תשובה, גם כשההקראה כבויה
+            if ((AiVoice.SpeakOn || _voiceRequest) && !string.IsNullOrEmpty(_lastBot)) AiVoice.Speak(_lastBot);
             _lastBot = null;
             Invalidate();
             _input.Focus();

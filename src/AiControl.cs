@@ -548,6 +548,29 @@ namespace SubtitleStudio
                     foreach (Cue c in _doc.Cues) if (c.Start <= pos && c.End > pos) { now = c; break; }
                     if (now != null) sb.Append("על המסך עכשיו: כתובית ").Append(_doc.IndexOf(now) + 1).Append(" ״").Append(Short(now.PlainText, 80)).Append("״. ");
                 }
+                // **הכתוביות עצמן** - כולן כשיש עד 30, ואחרת 12 סביב הנגן. עד כאן כל שאלה על הטקסט (״מה כתוב בשלישית?״)
+                // עלתה סבב נוסף של list_cues - עוד בקשה מהמכסה ועוד כמה שניות
+                if (n > 0)
+                {
+                    int from = 0, to = n;
+                    if (n > 30)
+                    {
+                        int at = 0;
+                        long pos = _engine.Position;
+                        for (int i = 0; i < n; i++) if (_doc.Cues[i].Start <= pos) at = i;
+                        from = Math.Max(0, at - 5);
+                        to = Math.Min(n, from + 12);
+                    }
+                    sb.Append(n > 30 ? "\nכתוביות " + (from + 1) + "-" + to + " (סביב הנגן; השאר - list_cues):" : "\nהכתוביות:");
+                    for (int i = from; i < to; i++)
+                    {
+                        Cue c = _doc.Cues[i];
+                        sb.Append("\n").Append(i + 1).Append(". ").Append(Tc.Short(c.Start)).Append("-").Append(Tc.Short(c.End));
+                        if (c.Untimed) sb.Append(" (בלי תזמון)");
+                        sb.Append(" ").Append(Short(c.PlainText, 120));
+                    }
+                    sb.Append("\n");
+                }
                 if (!string.IsNullOrEmpty(_projectPath)) sb.Append("פרויקט: ").Append(Path.GetFileName(_projectPath)).Append(". ");
                 if (_tl != null && _tl.InPoint >= 0 && _tl.OutPoint > _tl.InPoint)
                     sb.Append("מסומן קטע ").Append(Tc.Short(_tl.InPoint)).Append("-").Append(Tc.Short(_tl.OutPoint)).Append(". ");
