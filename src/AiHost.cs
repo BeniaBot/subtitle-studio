@@ -129,8 +129,13 @@ namespace SubtitleStudio
             t.Add(new AiTool("set_style", "משנה את עיצוב הכתוביות בסרט המיוצא")
                 .P("size_percent", "number", "גודל הגופן באחוזים מגובה התמונה, בערך 3 עד 12")
                 .P("position", "string", "top / middle / bottom")
-                .P("color", "string", "צבע הטקסט: white, yellow, cyan, green וכו׳")
-                .P("box", "boolean", "רקע כהה אטום מאחורי הטקסט"));
+                .P("color", "string", "צבע הטקסט: white, yellow, cyan, green, red, blue, orange, pink, gray, black, או ‎#RRGGBB")
+                .P("box", "boolean", "רקע כהה אטום מאחורי הטקסט")
+                .P("font", "string", "שם גופן שמותקן במחשב (למשל Arial, David, Narkisim)")
+                .P("bold", "boolean", "מודגש")
+                .P("outline_width", "number", "עובי המתאר, 0-8 (0 = בלי מתאר)")
+                .P("outline_color", "string", "צבע המתאר, כמו color")
+                .P("margin_percent", "number", "המרחק מהקצה (מלמטה או מלמעלה) באחוזים מגובה התמונה, 0-30"));
 
             t.Add(new AiTool("seek", "מקפיץ את הנגן לזמן מסוים")
                 .Req("seconds", "number", "הזמן בשניות"));
@@ -637,26 +642,59 @@ namespace SubtitleStudio
             if (pos == "top") _style.Alignment = 8;
             else if (pos == "middle" || pos == "center") _style.Alignment = 5;
             else if (pos == "bottom") _style.Alignment = 2;
-            string col = c.Str("color", "").ToLowerInvariant();
-            if (col.Length > 0)
-            {
-                System.Drawing.Color k = System.Drawing.Color.Empty;
-                switch (col)
-                {
-                    case "white": case "לבן": k = System.Drawing.Color.White; break;
-                    case "yellow": case "צהוב": k = System.Drawing.Color.Gold; break;
-                    case "cyan": case "תכלת": k = System.Drawing.Color.Cyan; break;
-                    case "green": case "ירוק": k = System.Drawing.Color.LimeGreen; break;
-                    case "red": case "אדום": k = System.Drawing.Color.OrangeRed; break;
-                    case "black": case "שחור": k = System.Drawing.Color.Black; break;
-                }
-                if (k != System.Drawing.Color.Empty) _style.Primary = k;
-            }
+            System.Drawing.Color k = ColorOf(c.Str("color", ""));
+            if (k != System.Drawing.Color.Empty) _style.Primary = k;
             if (c.Args.ContainsKey("box")) _style.OpaqueBox = c.Bool("box", _style.OpaqueBox);
+            // **העיצוב המלא (0.8.13)** - כל מה שבחלון ״עיצוב הכתוביות״
+            System.Drawing.Color ko = ColorOf(c.Str("outline_color", ""));
+            if (ko != System.Drawing.Color.Empty) _style.Outline = ko;
+            if (c.Args.ContainsKey("outline_width")) _style.OutlineWidth = Math.Max(0, Math.Min(8, c.Num("outline_width", _style.OutlineWidth)));
+            if (c.Args.ContainsKey("margin_percent")) _style.MarginVPct = Math.Max(0, Math.Min(30, c.Num("margin_percent", _style.MarginVPct)));
+            if (c.Args.ContainsKey("bold")) _style.Bold = c.Bool("bold", _style.Bold);
+            string font = c.Str("font", "").Trim();
+            if (font.Length > 0)
+            {
+                string found = null;
+                foreach (System.Drawing.FontFamily ff in System.Drawing.FontFamily.Families)
+                    if (string.Equals(ff.Name, font, StringComparison.OrdinalIgnoreCase)) { found = ff.Name; break; }
+                if (found == null) { r["error"] = Lang.F("הגופן ״{0}״ לא מותקן במחשב", font); return r; }
+                _style.FontName = found;
+            }
             Settings.Save(_style);
             _video.Invalidate();
+            if (_tl != null) _tl.Invalidate();
             r["done"] = Lang.T("העיצוב עודכן");
+            r["style_now"] = string.Format("גופן {0}{1}, גודל {2}%, צבע #{3:X6}, מתאר #{4:X6} בעובי {5}, {6}, מרחק מהקצה {7}%{8}",
+                _style.FontName, _style.Bold ? " מודגש" : "", _style.FontPct.ToString("0.#", CultureInfo.InvariantCulture),
+                _style.Primary.ToArgb() & 0xFFFFFF, _style.Outline.ToArgb() & 0xFFFFFF, _style.OutlineWidth.ToString("0.#", CultureInfo.InvariantCulture),
+                _style.Alignment >= 7 ? "למעלה" : _style.Alignment >= 4 ? "באמצע" : "למטה",
+                _style.MarginVPct.ToString("0.#", CultureInfo.InvariantCulture), _style.OpaqueBox ? ", רקע אטום" : "");
             return r;
+        }
+
+        /// <summary>צבע לפי שם (עברית או אנגלית) או ‎#RRGGBB. ריק - לא שונה.</summary>
+        private static System.Drawing.Color ColorOf(string s)
+        {
+            s = (s ?? "").Trim().ToLowerInvariant();
+            if (s.Length == 0) return System.Drawing.Color.Empty;
+            switch (s)
+            {
+                case "white": case "לבן": return System.Drawing.Color.White;
+                case "yellow": case "צהוב": return System.Drawing.Color.Gold;
+                case "cyan": case "תכלת": return System.Drawing.Color.Cyan;
+                case "green": case "ירוק": return System.Drawing.Color.LimeGreen;
+                case "red": case "אדום": return System.Drawing.Color.OrangeRed;
+                case "black": case "שחור": return System.Drawing.Color.Black;
+                case "blue": case "כחול": return System.Drawing.Color.DeepSkyBlue;
+                case "orange": case "כתום": return System.Drawing.Color.Orange;
+                case "pink": case "ורוד": return System.Drawing.Color.HotPink;
+                case "gray": case "grey": case "אפור": return System.Drawing.Color.Silver;
+            }
+            string h = s.TrimStart('#');
+            int v;
+            if (h.Length == 6 && int.TryParse(h, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out v))
+                return System.Drawing.Color.FromArgb(255, (v >> 16) & 255, (v >> 8) & 255, v & 255);
+            return System.Drawing.Color.Empty;
         }
 
         private Dictionary<string, object> AiSeek(AiCall c)

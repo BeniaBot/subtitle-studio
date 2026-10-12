@@ -1530,6 +1530,7 @@ namespace SubtitleStudio
             "לשלוח לגוגל קטע קול מהסרט, כדי שהעוזר ישמע מה נאמר?", "Send Google a sound clip from the video, so the assistant can hear what is said?",
             "אין קול לשמוע - לא פתוח קובץ עם פס קול", "There is no sound to listen to - no file with a sound track is open",
             "מקשיב לקטע {0}", "Listening to {0}",
+            "הגופן ״{0}״ לא מותקן במחשב", "The font '{0}' isn't installed on this computer",
             "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
             "ליצור קבצים חדשים מהסרט", "Make new files from the video",
             "לפתוח ולשמור קבצים", "Open and save files",

@@ -17,7 +17,7 @@ namespace SubtitleStudio
         public static readonly string[] Topics =
         {
             "overview", "start", "editing", "timing", "transcribe", "translate", "spell", "problems_tag", "style",
-            "export", "cut", "tools", "files", "settings", "keys", "assistant", "privacy", "troubleshooting"
+            "export", "cut", "tools", "files", "settings", "keys", "assistant", "privacy", "troubleshooting", "quality"
         };
 
         /// <summary>שורה לכל נושא - נכנסת להנחיה, כדי שהמודל יידע מה לבקש.</summary>
@@ -28,7 +28,7 @@ namespace SubtitleStudio
                    "spell (בדיקת איות), problems_tag (בדיקת השגיאות והתיקון), style (עיצוב הכתוביות), " +
                    "export (הטמעה בסרט: צריבה או ערוץ נפרד), cut (חיתוך קטעים), tools (כל הכלים לסרט ולקול), " +
                    "files (סוגי קבצים, פרויקט, שמירה ושחזור), settings (ההגדרות), keys (קיצורי מקלדת), " +
-                   "assistant (מה העוזר יכול והרשאות), privacy (מה יוצא מהמחשב), troubleshooting (תקלות נפוצות)";
+                   "assistant (מה העוזר יכול והרשאות), privacy (מה יוצא מהמחשב), troubleshooting (תקלות נפוצות), quality (מה הופך כתוביות לטובות)";
         }
 
         public static string Topic(string name, MainForm main)
@@ -53,6 +53,7 @@ namespace SubtitleStudio
                 case "assistant": return Assistant;
                 case "privacy": return Privacy;
                 case "troubleshooting": return Trouble;
+                case "quality": return QualityText();
             }
             return null;
         }
@@ -192,6 +193,21 @@ namespace SubtitleStudio
                 sb.Append('\n');
             }
             return sb.ToString();
+        }
+
+        /// <summary>מה הופך כתוביות לטובות - **מהספים של בדיקת השגיאות** (`Qa`), כדי שהעצה והתג הכתום יגידו אותו דבר.</summary>
+        private static string QualityText()
+        {
+            return "כתוביות טובות (אלה גם הכללים של בדיקת השגיאות בתוכנה): " +
+                   "עד " + Qa.MaxLines + " שורות, עד " + Qa.MaxLineChars + " תווים בשורה; שבירה במקום טבעי (אחרי פסיק, לפני ״ש״ / ״ו״ / מילת יחס), " +
+                   "והשורה העליונה לא ארוכה בהרבה מהתחתונה. " +
+                   "קצב קריאה: נוח עד כ-" + Qa.TidyCps + " תווים בשנייה; מעל " + Qa.FastCps + " - מהיר מדי (מסומן), מעל " + Qa.SevereCps + " - כמעט בלתי קריא. " +
+                   "משך: לפחות " + (Qa.MinDurMs / 1000.0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " שניות, לא יותר מ-" +
+                   (Qa.MaxDurMs / 1000) + "; רווח קטן בין כתוביות (" + Qa.GapMs + "ms) כדי שהעין תראה שהתחלפה. " +
+                   "הכתובית מופיעה עם תחילת הדיבור ונשארת עוד חצי שנייה אחריו; לא חוצה חילוף סצנה כשאפשר. " +
+                   "משפט אחד בכתובית כשאפשר; שני דוברים - מקף בתחילת כל שורה. " +
+                   "בעברית: בלי ניקוד, מספרים בספרות, ציטוט במרכאות; שמות ומונחים - באותו כתיב לאורך כל הסרט. " +
+                   "התוכנה מסדרת לבד (״לתקן אוטומטית״ בתג, או fix_timings / wrap_lines) - את מה שהיא לא יכולה, צריך לקצר או לפצל ביד.";
         }
 
         private static string Num(double v)
