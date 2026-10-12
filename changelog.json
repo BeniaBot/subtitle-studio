@@ -2,6 +2,37 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.13",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "t": "major",
+          "s": "העוזר מקשיב לסרט: ״תקשיב לכתובית 12 - נכון מה שכתוב?״ - הוא שומע מה נאמר ומציע תיקון",
+          "en": "The assistant listens to the video: 'Listen to subtitle 12 - is it right?' - it hears what is said and suggests a fix"
+        },
+        {
+          "t": "feature",
+          "s": "כפתור עצירה בזמן שהעוזר עובד, ורואים מה הוא עושה עכשיו",
+          "en": "A stop button while the assistant works, and you see what it is doing"
+        },
+        {
+          "t": "feature",
+          "s": "״העוזר החכם״ במסך הפתיחה, הצעות לפי מה שפתוח, ו״לשאול את העוזר״ בקליק ימני על כתובית",
+          "en": "'The smart assistant' on the start screen, suggestions by what is open, and 'Ask the assistant' on a subtitle's right click"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר חותך לפי קטעים (״תחתוך את הדקה הראשונה״) ומשנה כל דבר בעיצוב",
+          "en": "The assistant cuts by sections ('cut the first minute') and changes anything in the style"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר: ״המכסה נגמרה״ אומר מתי היא מתאפסת, כשגוגל עמוס הוא ממתין וממשיך לבד, ומי שמדבר אליו - שומע תשובה",
+          "en": "The assistant: 'the quota ran out' says when it resets, when Google is busy it waits and goes on by itself, and if you talk to it - you hear the answer"
+        }
+      ]
+    },
+    {
       "v": "0.8.12",
       "date": "2026-10-12",
       "items": [
