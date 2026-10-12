@@ -13,7 +13,7 @@ $expect = [ordered]@{
     'fuzz' = 11; 'long' = 15; 'stt' = 125; 'errors' = 38; 'buttons' = 12
     'source' = 8; 'qa' = 100; 'spell' = 59; 'release' = 67; 'settings' = 19; 'subs' = 26; 'cut' = 54; 'import' = 33; 'assistant' = 45
     # name@en = the same package with -Lang en: the whole layout is mirrored there
-    'buttons@en' = 12; 'layout@en' = 95; 'screens@en' = 35
+    'buttons@en' = 12; 'layout@en' = 98; 'screens@en' = 36
 }
 $names = @($expect.Keys)
 if ($Only -ne '') { $names = @($Only -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) }
