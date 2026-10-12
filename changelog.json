@@ -2,6 +2,36 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.14",
+      "date": "2026-10-12",
+      "items": [
+        {
+          "t": "major",
+          "s": "מדברים אל העוזר - והמילים מופיעות: מה שאמרתם נכתב בבועה תוך שנייה-שתיים, ורק אז הוא עונה",
+          "en": "Talk to the assistant - and your words appear: what you said is written in the bubble within a second or two, and then it answers"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר מקריא מיד, בקול העברי של ווינדוס - בלי לחכות ובלי מכסה. הרמקול דולק בזמן ההקראה, ולחיצה עליו עוצרת",
+          "en": "The assistant reads aloud right away, in the Windows voice - no waiting and no quota. The speaker lights up while it reads, and a click stops it"
+        },
+        {
+          "t": "feature",
+          "s": "בזמן הקלטה רואים שהוא שומע: פס של הקול, כמה זמן עבר, ו-✕ לביטול. לחיצה על המיקרופון באמצע עבודה - עוצרת אותו ומקשיבה",
+          "en": "While recording you can see it hears you: a sound bar, the time, and ✕ to cancel. Clicking the microphone while it works stops it and listens"
+        },
+        {
+          "t": "fix",
+          "s": "כשגוגל איטי, העוזר שואל גם דגם אחר במקביל ולוקח את התשובה הראשונה - בלי לחכות חצי דקה",
+          "en": "When Google is slow, the assistant also asks another model at the same time and takes the first answer - no half-minute wait"
+        },
+        {
+          "t": "fix",
+          "s": "חלון העוזר נקי יותר: בועות רגועות, חץ לשליחה, ותיבת כתיבה ממורכזת",
+          "en": "A cleaner assistant window: calmer bubbles, an arrow to send, and a centered text box"
+        }
+      ]
+    },    {
       "v": "0.8.13",
       "date": "2026-10-12",
       "items": [
