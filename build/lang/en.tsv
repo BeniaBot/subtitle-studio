@@ -1613,6 +1613,7 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 לא הבנתי את הקטע ״{0}״ - צריך למשל 0:30-1:15 keep	I didn't understand the section '{0}' - for example: 0:30-1:15 keep
 בקטע ״{0}״ הסוף לא אחרי ההתחלה	In the section '{0}' the end is not after the start
 נפתח חלון החיתוך עם {0} קטעים	The cut window opened with {0} sections
+מבקשים במילים רגילות - והוא עושה בתוכנה (Ctrl+K)	Ask in plain words - and it does it in the program (Ctrl+K)
 # ---- AiPerms.cs ----
 לערוך את הכתוביות והעיצוב	Edit the subtitles and the style
 ליצור קבצים חדשים מהסרט	Make new files from the video

@@ -227,6 +227,7 @@ namespace SubtitleStudio
             _hero.HelpClick += delegate { ShowHelp(); };
             _hero.ThemeClick += delegate { ToggleTheme(); _hero.Invalidate(); };
             _hero.AboutClick += delegate { ShowAbout(); };
+            _hero.AssistantClick += delegate { OpenAiChat(); };
             _hero.Recent = Settings.Recent;
             _hero.AllowDrop = true;
             _hero.DragEnter += delegate (object s2, DragEventArgs e2)

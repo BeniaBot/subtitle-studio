@@ -20,13 +20,15 @@ namespace SubtitleStudio
         public event EventHandler HelpClick;
         public event EventHandler ThemeClick;
         public event EventHandler AboutClick;
+        /// <summary>״העוזר החכם״ - הכפתור עם הטקסט ליד האייקונים (0.8.13): מי שלא מכיר את ✦ בסרגל צריך לראות שיש עוזר.</summary>
+        public event EventHandler AssistantClick;
 
         private readonly Btn _open, _openSubs;
         private int _hoverRecent = -1;
         private int _hoverLink = -1;
         // לכל שבב ריחוף משלו, כדי שהעכבר שעובר ביניהם ״יזרום״ ולא יקפוץ
-        private readonly Tween[] _linkHot = new Tween[3];
-        private readonly RectangleF[] _links = new RectangleF[3];
+        private readonly Tween[] _linkHot = new Tween[4];
+        private readonly RectangleF[] _links = new RectangleF[4];
 
         private static readonly string[][] Steps = new string[][]
         {
@@ -172,6 +174,7 @@ namespace SubtitleStudio
                 if (l == 0) tip = Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)");
                 else if (l == 1) tip = Theme.Dark ? Lang.T("מעבר למצב בהיר") : Lang.T("מעבר למצב כהה");
                 else if (l == 2) tip = Lang.T("על התוכנה, מנוע הווידאו ועדכונים");
+                else if (l == 3) tip = Lang.T("מבקשים במילים רגילות - והוא עושה בתוכנה (Ctrl+K)");
                 Ui.Tip.SetToolTip(this, tip);
                 Invalidate();
             }
@@ -196,6 +199,7 @@ namespace SubtitleStudio
                     if (i == 0 && HelpClick != null) HelpClick(this, EventArgs.Empty);
                     else if (i == 1 && ThemeClick != null) ThemeClick(this, EventArgs.Empty);
                     else if (i == 2 && AboutClick != null) AboutClick(this, EventArgs.Empty);
+                    else if (i == 3 && AssistantClick != null) AssistantClick(this, EventArgs.Empty);
                     return;
                 }
             for (int i = 0; i < RecentCount; i++)
@@ -364,6 +368,25 @@ namespace SubtitleStudio
                 Color icoC = Theme.Mix(Theme.Mix(Theme.TextDim, Theme.Text, 0.55f), Theme.Accent, hot);
                 Icons.Draw(g, icons[i], new RectangleF(r.X + (d - ic) / 2, r.Y + (d - ic) / 2, ic, ic), icoC, 1.9f);
                 x += d + gap;
+            }
+
+            // ״העוזר החכם״ - עם טקסט, בצבע של העוזר
+            {
+                string label = Lang.T("העוזר החכם");
+                float tw = TextRenderer.MeasureText(label, Theme.UiBold, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+                float w = tw + Theme.S(52);
+                RectangleF r = Theme.Mir(new RectangleF(0, 0, Width, Height), new RectangleF(x + Theme.S(4), y - Theme.S(6), w, d));
+                _links[3] = r;
+                float hot = _linkHot[3].Eased;
+                float rad = Theme.S(11);
+                Surface.Raised(g, r, rad, Theme.Mix(Theme.Panel, Theme.Purple, 0.12f + 0.10f * hot), hot, 0f, 1f);
+                Surface.Rim(g, r, rad, Theme.Mix(Theme.Panel, Theme.Purple, 0.55f + 0.3f * hot), Theme.Mix(Theme.Panel, Theme.Purple, 0.35f));
+                float ic = Theme.S(18);
+                RectangleF all = new RectangleF(0, 0, Width, Height);
+                RectangleF icR = Theme.Mir(all, new RectangleF(x + Theme.S(4) + w - Theme.S(14) - ic, y - Theme.S(6) + (d - ic) / 2, ic, ic));
+                Icons.Draw(g, Ico.Sparkles, icR, Theme.Purple, 1.9f);
+                RectangleF tr = Theme.Mir(all, new RectangleF(x + Theme.S(4) + Theme.S(12), y - Theme.S(6), w - Theme.S(14) - ic - Theme.S(18), d));
+                Theme.Str(g, label, Theme.UiBold, Theme.Mix(Theme.Text, Theme.Purple, 0.25f + 0.4f * hot), tr, Theme.SfCenter);
             }
         }
 
