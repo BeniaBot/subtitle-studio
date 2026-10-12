@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 54 בדיקות.
+# צפוי: 56 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -212,6 +212,13 @@ $tn2 = @($mfT.GetMethod('AiTools').Invoke($mf, @()) | ForEach-Object { $_.Name }
 Check 'listen ברשימת הפעולות' ($tn2 -contains 'listen') ''
 $sugg = @($mfT.GetMethod('AiSuggestions').Invoke($mf, @()))
 Check 'הצעות עם סרט וכתוביות - גם ליצור את הסרט' ($sugg -contains 'תיצור סרט עם הכתוביות') ($sugg -join ' | ')
+[void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
+$res = Call 'trim_video' @{ sections = '0-2 remove; 0:03-end keep' }
+$secs = $mfT.GetField('_cutSections', $IN).GetValue($mf)
+Check 'trim_video עם קטעים: נפתח עם הקטעים (הסרה, ושמירה עד הסוף)' ($secs.Count -eq 2 -and -not $secs[0].Keep -and $secs[1].Keep -and $secs[1].A -eq 3000 -and $secs[1].B -ge 5900 -and $mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())) ('' + $res['done'])
+$res = Call 'trim_video' @{ sections = 'מההתחלה עד האמצע' }
+Check 'קטע שלא מובן - שגיאה עם דוגמה, לא חלון' (('' + $res['error']).Contains('keep')) ('' + $res['error'])
+[void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
 try { Remove-Item $tmpDir -Recurse -Force } catch { }
 
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)

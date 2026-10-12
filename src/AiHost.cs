@@ -150,7 +150,9 @@ namespace SubtitleStudio
             t.Add(new AiTool("export_video", "פותח את חלון יצירת הסרט עם הכתוביות")
                 .P("mode", "string", "burn לצריבה בתמונה, track לערוץ כתוביות נפרד"));
 
-            t.Add(new AiTool("trim_video", "פותח את חלון החיתוך: קטעים לשמירה או להסרה. קטע שסומן על הציר (mark_range) נכנס אליו כקטע הראשון"));
+            t.Add(new AiTool("trim_video", "פותח את חלון החיתוך עם הקטעים: מה לשמור או להסיר מהסרט או מקובץ הקול. אחר כך בחלון: ״לחתוך ולשמור״ (לפי ההרשאות)")
+                .P("sections", "string", "הקטעים, מופרדים ב-; - למשל: 0-60 remove; 2:00-3:30 keep. זמנים בשניות או דקות:שניות, end = הסוף")
+                .P("mode", "string", "keep או remove - לקטעים שלא כתוב לידם. ברירת מחדל keep"));
 
             t.Add(new AiTool("run_media_tool", "מפעיל כלי על קובץ הווידאו: עוצמה, המרה, דחיסה, מהירות, סיבוב, היפוך, GIF, חילוץ פס קול ועוד")
                 .P("tool", "string", "שם הכלי בדיוק כפי שהוא חוזר מ-list_media_tools. בלי שם - נפתחת רשימת הכלים"));
@@ -323,7 +325,7 @@ namespace SubtitleStudio
                     case "save_subtitles": return AiSave();
                     case "mark_range": return AiMarkRange(call);
                     case "export_video": return AiExport(call);
-                    case "trim_video": return AiTrim();
+                    case "trim_video": return AiTrim(call);
                     case "run_media_tool": return AiTool_(call);
                     case "list_media_tools": return AiListTools();
                     case "open_file": return AiOpenFile(call);
@@ -751,13 +753,41 @@ namespace SubtitleStudio
             return r;
         }
 
-        private Dictionary<string, object> AiTrim()
+        private Dictionary<string, object> AiTrim(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            // **קטעים מוכנים (0.8.13):** ״תחתוך את הדקה הראשונה״ - בחלון החיתוך יוצרים קטע בגרירה על פס הקול, ואת זה העוזר
+            // לא יכול לעשות בלחיצות. כאן הוא נותן את הקטעים, והחלון נפתח איתם
+            string spec = c.Str("sections", "").Trim();
+            if (spec.Length > 0)
+            {
+                List<CutSection> list = new List<CutSection>();
+                bool defKeep = !c.Str("mode", "keep").Trim().ToLowerInvariant().StartsWith("rem");
+                foreach (string part in spec.Split(new char[] { ';', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(part.Trim(),
+                        @"^([\d:.,]+)\s*[-–]\s*([\d:.,]+|end|סוף)\s*(\w+)?");
+                    if (!m.Success) { r["error"] = Lang.F("לא הבנתי את הקטע ״{0}״ - צריך למשל 0:30-1:15 keep", part.Trim()); return r; }
+                    long a = Tc.Parse(m.Groups[1].Value);
+                    string bs = m.Groups[2].Value;
+                    long b = bs == "end" || bs == "סוף" ? _mi.DurationMs : Tc.Parse(bs);
+                    if (b > _mi.DurationMs) b = _mi.DurationMs;
+                    if (b <= a) { r["error"] = Lang.F("בקטע ״{0}״ הסוף לא אחרי ההתחלה", part.Trim()); return r; }
+                    string kw = m.Groups[3].Value.ToLowerInvariant();
+                    bool keep = kw.Length == 0 ? defKeep : !(kw.StartsWith("rem") || kw.StartsWith("לה") || kw.StartsWith("הס") || kw == "delete" || kw == "cut");
+                    CutSection s = new CutSection();
+                    s.Id = list.Count + 1; s.A = a; s.B = b; s.Keep = keep;
+                    s.Color = keep ? CutPlan.KeepColors[list.Count % CutPlan.KeepColors.Length] : CutPlan.RemoveColors[list.Count % CutPlan.RemoveColors.Length];
+                    list.Add(s);
+                }
+                _cutSections = list;
+                _cutFor = _mediaPath;
+                r["sections"] = list.Count;
+            }
             _aiLastWinCat = AiPerms.Media;
             AiDefer(delegate { TrimMedia(); });
-            r["done"] = Lang.T("נפתח חלון החיתוך");
+            r["done"] = spec.Length > 0 ? Lang.F("נפתח חלון החיתוך עם {0} קטעים", r["sections"]) : Lang.T("נפתח חלון החיתוך");
             return r;
         }
 
