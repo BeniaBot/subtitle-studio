@@ -85,6 +85,8 @@ namespace SubtitleStudio
             t.Add(new AiTool("select_cue", "בוחר כתובית ברשימה: היא נפתחת בעורך, והנגן קופץ אליה")
                 .Req("index", "integer", "מספר הכתובית, מ-1"));
             t.Add(new AiTool("redo", "מבצע מחדש את מה שבוטל"));
+            t.Add(new AiTool("undo_last_request", "מחזיר את הכתוביות והעיצוב למה שהיה לפני הבקשה הקודמת של המשתמש - כל מה שעשית בה, " +
+                "בבת אחת. זו התשובה ל״תבטל את מה שעשית״ / ״תחזיר כמו שהיה״. undo מבטל רק צעד אחד"));
             t.Add(new AiTool("set_setting", "משנה הגדרה")
                 .Req("name", "string", "dark (מצב כהה), language (he/en, אחרי הפעלה מחדש), spell_check, auto_update")
                 .Req("value", "string", "true/false, או he/en לשפה"));

@@ -479,6 +479,7 @@ namespace SubtitleStudio
             _nudged = false;
             _waits = 0;
             _lastBot = null;
+            _prevSnap = _snap;
             _snap = _host.AiSnapshot();
             // תמונות וקול מבקשה קודמת לא נשלחים שוב בכל סבב - כל דף תמונות הוא כאלף טוקנים מהמכסה
             foreach (AiMsg old in _history)
@@ -539,6 +540,8 @@ namespace SubtitleStudio
         /// <summary>הכתוביות והעיצוב בתחילת הבקשה האחרונה. אחרי הבקשה - אם משהו השתנה - כפתור שמחזיר אליהם בצעד ביטול
         /// אחד. בנימין: ״ביטול לכל מה שעשה״; Ctrl+Z מבטל רק צעד אחד, ובקשה אחת יכולה להיות עשרה צעדים.</summary>
         private object _snap;
+        /// <summary>הצילום מתחילת הבקשה הקודמת - כדי ש״תבטל את מה שעשית״ במילים (בקשה חדשה) יחזיר את מה שהקודמת שינתה.</summary>
+        private object _prevSnap;
         private static string UndoChip { get { return "↶  " + Lang.T("לבטל את מה שעשיתי"); } }
 
         private void UndoRequest()
@@ -783,6 +786,16 @@ namespace SubtitleStudio
                 if (IsDisposed) return;
                 AiCall call = r.Calls[i];
                 Dictionary<string, object> res;
+                // ״תבטל את מה שעשית״ במילים: מה שהבקשה הקודמת שינתה, בצעד ביטול אחד (כמו הכפתור)
+                if (!stopped && call.Name == "undo_last_request")
+                {
+                    Dictionary<string, object> u = new Dictionary<string, object>();
+                    if (_prevSnap != null && _host.AiChangedSince(_prevSnap) && _host.AiRestore(_prevSnap)) { u["done"] = Lang.T("הכתוביות והעיצוב חזרו למצב שלפני הבקשה הקודמת (Ctrl+Z מחזיר)"); _prevSnap = null; }
+                    else u["error"] = Lang.T("אין מה לבטל - הבקשה הקודמת לא שינתה את הכתוביות או העיצוב, או שנפתח בינתיים קובץ אחר");
+                    results.Add(u);
+                    ShowResult(u, false);
+                    continue;
+                }
                 // **שאלה עם תשובות לבחירה** (בנימין: ״אפשרות נפתחת ללחוץ מה אני רוצה, כמו שעובד היום בקלוד״):
                 // השאלה בבועה, התשובות כלחצנים, והשיחה עוצרת כאן עד שהוא בוחר - או כותב משהו אחר
                 if (!stopped && call.Name == "ask_user")

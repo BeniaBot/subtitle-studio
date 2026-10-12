@@ -7,7 +7,7 @@
 #  5. ״לבטל את מה שעשיתי״
 #  6. עצירה באמצע
 #  7-8. כל הדגמים עמוסים (ממתין וממשיך לבד) / המכסה היומית נגמרה (אומר מתי מתאפס)
-# צפוי: 18 בדיקות.
+# צפוי: 19 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -91,13 +91,25 @@ $chT = TY 'AiChatForm'
 $fInput = $chT.GetField('_input', $IN); $fBusy = $chT.GetField('_busy', $IN); $fAsk = $chT.GetField('_ask', $IN); $fHist = $chT.GetField('_history', $IN)
 
 # חלון שנשאר פתוח יותר מ-20 שניות - נסגר (אחרת ShowDialog תוקע את הבדיקה)
+# חריגה בתוך הצ׳אט - מודפסת, ולא חלון ״Unhandled exception״ שתוקע את הבדיקה
+$script:crashes = New-Object Collections.ArrayList
+[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host ($ev.Exception.StackTrace -split "
+" | Select-Object -First 4 | Out-String) })
 $script:winSince = $null
 $guard = New-Object Windows.Forms.Timer; $guard.Interval = 500
 $guard.Add_Tick({
     $w = (TY 'AiUi').GetMethod('Current', $ST).Invoke($null, @($mf, $chat))
-    if (-not $w) { $script:winSince = $null; return }
+    if (-not $w) { # חריגה בתוך הצ׳אט - מודפסת, ולא חלון ״Unhandled exception״ שתוקע את הבדיקה
+$script:crashes = New-Object Collections.ArrayList
+[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host ($ev.Exception.StackTrace -split "
+" | Select-Object -First 4 | Out-String) })
+$script:winSince = $null; return }
     if (-not $script:winSince) { $script:winSince = Get-Date }
-    elseif (((Get-Date) - $script:winSince).TotalSeconds -gt 20) { Write-Host "    (חלון נסגר בידי הבדיקה: $($w.Text))"; $w.Close(); $script:winSince = $null }
+    elseif (((Get-Date) - $script:winSince).TotalSeconds -gt 20) { Write-Host "    (חלון נסגר בידי הבדיקה: $($w.Text))"; $w.Close(); # חריגה בתוך הצ׳אט - מודפסת, ולא חלון ״Unhandled exception״ שתוקע את הבדיקה
+$script:crashes = New-Object Collections.ArrayList
+[Windows.Forms.Application]::add_ThreadException({ param($s, $ev) [void]$script:crashes.Add($ev.Exception.ToString()); Write-Host ('    !! חריגה: ' + $ev.Exception.GetType().Name + ': ' + $ev.Exception.Message) -ForegroundColor Red; Write-Host ($ev.Exception.StackTrace -split "
+" | Select-Object -First 4 | Out-String) })
+$script:winSince = $null }
 })
 $guard.Start()
 
@@ -183,6 +195,18 @@ $sw = [Diagnostics.Stopwatch]::StartNew()
 $chT.GetMethod('StopRequest', $IN).Invoke($chat, @())
 Pump 10
 Check 'עצירה: השיחה פנויה תוך שניות, לא אחרי שהשרת עונה' ((-not $fBusy.GetValue($chat)) -and $sw.Elapsed.TotalSeconds -lt 5) ("" + [Math]::Round($sw.Elapsed.TotalSeconds, 1) + " שניות")
+
+# ---------- 6א. ״תבטל את מה שעשית״ במילים - הבקשה הקודמת כולה ----------
+$before = CueText 0
+$srv = StartServer @(
+    (Reply (Call 'edit_cue' '{"index":1,"text":"שונה בבקשה"}' $null)),
+    (Reply (Txt 'שיניתי.')),
+    (Reply (Call 'undo_last_request' '{}' $null)),
+    (Reply (Txt 'ביטלתי.')))
+Say 'תשנה את הראשונה'
+$mid = CueText 0
+Say 'תבטל את מה שעשית'
+Check 'undo_last_request: הכתובית חוזרת למה שהייתה לפני הבקשה הקודמת' ($mid -eq 'שונה בבקשה' -and (CueText 0) -eq $before) ("$mid ← " + (CueText 0))
 
 # ---------- 7. כל הדגמים עמוסים לרגע (מכסה דקתית): ממתין וממשיך לבד ----------
 $models = (TY 'Ai').GetField('Models', $ST).GetValue($null)

@@ -98,7 +98,7 @@ namespace SubtitleStudio
             {
                 case "get_state": case "list_cues": case "find_problems": case "check_spelling": case "list_media_tools":
                 case "app_help": case "list_commands": case "ui_read": case "seek": case "play_pause": case "set_playback_speed":
-                case "mark_range": case "select_cue": case "play_range": case "find_text": case "ask_user":
+                case "mark_range": case "select_cue": case "play_range": case "find_text": case "ask_user": case "undo_last_request":
                     return ReadOnly;
                 case "run_media_tool": case "trim_video": case "export_video":
                     return Media;

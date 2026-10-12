@@ -1549,6 +1549,8 @@ namespace SubtitleStudio
             "בקטע ״{0}״ הסוף לא אחרי ההתחלה", "In the section '{0}' the end is not after the start",
             "נפתח חלון החיתוך עם {0} קטעים", "The cut window opened with {0} sections",
             "מבקשים במילים רגילות - והוא עושה בתוכנה (Ctrl+K)", "Ask in plain words - and it does it in the program (Ctrl+K)",
+            "הכתוביות והעיצוב חזרו למצב שלפני הבקשה הקודמת (Ctrl+Z מחזיר)", "The subtitles and the style are back to how they were before the previous request (Ctrl+Z brings it back)",
+            "אין מה לבטל - הבקשה הקודמת לא שינתה את הכתוביות או העיצוב, או שנפתח בינתיים קובץ אחר", "Nothing to undo - the previous request didn't change the subtitles or the style, or another file was opened since",
             "לערוך את הכתוביות והעיצוב", "Edit the subtitles and the style",
             "ליצור קבצים חדשים מהסרט", "Make new files from the video",
             "לפתוח ולשמור קבצים", "Open and save files",
