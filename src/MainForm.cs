@@ -1193,6 +1193,13 @@ namespace SubtitleStudio
                     items.Add(MenuItem.Make(Lang.T("להשמיע את השורה"), Lang.T("מהתחלת הכתובית"), Ico.Play, delegate { PlayCue(c); }));
                 items.Add(MenuItem.Make(Lang.T("נכון - להסיר את הסימון"), Lang.T("נשמע כמו שכתוב · Ctrl+Z מבטל"), Ico.Check,
                     delegate { ClearDoubt(c); }));
+                // **העוזר מקשיב ובודק (0.8.13)** - בדיוק בשביל זה יש לו אוזניים
+                if (_mi != null && _mi.HasAudio)
+                {
+                    int num = _doc.IndexOf(c) + 1;
+                    items.Add(MenuItem.Make(Lang.T("שהעוזר יקשיב ויבדוק"), Lang.T("הוא שומע את הקטע ומציע תיקון · הקול נשלח לגוגל"), Ico.Sparkles,
+                        delegate { AskAssistant(Lang.F("תקשיב לכתובית {0} ותגיד אם המילים שהתמלול לא היה בטוח בהן נכונות. אם לא - תציע תיקון.", num), true); }));
+                }
             }
             if (items.Count > 0) items.Add(MenuItem.Group(Lang.T("הכתובית")));
             items.Add(MenuItem.Make(Lang.T("לחלק לשתי כתוביות"), Lang.T("מחלק במקום שבו נמצא הסמן"), Ico.Split,
@@ -1201,7 +1208,20 @@ namespace SubtitleStudio
                 delegate { MergeCues(); }));
             items.Add(MenuItem.Make(Lang.T("מחיקה"), Lang.T("מוחק את המסומנות (Delete)"), Ico.Trash,
                 delegate { DeleteCues(); }));
+            if (c != null)
+            {
+                int n2 = _doc.IndexOf(c) + 1;
+                items.Add(MenuItem.Make(Lang.T("לשאול את העוזר"), Lang.T("על הכתובית הזו - לתקן, לקצר, להקשיב, לתרגם..."), Ico.Sparkles,
+                    delegate { AskAssistant(Lang.F("כתובית {0}: ", n2), false); }));
+            }
             return items;
+        }
+
+        /// <summary>פותח את העוזר עם בקשה מוכנה - לשליחה מיד, או להשלמה במקלדת.</summary>
+        internal void AskAssistant(string text, bool send)
+        {
+            OpenAiChat();
+            if (_chat != null && !_chat.IsDisposed) _chat.Ask(text, send);
         }
 
         // ---------- בדיקת איות ----------

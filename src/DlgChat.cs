@@ -20,6 +20,8 @@ namespace SubtitleStudio
         bool AiTakeDeferred();
         /// <summary>אחרי שהפעולה שנדחתה רצה: מוסיף לתוצאה שלה מה יש עכשיו על המסך (החלון שנפתח).</summary>
         void AiAfterDeferred(Dictionary<string, object> res);
+        /// <summary>הצעות לפתיחת השיחה לפי המצב (אין קובץ / אין כתוביות / יש בעיות...).</summary>
+        string[] AiSuggestions();
         /// <summary>״לבטל את מה שעשיתי״: צילום בתחילת בקשה, האם השתנה משהו, וחזרה אליו.</summary>
         object AiSnapshot();
         bool AiChangedSince(object snap);
@@ -88,6 +90,22 @@ namespace SubtitleStudio
             _input.KeyDown += delegate (object s, KeyEventArgs e)
             {
                 if (e.KeyCode == Keys.Enter && !e.Shift) { e.SuppressKeyPress = true; Send(); }
+                // חץ למעלה בתיבה ריקה - הבקשה הקודמת, לתיקון ושליחה מחדש
+                if (e.KeyCode == Keys.Up && (_input.TextLength == 0 || _hint))
+                {
+                    for (int i = _history.Count - 1; i >= 0; i--)
+                    {
+                        AiMsg m = _history[i];
+                        if (m.Role == "user" && !m.Hidden && m.AudioB64 == null && !string.IsNullOrEmpty(m.Text) && !m.Text.StartsWith("("))
+                        {
+                            ClearHint();
+                            _input.Text = m.Text;
+                            _input.SelectionStart = _input.TextLength;
+                            e.SuppressKeyPress = true;
+                            break;
+                        }
+                    }
+                }
             };
             _input.TextChanged += delegate { if (!_hint) Invalidate(); };
             _input.GotFocus += delegate { ClearHint(); Invalidate(); };
@@ -306,7 +324,34 @@ namespace SubtitleStudio
         private void Greet()
         {
             _view.AddBot(Lang.T("שלום. אפשר לבקש ממני דברים במילים רגילות - ואני אעשה אותם בתוכנה."));
-            _view.AddChips(Chips);
+            string[] s = null;
+            try { s = _host.AiSuggestions(); }
+            catch { }
+            _view.AddChips(s != null && s.Length > 0 ? s : Chips);
+        }
+
+        /// <summary>פותח עם בקשה מוכנה (מהקליק הימני על כתובית): לשליחה מיד, או בתיבה להשלמה.</summary>
+        public void Ask(string text, bool send)
+        {
+            if (_busy) return;
+            ClearHint();
+            _input.Text = text;
+            _input.SelectionStart = _input.TextLength;
+            _input.Focus();
+            if (send) Send();
+        }
+
+        /// <summary>ההצעות של הפתיחה, לפי מה שקורה עכשיו - כשהשיחה עוד לא התחילה.</summary>
+        public void RefreshChips()
+        {
+            if (_busy || _ask != null) return;
+            foreach (AiMsg m in _history) if (m.Role == "user") return;
+            string[] s = null;
+            try { s = _host.AiSuggestions(); }
+            catch { }
+            if (s == null || s.Length == 0) return;
+            _view.HideChips();
+            _view.AddChips(s);
         }
 
         private void DoLayout()
@@ -1087,7 +1132,7 @@ namespace SubtitleStudio
                 {
                     if (_thinking == value) return;
                     _thinking = value;
-                    if (value) { _phase = 0; _anim.Start(); } else _anim.Stop();
+                    if (value) { _phase = 0; _thinkStart = DateTime.Now; _anim.Start(); } else _anim.Stop();
                     ScrollToEnd();
                 }
             }
@@ -1119,6 +1164,7 @@ namespace SubtitleStudio
                 set { _status = value ?? ""; Invalidate(); }
             }
             private string _status = "";
+            private DateTime _thinkStart = DateTime.Now;
 
             /// <summary>הודעה (משתמש, עוזר או שורת פעולה) שנמצאת בנקודה, או null - להעתקה בקליק ימני.</summary>
             public string TextAt(Point p)
@@ -1391,15 +1437,19 @@ namespace SubtitleStudio
                 {
                     float h = Theme.S(36);
                     // עם מה שהוא עושה עכשיו (״מסתכל על הסרט...״) - הבועה מתרחבת לטקסט
+                    // בלי סטטוס, אחרי כמה שניות - כמה זמן כבר (המתנה בלי סימן נראית כמו תקיעה)
+                    string st = _status;
+                    double waited = (DateTime.Now - _thinkStart).TotalSeconds;
+                    if (st.Length == 0 && waited > 6) st = Lang.F("חושב · {0} שניות", (int)waited);
                     float tw = 0;
-                    if (_status.Length > 0)
-                        tw = Math.Min(Width - AvatarD - Theme.S(110), TextSize(_status, Theme.Small, int.MaxValue / 4, IsRtlText(_status)).Width + Theme.S(4));
+                    if (st.Length > 0)
+                        tw = Math.Min(Width - AvatarD - Theme.S(110), TextSize(st, Theme.Small, int.MaxValue / 4, IsRtlText(st)).Width + Theme.S(4));
                     RectangleF r = new RectangleF(AvatarD + Theme.S(8), y, Theme.S(74) + (tw > 0 ? tw + Theme.S(10) : 0), h);
                     Theme.FillRound(g, r, rad, Theme.Panel);
                     Theme.DrawRound(g, r, rad, Theme.BorderSoft, 1f);
                     if (tw > 0)
-                        Theme.Str(g, _status, Theme.Small, Theme.TextDim, new RectangleF(r.X + Theme.S(68), r.Y, tw, h),
-                            IsRtlText(_status) ? Theme.SfRtl : Theme.SfNear);
+                        Theme.Str(g, st, Theme.Small, Theme.TextDim, new RectangleF(r.X + Theme.S(68), r.Y, tw, h),
+                            IsRtlText(st) ? Theme.SfRtl : Theme.SfNear);
                     float dd = Theme.S(6);
                     for (int i = 0; i < 3; i++)
                     {

@@ -2,7 +2,7 @@
 # ההרשאות (מותר / לשאול / אסור), הפקודות, עבודה בחלון (AiUi), ״לבטל את מה שעשיתי״, המצב, המדריך, הראייה והקול.
 # **למה:** בניסוי עם מפתח אמיתי (11.10) בקשה של שני שלבים נפלה ב״missing a thought_signature״, ורק הפעולה האחרונה
 # מתוך כמה בוצעה. את הניסוי עצמו אי אפשר להריץ בכל בנייה (מכסה), אז מה שנמצא בו נבדק כאן.
-# צפוי: 52 בדיקות.
+# צפוי: 54 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing, System.Web.Extensions
@@ -182,6 +182,9 @@ Check 'הפעולות החדשות ברשימה (ask_user, look_at, find_scene, 
 $bodyT = $ai.GetMethod('BuildBody', $ST).Invoke($null, (Pack 'sys' $hist $tools $false 'm'))
 Check 'הגדרות הפעולות נבנות לסכמה תקינה' ($ser.DeserializeObject($bodyT)['tools'][0]['functionDeclarations'].Count -eq $tools.Count) ''
 
+$sugg = @($mfT.GetMethod('AiSuggestions').Invoke($mf, @()))
+Check 'הצעות לפתיחה בלי סרט ועם כתוביות - לתרגם, לא ״תמלל״' (($sugg -contains 'תרגם את הכתוביות לאנגלית') -and -not ($sugg -contains 'אני רוצה כתוביות לסרט')) ($sugg -join ' | ')
+
 # ---------- 12. עם סרט: להקשיב, להסתכל, למצוא סצנה; הכתוביות במצב; שעת האיפוס ----------
 $tmpDir = Join-Path $env:TEMP ('ss-asst-' + [guid]::NewGuid().ToString('N').Substring(0, 6)); New-Item -ItemType Directory $tmpDir | Out-Null
 $clip = Join-Path $tmpDir 'clip.mp4'
@@ -207,6 +210,8 @@ Check 'שעת איפוס המכסה: לפני - ״היום״, אחרי - ״מח�
 Check 'listen נחשבת שליחה החוצה' ($cat.Invoke($null, @('listen')) -eq 3) ''
 $tn2 = @($mfT.GetMethod('AiTools').Invoke($mf, @()) | ForEach-Object { $_.Name })
 Check 'listen ברשימת הפעולות' ($tn2 -contains 'listen') ''
+$sugg = @($mfT.GetMethod('AiSuggestions').Invoke($mf, @()))
+Check 'הצעות עם סרט וכתוביות - גם ליצור את הסרט' ($sugg -contains 'תיצור סרט עם הכתוביות') ($sugg -join ' | ')
 try { Remove-Item $tmpDir -Recurse -Force } catch { }
 
 $mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)

@@ -52,6 +52,39 @@ namespace SubtitleStudio
             catch { _aiDeferred = false; }
         }
 
+        // ---------- הצעות לפתיחה ----------
+        /// <summary>מה להציע כשפותחים את העוזר - לפי מה שקורה עכשיו, כדי שהלחיצה הראשונה כבר תעשה משהו שימושי.</summary>
+        public string[] AiSuggestions()
+        {
+            List<string> s = new List<string>();
+            bool media = _mi != null;
+            int n = _doc.Cues.Count;
+            if (!media && n == 0)
+            {
+                s.Add(Lang.T("איך מתחילים?"));
+                s.Add(Lang.T("מה אתה יודע לעשות?"));
+                return s.ToArray();
+            }
+            if (n == 0)
+            {
+                s.Add(Lang.T("אני רוצה כתוביות לסרט"));
+                s.Add(Lang.T("יש לי טקסט מוכן - איך מכניסים אותו?"));
+                if (_mi.HasVideo) s.Add(Lang.T("מה רואים בסרט?"));
+                s.Add(Lang.T("מה אתה יודע לעשות?"));
+                return s.ToArray();
+            }
+            int untimed = 0, doubt = 0;
+            foreach (Cue c in _doc.Cues) { if (c.Untimed) untimed++; if (!string.IsNullOrEmpty(c.Doubt)) doubt++; }
+            if (untimed > 0 && media) s.Add(Lang.T("תתזמן את השורות שעוד אין להן זמן"));
+            if (doubt > 0 && media) s.Add(Lang.T("תקשיב למילים שהתמלול לא היה בטוח בהן"));
+            if (_qaCount > 0) s.Add(Lang.F("תתקן את הבעיות בכתוביות ({0})", _qaCount));
+            s.Add(Lang.T("תרגם את הכתוביות לאנגלית"));
+            if (media) s.Add(Lang.T("תיצור סרט עם הכתוביות"));
+            s.Add(Lang.T("תגדיל את הכתוביות ותשים למעלה"));
+            while (s.Count > 5) s.RemoveAt(s.Count - 1);
+            return s.ToArray();
+        }
+
         // ---------- ״לבטל את מה שעשיתי״ ----------
         /// <summary>צילום בתחילת בקשה: המסמך עצמו (לא אחר שנפתח בינתיים), הכתוביות והעיצוב.</summary>
         private class AiSnap

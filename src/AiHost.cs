@@ -20,6 +20,7 @@ namespace SubtitleStudio
             {
                 _chat.Show();
                 _chat.BringToFront();
+                _chat.RefreshChips();
                 return;
             }
             if (!EnsureAiKey()) return;
@@ -775,6 +776,16 @@ namespace SubtitleStudio
                     MediaInfo mi = _mi;
                     _aiLastWinCat = AiPerms.Media;
                     AiDefer(delegate { ToolsDlg.RunNamed(this, name, mi, a, b, pos); });
+                    r["done"] = Lang.F("נפתח הכלי {0}", t.Name);
+                    return r;
+                }
+                // שם לא מדויק (״דחיסה״ במקום ״דחיסה - הקטנת נפח הקובץ״) - הכלי שהשם שלו מכיל את המבוקש, או להפך
+                foreach (MediaTool t in MediaTools.All())
+                {
+                    if (t.Name.IndexOf(want, StringComparison.OrdinalIgnoreCase) < 0 && want.IndexOf(t.Name, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    string name2 = t.Name; long a2 = _tl.InPoint, b2 = _tl.OutPoint, pos2 = _engine.Position; MediaInfo mi2 = _mi;
+                    _aiLastWinCat = AiPerms.Media;
+                    AiDefer(delegate { ToolsDlg.RunNamed(this, name2, mi2, a2, b2, pos2); });
                     r["done"] = Lang.F("נפתח הכלי {0}", t.Name);
                     return r;
                 }
