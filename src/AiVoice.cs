@@ -29,7 +29,8 @@ namespace SubtitleStudio
 
         /// <summary>**מכינים או מקריאים עכשיו** (0.8.14) - כפתור הרמקול בצ׳אט דולק, ולחיצה עליו עוצרת. עד אז לא היה סימן שהקראה
         /// בדרך (ההכנה לוקחת כמה שניות), ולא הייתה דרך להשתיק אותה באמצע.</summary>
-        public static bool Busy { get { return _preparing || DateTime.UtcNow < _playingUntil; } }
+        public static bool Busy { get { VoiceStream s = _stream; return _preparing || DateTime.UtcNow < _playingUntil || (s != null && s.Playing); } }
+        private static VoiceStream _stream;
         private static volatile bool _preparing;
         private static DateTime _playingUntil = DateTime.MinValue;
 
@@ -43,16 +44,60 @@ namespace SubtitleStudio
             _preparing = true;
             Thread th = new Thread(delegate ()
             {
-                // **קודם הקול של ווינדוס** (מיידי, בלי רשת ובלי מכסה); אין קול לשפה הזאת - הדגם של גוגל
+                // **דגם ההקראה של גוגל, בהזרמה (0.8.21).** בנימין, על ״Asaf״ של ווינדוס: ״זה גרוע מאוד!״ - הוא כבר לא בדרך. נוסה גם
+                // הדגם הקולי החי (gemini-2.5-flash-native-audio): טבעי, אבל בשליש מהתשובות שנגמרות בשאלה הוא **ענה** (״בטח, רעיון מצוין״)
+                // או נקטע באמצע, בכל הגדרה (נמדד 14.10, בתמלול חוזר). דגם ההקראה מקריא מה שנותנים לו
                 byte[] wav = null;
                 string err = null;
-                try { wav = WinVoice.Synth(t, HasHebrew(t) ? "he" : "en"); }
-                catch (Exception ex) { Ai.Log("הקול של ווינדוס לא זמין: " + ex.Message); }
-                if (wav == null && gen == _gen && Ai.HasKey)
+                if (Ai.HasKey)
                 {
-                    byte[] pcm = Tts(t, out err);
+                    // **מנגנים תוך כדי, בלי להיתקע באמצע** (0.8.21): ‏3.1-flash-tts מזרים - קול ראשון אחרי 1.3-8.7 שניות - אבל קצב ההפקה
+                    // משתנה: נמדד 14.10 פעם 13.6 שניות דיבור ב-14.5, ופעם 14 ב-23 (0.6 מקצב הדיבור). במאגר קבוע של שתי שניות ההקראה
+                    // הייתה נעצרת באמצע מילה. לכן מתחילים כשמה שבמאגר מספיק לכל השאר בקצב שנמדד: ‏A ≥ T·(1-r) + שנייה, כש-T - אורך
+                    // ההקראה המשוער לפי הטקסט (~10.5 תווים לשנייה) ו-r - קצב ההפקה עד עכשיו
+                    VoiceStream vs = null;
+                    MemoryStream held = new MemoryStream();
+                    bool mute = Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1";
+                    double total = Math.Max(2.0, t.Length / 10.5);
+                    DateTime firstAt = DateTime.MinValue;
+                    Action<byte[]> onChunk = delegate (byte[] chunk)
+                    {
+                        if (mute || gen != _gen) return;
+                        if (vs == null)
+                        {
+                            held.Write(chunk, 0, chunk.Length);
+                            if (firstAt == DateTime.MinValue) firstAt = DateTime.UtcNow;
+                            double have = held.Length / 48000.0;
+                            double el = (DateTime.UtcNow - firstAt).TotalSeconds;
+                            if (el < 1.0 && have < total) return;                     // הקצב נמדד רק אחרי שנייה - ההתחלה מגיעה בפרץ
+                            double rate = have / Math.Max(1.0, el);
+                            double need = rate >= 1 ? 1.5 : Math.Max(1.5, total * (1 - rate) + 1.0);
+                            if (have < need) return;
+                            vs = new VoiceStream();
+                            lock (_lock) { if (_stream != null) _stream.Stop(); _stream = vs; }
+                            _preparing = false;
+                            vs.Write(held.ToArray());
+                            return;
+                        }
+                        vs.Write(chunk);
+                    };
+                    byte[] pcm = TtsStream(t, delegate { return gen != _gen; }, onChunk, out err);
+                    if (pcm != null && vs == null && !mute && gen == _gen && held.Length > 0)
+                    {
+                        vs = new VoiceStream();                                 // תשובה קצרה - פחות משתי שניות
+                        lock (_lock) { if (_stream != null) _stream.Stop(); _stream = vs; }
+                        _preparing = false;
+                        vs.Write(held.ToArray());
+                    }
+                    if (vs != null) { vs.End(); if (pcm != null) return; vs.Stop(); }
+                    if (pcm == null && gen == _gen)
+                    {
+                        Ai.Log("ההקראה בהזרמה לא הצליחה (" + err + ") - בלי הזרמה");
+                        pcm = Tts(t, out err);
+                    }
                     if (pcm != null) wav = Wav(pcm, 24000);
                 }
+                else err = "אין מפתח של גוגל";
                 if (gen != _gen) return;
                 _preparing = false;
                 if (wav == null) { LastError = err ?? ""; Ai.Log("הקראה נכשלה: " + LastError); return; }
@@ -72,6 +117,7 @@ namespace SubtitleStudio
             {
                 try { if (_player != null) _player.Stop(); }
                 catch { }
+                if (_stream != null) { _stream.Stop(); _stream = null; }
             }
         }
 
@@ -187,12 +233,97 @@ namespace SubtitleStudio
         {
             if (string.IsNullOrEmpty(s)) return "";
             s = AiChatForm.Plain(s).Replace("·", ",").Replace("\n", " ").Replace("  ", " ").Trim();
+            s = SpokenTimes(s);
             if (s.Length > 700)
             {
                 int cut = s.LastIndexOfAny(new char[] { '.', '?', '!' }, 700);
                 s = cut > 200 ? s.Substring(0, cut + 1) : s.Substring(0, 700);
             }
             return s;
+        }
+
+        /// <summary>זמנים במילים: ״4:01״ הוקרא ״ארבע אפס אחת״ (נמדד 14.10). ״4:01״ ← ״4 דקות ו-1 שניות״, ״1:00:05״ ← ״1 שעות, 0 דקות...״ -
+        /// מספרים הדגם קורא נכון; ״09:30.5״ (זמן של כתובית) - בלי העשיריות.</summary>
+        internal static string SpokenTimes(string s)
+        {
+            return System.Text.RegularExpressions.Regex.Replace(s ?? "", @"\b(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:\.\d)?\b", delegate (System.Text.RegularExpressions.Match m)
+            {
+                int h = m.Groups[1].Success ? int.Parse(m.Groups[1].Value) : 0;
+                int mi = int.Parse(m.Groups[2].Value), se = int.Parse(m.Groups[3].Value);
+                StringBuilder b = new StringBuilder();
+                if (h > 0) b.Append(h == 1 ? "שעה" : h + " שעות").Append(mi > 0 || se > 0 ? ", " : "");
+                if (mi > 0) b.Append(mi == 1 ? "דקה" : mi + " דקות");
+                if (se > 0) b.Append(mi > 0 || h > 0 ? (se == 1 ? " ו" : " ו-") : "").Append(se == 1 ? "שנייה" : se + " שניות");
+                if (b.Length == 0) b.Append("אפס");
+                return b.ToString();
+            });
+        }
+
+        /// <summary>דגם ההקראה שמזרים (‏streamGenerateContent, ‏SSE). נמדד 14.10 על תשובה של 151 תווים: קול ראשון אחרי 3.0 שניות;
+        /// ‏2.5-flash-preview-tts לא מזרים (הכול אחרי 18).</summary>
+        public const string StreamModel = "gemini-3.1-flash-tts-preview";
+
+        /// <summary>הקראה בהזרמה: <paramref name="onChunk"/> מקבל כל קטע PCM ‏(24kHz) כשהוא מגיע. מחזיר את כולו, או null עם הסבר.</summary>
+        internal static byte[] TtsStream(string text, Func<bool> cancelled, Action<byte[]> onChunk, out string error)
+        {
+            error = null;
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            js.MaxJsonLength = 64 * 1024 * 1024;
+            string json = js.Serialize(TtsBody(text));
+            DateTime t0 = DateTime.UtcNow;
+            double firstAt = -1;
+            MemoryStream all = new MemoryStream();
+            HttpWebRequest req = null;
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
+                req = (HttpWebRequest)WebRequest.Create(Ai.EndpointRoot + StreamModel + ":streamGenerateContent?alt=sse&key=" + Uri.EscapeDataString(Ai.Key));
+                req.Method = "POST";
+                req.ContentType = "application/json; charset=utf-8";
+                req.Timeout = 60000;
+                req.ReadWriteTimeout = 30000;
+                byte[] data = Encoding.UTF8.GetBytes(json);
+                using (Stream s = req.GetRequestStream()) s.Write(data, 0, data.Length);
+                using (WebResponse resp = req.GetResponse())
+                using (StreamReader reader = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (cancelled != null && cancelled()) { try { req.Abort(); } catch { } error = "בוטל"; return null; }
+                        if (!line.StartsWith("data:")) continue;
+                        byte[] pcm = Audio(js.DeserializeObject(line.Substring(5).Trim()) as Dictionary<string, object>);
+                        if (pcm == null || pcm.Length == 0) continue;
+                        if (firstAt < 0) firstAt = (DateTime.UtcNow - t0).TotalSeconds;
+                        all.Write(pcm, 0, pcm.Length);
+                        if (onChunk != null) { try { onChunk(pcm); } catch { } }
+                    }
+                }
+            }
+            catch (WebException wex)
+            {
+                int code = wex.Response is HttpWebResponse ? (int)((HttpWebResponse)wex.Response).StatusCode : 0;
+                error = code == 429 ? "נגמרה המכסה של דגם ההקראה" : (code > 0 ? "השרת החזיר " + code : wex.Message);
+                return null;
+            }
+            catch (Exception ex) { error = ex.Message; return null; }
+            Ai.Log("הקראה (" + StreamModel + "): " + text.Length + " תווים, קול ראשון אחרי " + firstAt.ToString("0.0") + " שניות, הכול אחרי " +
+                   (DateTime.UtcNow - t0).TotalSeconds.ToString("0.0") + ", " + (all.Length / 48000.0).ToString("0.0") + " שניות דיבור");
+            if (all.Length == 0) { error = "לא חזר קול"; return null; }
+            return all.ToArray();
+        }
+
+        private static Dictionary<string, object> TtsBody(string text)
+        {
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["contents"] = new object[] { new Dictionary<string, object> { { "parts", new object[] { new Dictionary<string, object> { { "text", text } } } } } };
+            body["generationConfig"] = new Dictionary<string, object>
+            {
+                { "responseModalities", new object[] { "AUDIO" } },
+                { "speechConfig", new Dictionary<string, object> { { "voiceConfig", new Dictionary<string, object> {
+                    { "prebuiltVoiceConfig", new Dictionary<string, object> { { "voiceName", VoiceName } } } } } } }
+            };
+            return body;
         }
 
         /// <summary>PCM של 16 ביט, 24kHz, מונו - או null עם הסבר.</summary>
@@ -317,6 +448,101 @@ namespace SubtitleStudio
         }
     }
 
+    /// <summary>**השמעה תוך כדי** של PCM ‏24kHz מונו (הקול החי): כל קטע - חוצץ של waveOut, ברגע שהוא מגיע. ‏<see cref="End"/> - אין עוד;
+    /// ‏<see cref="Stop"/> - שקט מיד. החוצצים שהסתיימו משוחררים בכתיבה הבאה ובסוף.</summary>
+    internal sealed class VoiceStream
+    {
+        private IntPtr _hwo = IntPtr.Zero;
+        private readonly List<IntPtr[]> _bufs = new List<IntPtr[]>();      // [כותרת, נתונים]
+        private readonly object _lock = new object();
+        private volatile bool _ended, _stopped;
+        private static readonly int Hsz = Marshal.SizeOf(typeof(Native.WaveHdr));
+
+        public VoiceStream()
+        {
+            Native.WaveFormatEx f = new Native.WaveFormatEx();
+            f.wFormatTag = 1; f.nChannels = 1; f.nSamplesPerSec = 24000; f.wBitsPerSample = 16;
+            f.nBlockAlign = 2; f.nAvgBytesPerSec = 48000; f.cbSize = 0;
+            IntPtr h;
+            if (Native.waveOutOpen(out h, Native.WAVE_MAPPER, ref f, IntPtr.Zero, IntPtr.Zero, Native.CALLBACK_NULL) == 0) _hwo = h;
+        }
+
+        /// <summary>עוד מנגן (או שעוד יגיע קול).</summary>
+        public bool Playing
+        {
+            get
+            {
+                if (_stopped || _hwo == IntPtr.Zero) return false;
+                if (!_ended) return true;
+                lock (_lock) { Reap(); return _bufs.Count > 0; }
+            }
+        }
+
+        public void Write(byte[] pcm)
+        {
+            if (_stopped || _hwo == IntPtr.Zero || pcm == null || pcm.Length == 0) return;
+            lock (_lock)
+            {
+                Reap();
+                IntPtr data = Marshal.AllocHGlobal(pcm.Length), hdr = Marshal.AllocHGlobal(Hsz);
+                Marshal.Copy(pcm, 0, data, pcm.Length);
+                Native.WaveHdr w = new Native.WaveHdr();
+                w.lpData = data; w.dwBufferLength = pcm.Length; w.dwFlags = 0;
+                Marshal.StructureToPtr(w, hdr, false);
+                Native.waveOutPrepareHeader(_hwo, hdr, Hsz);
+                Native.waveOutWrite(_hwo, hdr, Hsz);
+                _bufs.Add(new IntPtr[] { hdr, data });
+            }
+        }
+
+        /// <summary>אין עוד קטעים: כשהאחרון נגמר - סוגרים (בחוט משלו, כדי לא לעכב את מי שקרא).</summary>
+        public void End()
+        {
+            _ended = true;
+            Thread th = new Thread(delegate ()
+            {
+                for (int k = 0; k < 6000 && !_stopped; k++)
+                {
+                    lock (_lock) { Reap(); if (_bufs.Count == 0) break; }
+                    Thread.Sleep(50);
+                }
+                Close();
+            });
+            th.IsBackground = true;
+            th.Start();
+        }
+
+        public void Stop()
+        {
+            _stopped = true;
+            lock (_lock) { if (_hwo != IntPtr.Zero) Native.waveOutReset(_hwo); }
+            Close();
+        }
+
+        private void Reap()
+        {
+            for (int i = _bufs.Count - 1; i >= 0; i--)
+            {
+                Native.WaveHdr w = (Native.WaveHdr)Marshal.PtrToStructure(_bufs[i][0], typeof(Native.WaveHdr));
+                if ((w.dwFlags & Native.WHDR_DONE) == 0) continue;
+                Native.waveOutUnprepareHeader(_hwo, _bufs[i][0], Hsz);
+                Marshal.FreeHGlobal(_bufs[i][0]); Marshal.FreeHGlobal(_bufs[i][1]);
+                _bufs.RemoveAt(i);
+            }
+        }
+
+        private void Close()
+        {
+            lock (_lock)
+            {
+                if (_hwo == IntPtr.Zero) return;
+                Native.waveOutReset(_hwo);
+                Reap();
+                Native.waveOutClose(_hwo);
+                _hwo = IntPtr.Zero;
+            }
+        }
+    }
     /// <summary>**הקול של ווינדוס (0.8.14)** - ‏Windows.Media.SpeechSynthesis, הקולות שבאים עם ווינדוס 10/11 (בעברית: ״Asaf״,
     /// גבר). נמדד 12.10, אותם שני משפטים: 0.08 שניות, מול 5-36 שניות בדגם ההקראה של גוגל - שגם המכסה היומית שלו נגמרה אחרי
     /// כמה עשרות תשובות. בלי רשת ובלי מכסה.

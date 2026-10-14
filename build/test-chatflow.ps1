@@ -310,6 +310,7 @@ function VoiceItems { @($view.GetType().GetField('_items', $IN).GetValue($view) 
 function LastVoiceText { $v = VoiceItems; if ($v.Count -eq 0) { return '' }; return $v[$v.Count - 1].GetType().GetField('Text').GetValue($v[$v.Count - 1]) }
 function LastItemText { $items = @($view.GetType().GetField('_items', $IN).GetValue($view)); $x = $items[$items.Count - 1]; return $x.GetType().GetField('Text').GetValue($x) }
 $hearModels = (TY 'AiVoice').GetField('HearModels', $ST).GetValue($null)
+(TY 'AiVoice').GetField('LastSpoken', $ST).SetValue($null, '')
 $srv = StartServer @((Reply (Txt 'תוסיף כתובית בסוף')), (Reply (Txt 'הוספתי.')))
 $sendVoice.Invoke($chat, @([byte[]]$wav, [double]1.5)); Pump 30
 $h0 = Req $srv 0; $h1 = Req $srv 1
@@ -318,7 +319,7 @@ Check 'התמלול - בדגם קל, עם ההקלטה' ((ModelOf (ReqLine $srv 
 Check 'והבקשה לעוזר - המילים, בלי ההקלטה, והוא עונה' ($h1.Contains('תוסיף כתובית בסוף') -and -not $h1.Contains('inline_data') -and (LastModelText) -eq 'הוספתי.') ''
 for ($q = 0; $q -lt 10; $q++) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 30 }
 $spoken = (TY 'AiVoice').GetField('LastSpoken', $ST).GetValue($null)
-Check 'מי שדיבר - שומע תשובה (גם כשההקראה כבויה)' ($spoken -eq 'הוספתי.') $spoken
+Check 'מי שדיבר - **לא** שומע תשובה כשההקראה כבויה (0.8.21; בנימין: ״מוזר שהוא מתחיל לדבר פתאום״)' ($spoken -eq '') $spoken
 
 # ---------- 11. התמלול נכשל בכל הדגמים הקלים - ההקלטה עצמה נשלחת לעוזר, כמו עד 0.8.14 ----------
 $denied = @{ status = '403 Forbidden'; body = '{"error":{"code":403,"message":"denied","status":"PERMISSION_DENIED"}}' }

@@ -258,8 +258,6 @@ namespace SubtitleStudio
         private string _audioAfterTool;
         /// <summary>הטקסט האחרון של העוזר בבקשה הזאת - מה שמוקרא כשהוא מסיים.</summary>
         private string _lastBot;
-        /// <summary>הבקשה האחרונה נאמרה בקול - התשובה מוקראת גם כשההקראה כבויה.</summary>
-        private bool _voiceRequest;
 
         private System.Windows.Forms.Timer _voiceWatch;
         private bool _speakBusy;
@@ -414,7 +412,6 @@ namespace SubtitleStudio
                 Ai.Log("תמלול ההודעה הקולית נכשל (" + err + ") - שולחים את ההקלטה עצמה");
                 _view.SetText(bubble, label);
                 string b64 = Convert.ToBase64String(wav);
-                _voiceRequest = true;
                 if (answering && _ask != null)
                 {
                     _audioAfterTool = b64;
@@ -438,7 +435,6 @@ namespace SubtitleStudio
                 return;
             }
             _view.SetText(bubble, text);
-            _voiceRequest = true;
             if (answering && _ask != null) { AnswerAsk(null, text); return; }
             AiMsg u = new AiMsg();
             u.Role = "user";
@@ -662,7 +658,6 @@ namespace SubtitleStudio
             AiMsg m = new AiMsg();
             m.Role = "user";
             m.Text = text;
-            _voiceRequest = false;
             BeginRequest(m);
         }
 
@@ -1067,7 +1062,7 @@ namespace SubtitleStudio
                     _ask = new PendingAsk();
                     _ask.Reply = r; _ask.Index = i; _ask.Results = results; _ask.Round = round;
                     string q = call.Str("question", "").Trim();
-                    if (q.Length > 0) { _view.AddBot(Plain(q)); if (AiVoice.SpeakOn || _voiceRequest) AiVoice.Speak(q); }
+                    if (q.Length > 0) { _view.AddBot(Plain(q)); if (AiVoice.SpeakOn) AiVoice.Speak(q); }
                     List<string> opts = new List<string>();
                     foreach (string o in call.Str("options", "").Split('|'))
                         if (o.Trim().Length > 0 && opts.Count < 6) opts.Add(o.Trim());
@@ -1292,7 +1287,8 @@ namespace SubtitleStudio
             if (_snap != null && _host.AiChangedSince(_snap)) _view.AddChips(new string[] { UndoChip });
             // ההקראה - של התשובה האחרונה, כשהעוזר סיים (לא של כל שלב באמצע)
             // מי שדיבר - שומע תשובה, גם כשההקראה כבויה
-            if ((AiVoice.SpeakOn || _voiceRequest) && !string.IsNullOrEmpty(_lastBot)) AiVoice.Speak(_lastBot);
+            // **רק כשהרמקול דלוק** (0.8.21). עד כאן מי שדיבר אל העוזר שמע תשובה בקול בלי שביקש - בנימין: ״זה מוזר שהוא מתחיל לדבר פתאום״
+            if (AiVoice.SpeakOn && !string.IsNullOrEmpty(_lastBot)) AiVoice.Speak(_lastBot);
             _lastBot = null;
             Invalidate();
             // רק כשהחלון פעיל: Focus בחלון שברקע השאיר את הטקסט לדוגמה בתיבה מסומן בכחול (בלי GotFocus שמנקה אותו)
