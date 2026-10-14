@@ -2,6 +2,37 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.18",
+      "date": "2026-10-14",
+      "items": [
+        {
+          "t": "major",
+          "s": "״תמצא בסרט...״ / ״איפה מדברים על...״ - העוזר מחפש בכל הסרט: בכל הכתוביות, בתמונות מכל הסרט, ובסרט בלי כתוביות הוא צופה בו ושומע. עד עכשיו הוא הסתפק בהתחלה",
+          "en": "'Find in the video...' / 'where do they talk about...' - the assistant searches the whole video: every subtitle, pictures from all of it, and with no subtitles it watches and listens. Until now it settled for the beginning"
+        },
+        {
+          "t": "feature",
+          "s": "סרט ארוך (עד שלוש שעות) - העוזר צופה בו בחלקים, עד הסוף",
+          "en": "A long video (up to three hours) - the assistant watches it in parts, to the end"
+        },
+        {
+          "t": "fix",
+          "s": "תרגום: ״התרגום חזר בפורמט לא צפוי״ - תוקן. קרה כשנשארו רק הדגמים הקלים של גוגל",
+          "en": "Translation: 'the translation came back in an unexpected format' - fixed. It happened when only Google's light models were left"
+        },
+        {
+          "t": "fix",
+          "s": "תרגום שנעצר באמצע שומר את מה שכבר תורגם, ואומר איפה נעצר",
+          "en": "A translation that stops midway keeps what was already translated, and says where it stopped"
+        },
+        {
+          "t": "fix",
+          "s": "דגם של גוגל שנתקע או דוחה בקשה - עוברים לדגם אחר תוך שניות, במקום לחכות שלוש דקות או להיכשל",
+          "en": "A Google model that hangs or rejects a request - another model takes over within seconds, instead of a three-minute wait or a failure"
+        }
+      ]
+    },
+    {
       "v": "0.8.17",
       "date": "2026-10-12",
       "items": [
