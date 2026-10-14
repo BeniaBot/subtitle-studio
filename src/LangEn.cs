@@ -1640,6 +1640,9 @@ namespace SubtitleStudio
             " ({0} משפטים ״שנשמעו״ בשקט מוחלט הושמטו.)", " ({0} sentences 'heard' in complete silence were left out.)",
             "תכין תקציר של 2 דקות", "Make a 2-minute summary",
             "קורא את כל הכתוביות ומכין רשימת שמות...", "Reading all the subtitles and preparing a list of names...",
+            "הכתוביות תורגמו ל{0}; {1} ארוכות קוצרו כדי שיספיקו לקרוא אותן. לביטול - Ctrl+Z.", "The subtitles were translated into {0}; {1} long ones were shortened so there is time to read them. To undo - Ctrl+Z.",
+            "מקצר {0} כתוביות שמהירות מדי לקריאה...", "Shortening {0} subtitles that are too fast to read...",
+            "רק הדגמים הקלים זמינים כרגע", "Only the light models are available right now",
         };
 
         public static void Fill(Dictionary<string, string> d)

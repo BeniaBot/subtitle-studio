@@ -432,12 +432,52 @@ namespace SubtitleStudio
                     catch { }
                 }
                 Translated = all;
+                if (!_cancel && all.Count == _cues.Count) CondenseFast(all);
                 try { BeginInvoke((MethodInvoker)delegate { Ok = !_cancel && Translated.Count == _cues.Count; Close(); }); }
                 catch { }
             });
             t.IsBackground = true;
             t.Start();
         }
+
+        /// <summary>כמה כתוביות קוצרו כי היו מהירות מדי לקריאה (`CondenseFast`).</summary>
+        public int Condensed;
+
+        /// <summary>**כתובית שמהירה מדי גם אחרי הסידור - קצרה יותר** (0.8.22). נמדד 14.10, סרטון של שעה ורבע מאנגלית לעברית: 58 כתוביות
+        /// מעל 20 תווים לשנייה, ואף אחת לא נפתרת בזמן (`Qa.RoomMs` - עד הבאה ועד 7 שניות). יעד 17 תווים לשנייה; בקשה אחת (`Ai.Condense`).
+        /// לא הצליח - נשאר התרגום המלא.</summary>
+        private void CondenseFast(List<string> all)
+        {
+            List<int> idx = new List<int>();
+            List<string> texts = new List<string>();
+            List<int> max = new List<int>();
+            for (int i = 0; i < _cues.Count && i < all.Count; i++)
+            {
+                if (_cues[i].Untimed || string.IsNullOrEmpty(all[i])) continue;
+                int chars = all[i].Replace("\r", "").Replace("\n", "").Length;
+                double sec = Qa.RoomMs(_cues, i) / 1000.0;
+                if (chars < 12 || sec <= 0 || chars / sec <= Qa.FastCps) continue;
+                int m = Math.Max(8, (int)Math.Floor(sec * CondenseCps));
+                // פחות מחצי - זה לא קצב קריאה אלא זמן שבור (״הנרות הצפים באולם הגדול הם אייקוניים״ בעשירית שנייה): לא לקצץ משפט לשתי מילים
+                if (m * 2 < chars) continue;
+                idx.Add(i);
+                texts.Add(all[i]);
+                max.Add(m);
+            }
+            if (idx.Count == 0) return;
+            try { BeginInvoke((MethodInvoker)delegate { _stat.Text = Lang.F("מקצר {0} כתוביות שמהירות מדי לקריאה...", Theme.Ltr(idx.Count.ToString())); _stat.Invalidate(); }); }
+            catch { }
+            string err;
+            string[] res = null;
+            try { res = Ai.Condense(texts, max, _lang, out err); }
+            catch (Exception ex) { Ai.Log("חריגה בקיצור: " + ex); }
+            if (res == null) return;
+            for (int j = 0; j < idx.Count; j++)
+                if (res[j] != null) { all[idx[j]] = res[j]; Condensed++; }
+        }
+
+        /// <summary>היעד בקיצור: מתחת לסף הבעיה (20), מעל קצב הסידור (15) - לא לקצץ יותר מהצורך.</summary>
+        internal const double CondenseCps = 17;
     }
 
     /// <summary>פס התקדמות פשוט בעיצוב התוכנה.</summary>

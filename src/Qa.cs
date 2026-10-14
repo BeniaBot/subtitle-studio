@@ -426,6 +426,18 @@ namespace SubtitleStudio
         /// <summary>שבר שמתאחד עם הבאה: עד הרווח הזה.</summary>
         public const long MergeGapMs = 1200;
 
+        /// <summary>**כמה זמן הכתובית יכולה לקבל** אחרי הסידור (`Tidy`): עד הבאה (פחות `GapMs`) ועד 7 שניות, והקדמה של עד
+        /// `EarlyMs` כשיש מקום לפניה. ‏<paramref name="cues"/> ממוינות; האחרונה - עוד שנייה וחצי.</summary>
+        internal static long RoomMs(List<Cue> cues, int i)
+        {
+            Cue c = cues[i];
+            long next = i + 1 < cues.Count && !cues[i + 1].Untimed ? cues[i + 1].Start - GapMs : c.End + 1500;
+            long prev = i > 0 && !cues[i - 1].Untimed ? cues[i - 1].End + GapMs : 0;
+            long end = Math.Min(Math.Max(c.End, next), c.Start + MaxDurMs);
+            long start = Math.Max(Math.Min(c.Start, prev), c.Start - EarlyMs);
+            return Math.Max(c.End - c.Start, end - start);
+        }
+
         /// <summary>סידור אוטומטי לכתוביות שנוצרו במכונה: אחרי תמלול
         /// (<paramref name="fromTranscript"/>), ואחרי תרגום - כי הטקסט השתנה.
         ///

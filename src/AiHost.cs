@@ -762,6 +762,7 @@ namespace SubtitleStudio
             AiRefresh();
             r["done"] = partial ? Lang.F("תורגמו ל{0} {1} כתוביות מתוך {2}", lang, cues.Count, _doc.Cues.Count) : Lang.F("הכתוביות תורגמו ל{0}", lang);
             if (run.Untranslated > 0) r["untranslated"] = run.Untranslated;
+            if (run.Condensed > 0) r["condensed_for_reading_speed"] = run.Condensed;
             if (run.StoppedAt >= 0)
             {
                 r["done"] = Lang.F("תורגמו {0} מתוך {1} כתוביות - התרגום נעצר באמצע", run.StoppedAt, cues.Count);

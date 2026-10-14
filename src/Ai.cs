@@ -1789,6 +1789,136 @@ namespace SubtitleStudio
             return r.Trim();
         }
 
+        /// <summary>**הערה של המתרגם בתוך התרגום** (0.8.22): ״זה היה תפקיד חייו של השחקן, מכיוון שהיא התכוונה... [תקלה במקור]״ - נמדד
+        /// 14.10 בסרטון של שעה ורבע, דגם קל: הדגם איחד את הפריט עם הבא, המציא לו המשך, ואמר את זה בסוגריים. סוגריים עם ״תקלה״,
+        /// ״לא ברור״, ״במקור״... שאין במקור.</summary>
+        private static readonly Regex TranslatorNote = new Regex(
+            @"[\[(][^\])\n]{0,40}(תקלה|לא ברור|לא מובן|לא נשמע|במקור|הערת|הערה|חסר|קטוע|inaudible|unclear|untranslat|glitch|sic\b)[^\])\n]{0,40}[\])]",
+            RegexOptions.IgnoreCase);
+
+        internal static bool Suspicious(string src, string tr)
+        {
+            if (string.IsNullOrEmpty(tr)) return false;
+            return TranslatorNote.IsMatch(tr) && !TranslatorNote.IsMatch(src ?? "");
+        }
+
+        /// <summary>משפט שלא נגמר במקור (פסיק, בלי סימן) - לא נגמר גם בקיצור: נקודה שהדגם הוסיף יורדת, ופסיק שהשמיט חוזר.</summary>
+        internal static string SameEnding(string src, string s)
+        {
+            string a = (src ?? "").TrimEnd(), b = (s ?? "").TrimEnd();
+            if (a.Length == 0 || b.Length == 0) return s;
+            char ea = a[a.Length - 1];
+            if (".?!…\"״'”".IndexOf(ea) >= 0) return b;
+            while (b.Length > 0 && b[b.Length - 1] == '.' && !b.EndsWith("...")) b = b.Substring(0, b.Length - 1).TrimEnd();
+            if (ea == ',' && b.Length > 0 && char.IsLetterOrDigit(b[b.Length - 1])) b += ",";
+            return b;
+        }
+
+        private static bool HasArabic(string s)
+        {
+            foreach (char ch in s ?? "") if (ch >= '\u0600' && ch <= '\u06FF') return true;
+            return false;
+        }
+
+        /// <summary>לפחות 60% מהמילים של <paramref name="s"/> (שתי אותיות ומעלה) נמצאות ב-<paramref name="src"/>, אחרי הורדה של עד שתי
+        /// אותיות שימוש (וכשהמילה מתחילה במילה מהמקור או להפך, מעל שלוש אותיות): ״הצילומים״ = ״צילומים״. קיצור שכתב משפט אחר - לא עובר.</summary>
+        internal static bool MostWordsFrom(string s, string src)
+        {
+            List<string> a = StemsOf(s), b = StemsOf(src);
+            if (a.Count == 0) return false;
+            int hit = 0;
+            foreach (string w in a)
+                foreach (string v in b)
+                    if (w == v || (w.Length >= 3 && v.Length >= 3 && (w.StartsWith(v) || v.StartsWith(w)))) { hit++; break; }
+            return hit * 10 >= a.Count * 6;
+        }
+
+        private static List<string> StemsOf(string s)
+        {
+            List<string> r = new List<string>();
+            foreach (Match m in Regex.Matches((s ?? "").ToLowerInvariant(), @"[\p{L}\p{N}'׳]+"))
+            {
+                string w = m.Value;
+                if (w.Length < 2) continue;
+                for (int k = 0; k < 2 && w.Length > 3 && "והבכלמש".IndexOf(w[0]) >= 0; k++) w = w.Substring(1);
+                r.Add(w);
+            }
+            return r;
+        }
+
+        /// <summary>תווים בלי מעברי שורה - כמו `Cue.CharCount`.</summary>
+        private static int Chars(string s) { return (s ?? "").Replace("\r", "").Replace("\n", "").Length; }
+
+        /// <summary>**קיצור של כתוביות מהירות מדי לקריאה (0.8.22).** נמדד 14.10, סרטון של שעה ורבע מאנגלית לעברית: 58 מ-1,430
+        /// כתוביות מעל 20 תווים לשנייה גם אחרי הסידור, ואף אחת לא נפתרת בזמן - הבאה צמודה. מה שמתרגם כתוביות עושה: כותב אותה קצר
+        /// יותר. בקשה אחת לכל עד 60 כתוביות, ``max`` לכל אחת; מה שחזר ארוך או שווה למקור, ריק או עם הערה - נשאר כמו שהוא (null).</summary>
+        internal static string[] Condense(List<string> texts, List<int> maxChars, string lang, out string error)
+        {
+            error = null;
+            string[] all = new string[texts.Count];
+            for (int from = 0; from < texts.Count && !StopToken.Here; from += 60)
+            {
+                int n = Math.Min(60, texts.Count - from);
+                List<object> items = new List<object>();
+                for (int i = 0; i < n; i++)
+                {
+                    Dictionary<string, object> it = new Dictionary<string, object>();
+                    it["i"] = i;
+                    it["t"] = texts[from + i];
+                    it["len"] = Chars(texts[from + i]);
+                    it["max"] = maxChars[from + i];
+                    items.Add(it);
+                }
+                // **נמדד 14.10 (56 כתוביות מהסרטון, דגם קל):** עם הנוסח הראשון חצי חזרו כמעט באותו אורך ו-6 בלבד הגיעו ל-max - לכן len
+                // מול max, ו״דרישה״. **בלי הכתוביות השכנות:** כשנשלחו כהקשר (before/after) הדגם כתב תוכן שלהן במקום הכתובית - ״שבעה
+                // אופנועים נבנו לפעלולים״ במקום ״שלושת המטרים האלה היו מהמהנים ביותר״, בשמונה מקומות. נקודה בסוף משפט שממשיך - `SameEnding`
+                string sys =
+                    "אתה עורך כתוביות מקצועי. כל פריט t הוא כתובית ב" + lang + " שארוכה מדי לזמן שהיא על המסך - הצופה לא מספיק לקרוא. " +
+                    "len - כמה תווים יש בה עכשיו; max - כמה מותר. כתוב אותה מחדש בעד max תווים, כולל רווחים - זו דרישה, לא המלצה: ספור. " +
+                    "כמו בכתוביות מקצועיות: השמט חזרות, גמגומים, מילות מילוי (״כאילו״, ״אתה יודע״, ״בעצם״, ״ובכן״, ״למען האמת״) ופרטים " +
+                    "שוליים; העדף ניסוח קצר, מילים קצרות וצורות סמיכות. שמור על המשמעות ועל מה שנאמר בסוף הכתובית, על כל השמות, על הטון, " +
+                    "על הגוף והמין ועל סימני שאלה וקריאה; אותה שפה. זו עריכה של אותה כתובית - השתמש במילים שלה, אל תכתוב משפט אחר. כתובית " +
+                    "היא לפעמים חלק ממשפט שממשיך בכתובית הבאה (נגמרת בפסיק, במילת חיבור או בלי סימן) - אז אל תסיים אותה בנקודה. אל תוסיף " +
+                    "מידע, הערות או סוגריים. אל תקצר הרבה מתחת ל-max - רק כמה שצריך, ובעברית תקינה (בלי להשמיט ״את״ ומילות יחס). אם אי אפשר " +
+                    "להגיע ל-max בלי לאבד את העיקר - קצר כמה שאפשר בלי לאבד אותו. שמור על אותם מספרי i.\n" +
+                    "החזר אך ורק מערך JSON בצורה: [{\"i\":0,\"t\":\"...\"}]";
+                List<AiMsg> h = new List<AiMsg>();
+                AiMsg m = new AiMsg();
+                m.Role = "user";
+                m.Text = Ser().Serialize(items);
+                h.Add(m);
+                AiReply r = SendTranslation(sys, h, null);
+                if (!r.Ok) { error = r.Error; Log("קיצור: נכשל - " + error); continue; }
+                // **רק דגם מלא** (0.8.22): הדגם הקל (gemini-flash-lite-latest, 14.10) קיצר את כל 56, אבל ״אתה לא יכול לבטוח בי?״ יצא ״אתה לא
+                // טובח בי?״, ״בובות המריונטה״ נעלמו, ״מכירים הסצנה״ בלי ״את״. כתובית מהירה עדיפה על כתובית שאומרת משהו אחר - בלי קיצור
+                if ((LastModelUsed ?? "").IndexOf("lite", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    Log("קיצור: ענה דגם קל (" + LastModelUsed + ") - לא מקצרים");
+                    error = Lang.T("רק הדגמים הקלים זמינים כרגע");
+                    break;
+                }
+                string[] res = ParseTranslation(r.Text, n);
+                if (res == null) { error = FormatError; Log("קיצור: תשובה שלא נקראה: " + HeadTail(r.Text)); continue; }
+                int took = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    string src = texts[from + i], s = res[i];
+                    if (s == null) continue;
+                    if (!HasNiqqud(src)) s = StripNiqqud(s);
+                    s = SameEnding(src, NoSlashBreaks(src, s).Trim());
+                    if (!HasLetters(s) || Chars(s) >= Chars(src) || Suspicious(src, s)) continue;
+                    // קיצוץ הרבה מתחת ליעד - כמעט תמיד משהו חשוב נפל (״ואז להפעיל במים לפני שבחרו CGI״ - בלי הבובות)
+                    if (Chars(s) * 10 < Math.Min(maxChars[from + i], Chars(src)) * 6) { Log("קיצור: נדחה, קוצר מדי - " + Safe(s)); continue; }
+                    // **עריכה, לא משפט אחר:** רוב המילים מהמקור (אותיות שימוש בצד); ובלי אותיות ערביות (״قיוوיתי״, ״برנדן״ - דגם קל, 14.10)
+                    if (!MostWordsFrom(s, src) || HasArabic(s) && !HasArabic(src)) { Log("קיצור: נדחה - " + Safe(s) + " (במקום " + Safe(src) + ")"); continue; }
+                    all[from + i] = s;
+                    took++;
+                }
+                Log("קיצור (" + LastModelUsed + "): " + took + " מתוך " + n + " כתוביות קוצרו");
+            }
+            return all;
+        }
+
         /// <summary>**מילון שמות לסרט, לפני התרגום (0.8.21).** נמדד 14.10, סרטון של שעה ורבע מ-Groq: ״Swamping Willow״ (במקום Whomping)
         /// תורגם ״הערבה המפוארת״, ״Rupert Grant״ - פעם ״גרינט״ ופעם לא; כל מנה של 40 רואה רק את עצמה. בקשה אחת על כל הטקסט (עד ~24 אלף
         /// תווים, שורות בפיזור שווה): על מה הסרטון, וכל שם ומונח בצורה הנכונה ובתעתיק המקובל בשפת היעד - גם כשהתמלול שמע לא נכון.
@@ -1899,6 +2029,31 @@ namespace SubtitleStudio
                 string[] got = TranslateOnce(again, targetLang, context, previous, out e2);
                 if (got != null)
                     for (int j = 0; j < miss.Count; j++) if (got[j] != null) byIndex[miss[j]] = got[j];
+            }
+
+            // **הערה של המתרגם** (״[תקלה במקור]״) - הפריט ושכניו שוב, יחד: הדגם איחד אותו עם שכן, והתרגום הנכון של שניהם ישב בשכן
+            List<int> odd = new List<int>();
+            for (int i = 0; i < byIndex.Length; i++) if (Suspicious(lines[i], byIndex[i])) odd.Add(i);
+            if (odd.Count > 0 && odd.Count <= 4 && !StopToken.Here)
+            {
+                SortedSet<int> win = new SortedSet<int>();
+                foreach (int k in odd) for (int d = -1; d <= 1; d++) if (k + d >= 0 && k + d < lines.Count) win.Add(k + d);
+                List<int> idx = new List<int>(win);
+                List<string> again = new List<string>();
+                foreach (int k in idx) again.Add(lines[k]);
+                string e4;
+                string[] got = TranslateOnce(again, targetLang, context, previous, LastModelUsed, out e4);
+                int fixedN = 0;
+                if (got != null)
+                    for (int j = 0; j < idx.Count; j++)
+                        if (got[j] != null && !Suspicious(lines[idx[j]], got[j]) && !SameText(got[j], lines[idx[j]])) { byIndex[idx[j]] = got[j]; fixedN++; }
+                Log("תרגום: הערה של המתרגם ב-" + odd.Count + " פריטים - " + idx.Count + " נשלחו שוב, " + fixedN + " הוחלפו");
+                foreach (int k in odd)
+                    if (Suspicious(lines[k], byIndex[k]))
+                    {
+                        string cl = TranslatorNote.Replace(byIndex[k], "").Trim();
+                        byIndex[k] = HasLetters(cl) ? cl : null;
+                    }
             }
 
             for (int i = 0; i < byIndex.Length; i++)

@@ -1095,7 +1095,10 @@ namespace SubtitleStudio
                 _list.Invalidate();
                 _tl.Invalidate();
                 _video.Invalidate();
-                _hintLbl.Text = Lang.F("הכתוביות תורגמו ל{0}. לביטול - Ctrl+Z.", d.Target);
+                int condensed = run.Condensed;
+                _hintLbl.Text = condensed > 0
+                    ? Lang.F("הכתוביות תורגמו ל{0}; {1} ארוכות קוצרו כדי שיספיקו לקרוא אותן. לביטול - Ctrl+Z.", d.Target, Theme.Ltr(condensed.ToString()))
+                    : Lang.F("הכתוביות תורגמו ל{0}. לביטול - Ctrl+Z.", d.Target);
                 _hintLbl.Flash();
                 UpdateHint();
                 if (!TellStopped(run, cues)) TellUntranslated(run.Untranslated);

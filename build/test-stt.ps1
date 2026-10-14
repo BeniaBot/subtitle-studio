@@ -517,7 +517,37 @@ $aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/
 $r4 = TrRun @('one')
 StopServer $s
 $n4 = @(Get-ChildItem $s.Dir -Filter 'req-*.bin').Count
-Check 'תרגום: מפתח שגוי - נעצרים מיד, ואומרים שזה המפתח' (($null -eq $r4.Res) -and $n4 -eq 1 -and ($r4.Err -match 'המפתח')) ("req=$n4 err=" + $r4.Err)$aiT.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot); $aiT.GetField('Key', $SF).SetValue($null, $oldKey)
+Check 'תרגום: מפתח שגוי - נעצרים מיד, ואומרים שזה המפתח' (($null -eq $r4.Res) -and $n4 -eq 1 -and ($r4.Err -match 'המפתח')) ("req=$n4 err=" + $r4.Err)
+# הערה של המתרגם בתוך התרגום (0.8.22; נמדד 14.10: ״...מכיוון שהיא התכוונה... [תקלה במקור]״ - הדגם איחד את הפריט עם הבא) - הפריט ושכניו שוב
+$s = StartServer @((Resp 200 (GemText '[{"i":0,"t":"אחת"},{"i":1,"t":"שתיים, כי... [תקלה במקור]"},{"i":2,"t":"שלוש וארבע"},{"i":3,"t":"חמש"}]') $null), (Resp 200 (GemText '[{"i":0,"t":"אחת"},{"i":1,"t":"שתיים"},{"i":2,"t":"שלוש"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r7 = TrRun @('one', 'two', 'three', 'five')
+StopServer $s
+Check 'תרגום: ״[תקלה במקור]״ - הפריט ושכניו נשלחים שוב יחד, והתרגום הנכון נכנס' (($r7.Res -join ',') -eq 'אחת,שתיים,שלוש,חמש') ("res=" + ($r7.Res -join ','))
+# קיצור של כתוביות מהירות מדי (0.8.22): עריכה של אותה כתובית, לא משפט אחר; משפט שממשיך - בלי נקודה; ודגם קל - לא מקצרים
+$cdM = $aiT.GetMethod('Condense', $SF)
+function CdRun($texts, $max) {
+    $lt = [Collections.Generic.List[string]]::new(); foreach ($x in $texts) { $lt.Add($x) }
+    $lm = [Collections.Generic.List[int]]::new(); foreach ($x in $max) { $lm.Add([int]$x) }
+    $a = New-Object object[] 4; $a[0] = $lt; $a[1] = $lm; $a[2] = 'עברית'; $a[3] = $null
+    $r = $cdM.Invoke($null, $a)
+    return @{ Res = $r; Err = $a[3] }
+}
+$cdSrc = @('אני לא כל כך חשבתי על זה.', 'אבל שלושת המטרים האלה היו מהמהנים ביותר שהיו לי אי פעם.', 'הוא עזר להביא את השחקנים הצעירים למקום שבו היו צריכים להיות,', 'ואז להפעיל בובות מריונטה במים, לפני שבחרו ב-CGI.')
+$s = StartServer @((Resp 200 (GemText '[{"i":0,"t":"לא חשבתי על זה."},{"i":1,"t":"שבעה אופנועים נבנו לפעלולים."},{"i":2,"t":"הוא עזר לשחקנים הצעירים להגיע לשם."},{"i":3,"t":"ואז במים."}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$c1 = CdRun $cdSrc @(17, 40, 45, 40)
+StopServer $s
+Check 'קיצור: עריכה נכנסת; משפט אחר (״שבעה אופנועים״) ופגיעה מעבר ליעד (״ואז במים״) - לא; משפט שממשיך נשאר בלי נקודה' (($c1.Res[0] -eq 'לא חשבתי על זה.') -and ($null -eq $c1.Res[1]) -and ($c1.Res[2] -eq 'הוא עזר לשחקנים הצעירים להגיע לשם,') -and ($null -eq $c1.Res[3])) ("res=" + (($c1.Res | ForEach-Object { if ($_ -eq $null) { '(null)' } else { $_ } }) -join ' | ') + " err=" + $c1.Err)
+$oldModel = $aiT.GetField('Model', $SF).GetValue($null)
+$aiT.GetField('Model', $SF).SetValue($null, 'gemini-flash-lite-latest')
+$s = StartServer @((Resp 200 (GemText '[{"i":0,"t":"לא חשבתי על זה."}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$c2 = CdRun @('אני לא כל כך חשבתי על זה.') @(17)
+StopServer $s
+$aiT.GetField('Model', $SF).SetValue($null, $oldModel)
+Check 'קיצור: ענה דגם קל - לא מקצרים (נמדד: ״לבטוח״ יצא ״טובח״)' (($null -eq $c2.Res[0]) -and $c2.Err) ("model=" + $aiT.GetField('LastModelUsed', $SF).GetValue($null) + " res=" + $c2.Res[0] + " err=" + $c2.Err)
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot); $aiT.GetField('Key', $SF).SetValue($null, $oldKey)
 # גוגל חוסם לפעמים בלי נימוק (OTHER) - דגם אחר עובר (0.8.6). עד אז דקה שלמה נשארה בלי כתוביות
 $bo = (T 'Ai').GetMethod('BlockedOther', $SF)
 $b1 = $bo.Invoke($null, @([string]'{"promptFeedback":{"blockReason":"OTHER"}}'))
