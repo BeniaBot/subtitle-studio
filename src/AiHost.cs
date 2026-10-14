@@ -167,9 +167,13 @@ namespace SubtitleStudio
             t.Add(new AiTool("add_word_to_dictionary", "מוסיף מילה למילון האישי. מעכשיו היא תיחשב נכונה בכל הכתוביות. **רק כשהמשתמש אומר שהמילה תקינה**")
                 .Req("word", "string", "המילה"));
 
-            t.Add(new AiTool("translate_subtitles", "מתרגם את כל הכתוביות ומחליף אותן במקום")
+            t.Add(new AiTool("translate_subtitles", "מתרגם את הכתוביות ומחליף אותן במקום - את כולן, או רק קטע (״רק את הדקה הראשונה״, ״מכתובית 10 עד 30״)")
                 .Req("target_language", "string", "שם השפה בעברית, למשל: אנגלית")
-                .P("context", "string", "רקע קצר על התוכן, לשיפור התרגום"));
+                .P("context", "string", "רקע קצר על התוכן, לשיפור התרגום")
+                .P("from_index", "integer", "רק מהכתובית הזו (מ-1)")
+                .P("to_index", "integer", "עד הכתובית הזו")
+                .P("from_sec", "number", "או: רק כתוביות שמתחילות מהזמן הזה")
+                .P("to_sec", "number", "עד הזמן הזה"));
 
             t.Add(new AiTool("set_style", "משנה את עיצוב הכתוביות בסרט המיוצא")
                 .P("size_percent", "number", "גודל הגופן באחוזים מגובה התמונה, בערך 3 עד 12")
@@ -723,7 +727,21 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_doc == null || _doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות לתרגם"); return r; }
             string lang = c.Str("target_language", Lang.T("אנגלית"));
-            List<Cue> cues = new List<Cue>(_doc.Cues);
+            // **רק קטע (0.8.20)** - מהתפריט אפשר לתרגם רק את מה שמסומן על הציר; מהעוזר עד כאן רק הכול
+            List<Cue> cues = new List<Cue>();
+            int fi = (int)c.Num("from_index", 0), ti = (int)c.Num("to_index", 0);
+            bool byTime = c.Args.ContainsKey("from_sec") || c.Args.ContainsKey("to_sec");
+            long fs = (long)(c.Num("from_sec", 0) * 1000), ts = c.Args.ContainsKey("to_sec") ? (long)(c.Num("to_sec", 0) * 1000) : long.MaxValue;
+            for (int i = 0; i < _doc.Cues.Count; i++)
+            {
+                Cue q = _doc.Cues[i];
+                if (fi > 0 && i + 1 < fi) continue;
+                if (ti > 0 && i + 1 > ti) continue;
+                if (byTime && (q.Start < fs || q.Start >= ts)) continue;
+                cues.Add(q);
+            }
+            if (cues.Count == 0) { r["error"] = Lang.T("בקטע הזה אין כתוביות"); return r; }
+            bool partial = cues.Count < _doc.Cues.Count;
             AiRunDlg run = new AiRunDlg(cues, lang, c.Str("context", ""));
             run.ShowDialog(this);
             if (!run.Ok || run.Translated == null)
@@ -735,11 +753,12 @@ namespace SubtitleStudio
             _doc.Push(Lang.T("תרגום מהצ'אט"));
             for (int i = 0; i < cues.Count && i < run.Translated.Count; i++) cues[i].Text = run.Translated[i];
             // כמו התרגום מהתפריט (מ-0.8.2): שורות ארוכות וזמן קריאה בשפה החדשה. עד 0.8.5 תרגום
-            // דרך העוזר דילג על זה, ואותן כתוביות יצאו מהירות מדי לקריאה
-            Qa.Tidy(_doc, false);
+            // דרך העוזר דילג על זה, ואותן כתוביות יצאו מהירות מדי לקריאה. רק קטע - רק הוא מסודר
+            if (partial) Qa.Tidy(_doc, false, false, null, cues);
+            else Qa.Tidy(_doc, false);
             _doc.Dirty = true;
             AiRefresh();
-            r["done"] = Lang.F("הכתוביות תורגמו ל{0}", lang);
+            r["done"] = partial ? Lang.F("תורגמו ל{0} {1} כתוביות מתוך {2}", lang, cues.Count, _doc.Cues.Count) : Lang.F("הכתוביות תורגמו ל{0}", lang);
             if (run.Untranslated > 0) r["untranslated"] = run.Untranslated;
             if (run.StoppedAt >= 0)
             {

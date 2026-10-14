@@ -411,6 +411,16 @@ Say 'תכין תקציר של דקה' 40
 $hreq = Req $srv 1; $hback = Req $srv 2
 Check 'תקציר: הכתוביות נשלחות עם הזמנים (התחלה|סוף|טקסט) ותבנית תשובה' ($hreq.Contains('3|5|הדבורים עפות בין הפרחים') -and $hreq.Contains('responseSchema')) ''
 Check 'והתוצאה לעוזר: sections לפי הזמן, מוכן ל-trim_video' ($hback.Contains('00:01.0-00:03.5 keep; 00:05.5-00:08.0 keep') -and $hback.Contains('trim_video')) ''
+# ---------- 15ד. תרגום של קטע מהעוזר (0.8.20): רק הכתובית שביקש, השאר לא נוגעים ----------
+$srv = StartServer @(
+    (Reply (Call 'translate_subtitles' '{"target_language":"אנגלית","from_index":2,"to_index":2}' $null)),
+    (Reply (Txt '[{\"i\":0,\"t\":\"The bees fly between the flowers\"}]')),
+    (Reply (Txt 'תורגמה כתובית 2.')))
+Say 'תתרגם לאנגלית רק את הכתובית השנייה' 40
+$treq = Req $srv 1; $tback = Req $srv 2
+$c3 = @((Cues) | ForEach-Object { $_.Text })
+Check 'תרגום של קטע: נשלחת רק הכתובית שביקש, ורק היא מתורגמת' ($treq.Contains('הדבורים עפות') -and -not $treq.Contains('משקים בבוקר') -and $c3[0] -eq 'משקים בבוקר' -and $c3[1] -eq 'The bees fly between the flowers' -and $c3[2] -eq 'תודה רבה') ($c3 -join ' | ')
+Check 'והעוזר יודע שתורגם רק חלק (1 מתוך 3)' ($tback.Contains('1 כתוביות מתוך 3')) ''
 (Cues).Clear(); foreach ($c in $saved) { (Cues).Add($c) }
 # ---------- 16. טקסט מהתמונה: פריים ברזולוציה מלאה, והטקסט חוזר לעוזר ----------
 $srv = StartServer @(
