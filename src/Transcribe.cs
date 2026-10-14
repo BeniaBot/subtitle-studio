@@ -686,6 +686,62 @@ namespace SubtitleStudio
         }
 
         internal const int SilentPeak = 3;
+
+        /// <summary>**שורה ״מהירה מכדי להיות אמיתית״ שחוזרת על שכנה** (0.8.21). נמדד 14.10 ב-Groq, סרטון של שעה ורבע: ״The floating candles
+        /// in the Great Hall are iconic״ בעשירית שנייה, ומיד אחריה ״The floating castles״ - אותו משפט פעמיים (ועוד שלושה כאלה: ״it was certainly
+        /// a film״, ״The Gringotts got״, ״right from the get-go...״). שורה של יותר מ-35 תווים לשנייה, ש-60% מהמילים של הקצרה מבין השתיים
+        /// נמצאות בשכנה (עד שנייה וחצי ממנה) - מתאחדת איתה: הטקסט הארוך יותר, על פני הזמן של שתיהן.</summary>
+        internal static int MergeEchoes(List<Cue> cues)
+        {
+            if (cues == null || cues.Count < 2) return 0;
+            cues.Sort(delegate (Cue a, Cue b) { return a.Start.CompareTo(b.Start); });
+            int merged = 0;
+            for (int i = 0; i < cues.Count; i++)
+            {
+                Cue c = cues[i];
+                if (c.Untimed) continue;
+                double sec = Math.Max(0.05, (c.End - c.Start) / 1000.0);
+                if (c.PlainText.Replace("\n", "").Length / sec <= 35) continue;
+                int best = -1;
+                foreach (int j in new int[] { i - 1, i + 1 })
+                {
+                    if (j < 0 || j >= cues.Count || cues[j].Untimed) continue;
+                    long gap = j < i ? c.Start - cues[j].End : cues[j].Start - c.End;
+                    if (gap > 1500 || !Echo(c.PlainText, cues[j].PlainText)) continue;
+                    best = j;
+                    break;
+                }
+                if (best < 0) continue;
+                Cue keep = cues[best];
+                string longer = WordsOf(c.PlainText).Count > WordsOf(keep.PlainText).Count ? c.Text : keep.Text;
+                keep.Start = Math.Min(keep.Start, c.Start);
+                keep.End = Math.Max(keep.End, c.End);
+                keep.Text = longer;
+                cues.RemoveAt(i);
+                i = Math.Max(-1, i - 2);
+                merged++;
+            }
+            if (merged > 0) Ai.Log("תמלול: " + merged + " שורות כפולות אוחדו (״מהירות מכדי להיות אמיתיות״, וחוזרות על שכנה)");
+            return merged;
+        }
+
+        /// <summary>רוב המילים (60%; ״The floating castles״ מול ״The floating candles...״ - 2 מ-3) של הקצר מבין השניים נמצאות בארוך.</summary>
+        internal static bool Echo(string a, string b)
+        {
+            List<string> wa = WordsOf(a), wb = WordsOf(b);
+            List<string> s = wa.Count <= wb.Count ? wa : wb, l = wa.Count <= wb.Count ? wb : wa;
+            if (s.Count < 2) return false;
+            int hit = 0;
+            foreach (string w in s) if (l.Contains(w)) hit++;
+            return hit * 10 >= s.Count * 6;
+        }
+
+        private static List<string> WordsOf(string s)
+        {
+            List<string> r = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches((s ?? "").ToLowerInvariant(), @"[\p{L}\p{N}]+")) r.Add(m.Value);
+            return r;
+        }
         /// <summary>מתקן גבול של כתובית **רק כשהוא במקום הלא נכון ביחס לדיבור**: התחלה בתוך
         /// שקט זזה לתחילת הדיבור (‏Whisper מתחיל לפעמים את השורה הראשונה בתחילת הקובץ);
         /// התחלה מעט אחרי שהדיבור התחיל חוזרת אליו; סוף באמצע דיבור זז לשקט הבא (המודל נוטה

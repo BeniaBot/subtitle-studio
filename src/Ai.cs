@@ -1755,6 +1755,40 @@ namespace SubtitleStudio
             return sb.ToString();
         }
 
+        /// <summary>רוב הפריטים (שיש בהם אותיות) חזרו בדיוק כמו המקור - הדגם החזיר את הקלט במקום תרגום.</summary>
+        internal static bool Echoes(List<string> src, string[] tr)
+        {
+            int letters = 0, same = 0;
+            for (int i = 0; i < src.Count && i < tr.Length; i++)
+            {
+                if (!HasLetters(src[i])) continue;
+                letters++;
+                if (tr[i] != null && SameText(tr[i], src[i])) same++;
+            }
+            return letters >= 3 && same * 2 > letters;
+        }
+
+        private static bool SameText(string a, string b)
+        {
+            return string.Equals(Regex.Replace(a ?? "", @"\s+", " ").Trim(), Regex.Replace(b ?? "", @"\s+", " ").Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasLetters(string s)
+        {
+            int n = 0;
+            foreach (char ch in s ?? "") if (char.IsLetter(ch) && ++n >= 2) return true;
+            return false;
+        }
+
+        /// <summary>״ / ״ שהדגם כתב במקום מעבר שורה (במקור אין ״/״) - מעבר שורה כשבמקור יש, ורווח כשאין.</summary>
+        internal static string NoSlashBreaks(string src, string tr)
+        {
+            if (string.IsNullOrEmpty(tr) || tr.IndexOf('/') < 0 || (src ?? "").IndexOf('/') >= 0) return tr;
+            bool broken = (src ?? "").IndexOf('\n') >= 0 && tr.IndexOf('\n') < 0;
+            string r = Regex.Replace(tr, @"[ \t]*\n?[ \t]*/[ \t]*\n?[ \t]*", broken ? "\n" : " ");
+            return r.Trim();
+        }
+
         /// <summary>כך תורגמו השורות שלפני המנה - כדי שהשמות, התארים והמשלב יישארו אותו דבר.</summary>
         internal static string PreviousBlock(List<string[]> previous)
         {
@@ -1763,7 +1797,9 @@ namespace SubtitleStudio
             sb.Append("זה המשך של תרגום. כך תורגמו הפריטים שלפני אלה - שמור על אותם שמות, תארים ומשלב " +
                       "(אל תתרגם אותם שוב):\n");
             foreach (string[] p in previous)
-                sb.Append(p[0].Replace("\n", " / ")).Append("  =>  ").Append(p[1].Replace("\n", " / ")).Append("\n");
+                // **רווח, לא ״ / ״** (0.8.21): עם ״ / ״ כמעבר שורה כאן, הדגם כתב ״/״ בתרגומים עצמם - 33 מ-1,431 כתוביות בסרטון
+                // של שעה ורבע (״היא הודתה שהיה לה קטע / מסוים עם טום פלטון״, נמדד 14.10)
+                sb.Append(p[0].Replace("\n", " ")).Append("  =>  ").Append(p[1].Replace("\n", " ")).Append("\n");
             return sb.ToString();
         }
 
@@ -1797,6 +1833,17 @@ namespace SubtitleStudio
                 }
             }
             if (byIndex == null) return null;
+            // **״הד״ - המקור חזר כתרגום** (0.8.21). נמדד 14.10, סרטון של שעה ורבע: שתי מנות שלמות (80 כתוביות) חזרו באנגלית מדגם
+            // קל, נקראו כתשובה תקינה, ו״לא תורגמו: 0״. רוב המנה כמו המקור - שוב, בדגם הבא; פריט בודד כמו המקור - חסר (ונשלח שוב לבד)
+            if (Echoes(lines, byIndex) && !StopToken.Here)
+            {
+                Log("תרגום: המנה חזרה כמו המקור (" + LastModelUsed + ") - שוב, בדגם אחר");
+                string e3;
+                string[] again = TranslateOnce(lines, targetLang, context, previous, LastModelUsed, out e3);
+                if (again != null && !Echoes(lines, again)) byIndex = again;
+            }
+            for (int i = 0; i < byIndex.Length; i++)
+                if (byIndex[i] != null && SameText(byIndex[i], lines[i]) && HasLetters(lines[i])) byIndex[i] = null;
             for (int i = 0; i < byIndex.Length; i++)
                 if (byIndex[i] == null && (lines[i] ?? "").Trim().Length == 0) byIndex[i] = lines[i] ?? "";
 
@@ -1820,6 +1867,7 @@ namespace SubtitleStudio
                 string tr = byIndex[i] != null ? byIndex[i] : lines[i];
                 // ההוראה ״בלי ניקוד״ לא הספיקה: ״גרוקבּוט״ חזר עם דגש (נבדק פעמיים)
                 if (!HasNiqqud(lines[i])) tr = StripNiqqud(tr);
+                tr = NoSlashBreaks(lines[i], tr);
                 outp.Add(tr);
             }
             if (LastMissing > 0) Log("תרגום: " + LastMissing + " פריטים נשארו בשפת המקור");
@@ -1842,6 +1890,12 @@ namespace SubtitleStudio
 
         /// <summary>בקשה אחת: התרגום לפי מספר הפריט, ו-null בפריט שלא חזר. ‏null כולו - כישלון.</summary>
         private static string[] TranslateOnce(List<string> lines, string targetLang, string context, List<string[]> previous, out string error)
+        {
+            return TranslateOnce(lines, targetLang, context, previous, null, out error);
+        }
+
+        /// <summary><paramref name="startAfter"/> - להתחיל מהדגם שאחריו (ניסיון חוזר אחרי ״הד״).</summary>
+        private static string[] TranslateOnce(List<string> lines, string targetLang, string context, List<string[]> previous, string startAfter, out string error)
         {
             error = null;
 
@@ -1881,7 +1935,7 @@ namespace SubtitleStudio
             m.Text = payload;
             h.Add(m);
 
-            AiReply r = SendTranslation(sys, h, null);
+            AiReply r = SendTranslation(sys, h, startAfter);
             if (!r.Ok) { error = r.Error; return null; }
             string[] res = ParseTranslation(r.Text, lines.Count);
             // **לא הצליח לקרוא - עוד ניסיון אחד, בדגם הבא** (0.8.18). בנימין: ״התרגום חזר בפורמט לא צפוי״ - והתרגום כולו נכשל

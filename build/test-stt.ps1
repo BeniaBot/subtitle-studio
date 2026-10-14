@@ -461,6 +461,12 @@ $tl = $ptr.Invoke($null, (Pack '[{"i":0,"t":["שורה","שנייה"]}]' ([int]1
 $to = $ptr.Invoke($null, (Pack '{"0":"אחת","1":"שתיים"}' ([int]2)))
 Check 'תרגום: שורות כמערך, ואובייקט של מספר ← תרגום' (($tl[0] -eq "שורה`nשנייה") -and ($to[0] -eq 'אחת') -and ($to[1] -eq 'שתיים')) (($tl -join ',') + ' / ' + ($to -join ','))
 
+# ״ / ״ במקום מעבר שורה (0.8.21; נמדד: 33 מ-1,431 כתוביות בסרטון של שעה ורבע) - מעבר שורה כשבמקור יש, רווח כשאין; ״/״ אמיתי במקור - נשאר
+$nsb = (T 'Ai').GetMethod('NoSlashBreaks', $SF)
+$s1 = $nsb.Invoke($null, @([string]"She had a bit`nof a thing for Tom", [string]'היה לה קטע / מסוים עם טום'))
+$s2 = $nsb.Invoke($null, @([string]'He was older and he had a skateboard', [string]'הוא היה גדול ממנה / והיה לו סקייטבורד'))
+$s3 = $nsb.Invoke($null, @([string]'It is a 50/50 chance', [string]'זה סיכוי של 50/50'))
+Check 'תרגום: ״ / ״ שהדגם כתב - מעבר שורה (כשבמקור יש) או רווח; ״50/50״ נשאר' ($s1 -eq "היה לה קטע`nמסוים עם טום" -and $s2 -eq 'הוא היה גדול ממנה והיה לו סקייטבורד' -and $s3 -eq 'זה סיכוי של 50/50') ($s1.Replace("`n", '|') + ' / ' + $s2 + ' / ' + $s3)
 # ניסיון חוזר מול שרת מדומה: תשובה שלא נקראת - עוד ניסיון בדגם הבא; גם הוא לא - כל חצי לבד
 function GemText($s) { return '{"candidates":[{"content":{"parts":[{"text":' + (New-Object Web.Script.Serialization.JavaScriptSerializer).Serialize($s) + '}]},"finishReason":"STOP"}]}' }
 Add-Type -AssemblyName System.Web.Extensions
@@ -486,6 +492,18 @@ $aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/
 $r2 = TrRun @('a', 'b', 'c', 'd', 'e', 'f')
 StopServer $s
 Check 'תרגום: גם השני לא נקרא - כל חצי לבד, והמנה מתורגמת' (($r2.Res -ne $null) -and (($r2.Res -join '') -eq 'אבגדהו')) ("err=" + $r2.Err + ' res=' + ($r2.Res -join ','))
+# ״הד״ - הדגם החזיר את המקור כתרגום (0.8.21; נמדד: 80 כתוביות נשארו באנגלית, ״לא תורגמו: 0״) - שוב, בדגם אחר
+$echo = GemText '[{"i":0,"t":"one"},{"i":1,"t":"two"},{"i":2,"t":"three"},{"i":3,"t":"four"}]'
+$s = StartServer @((Resp 200 $echo $null), (Resp 200 (GemText '[{"i":0,"t":"אחת"},{"i":1,"t":"שתיים"},{"i":2,"t":"שלוש"},{"i":3,"t":"ארבע"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r5 = TrRun @('one', 'two', 'three', 'four')
+StopServer $s
+Check 'תרגום: המנה חזרה כמו המקור (״הד״) - שוב בדגם אחר, והתרגום נכנס' (($r5.Res -join ',') -eq 'אחת,שתיים,שלוש,ארבע') ("err=" + $r5.Err + ' res=' + ($r5.Res -join ','))
+$s = StartServer @((Resp 200 (GemText '[{"i":0,"t":"אחת"},{"i":1,"t":"two"},{"i":2,"t":"שלוש"}]') $null), (Resp 200 (GemText '[{"i":0,"t":"שתיים"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r6 = TrRun @('one', 'two', 'three')
+StopServer $s
+Check 'ופריט בודד שחזר כמו המקור - נשלח שוב לבד' (($r6.Res -join ',') -eq 'אחת,שתיים,שלוש') ("res=" + ($r6.Res -join ','))
 # דגם שדחה בקשה תקינה (״invalid argument״, נמדד 14.10 ב-gemini-3.5-flash-lite) - הדגם הבא, ולא ״בדקו את המפתח״
 $inv = '{"error":{"code":400,"message":"Request contains an invalid argument.","status":"INVALID_ARGUMENT"}}'
 $s = StartServer @((Resp 400 $inv $null), (Resp 400 $inv $null), (Resp 200 (GemText '[{"i":0,"t":"אחת"}]') $null))

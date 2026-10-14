@@ -3021,6 +3021,7 @@ namespace SubtitleStudio
             // אז מהדקים לגבולות דיבור אמיתיים בלי עוד בקשת רשת. ‏**רק החדשות** -
             // עד 0.8.2 גם כתוביות קיימות שהמשתמש תזמן ביד הוזזו, כשהתמלול נוסף אליהן.
             int snapped = 0, silent = 0;
+            Transcribe.MergeEchoes(res.Cues);
             if (_wave != null && _wave.Ready && !_wave.Failed)
             {
                 silent = Transcribe.DropSilent(res.Cues, _wave);

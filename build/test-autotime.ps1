@@ -284,6 +284,14 @@ $nd2 = $drop.Invoke($null, (Pack $cs $wl))
 $cs3 = CuesAt @(@(1000,3000), @(12000,13000), @(15000,17000))
 $nd3 = $drop.Invoke($null, (Pack $cs3 $wq))
 Check 'הקלטה שקטה כולה, או יותר משליש בשקט - לא נוגעים' ($nd2 -eq 0 -and $cs.Count -eq 4 -and $nd3 -eq 0 -and $cs3.Count -eq 3) ("quiet=$nd2 many=$nd3")
+# שורה כפולה ״מהירה מכדי להיות אמיתית״ (0.8.21, נמדד ב-Groq: ״The floating candles...״ בעשירית שנייה ואחריה ״The floating castles״)
+$merge = (T 'Transcribe').GetMethod('MergeEchoes', $ST)
+$lm = [Activator]::CreateInstance($listT)
+foreach ($q in @(@(0, 3000, 'I was constantly having to remind myself that it was certainly a film,'), @(3050, 3550, 'it was certainly a film.'), @(10000, 10100, 'The floating candles in the Great Hall are iconic'), @(10100, 12000, 'The floating castles,'), @(13000, 15000, 'I was so upset on the last day.'), @(15000, 16000, 'I really was.'))) { [void]$listT.GetMethod('Add').Invoke($lm, (Pack ($ctor.Invoke(@([long]$q[0], [long]$q[1], [string]$q[2]))))) }
+$am = New-Object object[] 1; $am[0] = $lm
+$nm = $merge.Invoke($null, $am)
+$tx = @($lm | ForEach-Object { (T 'Cue').GetField('Text').GetValue($_) })
+Check 'כפילות מהירה מתאחדת עם השכנה - הטקסט המלא על פני שתיהן; ״I really was״ (לא מהירה) לא נוגעים' ($nm -eq 2 -and $lm.Count -eq 4 -and $fE.GetValue($lm[0]) -eq 3550 -and $tx[1] -eq 'The floating candles in the Great Hall are iconic' -and $fE.GetValue($lm[1]) -eq 12000 -and $tx[3] -eq 'I really was.') ("merged=$nm " + ($tx -join ' | '))
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }
