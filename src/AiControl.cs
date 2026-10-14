@@ -546,23 +546,33 @@ namespace SubtitleStudio
             long to = call.Args.ContainsKey("to_sec") ? (long)(call.Num("to_sec", 0) * 1000) : _mi.DurationMs;
             to = Math.Min(to <= 0 ? _mi.DurationMs : to, _mi.DurationMs);
             if (to <= from) { r["error"] = Lang.T("טווח לא תקין"); return r; }
-            bool cut = false;
-            if (to - from > AiWatch.MaxSpanMs) { to = from + AiWatch.MaxSpanMs; cut = true; }
-            // כל הסרט - בלי ‎-ss/-t (הכי מהיר, ואותו מפתח בזיכרון של ההעלאות)
-            if (from == 0 && to >= _mi.DurationMs - 500) to = 0;
+            // **סרט ארוך - בחלקים, עד הסוף (0.8.18).** עד כאן: 30 הדקות הראשונות בלבד, והעוזר ענה ״לא מצאתי״ על מה שקרה אחריהן.
+            // חלקים שווים של עד 30 דקות (בקשה אחת לכל חלק), עד שש - שיעור של שלוש שעות
+            List<long[]> parts = AiWatch.Parts(from, to);
+            bool cut = parts[parts.Count - 1][1] < to;
+            // כל הסרט בחלק אחד - בלי ‎-ss/-t (הכי מהיר, ואותו מפתח בזיכרון של ההעלאות)
+            if (parts.Count == 1 && from == 0 && to >= _mi.DurationMs - 500) parts[0][1] = 0;
             string path = _mi.Path; bool video = _mi.HasVideo; int sh = _mi.Height;
-            long fa = from, fb = to;
-            r["done"] = to == 0 ? Lang.T("צופה בסרט") : Lang.F("צופה בקטע {0}", Theme.Ltr(Tc.Short(from) + "-" + Tc.Short(to)));
+            long fa = from, fb = parts[parts.Count - 1][1];
+            r["done"] = fb == 0 ? Lang.T("צופה בסרט")
+                : parts.Count > 1 ? Lang.F("צופה בסרט, ב-{0} חלקים", parts.Count)
+                : Lang.F("צופה בקטע {0}", Theme.Ltr(Tc.Short(from) + "-" + Tc.Short(fb)));
             r["_work"] = (Func<Dictionary<string, object>>)delegate
             {
                 Dictionary<string, object> w = new Dictionary<string, object>();
-                string err;
-                string answer = AiWatch.Ask(q, path, fa, fb, video, sh, out err);
+                string err = null, answer;
+                if (parts.Count == 1) answer = AiWatch.Ask(q, path, parts[0][0], parts[0][1], video, sh, out err);
+                else answer = AiWatch.AskParts(q, path, parts, video, sh, delegate (string s) { AiUi.Status(s); }, out err);
                 if (answer == null) { w["error"] = "הצפייה לא הצליחה: " + err; return w; }
                 AddVideoNote(path, q, answer);
                 w["answer"] = answer;
-                w["watched"] = fb == 0 ? "כל הסרט" : AiWatch.Clock(fa / 1000) + "-" + AiWatch.Clock(fb / 1000);
-                if (cut) w["note"] = "הסרט ארוך מ-30 דקות - נצפו רק 30 הדקות האלה. על המשך - שאל שוב עם from_sec";
+                w["watched"] = fb == 0 ? "כל הסרט" : (fa == 0 && fb >= _mi.DurationMs - 500 ? "כל הסרט, " : "") +
+                    AiWatch.Clock(fa / 1000) + "-" + AiWatch.Clock(fb / 1000) + (parts.Count > 1 ? " (" + parts.Count + " חלקים)" : "");
+                // ‏Ask משאיר את השגיאה של דגם שנכשל לפני זה שענה - רק בחלקים היא אומרת משהו (חלק שלא נצפה)
+                string note = "";
+                if (parts.Count > 1 && err != null) note = "חלק מהחלקים לא נצפה: " + err + ". ";
+                if (cut) note += "הסרט ארוך משלוש שעות - נצפו רק שלוש השעות האלה. על ההמשך - שאל שוב עם from_sec";
+                if (note.Length > 0) w["note"] = note.Trim();
                 w["how_to_use"] = "זו תשובה של מי שצפה בסרט. העבר אותה למשתמש בניסוח שלך (אפשר לקצר). הזמנים בה הם של הסרט המלא - " +
                                   "seek / select_cue כדי להראות לו";
                 return w;
@@ -660,10 +670,12 @@ namespace SubtitleStudio
             long from = (long)(Math.Max(0, call.Num("from_sec", 0)) * 1000);
             long to = call.Args.ContainsKey("to_sec") ? (long)(call.Num("to_sec", 0) * 1000) : _mi.DurationMs;
             if (to > _mi.DurationMs || to <= from) to = _mi.DurationMs;
-            // עד 6 דפים של 16; לא צפוף משתי שניות - בקטע קצר יוצא פחות
-            List<long> times = AiVision.Times(from, to, AiVision.Cols * AiVision.Rows * 6, 2000);
+            // **כל הסרט, צפוף יותר (0.8.18):** עד 16 דפים של 16 - בשיעור של שעה תמונה כל 14 שניות (עד כאן 6 דפים: כל 37 שניות, וסצנה
+            // קצרה נפלה ביניהן). לא צפוף משנייה וחצי - בסרט קצר יוצא פחות
+            List<long> times = AiVision.Times(from, to, AiVision.Cols * AiVision.Rows * 16, 1500);
             string path = _mi.Path; int sw = _mi.Width, sh = _mi.Height;
-            r["done"] = Lang.F("מסתכל על {0} תמונות מהסרט", times.Count);
+            long sf = from, st = to;
+            r["done"] = Lang.F("מסתכל על {0} תמונות מכל הסרט", times.Count);
             r["_work"] = (Func<Dictionary<string, object>>)delegate
             {
                 Dictionary<string, object> w = new Dictionary<string, object>();
@@ -671,6 +683,7 @@ namespace SubtitleStudio
                 w["_images"] = sheets;
                 w["sheets"] = sheets.Count;
                 w["every_sec"] = times.Count > 1 ? Math.Round((times[1] - times[0]) / 1000.0, 1) : 0;
+                w["searched"] = (sf == 0 && st >= _mi.DurationMs ? "כל הסרט, " : "") + AiWatch.Clock(sf / 1000) + "-" + AiWatch.Clock(st / 1000);
                 w["how_to_read"] = "בהודעה הבאה " + sheets.Count + " דפים; בכל דף עד 16 תמונות מהסרט לפי סדר הזמן (שורה אחרי שורה, משמאל לימין), " +
                     "ועל כל אחת הזמן שלה בצהוב. מצא את מה שמתאים ל״" + what + "״, ואז seek לזמן הזה (הנגן עוצר שם). " +
                     "כדי לדייק - look_at סביב הזמן עם step_sec קטן. לא מצאת - אמור את זה; אפשר לחפש שוב בקטע חשוד (from_sec/to_sec) בצפיפות גבוהה יותר";
@@ -809,7 +822,8 @@ namespace SubtitleStudio
                         from = Math.Max(0, at - 5);
                         to = Math.Min(n, from + 12);
                     }
-                    sb.Append(n > 30 ? "\nכתוביות " + (from + 1) + "-" + to + " (סביב הנגן; השאר - list_cues):" : "\nהכתוביות:");
+                    // ״(סביב הנגן)״ לבד - והעוזר חיפש רק בהן (בנימין, 0.8.18): ״מחפש רק ב-30 השניות הראשונות״
+                    sb.Append(n > 30 ? "\nכתוביות " + (from + 1) + "-" + to + " מתוך " + n + " (**רק חלק** - סביב הנגן. חיפוש בכולן: find_text; קריאה: list_cues):" : "\nהכתוביות:");
                     for (int i = from; i < to; i++)
                     {
                         Cue c = _doc.Cues[i];

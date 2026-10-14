@@ -376,6 +376,21 @@ Say 'מי עוד מופיע?' 60
 $w5 = Req $srv 5
 Check 'שאלה נוספת על אותו סרט - בלי להעלות שוב, ומה שכבר הובן נמצא במצב' ((ModelOf (ReqLine $srv 6)) -ne '' -and (ReqLine $srv 6) -like '*generateContent*' -and (Req $srv 6).Contains('files/abc123') -and $w5.Contains('מה כבר ידוע לך על תוכן הסרט') -and (LastModelText) -eq 'אין עוד דמויות.') (ReqLine $srv 6)
 
+# ---------- 15א. סרט ארוך - בחלקים, עד הסוף (0.8.18). בנימין: ״מחפש רק ב-30 השניות הראשונות״ ----------
+$f1 = '{"file":{"name":"files/p1","uri":"https://generativelanguage.googleapis.com/v1beta/files/p1","state":"ACTIVE","mimeType":"video/mp4"}}'
+$f2 = '{"file":{"name":"files/p2","uri":"https://generativelanguage.googleapis.com/v1beta/files/p2","state":"ACTIVE","mimeType":"video/mp4"}}'
+$srv = StartServer @(
+    @{ status = '200 OK'; body = '{}'; headers = 'X-Goog-Upload-URL: http://127.0.0.1:{PORT}/upload-session' }, (Ok200 $f1), (Reply (Txt 'אין בחלק הזה')),
+    @{ status = '200 OK'; body = '{}'; headers = 'X-Goog-Upload-URL: http://127.0.0.1:{PORT}/upload-session' }, (Ok200 $f2), (Reply (Txt 'הוא נכנס לחדר ב-[[0:02]].')))
+(TY 'Ai').GetField('UploadRoot', $ST).SetValue($null, "http://127.0.0.1:$($srv.Port)/upload/v1beta/files")
+(TY 'Ai').GetField('FilesRoot', $ST).SetValue($null, "http://127.0.0.1:$($srv.Port)/v1beta/")
+$parts = [Collections.Generic.List[long[]]]::new(); $parts.Add([long[]]@(0, 4000)); $parts.Add([long[]]@(4000, 8000))
+$stl = New-Object Collections.ArrayList
+$apa = New-Object object[] 7; $apa[0] = 'מתי הוא נכנס לחדר?'; $apa[1] = [string]$wmedia; $apa[2] = $parts; $apa[3] = $true; $apa[4] = [int]360; $apa[5] = [Action[string]] { param($s) [void]$stl.Add($s) }; $apa[6] = $null
+$pans = (TY 'AiWatch').GetMethod('AskParts', $ST).Invoke($null, $apa)
+$q1 = Req $srv 2; $q2 = Req $srv 5
+Check 'סרט ארוך: כל חלק נשאל לבד (״חלק 1 מתוך 2״), עם הקובץ שלו' ($q1.Contains('חלק 1 מתוך 2') -and $q1.Contains('files/p1') -and $q2.Contains('חלק 2 מתוך 2') -and $q2.Contains('files/p2')) ''
+Check 'והתשובות מחוברות לפי הסדר, עם הזמן בסרט המלא (0:02 בחלק השני = 0:06)' (('' + $pans).Contains('[0:00-0:04] אין בחלק הזה') -and ('' + $pans).Contains('[0:04-0:08]') -and ('' + $pans).Contains('ב-0:06') -and $stl.Count -eq 2) ('' + $pans).Replace("`n", ' / ')
 # ---------- 16. טקסט מהתמונה: פריים ברזולוציה מלאה, והטקסט חוזר לעוזר ----------
 $srv = StartServer @(
     (Reply (Call 'read_text_on_screen' '{"seconds":2}' $null)),

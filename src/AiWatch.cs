@@ -25,6 +25,58 @@ namespace SubtitleStudio
         public static readonly string[] Models = { "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-flash-lite-latest" };
         /// <summary>הכי הרבה בבקשה אחת (30 דקות ≈ 180 אלף טוקנים ברזולוציה הנמוכה).</summary>
         public const long MaxSpanMs = 30L * 60 * 1000;
+        /// <summary>כמה בקשות לכל היותר בצפייה אחת - שיעור של שלוש שעות.</summary>
+        public const int MaxParts = 6;
+
+        /// <summary>הטווח בחלקים שווים של עד 30 דקות, עד <see cref="MaxParts"/> (מה שמעבר - לא נכנס).</summary>
+        internal static List<long[]> Parts(long from, long to)
+        {
+            List<long[]> res = new List<long[]>();
+            long span = Math.Max(1, to - from);
+            int n = (int)Math.Min(MaxParts, (span + MaxSpanMs - 1) / MaxSpanMs);
+            if (n * MaxSpanMs < span) to = from + n * MaxSpanMs;
+            long len = (to - from + n - 1) / n;
+            for (int k = 0; k < n; k++) res.Add(new long[] { from + k * len, Math.Min(to, from + (k + 1) * len) });
+            return res;
+        }
+
+        /// <summary>**שאלה על סרט ארוך - חלק אחרי חלק.** כל חלק מקבל את השאלה עם ״זה חלק k מתוך n״, והתשובות מחוברות לפי
+        /// הסדר; חלק שאין בו כלום (״אין בחלק הזה״) - שורה קצרה. חלק שנכשל לא עוצר את האחרים (<paramref name="error"/> אומר
+        /// איזה), אבל אם כולם נכשלו - null.</summary>
+        internal static string AskParts(string question, string media, List<long[]> parts, bool hasVideo, int srcH, Action<string> status, out string error)
+        {
+            error = null;
+            StringBuilder sb = new StringBuilder();
+            int ok = 0;
+            List<string> failed = new List<string>();
+            for (int k = 0; k < parts.Count; k++)
+            {
+                if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                long a = parts[k][0], b = parts[k][1];
+                string range = Clock(a / 1000) + "-" + Clock(b / 1000);
+                if (status != null) status(Lang.F("צופה בחלק {0} מתוך {1}", k + 1, parts.Count));
+                string q = "(הסרט ארוך, והוא נשלח בחלקים. זה חלק " + (k + 1) + " מתוך " + parts.Count + ". ענה רק לפי מה שבחלק הזה; " +
+                           "אם אין בו שום דבר שקשור לשאלה - כתוב רק: " + Nothing + ")\n" + question;
+                string err;
+                string ans = Ask(q, media, a, b, hasVideo, srcH, out err);
+                if (ans == null)
+                {
+                    if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                    failed.Add(range + " (" + err + ")");
+                    sb.Append("[").Append(range).Append("] לא נצפה: ").Append(err).Append("\n\n");
+                    continue;
+                }
+                ok++;
+                string t = ans.Trim();
+                if (t.Length < Nothing.Length + 12 && t.Contains(Nothing)) sb.Append("[").Append(range).Append("] ").Append(Nothing).Append(".\n\n");
+                else sb.Append("[").Append(range).Append("]\n").Append(t).Append("\n\n");
+            }
+            if (ok == 0) { error = failed.Count > 0 ? failed[0] : "לא התקבלה תשובה"; return null; }
+            if (failed.Count > 0) error = string.Join("; ", failed.ToArray());
+            return sb.ToString().Trim();
+        }
+
+        private const string Nothing = "אין בחלק הזה";
 
         private class Upload { public string Uri, Mime; public DateTime At; }
         private static readonly Dictionary<string, Upload> _cache = new Dictionary<string, Upload>();
@@ -104,7 +156,7 @@ namespace SubtitleStudio
                     // דגם שלא מכיר את mediaResolution - שוב בלעדיו
                     if (!r.Ok && r.HttpCode == 400 && r.Error != null && r.Error.IndexOf("resolution", StringComparison.OrdinalIgnoreCase) >= 0)
                         r = Ai.SendJson(model, Body(question, up.Uri, up.Mime, from, false));
-                    if (r.Ok && !string.IsNullOrEmpty(r.Text)) return Times(r.Text, from);
+                    if (r.Ok && !string.IsNullOrEmpty(r.Text)) { error = null; return Times(r.Text, from); }
                     // הקובץ כבר לא אצל גוגל (עברו 48 שעות, או נמחק) - מעלים שוב
                     if (r.HttpCode == 403 || (r.HttpCode == 400 && r.Error != null && r.Error.IndexOf("file", StringComparison.OrdinalIgnoreCase) >= 0))
                     { gone = true; break; }

@@ -287,7 +287,23 @@ for ($q = 0; $q -lt 12; $q++) {
 }
 $gs = @((TY 'BurnedSubs').GetMethod('Group', $ST).Invoke($null, (Pack $masks.psobject.BaseObject $tms.psobject.BaseObject $str.psobject.BaseObject ([int64]500))))
 Check 'כתוביות צרובות: לוגו שדולק בכל הפריימים לא נחשב כתובית, ושתי הכתוביות - בזמנים שלהן' ($gs.Count -eq 2 -and $gs[0].A -eq 1000 -and $gs[0].B -eq 2500 -and $gs[1].A -eq 3500 -and $gs[1].B -eq 5000) (($gs | ForEach-Object { '' + $_.A + '-' + $_.B }) -join ', ')
-$mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
+# ---------- 0.8.18: חיפוש בכל הסרט ----------
+# בנימין: ״כשאומרים לו לחפש משהו בסרט, הוא מחפש רק ב-30 השניות הראשונות״
+$pp = $aw.GetMethod('Parts', $ST)
+$p1 = @($pp.Invoke($null, @([int64]0, [int64]600000))); $p3 = @($pp.Invoke($null, @([int64]0, [int64]3900000))); $p6 = @($pp.Invoke($null, @([int64]0, [int64]14400000)))
+Check 'צפייה בסרט ארוך: חלקים שווים של עד 30 דקות, עד הסוף (עשר דקות - אחד; 65 דקות - שלושה)' ($p1.Count -eq 1 -and $p1[0][1] -eq 600000 -and $p3.Count -eq 3 -and $p3[0][1] -eq 1300000 -and $p3[2][1] -eq 3900000 -and $p3[1][0] -eq $p3[0][1]) (($p3 | ForEach-Object { '' + $_[0] + '-' + $_[1] }) -join ', ')
+Check 'וסרט של ארבע שעות - שש בקשות, עד שלוש שעות' ($p6.Count -eq 6 -and $p6[5][1] -eq 10800000) ('' + $p6[5][1])
+$stems = (TY 'MainForm').GetMethod('SearchStems', $ST)
+$st1 = @($stems.Invoke($null, @([string]'ובבית הספר, משה!')))
+Check 'מילים לחיפוש: בלי אותיות שימוש ופיסוק, ״משה״ נשאר ״משה״' (($st1 -join ',') -eq 'בית,ספר,משה') ($st1 -join ',')
+for ($k = 4; $k -le 45; $k++) { $txt = if ($k -eq 38) { 'ועכשיו נדבר על הדבורים בגינה' } else { 'שורה רגילה מספר ' + $k }; $cues.Add((NewOf 'Cue' @([int64]($k * 10000), [int64]($k * 10000 + 2000), [string]$txt))) }
+$res = Call 'find_text' @{ query = 'דבורים' }
+$hit = @($res['matches'])
+Check 'find_text מחפש בכל הכתוביות - גם בכתובית 38 מתוך 45 (לא רק אלה שבמצב)' ($hit.Count -eq 1 -and $hit[0]['index'] -eq 38 -and ('' + $res['searched']).Contains('45')) (($hit | ForEach-Object { '' + $_['index'] + ' ' + $_['text'] }) -join ' | ')
+$res = Call 'find_text' @{ query = 'איפה מדברים על דבורה בגן' }
+Check 'find_text בלי התאמה - אומר מה לעשות (מילה אחרת, או מה שרואים)' (@($res['matches']).Count -eq 0 -and ('' + $res['note']).Contains('find_scene')) ('' + $res['note'])
+$state = $mfT.GetMethod('AiStateFull', $IN).Invoke($mf, @())
+Check 'במצב, עם יותר מ-30 כתוביות: ״רק חלק״, ואיך מחפשים בכולן' ($state.Contains('רק חלק') -and $state.Contains('find_text')) ''$mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)

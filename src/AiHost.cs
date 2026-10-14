@@ -77,13 +77,13 @@ namespace SubtitleStudio
             // **צפייה ושיחה על הסרט (0.8.17)** - בנימין: ״לפטפט איתו על הסרטון... סריקת טקסט מתמונה, הבנת סצנות ועוד״
             t.Add(new AiTool("watch_video", "**צופה בסרט - תמונה וקול יחד - ועונה על שאלה על התוכן**: על מה הסרט, מה קורה בו, מי מופיע ומה " +
                 "כל אחד אומר, איפה/מתי קורה משהו (״מתי הוא נכנס לחדר?״), סיכום, פירוק לסצנות עם זמנים, אווירה, מה רואים ברקע. " +
-                "הסרט (בעותק מוקטן) נשלח לגוגל פעם אחת, ושאלות נוספות על אותו קטע לא שולחות שוב. עד 30 דקות בבקשה - בסרט ארוך " +
-                "שאל על קטע (from_sec/to_sec). הזמנים בתשובה הם של הסרט המלא - אפשר לקפוץ אליהם (seek) או לחתוך לפיהם. " +
-                "לוקח כמה שניות עד חצי דקה, בפעם הראשונה יותר")
+                "הסרט (בעותק מוקטן) נשלח לגוגל פעם אחת, ושאלות נוספות עליו לא שולחות שוב. **תמיד על כל הסרט** - סרט ארוך נצפה בחלקים " +
+                "של חצי שעה, עד הסוף (עד שלוש שעות). הזמנים בתשובה הם של הסרט המלא - אפשר לקפוץ אליהם (seek) או לחתוך לפיהם. " +
+                "לוקח כמה שניות עד חצי דקה, בפעם הראשונה ובסרט ארוך יותר")
                 .Req("question", "string", "השאלה, מפורטת ככל שצריך (למשל: ״פרק את הסרט לסצנות, ולכל אחת זמן ותיאור של שורה״). " +
                      "אפשר להוסיף רקע - למשל מה המשתמש מחפש")
-                .P("from_sec", "number", "מאיזו שנייה (ברירת מחדל: מההתחלה)")
-                .P("to_sec", "number", "עד איזו שנייה (ברירת מחדל: עד הסוף, ולא יותר מ-30 דקות)"));
+                .P("from_sec", "number", "רק כשהמשתמש שאל על קטע מסוים (״מה קורה בדקה 3?״). בלי זה - כל הסרט")
+                .P("to_sec", "number", "עד איזו שנייה (ברירת מחדל: עד הסוף)"));
             t.Add(new AiTool("extract_burned_subtitles", "**כתוביות שצרובות בתמונה ← כתוביות רגילות**, עם זמנים: מחפש את הכתוביות בתמונה (בלי רשת), " +
                 "ושולח לגוגל רצועה אחת מכל כתובית כדי לקרוא אותה - בעברית ובכל שפה. בשביל ״יש לי סרט עם כתוביות צרובות, תוציא אותן״, " +
                 "או לפני תרגום של סרט כזה. הזמנים מדויקים בערך לחצי שנייה. לוקח דקה-שתיים לכמה דקות של סרט")
@@ -106,10 +106,10 @@ namespace SubtitleStudio
                 .P("to_index", "integer", "עד הכתובית הזו (כמה רצופות)")
                 .P("from_sec", "number", "או: מהזמן הזה")
                 .P("to_sec", "number", "עד הזמן הזה. ברירת מחדל: 15 שניות"));
-            t.Add(new AiTool("find_scene", "מוצא בסרט סצנה לפי מה שרואים בה (״איפה רואים את...״, ״תראה לי את הקטע ש...״): עוברת על הסרט " +
-                    "בתמונות קטנות עם זמנים, ואז seek לזמן שמתאים. מה שנאמר - מהכתוביות (list_cues), לא מכאן. התמונות נשלחות לגוגל")
+            t.Add(new AiTool("find_scene", "מוצא בסרט סצנה לפי מה שרואים בה (״איפה רואים את...״, ״תראה לי את הקטע ש...״): עוברת על **כל הסרט** " +
+                    "בתמונות קטנות עם זמנים, ואז seek לזמן שמתאים. מה שנאמר - find_text, לא מכאן. התמונות נשלחות לגוגל")
                 .Req("description", "string", "מה רואים בסצנה, במילים של המשתמש")
-                .P("from_sec", "number", "לחפש רק מהזמן הזה")
+                .P("from_sec", "number", "רק אם המשתמש ביקש קטע מסוים, או לחיפוש שני צפוף יותר סביב מקום חשוד - בלי זה: כל הסרט")
                 .P("to_sec", "number", "ועד הזמן הזה"));
             t.Add(new AiTool("select_cue", "בוחר כתובית ברשימה: היא נפתחת בעורך, והנגן קופץ אליה")
                 .Req("index", "integer", "מספר הכתובית, מ-1"));
@@ -120,6 +120,12 @@ namespace SubtitleStudio
                 .Req("name", "string", "dark (מצב כהה), language (he/en, אחרי הפעלה מחדש), spell_check, auto_update")
                 .Req("value", "string", "true/false, או he/en לשפה"));
 
+            // **חיפוש בכל הכתוביות (0.8.18)** - בנימין: ״כשאומרים לו לחפש משהו בסרט, הוא מחפש רק ב-30 השניות הראשונות״. עד כאן היו
+            // לו רק הכתוביות שבמצב (30 ראשונות, או 12 סביב הנגן) ו-list_cues בעמודים של 40 - והוא הסתפק במה שראה
+            t.Add(new AiTool("find_text", "**מחפש בכל הכתוביות** - איפה אומרים משהו (״איפה הוא מדבר על...״, ״מתי אומרים את המילה...״). " +
+                "מחזיר את הכתוביות המתאימות עם מספר וזמן, מכל הסרט. מילים - גם בלי אותיות שימוש (״בבית״ מוצא ״בית״). " +
+                "**בסרט בלי כתוביות - צופה בכל הסרט ושומע** (כמו watch_video), אז אין צורך לתמלל קודם")
+                .Req("query", "string", "מה לחפש - מילה, כמה מילים או משפט"));
             t.Add(new AiTool("list_cues", "מחזיר כתוביות עם המספר, הזמנים והטקסט")
                 .P("from_index", "integer", "מאיזו כתובית להתחיל, מ-1. ברירת מחדל 1")
                 .P("count", "integer", "כמה להחזיר. ברירת מחדל 40, מקסימום 200"));
@@ -338,6 +344,27 @@ namespace SubtitleStudio
 
             try
             {
+                // **חיפוש במה שאומרים, בסרט בלי כתוביות (0.8.18) = צפייה בכל הסרט** - גוגל שומע אותו. נמדד 14.10: find_text החזיר ״אין
+                // כתוביות - watch_video״, והעוזר הציע לתמלל קודם במקום לצפות. ההרשאה - של watch_video (שליחה החוצה), דרך אותו שער
+                if (call.Name == "find_text" && _doc.Cues.Count == 0 && _mi != null && call.Str("query", "").Trim().Length > 0)
+                {
+                    AiCall w = new AiCall();
+                    w.Name = "watch_video";
+                    w.Id = call.Id;
+                    w.Args = new Dictionary<string, object>();
+                    w.Args["question"] = "באילו רגעים בסרט אומרים את זה, או מדברים על זה: ״" + call.Str("query", "").Trim() + "״? " +
+                        "לכל מקום - הזמן ([[M:SS]]) וציטוט קצר של מה שנאמר שם. אם לא מדברים על זה בכלל - אמור את זה.";
+                    string whyW = AiGate(AiPerms.CategoryOf("watch_video"), AiDescribe(w), false, out refused);
+                    if (whyW != null)
+                    {
+                        if (refused) r["cancelled"] = true;
+                        else r["error"] = whyW + ". (אין כתוביות, אז החיפוש הוא צפייה בסרט)";
+                        return r;
+                    }
+                    r = AiWatchVideo(w);
+                    r["searched"] = "אין כתוביות - צפייה בכל הסרט (תמונה וקול)";
+                    return r;
+                }
                 // **ההרשאות (0.8.12).** פקודה, מילוי ולחיצה בחלון - לפי הפקודה והחלון, בתוך הפעולה עצמה
                 if (call.Name != "run_command" && call.Name != "ui_set" && call.Name != "ui_click")
                 {
@@ -373,6 +400,7 @@ namespace SubtitleStudio
                     case "set_setting": return AiSetSetting(call);
                     case "get_state": return AiState();
                     case "list_cues": return AiListCues(call);
+                    case "find_text": return AiFindText(call);
                     case "edit_cue": return AiEditCue(call);
                     case "add_cue": return AiAddCue(call);
                     case "delete_cues": return AiDeleteCues(call, out refused);
@@ -699,6 +727,12 @@ namespace SubtitleStudio
             AiRefresh();
             r["done"] = Lang.F("הכתוביות תורגמו ל{0}", lang);
             if (run.Untranslated > 0) r["untranslated"] = run.Untranslated;
+            if (run.StoppedAt >= 0)
+            {
+                r["done"] = Lang.F("תורגמו {0} מתוך {1} כתוביות - התרגום נעצר באמצע", run.StoppedAt, cues.Count);
+                r["stopped_because"] = run.Error;
+                r["first_untranslated_index"] = _doc.Cues.IndexOf(cues[run.StoppedAt]) + 1;
+            }
             return r;
         }
 
@@ -917,6 +951,72 @@ namespace SubtitleStudio
             _aiLastWinCat = AiPerms.Media;
             AiDefer(delegate { OpenTools(); });
             r["done"] = Lang.T("נפתח חלון הכלים");
+            return r;
+        }
+
+        /// <summary>**חיפוש בכל הכתוביות:** קודם אלה שכל מילות החיפוש בהן, אחר כך רוב המילים; עד 25, לפי הסדר בסרט.</summary>
+        private Dictionary<string, object> AiFindText(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string q = c.Str("query", "").Trim();
+            if (q.Length == 0) { r["error"] = "חסר מה לחפש (query)"; return r; }
+            if (_doc.Cues.Count == 0) { r["error"] = "אין כתוביות ואין סרט פתוח - אין במה לחפש"; return r; }
+            List<string> words = SearchStems(q);
+            if (words.Count == 0) { r["error"] = "אין מילים לחפש"; return r; }
+            int need = words.Count <= 2 ? words.Count : (words.Count * 2 + 2) / 3;
+            List<object[]> hits = new List<object[]>();
+            for (int i = 0; i < _doc.Cues.Count; i++)
+            {
+                List<string> cw = SearchStems(_doc.Cues[i].PlainText);
+                string joined = " " + string.Join(" ", cw.ToArray()) + " ";
+                int score = 0;
+                // תחילת מילה: ״בית״ מוצא ״ביתו״ ו״הבית״ (אחרי SearchStems), ולא ״תביתי״ באמצע מילה
+                foreach (string w in words) if (joined.Contains(" " + w)) score++;
+                if (score >= need) hits.Add(new object[] { i, score });
+            }
+            hits.Sort(delegate (object[] a, object[] b)
+            {
+                int s = ((int)b[1]).CompareTo((int)a[1]);
+                return s != 0 ? s : ((int)a[0]).CompareTo((int)b[0]);
+            });
+            if (hits.Count > 25) hits.RemoveRange(25, hits.Count - 25);
+            hits.Sort(delegate (object[] a, object[] b) { return ((int)a[0]).CompareTo((int)b[0]); });
+            List<object> list = new List<object>();
+            foreach (object[] h in hits)
+            {
+                Cue q2 = _doc.Cues[(int)h[0]];
+                Dictionary<string, object> d = new Dictionary<string, object>();
+                d["index"] = (int)h[0] + 1;
+                d["start"] = Tc.Short(q2.Start);
+                d["text"] = q2.PlainText.Replace("\n", " / ");
+                if ((int)h[1] < words.Count) d["partial"] = true;
+                list.Add(d);
+            }
+            r["searched"] = "כל " + _doc.Cues.Count + " הכתוביות";
+            r["matches"] = list.ToArray();
+            if (list.Count == 0)
+                r["note"] = "לא נאמר בכתוביות. אולי במילים אחרות (נסה מילה נרדפת), או שזה מה שרואים ולא מה שאומרים - find_scene / watch_video";
+            else r["how_to_use"] = "select_cue לכתובית שמתאימה הכי טוב - הנגן קופץ אליה";
+            return r;
+        }
+
+        /// <summary>מילים לחיפוש: בלי ניקוד ופיסוק, אותיות קטנות, ובלי אות שימוש בהתחלה (״ובבית״ ← ״בית״) כשנשארות שלוש.</summary>
+        internal static List<string> SearchStems(string s)
+        {
+            List<string> r = new List<string>();
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            foreach (char ch in (s ?? "").ToLowerInvariant())
+            {
+                if (ch >= 0x0591 && ch <= 0x05C7) continue;        // ניקוד וטעמים
+                sb.Append(char.IsLetterOrDigit(ch) ? ch : ' ');
+            }
+            foreach (string raw in sb.ToString().Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string w = raw;
+                // עד שתי אותיות שימוש (״וכש...״, ״ובבית״) ולא פחות משלוש אותיות - ״משה״ נשאר ״משה״
+                for (int k = 0; k < 2 && w.Length > 3 && "והבלמשכ".IndexOf(w[0]) >= 0; k++) w = w.Substring(1);
+                if (w.Length >= 2 && !r.Contains(w)) r.Add(w);
+            }
             return r;
         }
 
