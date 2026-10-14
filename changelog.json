@@ -2,6 +2,27 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.20",
+      "date": "2026-10-14",
+      "items": [
+        {
+          "t": "major",
+          "s": "תקציר וידאו: ״תכין לי תקציר של 3 דקות מהשיעור״ - העוזר בוחר את הקטעים החשובים (או רק על נושא), חותך ושומר",
+          "en": "Video summary: 'make me a 3-minute summary of the lesson' - the assistant picks the important parts (or only on a topic), cuts and saves"
+        },
+        {
+          "t": "feature",
+          "s": "דרך העוזר אפשר לתרגם או לתמלל רק קטע: ״רק את הדקה הראשונה״, ״מכתובית 10 עד 30״",
+          "en": "Through the assistant you can translate or transcribe just a part: 'only the first minute', 'from subtitle 10 to 30'"
+        },
+        {
+          "t": "fix",
+          "s": "תמלול: משפטים ש״נשמעו״ בתוך שקט מוחלט (גוגל ממציא לפעמים) - מושמטים, ונאמר כמה",
+          "en": "Transcription: sentences 'heard' in complete silence (Google sometimes makes them up) are left out, and it says how many"
+        }
+      ]
+    },
+    {
       "v": "0.8.19",
       "date": "2026-10-14",
       "items": [
