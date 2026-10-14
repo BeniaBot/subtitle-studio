@@ -556,7 +556,7 @@ namespace SubtitleStudio
             // כל הסרט בחלק אחד - בלי ‎-ss/-t (הכי מהיר, ואותו מפתח בזיכרון של ההעלאות)
             if (parts.Count == 1 && from == 0 && to >= _mi.DurationMs - 500) parts[0][1] = 0;
             string path = _mi.Path; bool video = _mi.HasVideo; int sh = _mi.Height;
-            long fa = from, fb = parts[parts.Count - 1][1];
+            long fa = from, fb = parts[parts.Count - 1][1], dur = _mi.DurationMs;
             r["done"] = fb == 0 ? Lang.T("צופה בסרט")
                 : parts.Count > 1 ? Lang.F("צופה בסרט, ב-{0} חלקים", parts.Count)
                 : Lang.F("צופה בקטע {0}", Theme.Ltr(Tc.Short(from) + "-" + Tc.Short(fb)));
@@ -564,6 +564,7 @@ namespace SubtitleStudio
             {
                 Dictionary<string, object> w = new Dictionary<string, object>();
                 string err = null, answer;
+                AiWatch.DurationHintMs = dur;
                 if (parts.Count == 1) answer = AiWatch.Ask(q, path, parts[0][0], parts[0][1], video, sh, out err);
                 else answer = AiWatch.AskParts(q, path, parts, video, sh, delegate (string s) { AiUi.Status(s); }, out err);
                 if (answer == null) { w["error"] = "הצפייה לא הצליחה: " + err; return w; }

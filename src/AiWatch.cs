@@ -28,6 +28,20 @@ namespace SubtitleStudio
         /// <summary>אחרי כמה זמן בלי תשובה - גם הדגם הבא, במקביל (`Ai.SendModels`). צפייה: 5-20 שניות (נמדד), קריאת טקסט: 2.</summary>
         internal static int WatchHedgeMs = 60000, OcrHedgeMs = 20000;
 
+        /// <summary>בחוט הזה: אורך הסרט - כשנשאלים על כולו (`to` = 0, בשביל אותו מפתח בזיכרון של ההעלאות) והמרוץ צריך את האורך.</summary>
+        [ThreadStatic] internal static long DurationHintMs;
+
+        /// <summary>**המרוץ בצפייה - לפי אורך הקטע** (0.8.19): 25 שניות ועוד שנייה לכל דקה, עד <see cref="WatchHedgeMs"/>. נמדד 14.10:
+        /// gemini-flash-latest לא ענה על שיעור של 12 דקות 60 שניות, והבא ענה תוך 10. חלק של חצי שעה (~180 אלף טוקנים) מקבל דקה -
+        /// כדי לא לשלם עליו פעמיים בלי סיבה. ‏<paramref name="to"/> = 0 - כל הסרט (האורך לא ידוע כאן): הכי הרבה.</summary>
+        internal static int HedgeFor(long from, long to)
+        {
+            if (to <= from && DurationHintMs > from) to = DurationHintMs;
+            if (to <= from) return WatchHedgeMs;
+            long ms = 25000 + (to - from) / 60;
+            return (int)Math.Min(WatchHedgeMs, ms);
+        }
+
         /// <summary>כמה בקשות לכל היותר בצפייה אחת - שיעור של שלוש שעות.</summary>
         public const int MaxParts = 6;
 
@@ -164,7 +178,7 @@ namespace SubtitleStudio
                     if (x.HttpCode == 403 || (x.HttpCode == 400 && x.Error != null && x.Error.IndexOf("file", StringComparison.OrdinalIgnoreCase) >= 0))
                         gone = true;
                     return x;
-                }, delegate (AiReply x) { return x.Ok && !string.IsNullOrEmpty(x.Text); }, WatchHedgeMs, "צפייה");
+                }, delegate (AiReply x) { return x.Ok && !string.IsNullOrEmpty(x.Text); }, HedgeFor(from, to), "צפייה");
                 if (r.Ok && !string.IsNullOrEmpty(r.Text)) { error = null; return Times(r.Text, from); }
                 if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
                 error = r.Error ?? "לא התקבלה תשובה";
