@@ -566,11 +566,17 @@ namespace SubtitleStudio
                     Ico.Warning, Lang.T("מחיקה"), Lang.T("ביטול"));
                 if (ans != 0) { refused = true; r["cancelled"] = true; return r; }
             }
+            // **מה נמחק - במילים** (0.8.18): נמדד 14.10 - העוזר מחק נכון את ״את הכלים כדאי לשמור...״, וכתב ״מחקתי את הכתובית על ההשקיה
+            // בחורף״. עם הטקסט בתוצאה הוא לא צריך לנחש
+            List<string> gone = new List<string>();
+            for (int i = from - 1; i < to && gone.Count < 5; i++) gone.Add((i + 1) + ": " + Short(_doc.Cues[i].PlainText, 80));
             _doc.Push(Lang.T("מחיקה מהצ'אט"));
             _doc.Cues.RemoveRange(from - 1, n);
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = Lang.F("נמחקו {0} כתוביות", n);
+            r["deleted"] = gone.ToArray();
+            if (n > gone.Count) r["deleted_more"] = n - gone.Count;
             return r;
         }
 
