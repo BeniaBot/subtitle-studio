@@ -1136,6 +1136,10 @@ namespace SubtitleStudio
                 w["sections"] = string.Join("; ", sec.ToArray());
                 w["parts"] = list.ToArray();
                 w["total"] = Tc.Short(total);
+                // נמדד 14.10: ״סרטון של דקה״ מצפייה יצא שני קטעים של 59 שניות. לא מקצרים בעצמנו (חיתוך באמצע משפט) - אומרים
+                if (total > minutes * 60000 * 1.4 + 10000)
+                    w["note"] = "יצא ארוך מהבקשה (" + Tc.Short(total) + " במקום כ-" + mins + " דקות). אמור את זה למשתמש; אם הוא רוצה קצר יותר - " +
+                                "plan_highlights שוב עם פחות דקות, או sections בלי הקטע הפחות חשוב";
                 w["from"] = fromCues ? "הכתוביות" : "צפייה בסרט";
                 w["how_to_use"] = "עכשיו trim_video עם sections בדיוק כמו כאן, ואז ui_click main כשמותר - הקובץ נשמר ליד הסרט. " +
                                   "למשתמש - בקצרה מה נכנס (שורה לכל קטע) ואורך כולל. אל תשאל ״אם תרצה״ - הוא ביקש";

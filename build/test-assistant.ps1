@@ -151,6 +151,9 @@ if ($sd) {
     Check 'מוצא פקד לפי חלק מהתווית' ($box -ne $null -and $box.Kind -eq 'switch') ''
     $why = (TY 'AiUi').GetMethod('Set', $ST).Invoke($null, (Pack $box 'on'))
     Check 'מדליק מתג' ($why -eq $null -and (TY 'AiUi').GetMethod('Value', $ST).Invoke($null, @($box)) -eq 'on') ''
+    # ״main״ = הכפתור הראשי (0.8.20, נמדד: ״ui_click main״ בחלון החיתוך - ״אין פקד כזה״)
+    $mainIt = (TY 'AiUi').GetMethod('Find', $ST).Invoke($null, (Pack $sd 'main'))
+    Check 'ui_click main - הכפתור הראשי של החלון' ($mainIt -ne $null -and $mainIt.C -eq $sd.GetType().GetProperty('OkButton', $IN).GetValue($sd, $null)) ('' + $(if ($mainIt) { $mainIt.Label }))
     $sl = (TY 'AiUi').GetMethod('Find', $ST).Invoke($null, (Pack $sd 'עובי המתאר'))
     [void](TY 'AiUi').GetMethod('Set', $ST).Invoke($null, (Pack $sl '4'))
     Check 'קובע מספר בפס' ((TY 'AiUi').GetMethod('Value', $ST).Invoke($null, @($sl)) -eq '4') ''

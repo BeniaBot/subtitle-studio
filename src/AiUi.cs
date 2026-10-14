@@ -192,6 +192,20 @@ namespace SubtitleStudio
             if (f == null || string.IsNullOrEmpty(key)) return null;
             key = key.Trim();
             List<Item> items = Items(f);
+            // **״main״ = הכפתור הראשי** (0.8.20) - כך הוא מסומן ב-ui_read, וכך ההנחיה אומרת ללחוץ. נמדד 14.10: ״ui_click main״ בחלון החיתוך
+            // החזיר ״אין פקד כזה״, והעוזר הצליח רק בניסיון השני (לפי המזהה)
+            if (key.Equals("main", StringComparison.OrdinalIgnoreCase) || key == "הכפתור הראשי")
+            {
+                Dlg d = f as Dlg;
+                Control ok = d != null ? d.OkButton : null;
+                if (ok == null)
+                    foreach (Item it in items)
+                    {
+                        Btn b = it.C as Btn;
+                        if (b != null && b.Kind == BtnKind.Primary && b.Enabled && b.Visible) { ok = b; break; }
+                    }
+                foreach (Item it in items) if (ok != null && it.C == ok) return it;
+            }
             foreach (Item it in items) if (it.Kind != "label" && string.Equals(it.Id, key, StringComparison.OrdinalIgnoreCase)) return it;
             foreach (Item it in items) if (it.Kind != "label" && string.Equals(it.Label, key, StringComparison.OrdinalIgnoreCase)) return it;
             foreach (Item it in items) if (it.Kind != "label" && it.Label.Length > 0 && it.Label.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0) return it;

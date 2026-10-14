@@ -400,7 +400,7 @@ namespace SubtitleStudio
             if (n == 0) { error = "אין כתוביות עם זמנים"; return null; }
             string prompt =
                 "אלה הכתוביות של סרט, שורה לכל כתובית: התחלה|סוף|טקסט (בשניות).\n" +
-                "בחר קטעים רצופים לתקציר של כ-" + minutes.ToString("0.#", CultureInfo.InvariantCulture) + " דקות בסך הכול: " + What(focus) + ". " +
+                "בחר קטעים רצופים לתקציר: " + What(focus) + ". **סך כל הקטעים יחד - כ-" + minutes.ToString("0.#", CultureInfo.InvariantCulture) + " דקות, לא יותר** (חבר את האורכים לפני שאתה עונה). " +
                 "כל קטע - מתחילת כתובית עד סוף כתובית (אפשר כמה רצופות), 8-60 שניות, שלם מבחינת התוכן (לא נקטע באמצע משפט). " +
                 "לפי סדר הזמן, בלי חפיפות. לכל קטע - התחלה וסוף בשניות, ובמילים ספורות מה יש בו.\n\n" + sb.ToString();
             Dictionary<string, object> body = new Dictionary<string, object>();
@@ -469,7 +469,7 @@ namespace SubtitleStudio
                 if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
                 long a = parts[k][0], b = parts[k][1] == 0 ? durationMs : parts[k][1];
                 double share = durationMs > 0 ? minutes * (b - a) / (double)durationMs : minutes;
-                string q = "בחר קטעים רצופים מהסרטון לתקציר של כ-" + share.ToString("0.#", CultureInfo.InvariantCulture) + " דקות בסך הכול: " + What(focus) +
+                string q = "בחר קטעים רצופים מהסרטון לתקציר: " + What(focus) + ". **סך כל הקטעים יחד - כ-" + share.ToString("0.#", CultureInfo.InvariantCulture) + " דקות, לא יותר** (חבר את האורכים)" +
                            ". כל קטע 8-60 שניות, שלם (לא נקטע באמצע משפט), לפי סדר הזמן. **כתוב רק שורות**, שורה לכל קטע, בדיוק בצורה: " +
                            "[[M:SS]] - [[M:SS]] | מה יש בו (במילים ספורות). בלי שום טקסט אחר.";
                 if (parts.Count > 1) AiUi.Status(Lang.F("צופה בחלק {0} מתוך {1}", k + 1, parts.Count));
