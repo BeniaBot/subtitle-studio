@@ -796,10 +796,13 @@ namespace SubtitleStudio
         {
             set
             {
+                _fixedDir = value;
                 Box.RightToLeft = value ? RightToLeft.No : Theme.UiRtl;
                 Box.TextAlign = value || !Lang.Rtl ? HorizontalAlignment.Left : HorizontalAlignment.Right;
             }
         }
+
+        private bool _fixedDir;
 
         /// <summary>שדה שמחזיק נתיב: מה שחשוב למשתמש הוא שם הקובץ בסוף, לא אות הכונן.</summary>
         public bool PathMode;
@@ -825,7 +828,8 @@ namespace SubtitleStudio
             Box.BackColor = Theme.PanelAlt;
             Box.ForeColor = Theme.Text;
             Box.Font = Theme.Ui;
-            Box.TextChanged += delegate { ShowTail(); };
+            // הכיוון לפי מה שכתוב (0.8.22) - חוץ משדה נתיב/לטיני קבוע (Ltr)
+            Box.TextChanged += delegate { if (!_fixedDir) Theme.FitDirection(Box); ShowTail(); };
             Box.LostFocus += delegate { ShowTail(); };
             Box.HandleCreated += delegate { ShowTail(); };
             Box.Multiline = multiline;

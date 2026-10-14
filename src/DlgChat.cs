@@ -110,7 +110,8 @@ namespace SubtitleStudio
                     }
                 }
             };
-            _input.TextChanged += delegate { if (!_hint) Invalidate(); };
+            // שאלה באנגלית - משמאל לימין (0.8.22); הרמז (עברית) לא נחשב
+            _input.TextChanged += delegate { if (!_hint) { Theme.FitDirection(_input); Invalidate(); } };
             _input.GotFocus += delegate { ClearHint(); Invalidate(); };
             _input.Enter += delegate { ClearHint(); };
             _input.LostFocus += delegate { ShowHint(); Invalidate(); };

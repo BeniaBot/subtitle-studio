@@ -320,6 +320,19 @@ Check 'יש פריט הצמדה למעברי סצנה' ($null -ne $cutsIt) ''
 $g2.Close(); $g2.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 
+# **שדה בכיוון של מה שכתוב בו** (0.8.22): ״Harry Potter, Rupert Grint.״ ברקע של התמלול הוצג ״.Harry Potter...״ בממשק העברי
+$ST2 = [Reflection.BindingFlags]'NonPublic,Public,Static'
+[void]$asm.GetType('SubtitleStudio.Lang').GetMethod('Set', $ST2).Invoke($null, @([string]'he'))
+$hostF = New-Object Windows.Forms.Form; $hostF.RightToLeft = 'Yes'; $hostF.StartPosition = 'Manual'; $hostF.Location = New-Object Drawing.Point -6000, 0
+$fld = [Activator]::CreateInstance($asm.GetType('SubtitleStudio.Field')); $hostF.Controls.Add($fld); [void]$hostF.Handle; [void]$fld.Box.Handle
+$fld.Box.Text = 'Harry Potter, Rupert Grint.'; $d1 = [string]$fld.Box.RightToLeft
+$fld.Box.Text = 'Harry Potter הוא הסרט'; $d2 = [string]$fld.Box.RightToLeft
+$fld.Box.Text = '2024'; $d3 = [string]$fld.Box.RightToLeft
+$fld.Box.Text = ''; $d4 = [string]$fld.Box.RightToLeft
+$fld.Box.Text = 'Groq'; $fld.Box.Select(2, 0); $fld.Box.Text = 'Groq'; $car = $fld.Box.SelectionStart
+$hostF.Dispose()
+Check 'שדה: לועזית - משמאל לימין, עם עברית - מימין, מספר - בלי שינוי, ריק - כיוון הממשק' ($d1 -eq 'No' -and $d2 -eq 'Yes' -and $d3 -eq 'Yes' -and $d4 -eq 'Yes') "latin=$d1 mixed=$d2 number=$d3 empty=$d4"
+
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

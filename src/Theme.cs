@@ -592,6 +592,26 @@ namespace SubtitleStudio
             return false;
         }
 
+        /// <summary>**תיבת טקסט בכיוון של מה שכתוב בה** (0.8.22). ״Harry Potter, Rupert Grint.״ ברקע של התמלול, או שאלה באנגלית לעוזר,
+        /// הוצגו בממשק העברי ״.Harry Potter, Rupert Grint״. בממשק עברי: יש אות עברית, או אין אותיות - מימין; רק לועזית - משמאל; בממשק
+        /// אנגלי - לפי האות הראשונה. ריק - כיוון הממשק. **מחליפים רק כשהסוג משתנה** (ההחלפה בונה את התיבה מחדש) - והסמן חוזר למקומו.</summary>
+        internal static void FitDirection(TextBox b)
+        {
+            if (b == null || b.IsDisposed) return;
+            string s = b.Text ?? "";
+            bool letters = false;
+            foreach (char ch in s) if (char.IsLetter(ch)) { letters = true; break; }
+            if (s.Length > 0 && !letters) return;                 // רק מספרים וסימנים - נשאר כמו שהוא
+            bool rtl = s.Length == 0 ? Lang.Rtl : (Lang.Rtl ? HasRtl(s) : RtlText(s));
+            RightToLeft want = rtl ? RightToLeft.Yes : RightToLeft.No;
+            if (b.RightToLeft == want) return;
+            int ss = b.SelectionStart, sl = b.SelectionLength;
+            bool focused = b.Focused;
+            b.RightToLeft = want;
+            b.TextAlign = HorizontalAlignment.Left;               // בתיבה מימין לשמאל Left = תחילת השורה, כלומר ימין
+            try { b.Select(Math.Min(ss, b.TextLength), sl); if (focused && !b.Focused) b.Focus(); } catch { }
+        }
+
         /// <summary>טקסט ממורכז מימין לשמאל: בממשק עברי - כשיש בו אות עברית (גם אחרי מספר או מילה לועזית);
         /// בממשק אנגלי - כשהאות החזקה הראשונה עברית.</summary>
         internal static bool CenterRtl(string s) { return Lang.Rtl ? HasRtl(s) : RtlText(s); }
