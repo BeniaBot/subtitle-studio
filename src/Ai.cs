@@ -1919,6 +1919,146 @@ namespace SubtitleStudio
             return all;
         }
 
+        /// <summary>**תיקון שגיאות שמיעה בתמלול (0.8.22).** נמדד 14.10, סרטון של שעה ורבע ב-Groq: ״Rupert Grant״ (Grint), ״Swamping
+        /// Willow״ (Whomping), ״Gringotts got״ - Whisper שומע שמות לפי הצליל. המילון שלפני התרגום מתקן אותם בעברית, אבל הכתוביות בשפת
+        /// המקור נשארו שגויות. גוגל קורא את כל התמלול (מנות של עד 300 שורות) ומחזיר **רק** שורות לתיקון; כל תיקון חייב להיות אותה שורה
+        /// עם מילים בודדות אחרות (`SmallFix`) - לא ניסוח, לא קיצור, לא תרגום. מחזיר מערך באורך השורות, null = בלי שינוי.</summary>
+        internal static string[] Proofread(List<string> lines, string context, out string error)
+        {
+            error = null;
+            string[] fixes = new string[lines.Count];
+            int found = 0;
+            for (int from = 0; from < lines.Count && !StopToken.Here; from += 300)
+            {
+                int n = Math.Min(300, lines.Count - from);
+                List<object> items = new List<object>();
+                for (int i = 0; i < n; i++) items.Add(new Dictionary<string, object> { { "i", from + i }, { "t", lines[from + i] } });
+                string sys =
+                    "לפניך תמלול אוטומטי של סרטון, פריט לכל כתובית. המכונה שתמללה שומעת לפעמים לא נכון - בעיקר שמות של אנשים, מקומות, " +
+                    "יצירות, דמויות ומונחים, ומילים שנשמעות כמו מילה אחרת. מצא **רק** שגיאות שמיעה ברורות: מילה או שם שלא מתאימים להקשר, " +
+                    "כשיש מילה שנשמעת כמעט אותו דבר ומתאימה (למשל שם של שחקן, דמות או מקום שנכתב לא נכון - והשם הנכון מופיע במקום אחר " +
+                    "בתמלול, או ידוע). החזר רק את הפריטים שצריך לתקן, כל אחד בשלמותו עם התיקון, באותה שפה ובאותו מספר i. אל תשנה ניסוח, " +
+                    "דקדוק, פיסוק או סגנון, אל תתרגם, אל תשלים ואל תקצר. אם אתה לא בטוח - אל תתקן. אין מה לתקן - [].\n" +
+                    (string.IsNullOrEmpty(context) ? "" : "רקע על התוכן מהמשתמש: " + context + "\n") +
+                    "החזר אך ורק מערך JSON בצורה: [{\"i\":12,\"t\":\"...\"}]";
+                List<AiMsg> h = new List<AiMsg>();
+                AiMsg m = new AiMsg();
+                m.Role = "user";
+                m.Text = Ser().Serialize(items);
+                h.Add(m);
+                AiReply r = SendTranslation(sys, h, null);
+                if (!r.Ok) { error = r.Error; Log("תיקון שמיעה: נכשל - " + error); continue; }
+                // **בלי ParseTranslation:** התשובה דלילה (רק מה שמתוקן), ושם ״אין פריט 0״ = ספירה מאחת - והכול היה זז
+                List<KeyValuePair<int, string>> got = new List<KeyValuePair<int, string>>();
+                System.Collections.IList arr = Arr(TryJson(Unfence((r.Text ?? "").Trim())));
+                if (arr != null)
+                {
+                    foreach (object o in arr)
+                    {
+                        Dictionary<string, object> d = o as Dictionary<string, object>;
+                        if (d == null || !d.ContainsKey("i") || !d.ContainsKey("t")) continue;
+                        int k;
+                        if (!int.TryParse(Convert.ToString(d["i"], CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out k)) continue;
+                        got.Add(new KeyValuePair<int, string>(k, Lines(d["t"])));
+                    }
+                }
+                else got = LenientItems(r.Text);
+                foreach (KeyValuePair<int, string> kv in got)
+                {
+                    int k = kv.Key;
+                    if (k < from || k >= from + n) continue;
+                    string src = lines[k], s = (kv.Value ?? "").Trim();
+                    if (src.IndexOf('\n') >= 0 && s.IndexOf('\n') < 0) s = s.Replace(" / ", "\n");
+                    if (SameText(s, src) || !SmallFix(src, s) || (HasArabic(s) && !HasArabic(src))) { if (!SameText(s, src)) Log("תיקון שמיעה: נדחה - " + Safe(src.Replace("\n", " / ")) + " ← " + Safe(s.Replace("\n", " / "))); continue; }
+                    fixes[k] = s;
+                    found++;
+                    Log("תיקון שמיעה: " + Safe(src.Replace("\n", " ")) + " ← " + Safe(s.Replace("\n", " ")));
+                }
+            }
+            if (found > 0 || error == null) Log("תיקון שמיעה (" + LastModelUsed + "): " + found + " תיקונים ב-" + lines.Count + " שורות");
+            return fixes;
+        }
+
+        /// <summary>תיקון קטן של אותה שורה: עד שלוש מילים אחרות (וכל היתר זהה), ואורך דומה. ״Rupert Grant״ ← ״Rupert Grint״ - כן;
+        /// ניסוח מחדש, השלמה או קיצור - לא.</summary>
+        internal static bool SmallFix(string src, string s)
+        {
+            if (string.IsNullOrEmpty(s) || !HasLetters(s)) return false;
+            int a = Chars(src), b = Chars(s);
+            if (b * 4 < a * 3 || b * 3 > a * 4) return false;
+            List<string> ws = WordList(src), wn = WordList(s);
+            if (wn.Count == 0 || Math.Abs(ws.Count - wn.Count) > 2) return false;
+            List<string> pool = new List<string>(ws), plus = new List<string>();
+            foreach (string w in wn) { int at = pool.IndexOf(w); if (at >= 0) pool.RemoveAt(at); else plus.Add(w); }
+            int added = plus.Count, removed = pool.Count;
+            if (added < 1 || added > 3 || removed > 3 || added * 2 > wn.Count) return false;
+            // **ונשמע כמו מה שהוחלף** (נמדד 14.10, דגם קל): ״Devin Harris״ ← ״Bloody hell״, ״Dangerball״ ← ״Quidditch״, ״Mark Maley״ (כפיל
+            // אמיתי) ← ״David Holmes״ - ניחושים, לא שמיעה. מילים שנוספו לבד (בלי שהוחלפו) - גם לא
+            if (removed == 0) return false;
+            return SoundsAlike(string.Join("", pool.ToArray()), string.Join("", plus.ToArray()));
+        }
+
+        /// <summary>שתי מילים (או צירופים) ״נשמעות דומה״: שלד עיצורים (`SoundKey`) עם מרחק עריכה עד חצי. ״Grant/Grint״, ״Swamping/Whomping״,
+        /// ״Creature/Kreacher״, ״Coran/Cuaron״ - כן; ״Devin Harris/Bloody hell״, ״dePauw/Delacour״ - לא (גם תיקון נכון נדחה - עדיף).</summary>
+        internal static bool SoundsAlike(string a, string b)
+        {
+            string x = SoundKey(a), y = SoundKey(b);
+            if (x.Length == 0 || y.Length == 0) return false;
+            int d = Lev(x, y);
+            return d * 2 <= Math.Max(x.Length, y.Length);
+        }
+
+        private static string SoundKey(string w)
+        {
+            w = (w ?? "").ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+            w = Regex.Replace(w, @"\p{Mn}", "");
+            w = w.Replace("ph", "f").Replace("ck", "k").Replace("ch", "k").Replace("sh", "s").Replace("th", "t").Replace("qu", "k");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < w.Length; i++)
+            {
+                char ch = w[i];
+                switch (ch)
+                {
+                    case 'c': case 'q': case 'ק': ch = 'k'; break;
+                    case 'z': case 'x': case 'ש': case 'ס': ch = 's'; break;
+                    case 'v': ch = 'f'; break;
+                    case 'ך': case 'כ': ch = 'k'; break;
+                    case 'ם': ch = 'מ'; break;
+                    case 'ן': ch = 'נ'; break;
+                    case 'ף': ch = 'פ'; break;
+                    case 'ץ': ch = 'צ'; break;
+                    case 'ט': ch = 'ת'; break;
+                }
+                bool vowel = "aeiouyhwאהוי".IndexOf(ch) >= 0;
+                if (i == 0) { sb.Append(vowel ? 'a' : ch); continue; }
+                if (vowel || !char.IsLetter(ch)) continue;
+                if (sb.Length > 0 && sb[sb.Length - 1] == ch) continue;
+                sb.Append(ch);
+            }
+            return sb.ToString();
+        }
+
+        private static int Lev(string a, string b)
+        {
+            int[] prev = new int[b.Length + 1], cur = new int[b.Length + 1];
+            for (int j = 0; j <= b.Length; j++) prev[j] = j;
+            for (int i = 1; i <= a.Length; i++)
+            {
+                cur[0] = i;
+                for (int j = 1; j <= b.Length; j++)
+                    cur[j] = Math.Min(Math.Min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+                int[] t = prev; prev = cur; cur = t;
+            }
+            return prev[b.Length];
+        }
+
+        private static List<string> WordList(string s)
+        {
+            List<string> r = new List<string>();
+            foreach (Match m in Regex.Matches((s ?? "").ToLowerInvariant(), @"[\p{L}\p{N}'׳]+")) r.Add(m.Value);
+            return r;
+        }
+
         /// <summary>**מילון שמות לסרט, לפני התרגום (0.8.21).** נמדד 14.10, סרטון של שעה ורבע מ-Groq: ״Swamping Willow״ (במקום Whomping)
         /// תורגם ״הערבה המפוארת״, ״Rupert Grant״ - פעם ״גרינט״ ופעם לא; כל מנה של 40 רואה רק את עצמה. בקשה אחת על כל הטקסט (עד ~24 אלף
         /// תווים, שורות בפיזור שווה): על מה הסרטון, וכל שם ומונח בצורה הנכונה ובתעתיק המקובל בשפת היעד - גם כשהתמלול שמע לא נכון.

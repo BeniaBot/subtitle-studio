@@ -1643,6 +1643,9 @@ namespace SubtitleStudio
             "הכתוביות תורגמו ל{0}; {1} ארוכות קוצרו כדי שיספיקו לקרוא אותן. לביטול - Ctrl+Z.", "The subtitles were translated into {0}; {1} long ones were shortened so there is time to read them. To undo - Ctrl+Z.",
             "מקצר {0} כתוביות שמהירות מדי לקריאה...", "Shortening {0} subtitles that are too fast to read...",
             "רק הדגמים הקלים זמינים כרגע", "Only the light models are available right now",
+            "בודק שמות ושגיאות שמיעה...", "Checking names and misheard words...",
+            ", והטקסט - לגוגל, לבדיקת שמות.", ", and the text to Google, to check names.",
+            " ({0} שמות ומילים שנשמעו לא נכון תוקנו.)", " ({0} misheard names and words were fixed.)",
         };
 
         public static void Fill(Dictionary<string, string> d)

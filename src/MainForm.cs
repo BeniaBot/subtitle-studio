@@ -3064,6 +3064,7 @@ namespace SubtitleStudio
                 : Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
             if (res.Canceled) msg = Lang.F("נעצר. {0}", msg);
             if (silent > 0) msg += Lang.F(" ({0} משפטים ״שנשמעו״ בשקט מוחלט הושמטו.)", Theme.Ltr(silent.ToString()));
+            if (res.Proofread > 0) msg += Lang.F(" ({0} שמות ומילים שנשמעו לא נכון תוקנו.)", Theme.Ltr(res.Proofread.ToString()));
             msg += Lang.T("  כדאי לעבור ולתקן.  לביטול - Ctrl+Z.");
             _hintLbl.Text = msg;
             _hintLbl.Invalidate();

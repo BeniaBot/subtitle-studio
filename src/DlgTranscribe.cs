@@ -147,7 +147,10 @@ namespace SubtitleStudio
             _connect.Kind = p.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
             _connect.Invalidate();
 
-            _warn.Text = Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
+            // אחרי Groq גם הטקסט הולך לגוגל, לבדיקת שגיאות השמיעה (TranscribeRunDlg.ProofreadOn) - זה נאמר כאן, לא קורה בשקט
+            _warn.Text = TranscribeRunDlg.ProofreadOn(p)
+                ? Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + Lang.T(", והטקסט - לגוגל, לבדיקת שמות.")
+                : Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
             _warn.Invalidate();
 
             _replace.Text = _range.Checked ? Lang.T("למחוק את הכתוביות הקיימות בקטע הזה") : Lang.T("למחוק את הכתוביות הקיימות ולהתחיל מחדש");
@@ -416,6 +419,7 @@ namespace SubtitleStudio
                     r.Error = ex.Message;
                     Ai.Log("חריגה בתמלול: " + ex);
                 }
+                if (r != null && !_cancel && ProofreadOn(_provider)) Proofread(r);
                 Result = r;
                 try
                 {
@@ -430,6 +434,30 @@ namespace SubtitleStudio
             });
             t.IsBackground = true;
             t.Start();
+        }
+
+        /// <summary>**בדיקת שגיאות שמיעה אחרי Groq** (0.8.22): כשיש מפתח של גוגל. ‏Whisper שומע שמות לפי הצליל (״Rupert Grant״); גוגל
+        /// קורא את כל התמלול ומתקן מילים בודדות (`Ai.Proofread`). בגוגל עצמו - לא: הוא כבר קיבל את הרקע ושומע שמות טוב יותר.
+        /// החלון שלפני התמלול אומר שהטקסט יישלח לגוגל (`TranscribeDlg.Refresh_`).</summary>
+        internal static bool ProofreadOn(ISttProvider p) { return p != null && p.Id == "groq" && Ai.HasKey; }
+
+        private void Proofread(Transcribe.Result r)
+        {
+            if (r.Cues.Count < 5) return;
+            try
+            {
+                BeginInvoke((MethodInvoker)delegate { _stat.Text = Lang.T("בודק שמות ושגיאות שמיעה..."); _stat.Invalidate(); });
+            }
+            catch { }
+            List<string> lines = new List<string>();
+            foreach (Cue c in r.Cues) lines.Add(c.Text);
+            string err;
+            string[] fix = null;
+            try { fix = Ai.Proofread(lines, _context, out err); }
+            catch (Exception ex) { Ai.Log("חריגה בתיקון השמיעה: " + ex); }
+            if (fix == null) return;
+            for (int i = 0; i < fix.Length && i < r.Cues.Count; i++)
+                if (fix[i] != null) { r.Cues[i].Text = fix[i]; r.Proofread++; }
         }
     }
 }

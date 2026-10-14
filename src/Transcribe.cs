@@ -32,6 +32,8 @@ namespace SubtitleStudio
             public string Error;
             public bool Canceled;
             public int Chunks, Failed;
+            /// <summary>כמה שורות תוקנו בבדיקת שגיאות השמיעה (`Ai.Proofread`, אחרי Groq).</summary>
+            public int Proofread;
             /// <summary>חלק מהקטעים תומללו בדגם אחר של גוגל (מכסה או עומס בדגם הרגיל). בדגמי הגיבוי
             /// הזמנים סטו בשנייה בבדיקה (6.10.2026) - המשתמש צריך לדעת.</summary>
             public bool UsedFallbackModel;

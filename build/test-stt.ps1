@@ -547,7 +547,21 @@ $c2 = CdRun @('אני לא כל כך חשבתי על זה.') @(17)
 StopServer $s
 $aiT.GetField('Model', $SF).SetValue($null, $oldModel)
 Check 'קיצור: ענה דגם קל - לא מקצרים (נמדד: ״לבטוח״ יצא ״טובח״)' (($null -eq $c2.Res[0]) -and $c2.Err) ("model=" + $aiT.GetField('LastModelUsed', $SF).GetValue($null) + " res=" + $c2.Res[0] + " err=" + $c2.Err)
-$aiT.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot); $aiT.GetField('Key', $SF).SetValue($null, $oldKey)
+# בדיקת שגיאות שמיעה אחרי Groq (0.8.22; נמדד 14.10: ״Rupert Grant״, ״Creature״ במקום Kreacher) - רק מילים שנשמעות כמו מה שהוחלף
+$prM = $aiT.GetMethod('Proofread', $SF)
+$prSrc = [Collections.Generic.List[string]]::new(); foreach ($x in @('Rupert Grant loved it.', 'Dobby and Creature here', 'the rest was fine', 'Devin Harris, this is complicated!')) { $prSrc.Add($x) }
+$s = StartServer @((Resp 200 (GemText '[{"i":1,"t":"Dobby and Kreacher here"},{"i":3,"t":"Bloody hell, this is complicated!"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$pa = New-Object object[] 3; $pa[0] = $prSrc; $pa[1] = ''; $pa[2] = $null
+$pr = $prM.Invoke($null, $pa)
+StopServer $s
+Check 'תיקון שמיעה: תשובה דלילה (בלי פריט 0) לא זזה; ״Creature״ ← ״Kreacher״ נכנס, ״Devin Harris״ ← ״Bloody hell״ (ניחוש) - לא' (($null -eq $pr[0]) -and ($pr[1] -eq 'Dobby and Kreacher here') -and ($null -eq $pr[2]) -and ($null -eq $pr[3])) ("res=" + (($pr | ForEach-Object { if ($_ -eq $null) { '(null)' } else { $_ } }) -join ' | ') + " err=" + $pa[2])
+$smallFix = $aiT.GetMethod('SmallFix', $SF)
+$f1 = $smallFix.Invoke($null, @([string]'Rupert Grant loved it.', [string]'Rupert Grint loved it.'))
+$f2 = $smallFix.Invoke($null, @([string]'his stunt double, Mark Maley.', [string]'his stunt double, David Holmes.'))
+$f3 = $smallFix.Invoke($null, @([string]'This Swamping Willow scene', [string]'This Whomping Willow scene'))
+$f4 = $smallFix.Invoke($null, @([string]'Rupert loved it.', [string]'Rupert really loved it.'))
+Check 'תיקון שמיעה: Grant/Grint ו-Swamping/Whomping - כן; שם של אדם אחר, או מילה שנוספה - לא' ($f1 -and -not $f2 -and $f3 -and -not $f4) "grint=$f1 holmes=$f2 whomping=$f3 added=$f4"$aiT.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot); $aiT.GetField('Key', $SF).SetValue($null, $oldKey)
 # גוגל חוסם לפעמים בלי נימוק (OTHER) - דגם אחר עובר (0.8.6). עד אז דקה שלמה נשארה בלי כתוביות
 $bo = (T 'Ai').GetMethod('BlockedOther', $SF)
 $b1 = $bo.Invoke($null, @([string]'{"promptFeedback":{"blockReason":"OTHER"}}'))
