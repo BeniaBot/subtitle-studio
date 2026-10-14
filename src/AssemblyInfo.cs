@@ -10,5 +10,5 @@ using System.Reflection;
 [assembly: AssemblyDescription("אולפן הכתוביות - יצירה, תיקון והטמעה של כתוביות בעברית")]
 [assembly: AssemblyCompany("BeniaBot")]
 [assembly: AssemblyCopyright("MIT")]
-[assembly: AssemblyVersion("0.8.20.0")]
-[assembly: AssemblyFileVersion("0.8.20.0")]
+[assembly: AssemblyVersion("0.8.21.0")]
+[assembly: AssemblyFileVersion("0.8.21.0")]

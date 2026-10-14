@@ -2,6 +2,37 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.21",
+      "date": "2026-10-14",
+      "items": [
+        {
+          "t": "major",
+          "s": "קול חדש לעוזר - טבעי, במקום הקול הרובוטי של ווינדוס; וההקראה כבויה עד שמדליקים את הרמקול (גם אחרי שמדברים אליו)",
+          "en": "A new voice for the assistant - natural, instead of the robotic Windows voice; and reading aloud stays off until you turn on the speaker (also after you talk to it)"
+        },
+        {
+          "t": "fix",
+          "s": "תרגום של סרטון ארוך: לפני התרגום התוכנה קוראת את כל הכתוביות ומכינה רשימת שמות - שמות נכתבים נכון ובאותה צורה לאורך כל הסרט",
+          "en": "Translating a long video: before translating, the program reads all the subtitles and prepares a list of names - names come out right and the same throughout"
+        },
+        {
+          "t": "fix",
+          "s": "תרגום: כתוביות שחזרו באנגלית נתפסות ומתורגמות שוב; בלי ״/״ באמצע משפט",
+          "en": "Translation: subtitles that came back in English are caught and translated again; no '/' in the middle of a sentence"
+        },
+        {
+          "t": "fix",
+          "s": "תמלול ב-Groq: משפט שנכתב פעמיים ברצף - מתאחד לאחד",
+          "en": "Transcription with Groq: a sentence written twice in a row becomes one"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר: לחיצה על הכפתור הראשי בכל חלון עובדת בפעם הראשונה; תקציר שיצא ארוך מהבקשה - הוא אומר",
+          "en": "Assistant: pressing a window's main button works the first time; a summary that comes out longer than asked - it says so"
+        }
+      ]
+    },
+    {
       "v": "0.8.20",
       "date": "2026-10-14",
       "items": [
