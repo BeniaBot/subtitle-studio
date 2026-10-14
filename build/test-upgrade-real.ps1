@@ -15,7 +15,8 @@
 # ‏WmMouseUp בודק ש-WindowFromPoint מחזיר את הכפתור. לכן החלון מוקפץ ל-TOPMOST
 # **בלי הפעלה** (SWP_NOACTIVATE), כדי לא לגנוב את המקלדת מהמשתמש.
 # נבדק לראשונה: 0.7.0 -> 0.7.1, 14.9.2026 - הצעה אחרי 2 שניות, הורדה 57 שניות.
-param([string]$From = 'v0.7.0')
+# -ExpectedExe: קובץ המהדורה לבדיקה, כש-dist כבר נבנה מחדש (בדיקה שממתינה למסך פתוח - המסך ננעל כשבנימין לא ליד המחשב)
+param([string]$From = 'v0.7.0', [string]$ExpectedExe = '')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $base = 'D:\Claude\_ss-upgrade'
@@ -52,7 +53,7 @@ $procName = [IO.Path]::GetFileNameWithoutExtension($appExe)
 Copy-Item $oldExe $appExe -Force
 Set-Content (Join-Path $app 'portable.txt') 'portable' -Encoding ASCII
 Remove-Item ($appExe + '.old') -ErrorAction SilentlyContinue
-$expected = (Get-FileHash (BuiltExe $repo)).Hash
+$expected = if ($ExpectedExe) { (Get-FileHash $ExpectedExe).Hash } else { (Get-FileHash (BuiltExe $repo)).Hash }
 foreach ($pat in @('Subtext-*.exe', 'SubtitleStudio-*.exe')) {
     Get-ChildItem (Join-Path $env:TEMP $pat) -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 }
