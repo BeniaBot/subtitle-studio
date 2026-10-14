@@ -91,6 +91,8 @@ namespace SubtitleStudio
             if (untimed > 0 && media) s.Add(Lang.T("תתזמן את השורות שעוד אין להן זמן"));
             if (doubt > 0 && media) s.Add(Lang.T("תקשיב למילים שהתמלול לא היה בטוח בהן"));
             if (_qaCount > 0) s.Add(Lang.F("תתקן את הבעיות בכתוביות ({0})", _qaCount));
+            // סרט ארוך עם כתוביות (שיעור) - התקציר (0.8.20), שאחרת אף אחד לא יודע שאפשר לבקש
+            if (media && _mi.HasVideo && n >= 20 && _mi.DurationMs >= 5 * 60000) s.Add(Lang.T("תכין תקציר של 2 דקות"));
             s.Add(Lang.T("תרגם את הכתוביות לאנגלית"));
             if (media) s.Add(Lang.T("תיצור סרט עם הכתוביות"));
             s.Add(Lang.T("תגדיל את הכתוביות ותשים למעלה"));
