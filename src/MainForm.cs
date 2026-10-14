@@ -782,7 +782,7 @@ namespace SubtitleStudio
             {
                 if (_loadingEditor || _editing == null) return;
                 if (!_textDirty) { _doc.Push(Lang.T("עריכת טקסט")); _textDirty = true; }
-                _editing.Text = _text.Text;
+                _editing.Text = _text.Text.Replace("\r\n", "\n");      // בכתובית - \n, כמו בכל מקום אחר
                 if (_editing.Doubt.Length > 0) _editing.Doubt = "";       // מי שעורך - הקשיב
                 _doc.Dirty = true;
                 if (_textEmptyHint.Visible == (_text.Text.Length > 0))
@@ -2023,9 +2023,15 @@ namespace SubtitleStudio
                 // בממשק אנגלי נכתבת מימין. כתובית ריקה לוקחת את הכיוון של
                 // הכתוביות שכבר יש. מוחלט רק כאן ולא תוך כדי הקלדה - החלפת
                 // כיוון בונה את התיבה מחדש, והסמן היה קופץ באמצע מילה.
-                RightToLeft want = Lang.Rtl || Theme.RtlText(c.Text.Length > 0 ? c.Text : DocSample()) ? RightToLeft.Yes : RightToLeft.No;
+                // **וכתובית באנגלית בממשק עברי - משמאל לימין** (0.8.22): עד כאן ״.Hello, world״ - הנקודה בהתחלה.
+                string probe = c.Text.Length > 0 ? c.Text : DocSample();
+                bool rtlBox = Lang.Rtl ? Theme.HasRtl(probe) || !HasLetter(probe) : Theme.RtlText(probe);
+                RightToLeft want = rtlBox ? RightToLeft.Yes : RightToLeft.No;
                 if (_text.RightToLeft != want) _text.RightToLeft = want;
-                if (_text.Text != c.Text) _text.Text = c.Text;
+                // **תיבת הטקסט של ווינדוס לא שוברת שורה על \n לבד** (0.8.22): כתובית של שתי שורות הוצגה ״too.Is it working?״ -
+                // שתי השורות דבוקות. בתיבה \r\n, בכתובית \n.
+                string shown = c.Text.Replace("\r\n", "\n").Replace("\n", "\r\n");
+                if (_text.Text != shown) _text.Text = shown;
                 _startF.Text = Tc.Short(c.Start);
                 _endF.Text = Tc.Short(c.End);
             }
@@ -2036,6 +2042,12 @@ namespace SubtitleStudio
         }
 
         /// <summary>טקסט של כתובית כלשהי במסמך - לקבוע כיוון לכתובית ריקה.</summary>
+        private static bool HasLetter(string s)
+        {
+            foreach (char ch in s ?? "") if (char.IsLetter(ch)) return true;
+            return false;
+        }
+
         private string DocSample()
         {
             if (_doc != null)

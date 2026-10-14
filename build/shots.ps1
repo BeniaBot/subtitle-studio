@@ -181,6 +181,9 @@ foreach ($f in $forms)
         # טקסט שנחתך ב״...״ נרשם בזמן הציור (Theme.ClipLog) ומודפס ליד שם החלון
         $clipLog = New-Object 'System.Collections.Generic.List[string]'
         (TY 'Theme').GetField('ClipLog', $ST).SetValue($null, $clipLog)
+        # ועברית שצוירה משמאל לימין (Theme.BidiLog)
+        $bidiLog = New-Object 'System.Collections.Generic.List[string]'
+        (TY 'Theme').GetField('BidiLog', $ST).SetValue($null, $bidiLog)
         $form.DrawToBitmap($full, (New-Object Drawing.Rectangle 0, 0, $form.Width, $form.Height))
         $pt = $form.PointToScreen((New-Object Drawing.Point 0, 0))
         $ox = $pt.X - $form.Left; $oy = $pt.Y - $form.Top
@@ -190,8 +193,10 @@ foreach ($f in $forms)
         $bmp.Save((Join-Path $dest ($f.n + '.png')), [Drawing.Imaging.ImageFormat]::Png)
         $bmp.Dispose()
         (TY 'Theme').GetField('ClipLog', $ST).SetValue($null, $null)
+        (TY 'Theme').GetField('BidiLog', $ST).SetValue($null, $null)
         Write-Host ('  {0,-12} {1}x{2}' -f $f.n, $cs.Width, $cs.Height)
         foreach ($cl in $clipLog) { Write-Host ('      ... ' + $cl) -ForegroundColor Yellow }
+        foreach ($cl in $bidiLog) { Write-Host ('      ' + $cl) -ForegroundColor Magenta }
         $form.Dispose()
     }
     catch

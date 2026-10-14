@@ -493,6 +493,25 @@ namespace SubtitleStudio
             }
             bool rtl = (sf.FormatFlags & StringFormatFlags.DirectionRightToLeft) != 0;
             bool nowrap = (sf.FormatFlags & StringFormatFlags.NoWrap) != 0;
+            // **ממורכז - הכיוון לפי הטקסט** (0.8.22). ״{0} כתוביות · התקרבו...״ בציר הזמן צויר משמאל לימין, והמספר
+            // קפץ לקצה השני (בנימין, צילום מ-14.10). במרכז הכיוון לא מזיז את המקום - רק את סדר החלקים.
+            bool flip = !rtl && sf.Alignment == StringAlignment.Center && CenterRtl(s);
+            if (flip) rtl = true;
+            // **ובלי אף אות מימין לשמאל - משמאל לימין, באותו מקום** (0.8.22). כתובית באנגלית בממשק עברי (סרטון של 1,430 כתוביות
+            // מ-Groq) צוירה מימין לשמאל: ״.Subtitles in English, too״ - הנקודה בהתחלה. בלי עברית אין שום סיבה לכיוון הזה; הצד נשאר
+            // (ימין בממשק עברי, כדי שהעמודה לא תקפוץ), רק הסדר מתוקן.
+            bool unflip = rtl && !HasRtl(s);
+            bool right = sf.Alignment == StringAlignment.Center ? false : (sf.Alignment == StringAlignment.Far) != rtl;
+            if (unflip) rtl = false;
+            // וכמה שורות - כל שורה בכיוון שלה (תשובה עברית של העוזר עם ציטוט באנגלית בשורה משלו)
+            if (s.IndexOf('\n') >= 0) s = BidiLines(s, rtl);
+            if (BidiLog != null)
+            {
+                string bad = null;
+                if (!rtl && CenterRtl(s)) bad = "LTR " + s;     // בממשק אנגלי: משפט אנגלי עם ציטוט עברי - תקין
+                else if (rtl && MixSuspect(s)) bad = "MIX " + s;
+                if (bad != null && !BidiLog.Contains(bad)) BidiLog.Add(bad);
+            }
 
             // טקסט אטום נצייר עם מנוע ה-GDI: חד יותר ומטפל נכון ברווחים בעברית
             if (c.A == 255)
@@ -500,8 +519,7 @@ namespace SubtitleStudio
                 TextFormatFlags fl = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
                 if (rtl) fl |= TextFormatFlags.RightToLeft;
                 if (sf.Alignment == StringAlignment.Center) fl |= TextFormatFlags.HorizontalCenter;
-                else if (sf.Alignment == StringAlignment.Far) fl |= rtl ? TextFormatFlags.Left : TextFormatFlags.Right;
-                else fl |= rtl ? TextFormatFlags.Right : TextFormatFlags.Left;
+                else fl |= right ? TextFormatFlags.Right : TextFormatFlags.Left;
                 if (nowrap)
                 {
                     fl |= TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
@@ -515,7 +533,76 @@ namespace SubtitleStudio
                 TextRenderer.DrawText(g, s, f, Rectangle.Round(r), c, fl);
                 return;
             }
-            using (SolidBrush b = new SolidBrush(c)) g.DrawString(s, f, b, r, sf);
+            using (SolidBrush b = new SolidBrush(c))
+            {
+                if (!flip && !unflip) { g.DrawString(s, f, b, r, sf); return; }
+                using (StringFormat f2 = (StringFormat)sf.Clone())
+                {
+                    if (flip) f2.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
+                    else
+                    {
+                        f2.FormatFlags &= ~StringFormatFlags.DirectionRightToLeft;
+                        f2.Alignment = right ? StringAlignment.Far : StringAlignment.Near;
+                    }
+                    g.DrawString(s, f, b, r, f2);
+                }
+            }
+        }
+
+        /// <summary>לבדיקות: טקסט עברי עם חלק לטיני/מספר שמתהפך בכיוון מימין לשמאל - ״185 MB״ (נראה ״MB 185״), ״+0.5״,
+        /// ״1.25×״, נתיב ״C:\...״. **ניחוש, לא האלגוריתם המלא** - מה שהוא מוצא מסתכלים עליו בעין, ועוטפים ב-`Ltr`.</summary>
+        internal static bool MixSuspect(string s)
+        {
+            if (string.IsNullOrEmpty(s) || !HasRtl(s)) return false;
+            System.Text.RegularExpressions.RegexOptions o = System.Text.RegularExpressions.RegexOptions.None;
+            foreach (string seg in System.Text.RegularExpressions.Regex.Split(s, "[\u202A\u202D\u2066][^\u202C\u2069]*[\u202C\u2069]"))
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(seg, @"(?<![A-Za-z][^\u0590-\u05FF]*)\d[\d.,:]*\s+[A-Za-z]", o)) return true;
+                if (System.Text.RegularExpressions.Regex.IsMatch(seg, @"(^|[\s(])[+\-−]\d", o)) return true;   // ״ב-00:09״ תקין: המקף נצמד לאות
+                if (System.Text.RegularExpressions.Regex.IsMatch(seg, @"\d\s?[×″]", o)) return true;
+                if (System.Text.RegularExpressions.Regex.IsMatch(seg, @"[A-Za-z]:\\", o)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>לבדיקות בלבד: ״LTR״ - טקסט עם אותיות עבריות שצויר משמאל לימין; ״MIX״ - עברית עם חלק שמתהפך (`MixSuspect`).
+        /// ‏shots.ps1 ו-main-shot.ps1 מדפיסים.</summary>
+        internal static System.Collections.Generic.List<string> BidiLog;
+
+        /// <summary>**כל שורה בכיוון שלה** (0.8.22). כיוון הבסיס חל על כל הפסקאות: בתשובה עברית, שורה ״"Hello there."״ יצאה
+        /// ״."Hello there"״. שורה בלי עברית בטקסט מימין לשמאל נעטפת ב-LRE…PDF, ושורה שמתחילה בעברית בטקסט משמאל לימין - ב-RLE…PDF.
+        /// הסימנים ברוחב אפס; הצד של השורה לא זז.</summary>
+        internal static string BidiLines(string s, bool rtl)
+        {
+            string[] ls = s.Split('\n');
+            bool changed = false;
+            for (int i = 0; i < ls.Length; i++)
+            {
+                string ln = ls[i].TrimEnd('\r');
+                if (ln.Trim().Length == 0 || ln[0] == '\u202A' || ln[0] == '\u202B') continue;
+                if (rtl && !HasRtl(ln) && HasLetterLatin(ln)) { ls[i] = "\u202A" + ln + "\u202C" + (ls[i].EndsWith("\r") ? "\r" : ""); changed = true; }
+                else if (!rtl && RtlText(ln)) { ls[i] = "\u202B" + ln + "\u202C" + (ls[i].EndsWith("\r") ? "\r" : ""); changed = true; }
+            }
+            return changed ? string.Join("\n", ls) : s;
+        }
+
+        private static bool HasLetterLatin(string s)
+        {
+            foreach (char c in s) if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) return true;
+            return false;
+        }
+
+        /// <summary>טקסט ממורכז מימין לשמאל: בממשק עברי - כשיש בו אות עברית (גם אחרי מספר או מילה לועזית);
+        /// בממשק אנגלי - כשהאות החזקה הראשונה עברית.</summary>
+        internal static bool CenterRtl(string s) { return Lang.Rtl ? HasRtl(s) : RtlText(s); }
+
+        /// <summary>יש בטקסט אות עברית או ערבית.</summary>
+        internal static bool HasRtl(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            foreach (char c in s)
+                if ((c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFC)) return true;
+            return false;
         }
 
         public static SizeF Measure(Graphics g, string s, Font f)

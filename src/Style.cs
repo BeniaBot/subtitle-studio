@@ -118,15 +118,22 @@ namespace SubtitleStudio
             float outline = (float)(OutlineWidth * video.Height / 1080.0);
             float shadow = (float)(ShadowDepth * video.Height / 1080.0);
 
-            StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
-            sf.FormatFlags |= StringFormatFlags.NoWrap | StringFormatFlags.DirectionRightToLeft;
-            sf.Alignment = StringAlignment.Center;
-            sf.LineAlignment = StringAlignment.Near;
+            StringFormat sfRtl = new StringFormat(StringFormat.GenericTypographic);
+            sfRtl.FormatFlags |= StringFormatFlags.NoWrap | StringFormatFlags.DirectionRightToLeft;
+            sfRtl.Alignment = StringAlignment.Center;
+            sfRtl.LineAlignment = StringAlignment.Near;
+            // **שורה בלי עברית - משמאל לימין, כמו ב-libass** (0.8.22; ‏Encoding -1 = לפי האות הראשונה, ו-RtlFix לא נוגע
+            // בשורה לועזית). עד כאן התצוגה הראתה ״.Subtitles in English, too״, והצריבה את הנכון.
+            StringFormat sfLtr = new StringFormat(StringFormat.GenericTypographic);
+            sfLtr.FormatFlags |= StringFormatFlags.NoWrap;
+            sfLtr.Alignment = StringAlignment.Center;
+            sfLtr.LineAlignment = StringAlignment.Near;
 
             for (int i = 0; i < lines.Length; i++)
             {
                 string ln = lines[i];
                 if (ln.Length == 0) continue;
+                StringFormat sf = Theme.HasRtl(ln) ? sfRtl : sfLtr;
                 SizeF sz = g.MeasureString(ln, font, 100000, sf);
                 float y = top + i * lineH;
                 float x;
@@ -166,7 +173,8 @@ namespace SubtitleStudio
                 }
             }
 
-            sf.Dispose();
+            sfRtl.Dispose();
+            sfLtr.Dispose();
             g.SmoothingMode = oldS;
             g.TextRenderingHint = oldT;
         }

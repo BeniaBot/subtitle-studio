@@ -151,11 +151,16 @@ foreach ($f in $forms) {
     if ($f.n -notlike 'Main*') {
         $log = New-Object 'System.Collections.Generic.List[string]'
         $themeT.GetField('ClipLog', $ST).SetValue($null, $log)
+        # ועברית שצוירה משמאל לימין (Theme.BidiLog, ״LTR״; ה-״MIX״ הוא ניחוש - רק ב-shots)
+        $bidi = New-Object 'System.Collections.Generic.List[string]'
+        $themeT.GetField('BidiLog', $ST).SetValue($null, $bidi)
         $whole = New-Object Drawing.Bitmap $form.Width, $form.Height
         $form.DrawToBitmap($whole, (New-Object Drawing.Rectangle 0, 0, $form.Width, $form.Height))
         $whole.Dispose()
         $themeT.GetField('ClipLog', $ST).SetValue($null, $null)
+        $themeT.GetField('BidiLog', $ST).SetValue($null, $null)
         foreach ($x in $log) { [void]$clipped.Add(($f.n + ': ' + $x)) }
+        foreach ($x in $bidi) { if ($x.StartsWith('LTR ')) { [void]$clipped.Add(($f.n + ': ' + $x)) } }
     }
     foreach ($c in (Walk $form)) {
         if (-not $btnT.IsInstanceOfType($c)) { continue }
@@ -216,7 +221,7 @@ $bad = @($all | Where-Object { $_.HasText -and $_.TextW -gt $_.Avail + 1 })
 Check 'טקסט נכנס לכפתור שלו (בלי ״...״)' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» צריך {2} ויש {3}" -f $x.Where, $x.Label, $x.TextW, $x.Avail })
 
 # נמצא בסבב של 0.8.1: שתי תוויות בעזרה (עברית), שורת משנה ב״קצב פריימים״ (אנגלית)
-Check 'שום טקסט לא נחתך ב״...״ בשום חלון' ($clipped.Count -eq 0) ("`n     " + ($clipped -join "`n     "))
+Check 'שום טקסט לא נחתך ב״...״ בשום חלון, ואין עברית משמאל לימין' ($clipped.Count -eq 0) ("`n     " + ($clipped -join "`n     "))
 
 $bad = @($all | Where-Object { $_.Card -and $_.SubW -gt $_.Avail + 1 })
 Check 'שורת ההסבר בכרטיס נכנסת (בלי ״...״)' ($bad.Count -eq 0) (Report $bad { param($x) "{0}: «{1}» צריך {2} ויש {3}" -f $x.Where, $x.Label, $x.SubW, $x.Avail })

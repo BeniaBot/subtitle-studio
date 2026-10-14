@@ -1419,10 +1419,12 @@ namespace SubtitleStudio
                 public RectangleF RetryRect;
             }
 
-            /// <summary>כיוון לפי התו החזק הראשון - הודעת שגיאה באנגלית לא תתהפך.</summary>
+            /// <summary>כיוון לפי התו החזק הראשון - הודעת שגיאה באנגלית לא תתהפך. **בממשק עברי - כל עברית = מימין** (0.8.22):
+            /// ״Groq הוא שירות...״ צויר משמאל לימין, והמשפט העברי התהפך.</summary>
             private static bool IsRtlText(string t)
             {
                 if (string.IsNullOrEmpty(t)) return true;
+                if (Lang.Rtl && Theme.HasRtl(t)) return true;
                 foreach (char c in t)
                 {
                     if (c >= 0x0590 && c <= 0x08FF) return true;

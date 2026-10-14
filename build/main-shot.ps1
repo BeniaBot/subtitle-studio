@@ -40,11 +40,16 @@ function Snap($f, $file) {
     # טקסט שנחתך ב״...״ (Theme.ClipLog). ברשימה ובבלוקים של הציר זה בכוונה - לקרוא, לא להיכשל
     $log = New-Object 'System.Collections.Generic.List[string]'
     (TY 'Theme').GetField('ClipLog', $ST).SetValue($null, $log)
+    # ועברית שצוירה משמאל לימין (Theme.BidiLog)
+    $bidi = New-Object 'System.Collections.Generic.List[string]'
+    (TY 'Theme').GetField('BidiLog', $ST).SetValue($null, $bidi)
     $f.DrawToBitmap($bmp, (New-Object Drawing.Rectangle 0, 0, $f.ClientSize.Width, $f.ClientSize.Height))
     (TY 'Theme').GetField('ClipLog', $ST).SetValue($null, $null)
+    (TY 'Theme').GetField('BidiLog', $ST).SetValue($null, $null)
     $bmp.Save($file, [Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
     Write-Host ('  ' + (Split-Path $file -Leaf))
     foreach ($x in $log) { Write-Host ('      ... ' + $x) -ForegroundColor Yellow }
+    foreach ($x in $bidi) { Write-Host ('      ' + $x) -ForegroundColor Magenta }
 }
 
 function NewMain {
@@ -68,9 +73,15 @@ $m = NewMain
 [void](TY 'MainForm').GetMethod('OpenMedia', $IN).Invoke($m, @([string]$media))
 $doc = (TY 'MainForm').GetField('_doc', $IN).GetValue($m)
 $cues = (TY 'Doc').GetField('Cues', $IN).GetValue($doc)
-foreach ($c in @(@(800, 2600, 'ברוכים הבאים לשיעור'), @(2900, 5200, 'היום נלמד על כתוביות'), @(5600, 8400, 'Subtitles in English, too'))) { $cues.Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2]))) }
+foreach ($c in @(@(800, 2600, 'ברוכים הבאים לשיעור'), @(2900, 5200, 'היום נלמד על כתוביות'), @(5600, 8400, 'Subtitles in English, too.'))) { $cues.Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2]))) }
 $fs = (TY 'Cue').GetField('Selected', $IN); if ($fs) { $fs.SetValue($cues[1], $true) } else { (TY 'Cue').GetProperty('Selected', $IN).SetValue($cues[1], $true, $null) }
 foreach ($n in 'RefreshAll', 'LoadEditor') { $mm = (TY 'MainForm').GetMethod($n, $IN); if ($mm) { [void]$mm.Invoke($m, @()) } }
 Pump 900
 Snap $m (Join-Path $dest ("main-$tag.png"))
+
+# ---- ציר צפוף (220 כתוביות ומעלה, בלי טקסט בבלוקים): ״N כתוביות · התקרבו...״ - שם נמצא הסדר ההפוך (14.10) ----
+for ($i = 0; $i -lt 300; $i++) { $cues.Add((NewOf 'Cue' @([int64](9000 + $i * 30), [int64](9020 + $i * 30), [string]('שורה ' + $i)))) }
+foreach ($n in 'RefreshAll') { $mm = (TY 'MainForm').GetMethod($n, $IN); if ($mm) { [void]$mm.Invoke($m, @()) } }
+Pump 600
+Snap $m (Join-Path $dest ("main-dense-$tag.png"))
 $m.Close(); $m.Dispose()
