@@ -149,6 +149,18 @@ namespace SubtitleStudio
             return Scale(m);
         }
 
+        /// <summary>השיא **בלי המתיחה** (0..255 של 32768) - שקט מוחלט הוא שקט מוחלט, גם בהקלטה שקטה.</summary>
+        public int RawPeakAt(long msFrom, long msTo)
+        {
+            if (Peak == null) return 0;
+            int a = (int)(Math.Max(0, msFrom) / PeriodMs), b = (int)(msTo / PeriodMs);
+            if (b <= a) b = a + 1;
+            if (b > Peak.Length) b = Peak.Length;
+            int m = 0;
+            for (int i = a; i < b; i++) if (Peak[i] > m) m = Peak[i];
+            return m;
+        }
+
         public int RmsAt(long msFrom, long msTo)
         {
             if (Rms == null) return 0;

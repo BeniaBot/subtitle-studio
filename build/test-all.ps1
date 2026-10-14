@@ -8,7 +8,7 @@ param([string]$Only = '', [int]$Timeout = 900)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $expect = [ordered]@{
-    'logic' = 223; 'autotime' = 31; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
+    'logic' = 223; 'autotime' = 33; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 46; 'layout' = 98; 'project' = 106; 'screens' = 36
     'fuzz' = 11; 'long' = 15; 'stt' = 137; 'errors' = 38; 'buttons' = 12
     'source' = 8; 'qa' = 100; 'spell' = 59; 'release' = 67; 'settings' = 19; 'subs' = 26; 'cut' = 54; 'import' = 33; 'assistant' = 84; 'chatflow' = 50

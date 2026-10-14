@@ -3020,9 +3020,12 @@ namespace SubtitleStudio
             // המודל נוטה לסגור כתובית מוקדם מדי. פס הקול כבר בנוי אצלנו,
             // אז מהדקים לגבולות דיבור אמיתיים בלי עוד בקשת רשת. ‏**רק החדשות** -
             // עד 0.8.2 גם כתוביות קיימות שהמשתמש תזמן ביד הוזזו, כשהתמלול נוסף אליהן.
-            int snapped = 0;
+            int snapped = 0, silent = 0;
             if (_wave != null && _wave.Ready && !_wave.Failed)
+            {
+                silent = Transcribe.DropSilent(res.Cues, _wave);
                 snapped = Transcribe.SnapToSpeech(res.Cues, _wave);
+            }
 
             // ואז סידור לקריאה: שברים, ארוכות, השהיה אחרי הדיבור וזמן קריאה (Qa.Tidy)
             Doc fresh = new Doc();
@@ -3044,6 +3047,7 @@ namespace SubtitleStudio
                 ? Lang.F("נוצרו {0} כתוביות בקטע {1}.", Theme.Ltr(fresh.Cues.Count.ToString()), Theme.Ltr(Tc.Short(from) + " – " + Tc.Short(to)))
                 : Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
             if (res.Canceled) msg = Lang.F("נעצר. {0}", msg);
+            if (silent > 0) msg += Lang.F(" ({0} משפטים ״שנשמעו״ בשקט מוחלט הושמטו.)", Theme.Ltr(silent.ToString()));
             msg += Lang.T("  כדאי לעבור ולתקן.  לביטול - Ctrl+Z.");
             _hintLbl.Text = msg;
             _hintLbl.Invalidate();

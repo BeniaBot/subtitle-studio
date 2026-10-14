@@ -296,7 +296,9 @@ namespace SubtitleStudio
                 "המשתמש מאשר בעצמו")
                 .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים")
                 .P("service", "string", "google או groq - מה שהמשתמש בחר (המצב אומר לאיזה יש מפתח). " +
-                   "כשמותר לשלוח ויש מפתח - התמלול מתחיל ישר; אחרת נפתח החלון עם השירות הזה כבר בחור"));
+                   "כשמותר לשלוח ויש מפתח - התמלול מתחיל ישר; אחרת נפתח החלון עם השירות הזה כבר בחור")
+                .P("from_sec", "number", "רק קטע (״רק את חמש הדקות הראשונות״): מהזמן הזה. בלי - כל הסרט")
+                .P("to_sec", "number", "עד הזמן הזה"));
 
             t.Add(new AiTool("auto_time_by_speech",
                 "**מתזמן לבד** את השורות שאין להן זמנים, לפי השתיקות בסרט - בלי אינטרנט, " +
@@ -1519,6 +1521,18 @@ namespace SubtitleStudio
             { r["error"] = Lang.T("אין פס קול בקובץ הזה, אז אין מה לתמלל"); return r; }
 
             int before = _doc.Cues.Count;
+            // **רק קטע (0.8.20):** הסימון על הציר - הוא הקטע של התמלול, גם בחלון וגם בלעדיו
+            if (c.Args.ContainsKey("from_sec") || c.Args.ContainsKey("to_sec"))
+            {
+                long a = (long)(Math.Max(0, c.Num("from_sec", 0)) * 1000);
+                long b = c.Args.ContainsKey("to_sec") ? (long)(c.Num("to_sec", 0) * 1000) : _mi.DurationMs;
+                if (b > _mi.DurationMs) b = _mi.DurationMs;
+                if (b <= a) { r["error"] = Lang.T("טווח לא תקין"); return r; }
+                _tl.InPoint = a;
+                _tl.OutPoint = b;
+                _tl.Invalidate();
+                UpdateRangeChip();
+            }
             // השירות שהמשתמש בחר בצ'אט (ask_user): בחור מראש בחלון, ובלי החלון כשמותר לשלוח, יש מפתח, ואין מה לדרוס
             string svc = c.Str("service", "").Trim().ToLowerInvariant();
             ISttProvider chosen = svc.StartsWith("groq") ? (ISttProvider)Stt.Groq : svc.Length > 0 ? Stt.Gemini : null;

@@ -1637,6 +1637,7 @@ namespace SubtitleStudio
             "צופה בסרט ובוחר קטעים לתקציר של {0} דקות", "Watching the video and picking parts for a {0}-minute summary",
             "בקטע הזה אין כתוביות", "There are no subtitles in this part",
             "תורגמו ל{0} {1} כתוביות מתוך {2}", "{1} of {2} subtitles were translated into {0}",
+            " ({0} משפטים ״שנשמעו״ בשקט מוחלט הושמטו.)", " ({0} sentences 'heard' in complete silence were left out.)",
         };
 
         public static void Fill(Dictionary<string, string> d)

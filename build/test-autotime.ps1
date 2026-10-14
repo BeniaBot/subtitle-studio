@@ -272,6 +272,18 @@ $wv3 = NewWave (Track @(,@(1000,6000)) 6000 3 60) 6000
 $cs = CuesAt @(,@(1000, 5300))
 [void]$snap.Invoke($null, (Pack $cs $wv3))
 Check 'כתובית אחרונה שנגמרה באמצע דיבור - עד סוף הקובץ' ($fE.GetValue($cs[0]) -eq 6000) ("end=" + $fE.GetValue($cs[0]))
+# משפט ״שנשמע״ בשקט מוחלט (0.8.20, נמדד: ״שמעתי ראיון איתו...״ בתוך דקה של שקט) - נזרק; בהקלטה שקטה כולה - לא נוגעים
+$drop = (T 'Transcribe').GetMethod('DropSilent', $ST)
+$wq = NewWave (Track @(@(1000,3000), @(4000,6000), @(7000,9000)) 20000 0 60) 20000
+$cs = CuesAt @(@(1000,3000), @(4000,6000), @(7000,9000), @(15000,17000))
+$nd = $drop.Invoke($null, (Pack $cs $wq))
+Check 'שורה בשקט מוחלט נזרקת, והשאר נשארות' ($nd -eq 1 -and $cs.Count -eq 3 -and $fS.GetValue($cs[2]) -eq 7000) ("dropped=$nd left=" + $cs.Count)
+$wl = NewWave (Track @(@(1000,3000), @(4000,6000), @(7000,9000)) 20000 0 20) 20000
+$cs = CuesAt @(@(1000,3000), @(4000,6000), @(7000,9000), @(15000,17000))
+$nd2 = $drop.Invoke($null, (Pack $cs $wl))
+$cs3 = CuesAt @(@(1000,3000), @(12000,13000), @(15000,17000))
+$nd3 = $drop.Invoke($null, (Pack $cs3 $wq))
+Check 'הקלטה שקטה כולה, או יותר משליש בשקט - לא נוגעים' ($nd2 -eq 0 -and $cs.Count -eq 4 -and $nd3 -eq 0 -and $cs3.Count -eq 3) ("quiet=$nd2 many=$nd3")
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

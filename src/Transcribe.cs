@@ -669,6 +669,23 @@ namespace SubtitleStudio
             return x.Substring(0, min) == y.Substring(0, min);
         }
 
+        /// <summary>**שקט מוחלט - לא דיבור** (0.8.20). נמדד 14.10: בשיעור עם דקה של שקט אחרי כל קטע, גוגל כתב בתוכה ״שמעתי ראיון
+        /// איתו שהוא אומר שהוא מאוד גאה בזה״. שורה שבכל הזמן שלה (ועוד 0.3 שניות לכל צד) השיא הגולמי של הקול עד <see cref="SilentPeak"/>
+        /// (~-39dB) - נזרקת. רק כשבקובץ יש קול רגיל (שיא מעל ‎-20dB) - בהקלטה שקטה כולה לא נוגעים; ולא יותר משליש מהשורות.</summary>
+        internal static int DropSilent(List<Cue> cues, Waveform w)
+        {
+            if (cues == null || cues.Count == 0 || w == null || w.Peak == null) return 0;
+            if (w.RawPeakAt(0, long.MaxValue / 2) < 26) return 0;
+            List<Cue> silent = new List<Cue>();
+            foreach (Cue c in cues)
+                if (!c.Untimed && c.End > c.Start && w.RawPeakAt(c.Start - 300, c.End + 300) <= SilentPeak) silent.Add(c);
+            if (silent.Count == 0 || silent.Count * 3 > cues.Count) return 0;
+            foreach (Cue c in silent) cues.Remove(c);
+            Ai.Log("תמלול: " + silent.Count + " שורות בשקט מוחלט הושמטו (״" + silent[0].PlainText.Replace("\n", " ") + "״...)");
+            return silent.Count;
+        }
+
+        internal const int SilentPeak = 3;
         /// <summary>מתקן גבול של כתובית **רק כשהוא במקום הלא נכון ביחס לדיבור**: התחלה בתוך
         /// שקט זזה לתחילת הדיבור (‏Whisper מתחיל לפעמים את השורה הראשונה בתחילת הקובץ);
         /// התחלה מעט אחרי שהדיבור התחיל חוזרת אליו; סוף באמצע דיבור זז לשקט הבא (המודל נוטה
