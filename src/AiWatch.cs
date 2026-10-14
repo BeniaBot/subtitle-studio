@@ -261,4 +261,103 @@ namespace SubtitleStudio
             return null;
         }
     }
+    /// <summary>**חיפוש לפי משמעות בכתוביות (0.8.19).** נמדד 14.10: ״איפה הוא מדבר על חרקים?״ בשיעור של 350 כתוביות - בכתוביות כתוב
+    /// ״דבורים״ ו״כנימות״, החיפוש לפי מילים לא מצא, והעוזר ויתר ושאל את המשתמש. כאן גוגל קורא את כל הכתוביות (מספר|טקסט, עד 800
+    /// בבקשה) ומחזיר את המספרים של מה שמדבר על זה - גם במילים אחרות. תבנית קבועה לתשובה (responseSchema), הדגמים הקלים קודם
+    /// (משימה קלה, ומכסה גדולה יותר). אותו טקסט שהעוזר כבר מקבל ב-list_cues - לא שליחה חדשה החוצה.</summary>
+    internal static class AiMeaning
+    {
+        public static readonly string[] Models = { "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-2.5-flash" };
+        public const int PerRequest = 800, MaxResults = 12;
+
+        /// <summary>גוף הבקשה לקבוצה אחת של כתוביות (כל שורה: ״מספר|טקסט״).</summary>
+        internal static string Body(string query, List<KeyValuePair<int, string>> cues, bool thinkingOff)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (KeyValuePair<int, string> c in cues)
+                sb.Append(c.Key).Append('|').Append((c.Value ?? "").Replace("\r", " ").Replace("\n", " / ")).Append('\n');
+            string prompt =
+                "אלה הכתוביות של סרט, שורה לכל כתובית: מספר|טקסט.\n" +
+                "מצא את הכתוביות שבהן מדברים על: ״" + query + "״ - **לפי המשמעות**, גם כשהמילים אחרות (״חרקים״ ← דבורים, כנימות; " +
+                "״כעס״ ← ״אני לא מוכן לשמוע את זה!״). רק מה שבאמת קשור; הכי מתאימות קודם, עד " + MaxResults + ". " +
+                "לכל אחת - המספר, ובמילים ספורות למה. אם אין שום כתובית כזאת - מערך ריק.\n\n" + sb.ToString();
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["contents"] = new object[] { new Dictionary<string, object> {
+                { "role", "user" }, { "parts", new object[] { new Dictionary<string, object> { { "text", prompt } } } } } };
+            Dictionary<string, object> cfg = new Dictionary<string, object>();
+            cfg["temperature"] = 0;
+            cfg["maxOutputTokens"] = 4096;
+            cfg["responseMimeType"] = "application/json";
+            cfg["responseSchema"] = new Dictionary<string, object> {
+                { "type", "ARRAY" },
+                { "items", new Dictionary<string, object> {
+                    { "type", "OBJECT" },
+                    { "properties", new Dictionary<string, object> {
+                        { "n", new Dictionary<string, object> { { "type", "INTEGER" } } },
+                        { "why", new Dictionary<string, object> { { "type", "STRING" } } } } },
+                    { "required", new string[] { "n" } } } } };
+            // הדגמים הקלים לא חושבים ממילא, ו-flash-lite-latest דוחה את השדה (בקשה מבוזבזת)
+            if (thinkingOff) cfg["thinkingConfig"] = new Dictionary<string, object> { { "thinkingBudget", 0 } };
+            body["generationConfig"] = cfg;
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            js.MaxJsonLength = 16 * 1024 * 1024;
+            return js.Serialize(body);
+        }
+
+        /// <summary>התשובה: [{"n":12,"why":"..."}] ← (מספר, למה). מספר שלא נשלח - נזרק (הדגם המציא).</summary>
+        internal static List<KeyValuePair<int, string>> Parse(string reply, HashSet<int> sent)
+        {
+            List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
+            try
+            {
+                string txt = (reply ?? "").Trim();
+                int a = txt.IndexOf('['), b = txt.LastIndexOf(']');
+                if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
+                System.Collections.IList arr = new JavaScriptSerializer().DeserializeObject(txt) as System.Collections.IList;
+                if (arr == null) return res;
+                foreach (object o in arr)
+                {
+                    Dictionary<string, object> d = o as Dictionary<string, object>;
+                    object nv, wv;
+                    int n;
+                    if (d == null || !d.TryGetValue("n", out nv) || !int.TryParse(Convert.ToString(nv, CultureInfo.InvariantCulture), out n)) continue;
+                    if (!sent.Contains(n)) continue;
+                    bool dup = false;
+                    foreach (KeyValuePair<int, string> x in res) if (x.Key == n) { dup = true; break; }
+                    if (dup) continue;
+                    res.Add(new KeyValuePair<int, string>(n, d.TryGetValue("why", out wv) && wv != null ? Convert.ToString(wv, CultureInfo.InvariantCulture) : ""));
+                }
+            }
+            catch { }
+            return res;
+        }
+
+        /// <summary>הכתוביות (מספר מ-1, טקסט) שמדברות על <paramref name="query"/>, הכי מתאימות קודם. null עם הסבר כשלא הצליח.</summary>
+        internal static List<KeyValuePair<int, string>> Find(string query, List<KeyValuePair<int, string>> cues, out string error)
+        {
+            error = null;
+            List<KeyValuePair<int, string>> all = new List<KeyValuePair<int, string>>();
+            int groups = (cues.Count + PerRequest - 1) / PerRequest, ok = 0;
+            for (int g = 0; g < groups; g++)
+            {
+                if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                if (groups > 1) AiUi.Status(Lang.F("מחפש לפי המשמעות · {0} מתוך {1}", g + 1, groups));
+                List<KeyValuePair<int, string>> part = cues.GetRange(g * PerRequest, Math.Min(PerRequest, cues.Count - g * PerRequest));
+                HashSet<int> sent = new HashSet<int>();
+                foreach (KeyValuePair<int, string> c in part) sent.Add(c.Key);
+                string withOff = Body(query, part, true), plain = Body(query, part, false);
+                AiReply r = Ai.SendModels(Models, delegate (string model)
+                {
+                    return Ai.SendJson(model, model.IndexOf("lite", StringComparison.OrdinalIgnoreCase) >= 0 ? plain : withOff);
+                }, delegate (AiReply x) { return x.Ok && !string.IsNullOrEmpty(x.Text); }, 20000, "חיפוש לפי משמעות");
+                if (!r.Ok || string.IsNullOrEmpty(r.Text)) { error = r.Error ?? "לא התקבלה תשובה"; continue; }
+                ok++;
+                all.AddRange(Parse(r.Text, sent));
+            }
+            if (ok == 0) return null;
+            if (all.Count > MaxResults) all.RemoveRange(MaxResults, all.Count - MaxResults);
+            return all;
+        }
+    }
+
 }

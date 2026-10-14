@@ -123,7 +123,8 @@ namespace SubtitleStudio
             // **חיפוש בכל הכתוביות (0.8.18)** - בנימין: ״כשאומרים לו לחפש משהו בסרט, הוא מחפש רק ב-30 השניות הראשונות״. עד כאן היו
             // לו רק הכתוביות שבמצב (30 ראשונות, או 12 סביב הנגן) ו-list_cues בעמודים של 40 - והוא הסתפק במה שראה
             t.Add(new AiTool("find_text", "**מחפש בכל הכתוביות** - איפה אומרים משהו (״איפה הוא מדבר על...״, ״מתי אומרים את המילה...״). " +
-                "מחזיר את הכתוביות המתאימות עם מספר וזמן, מכל הסרט. מילים - גם בלי אותיות שימוש (״בבית״ מוצא ״בית״). " +
+                "מחזיר את הכתוביות המתאימות עם מספר וזמן, מכל הסרט, **והנגן קופץ לראשונה**. קודם לפי המילים (גם בלי אותיות שימוש), " +
+                "ואם אין - **לפי המשמעות** (״חרקים״ מוצא ״דבורים״) - אין צורך לנסות מילים נרדפות בעצמך. " +
                 "**בסרט בלי כתוביות - צופה בכל הסרט ושומע** (כמו watch_video), אז אין צורך לתמלל קודם")
                 .Req("query", "string", "מה לחפש - מילה, כמה מילים או משפט"));
             t.Add(new AiTool("list_cues", "מחזיר כתוביות עם המספר, הזמנים והטקסט")
@@ -988,6 +989,7 @@ namespace SubtitleStudio
             if (hits.Count > 25) hits.RemoveRange(25, hits.Count - 25);
             hits.Sort(delegate (object[] a, object[] b) { return ((int)a[0]).CompareTo((int)b[0]); });
             List<object> list = new List<object>();
+            Cue first = null;
             foreach (object[] h in hits)
             {
                 Cue q2 = _doc.Cues[(int)h[0]];
@@ -996,14 +998,76 @@ namespace SubtitleStudio
                 d["start"] = Tc.Short(q2.Start);
                 d["text"] = q2.PlainText.Replace("\n", " / ");
                 if ((int)h[1] < words.Count) d["partial"] = true;
+                else if (first == null) first = q2;
                 list.Add(d);
             }
             r["searched"] = "כל " + _doc.Cues.Count + " הכתוביות";
-            r["matches"] = list.ToArray();
-            if (list.Count == 0)
-                r["note"] = "לא נאמר בכתוביות. אולי במילים אחרות (נסה מילה נרדפת), או שזה מה שרואים ולא מה שאומרים - find_scene / watch_video";
-            else r["how_to_use"] = "select_cue לכתובית שמתאימה הכי טוב - הנגן קופץ אליה";
+            // **כל המילים נמצאו - הנגן קופץ לראשונה** (0.8.19). נמדד 14.10: הוא מצא, וכתב ״תרצה שאקפוץ לשם?״ במקום לקפוץ
+            if (first != null)
+            {
+                r["matches"] = list.ToArray();
+                r["jumped_to"] = _doc.IndexOf(first) + 1;
+                AiJumpTo(first);
+                r["how_to_use"] = "הנגן כבר קפץ לכתובית " + (_doc.IndexOf(first) + 1) + ". ענה עם הזמן; כתובית אחרת מתאימה יותר - select_cue";
+                return r;
+            }
+            // **אין התאמה במילים - לפי המשמעות** (0.8.19): ״חרקים״ כשבכתוביות ״דבורים״. גוגל קורא את כל הכתוביות
+            List<KeyValuePair<int, string>> all = new List<KeyValuePair<int, string>>();
+            List<Cue> refs = new List<Cue>(_doc.Cues);
+            for (int i = 0; i < refs.Count; i++) all.Add(new KeyValuePair<int, string>(i + 1, refs[i].PlainText));
+            object[] partial = list.ToArray();
+            int total = refs.Count;
+            r["done"] = Lang.F("מחפש לפי המשמעות בכל {0} הכתוביות", total);
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                string err;
+                List<KeyValuePair<int, string>> found = AiMeaning.Find(q, all, out err);
+                w["searched"] = "כל " + total + " הכתוביות - לפי המילים, ואז לפי המשמעות";
+                if (found == null)
+                {
+                    w["matches"] = partial;
+                    w["note"] = "החיפוש לפי המשמעות לא הצליח (" + err + "). " + (partial.Length > 0
+                        ? "יש רק התאמות חלקיות במילים"
+                        : "במילים - לא נמצא. אפשר לנסות מילה נרדפת, או watch_video");
+                    return w;
+                }
+                List<object> m = new List<object>();
+                found.Sort(delegate (KeyValuePair<int, string> a, KeyValuePair<int, string> b) { return a.Key.CompareTo(b.Key); });
+                foreach (KeyValuePair<int, string> f in found)
+                {
+                    Cue cq = refs[f.Key - 1];
+                    Dictionary<string, object> d = new Dictionary<string, object>();
+                    d["index"] = f.Key;
+                    d["start"] = Tc.Short(cq.Start);
+                    d["text"] = cq.PlainText.Replace("\n", " / ");
+                    if (!string.IsNullOrEmpty(f.Value)) d["why"] = f.Value;
+                    m.Add(d);
+                }
+                w["matches"] = m.ToArray();
+                if (found.Count == 0)
+                {
+                    w["note"] = "לא מדברים על זה בכתוביות, גם לא במילים אחרות. אולי זה מה שרואים ולא מה שאומרים - find_scene / watch_video";
+                    return w;
+                }
+                Cue jump = refs[found[0].Key - 1];
+                w["jumped_to"] = found[0].Key;
+                w["_apply"] = (MethodInvoker)delegate { if (_doc.Cues.Contains(jump)) AiJumpTo(jump); };
+                w["how_to_use"] = "נמצא לפי המשמעות. הנגן קופץ לכתובית " + found[0].Key + ". ענה עם הזמנים; כתובית אחרת מתאימה יותר - select_cue";
+                return w;
+            };
             return r;
+        }
+
+        /// <summary>בוחר כתובית, פותח אותה בעורך והנגן קופץ אליה - כמו select_cue.</summary>
+        private void AiJumpTo(Cue c)
+        {
+            _doc.SelectNone();
+            c.Selected = true;
+            LoadEditor();
+            _list.ScrollToCue(c);
+            _list.Invalidate();
+            Seek(c.Start);
         }
 
         /// <summary>מילים לחיפוש: בלי ניקוד ופיסוק, אותיות קטנות, ובלי אות שימוש בהתחלה (״ובבית״ ← ״בית״) כשנשארות שלוש.</summary>

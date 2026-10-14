@@ -391,6 +391,18 @@ $pans = (TY 'AiWatch').GetMethod('AskParts', $ST).Invoke($null, $apa)
 $q1 = Req $srv 2; $q2 = Req $srv 5
 Check 'סרט ארוך: כל חלק נשאל לבד (״חלק 1 מתוך 2״), עם הקובץ שלו' ($q1.Contains('חלק 1 מתוך 2') -and $q1.Contains('files/p1') -and $q2.Contains('חלק 2 מתוך 2') -and $q2.Contains('files/p2')) ''
 Check 'והתשובות מחוברות לפי הסדר, עם הזמן בסרט המלא (0:02 בחלק השני = 0:06)' (('' + $pans).Contains('[0:00-0:04] אין בחלק הזה') -and ('' + $pans).Contains('[0:04-0:08]') -and ('' + $pans).Contains('ב-0:06') -and $stl.Count -eq 2) ('' + $pans).Replace("`n", ' / ')
+# ---------- 15ב. חיפוש לפי משמעות (0.8.19): ״חרקים״ כשבכתוביות ״דבורים״ - גוגל קורא את כל הכתוביות, והנגן קופץ ----------
+$saved = @((Cues)); (Cues).Clear()
+foreach ($c in @(@(1000, 2500, 'משקים בבוקר'), @(3000, 5000, 'הדבורים עפות בין הפרחים'), @(6000, 8000, 'תודה רבה'))) { (Cues).Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2]))) }
+$srv = StartServer @(
+    (Reply (Call 'find_text' '{"query":"חרקים"}' $null)),
+    (Reply (Txt '[{\"n\":2,\"why\":\"דבורים הן חרקים\"},{\"n\":9,\"why\":\"מומצא\"}]')),
+    (Reply (Txt 'מדברים על דבורים בכתובית 2.')))
+Say 'איפה מדברים על חרקים?' 40
+$sem = Req $srv 1; $back = Req $srv 2
+Check 'חיפוש לפי משמעות: כל הכתוביות נשלחות (מספר|טקסט) עם תבנית תשובה' ($sem.Contains('2|הדבורים עפות בין הפרחים') -and $sem.Contains('3|תודה רבה') -and $sem.Contains('responseSchema')) (ReqLine $srv 1)
+Check 'והתוצאה לעוזר: הכתובית שנמצאה, למה, והנגן קפץ אליה - מספר שהדגם המציא (9) נזרק' ($back.Contains('jumped_to') -and $back.Contains('דבורים הן חרקים') -and -not $back.Contains('מומצא') -and (TY 'Cue').GetField('Selected').GetValue((Cues)[1]) -eq $true) ''
+(Cues).Clear(); foreach ($c in $saved) { (Cues).Add($c) }
 # ---------- 16. טקסט מהתמונה: פריים ברזולוציה מלאה, והטקסט חוזר לעוזר ----------
 $srv = StartServer @(
     (Reply (Call 'read_text_on_screen' '{"seconds":2}' $null)),

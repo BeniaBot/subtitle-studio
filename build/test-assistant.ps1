@@ -300,8 +300,14 @@ for ($k = 4; $k -le 45; $k++) { $txt = if ($k -eq 38) { 'ועכשיו נדבר �
 $res = Call 'find_text' @{ query = 'דבורים' }
 $hit = @($res['matches'])
 Check 'find_text מחפש בכל הכתוביות - גם בכתובית 38 מתוך 45 (לא רק אלה שבמצב)' ($hit.Count -eq 1 -and $hit[0]['index'] -eq 38 -and ('' + $res['searched']).Contains('45')) (($hit | ForEach-Object { '' + $_['index'] + ' ' + $_['text'] }) -join ' | ')
-$res = Call 'find_text' @{ query = 'איפה מדברים על דבורה בגן' }
-Check 'find_text בלי התאמה - אומר מה לעשות (מילה אחרת, או מה שרואים)' (@($res['matches']).Count -eq 0 -and ('' + $res['note']).Contains('find_scene')) ('' + $res['note'])
+Check 'find_text: כל המילים נמצאו - הנגן קופץ לשם בעצמו (נמדד 14.10: ״תרצה שאקפוץ?״ במקום לקפוץ)' ($res['jumped_to'] -eq 38 -and (TY 'Cue').GetField('Selected').GetValue($cues[37]) -eq $true) ('' + $res['jumped_to'])
+# בלי התאמה במילים - חיפוש לפי המשמעות (גוגל). בלי מפתח הוא נכשל, ואומר מה עוד אפשר
+$res = Call 'find_text' @{ query = 'איפה מדברים על חרקים' }
+Check 'find_text בלי התאמה במילים - עובר לחיפוש לפי המשמעות (״חרקים״ ← ״דבורים״)' ($res['_work'] -ne $null -and ('' + $res['done']).Contains('לפי המשמעות')) ('' + $res['done'])
+$k0 = (TY 'Ai').GetField('Key', $ST).GetValue($null); (TY 'Ai').GetField('Key', $ST).SetValue($null, '')
+$wres = $res['_work'].Invoke()
+(TY 'Ai').GetField('Key', $ST).SetValue($null, $k0)
+Check 'וכשהחיפוש לפי המשמעות נכשל - אומר מה עוד אפשר (מילה נרדפת, צפייה)' (('' + $wres['note']).Contains('watch_video')) ('' + $wres['note'])
 $state = $mfT.GetMethod('AiStateFull', $IN).Invoke($mf, @())
 Check 'במצב, עם יותר מ-30 כתוביות: ״רק חלק״, ואיך מחפשים בכולן' ($state.Contains('רק חלק') -and $state.Contains('find_text')) ''$mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
