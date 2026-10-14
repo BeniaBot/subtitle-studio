@@ -2,6 +2,32 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.19",
+      "date": "2026-10-14",
+      "items": [
+        {
+          "t": "major",
+          "s": "חיפוש לפי משמעות: ״איפה הוא מדבר על חרקים?״ מוצא גם ״דבורים״ ו״כנימות״ - בכל הכתוביות, גם בשיעור ארוך",
+          "en": "Search by meaning: 'where does he talk about insects?' also finds 'bees' and 'aphids' - in all the subtitles, even in a long lesson"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר מצא - הנגן קופץ לשם מיד, בלי ״לקפוץ לשם?״",
+          "en": "The assistant found it - the player jumps there right away, without 'shall I jump there?'"
+        },
+        {
+          "t": "feature",
+          "s": "״תכין לי סרטון רק עם החלק על...״ - העוזר מוצא את הקטעים, חותך ושומר עד הסוף (כשמותר לו)",
+          "en": "'Make me a video with only the part about...' - the assistant finds the parts, cuts and saves all the way (when it's allowed to)"
+        },
+        {
+          "t": "fix",
+          "s": "צפייה בסרט: כשגוגל איטי, דגם נוסף נכנס מהר יותר - לפי אורך הסרט",
+          "en": "Watching the video: when Google is slow, another model steps in sooner - by the length of the video"
+        }
+      ]
+    },
+    {
       "v": "0.8.18",
       "date": "2026-10-14",
       "items": [
