@@ -2,6 +2,32 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.22",
+      "date": "2026-10-15",
+      "items": [
+        {
+          "t": "fix",
+          "s": "ימין ושמאל בכל התוכנה: מספר הכתוביות בציר הזמן, כתוביות באנגלית בממשק העברי (הנקודה קפצה להתחלה), תשובות העוזר, ושדות שכותבים בהם באנגלית",
+          "en": "Right and left across the program: the subtitle count on the timeline, English subtitles in the Hebrew interface (the period jumped to the start), the assistant's replies, and fields you type English into"
+        },
+        {
+          "t": "fix",
+          "s": "תיבת העריכה: כתובית של שתי שורות הוצגה כשהשורות דבוקות זו לזו",
+          "en": "Editing box: a two-line subtitle showed with its lines glued together"
+        },
+        {
+          "t": "major",
+          "s": "תמלול ב-Groq: שמות ומילים שנשמעו לא נכון מתוקנים לבד, כשיש מפתח של גוגל - רק מה שנשמע כמעט אותו דבר",
+          "en": "Transcription with Groq: names and words that were misheard are fixed automatically when there is a Google key - only what sounds almost the same"
+        },
+        {
+          "t": "fix",
+          "s": "תרגום: הערה של המתרגם בסוגריים (״[תקלה במקור]״) - הכתובית מתורגמת שוב",
+          "en": "Translation: a translator's note in brackets (\"[glitch in the source]\") - the subtitle is translated again"
+        }
+      ]
+    },
+    {
       "v": "0.8.21",
       "date": "2026-10-14",
       "items": [

@@ -432,7 +432,7 @@ namespace SubtitleStudio
                     catch { }
                 }
                 Translated = all;
-                if (!_cancel && all.Count == _cues.Count) CondenseFast(all);
+                if (CondenseOn && !_cancel && all.Count == _cues.Count) CondenseFast(all);
                 try { BeginInvoke((MethodInvoker)delegate { Ok = !_cancel && Translated.Count == _cues.Count; Close(); }); }
                 catch { }
             });
@@ -442,6 +442,10 @@ namespace SubtitleStudio
 
         /// <summary>כמה כתוביות קוצרו כי היו מהירות מדי לקריאה (`CondenseFast`).</summary>
         public int Condensed;
+
+        /// <summary>**כבוי ב-0.8.22** (גרסת ביניים): נבדק רק על הדגם הקל, ושם שיבש מילים; הדגם המלא לא נבדק (המכסה נגמרה). להדליק
+        /// אחרי ``hp-tools\hp-condense.ps1`` על הדגם המלא וקריאה בעין של כל הכתוביות שקוצרו (WORKPLAN 2יד).</summary>
+        internal static bool CondenseOn = false;
 
         /// <summary>**כתובית שמהירה מדי גם אחרי הסידור - קצרה יותר** (0.8.22). נמדד 14.10, סרטון של שעה ורבע מאנגלית לעברית: 58 כתוביות
         /// מעל 20 תווים לשנייה, ואף אחת לא נפתרת בזמן (`Qa.RoomMs` - עד הבאה ועד 7 שניות). יעד 17 תווים לשנייה; בקשה אחת (`Ai.Condense`).
