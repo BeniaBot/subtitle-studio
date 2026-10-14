@@ -234,15 +234,11 @@ namespace SubtitleStudio
                 js.MaxJsonLength = 64 * 1024 * 1024;
                 string json = js.Serialize(body);
                 string reply = null;
-                foreach (string model in AiWatch.OcrModels)
-                {
-                    if (StopToken.Here) { error = Lang.T("נעצר."); return false; }
-                    AiReply r = Ai.SendJson(model, json);
-                    if (r.Ok && !string.IsNullOrEmpty(r.Text)) { reply = r.Text; error = null; break; }
-                    error = r.Error ?? "לא התקבלה תשובה";
-                    if (r.HttpCode != 429 && r.HttpCode != 404 && r.HttpCode < 500 && !r.Empty) return false;
-                }
-                if (reply == null) return false;
+                string req = json;
+                AiReply r = Ai.SendModels(AiWatch.OcrModels, delegate (string model) { return Ai.SendJson(model, req); },
+                    delegate (AiReply x) { return x.Ok && !string.IsNullOrEmpty(x.Text); }, AiWatch.OcrHedgeMs, "כתוביות צרובות");
+                if (r.Ok && !string.IsNullOrEmpty(r.Text)) { reply = r.Text; error = null; }
+                else { error = StopToken.Here ? Lang.T("נעצר.") : (r.Error ?? "לא התקבלה תשובה"); return false; }
                 Apply(batch, reply);
             }
             return true;

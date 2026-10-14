@@ -419,6 +419,39 @@ namespace SubtitleStudio
             return r;
         }
 
+        /// <summary>**אותה בקשה, דגם אחרי דגם - במרוץ (0.8.18).** ‏<paramref name="send"/> שולח לדגם אחד; כישלון - הדגם הבא מיד, ודגם
+        /// שלא ענה תוך <paramref name="hedgeMs"/> - גם הבא, במקביל (הראשון שעונה מנצח, השני נקטע). נמדד 14.10: צפייה בסרט חיכתה
+        /// שלוש דקות וחצי לדגם שנתקע (gemini-3-flash-preview), ואז עוד ניסיון חוזר שלו. שגיאה שדגם אחר לא ישנה (בקשה פגומה) -
+        /// לא ממשיכים. מחזיר את המנצח, או את הכישלון האחרון.</summary>
+        internal static AiReply SendModels(string[] models, Func<string, AiReply> send, Func<AiReply, bool> ok, int hedgeMs, string what)
+        {
+            List<string> ms = new List<string>();
+            foreach (string m in models) if (!IsExhausted(m)) ms.Add(m);
+            if (ms.Count == 0)
+            {
+                AiReply x = new AiReply();
+                x.Error = Lang.F("המכסה היומית של המפתח החינמי נגמרה בכל הדגמים.\r\nהיא מתאפסת {0}. אפשר גם להפיק מפתח חדש בדף של גוגל.", QuotaResetText());
+                x.HttpCode = 429; x.QuotaDaily = true;
+                return x;
+            }
+            bool fatal = false;
+            AiReply r = Race<AiReply>(ms.Count, hedgeMs, true,
+                delegate (int i)
+                {
+                    if (fatal || StopToken.Here) return null;
+                    AiReply x = send(ms[i]);
+                    bool retryable = x.Ok || x.Empty || x.HttpCode == 0 || x.HttpCode == 404 || x.HttpCode == 429 || x.HttpCode >= 500 ||
+                                     (x.HttpCode == 400 && !KeyProblem(x.Error) && x.Error != null &&
+                                      x.Error.IndexOf("invalid argument", StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (!retryable) fatal = true;
+                    return x;
+                },
+                ok,
+                delegate (int i) { Log(what + ": הדגם " + Trying + " לא ענה תוך " + (hedgeMs / 1000) + " שניות - שואלים גם את הבא, במקביל"); });
+            if (r == null) { r = new AiReply(); r.Error = StopToken.Here ? Lang.T("נעצר.") : Lang.T("לא התקבלה תשובה מהשרת."); }
+            return r;
+        }
+
         // ---------- העלאת קובץ (Files API, 0.8.17) ----------
         /// <summary>לבדיקות: הכתובות של ההעלאה ושל מצב הקובץ (שרת מדומה).</summary>
         internal static string UploadRoot = "https://generativelanguage.googleapis.com/upload/v1beta/files";

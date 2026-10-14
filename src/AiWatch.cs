@@ -25,6 +25,9 @@ namespace SubtitleStudio
         public static readonly string[] Models = { "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-flash-lite-latest" };
         /// <summary>הכי הרבה בבקשה אחת (30 דקות ≈ 180 אלף טוקנים ברזולוציה הנמוכה).</summary>
         public const long MaxSpanMs = 30L * 60 * 1000;
+        /// <summary>אחרי כמה זמן בלי תשובה - גם הדגם הבא, במקביל (`Ai.SendModels`). צפייה: 5-20 שניות (נמדד), קריאת טקסט: 2.</summary>
+        internal static int WatchHedgeMs = 60000, OcrHedgeMs = 20000;
+
         /// <summary>כמה בקשות לכל היותר בצפייה אחת - שיעור של שלוש שעות.</summary>
         public const int MaxParts = 6;
 
@@ -148,21 +151,23 @@ namespace SubtitleStudio
                     }
                 }
                 string json = Body(question, up.Uri, up.Mime, from, true);
+                Upload u = up;
                 bool gone = false;
-                foreach (string model in Models)
+                // **במרוץ (0.8.18):** תשובה על סרט לוקחת 5-20 שניות; דגם שלא ענה בדקה - גם הבא
+                AiReply r = Ai.SendModels(Models, delegate (string model)
                 {
-                    if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
-                    AiReply r = Ai.SendJson(model, json);
+                    AiReply x = Ai.SendJson(model, json);
                     // דגם שלא מכיר את mediaResolution - שוב בלעדיו
-                    if (!r.Ok && r.HttpCode == 400 && r.Error != null && r.Error.IndexOf("resolution", StringComparison.OrdinalIgnoreCase) >= 0)
-                        r = Ai.SendJson(model, Body(question, up.Uri, up.Mime, from, false));
-                    if (r.Ok && !string.IsNullOrEmpty(r.Text)) { error = null; return Times(r.Text, from); }
+                    if (!x.Ok && x.HttpCode == 400 && x.Error != null && x.Error.IndexOf("resolution", StringComparison.OrdinalIgnoreCase) >= 0)
+                        x = Ai.SendJson(model, Body(question, u.Uri, u.Mime, from, false));
                     // הקובץ כבר לא אצל גוגל (עברו 48 שעות, או נמחק) - מעלים שוב
-                    if (r.HttpCode == 403 || (r.HttpCode == 400 && r.Error != null && r.Error.IndexOf("file", StringComparison.OrdinalIgnoreCase) >= 0))
-                    { gone = true; break; }
-                    error = r.Error ?? "לא התקבלה תשובה";
-                    if (r.HttpCode != 429 && r.HttpCode != 404 && r.HttpCode < 500 && !r.Empty) return null;
-                }
+                    if (x.HttpCode == 403 || (x.HttpCode == 400 && x.Error != null && x.Error.IndexOf("file", StringComparison.OrdinalIgnoreCase) >= 0))
+                        gone = true;
+                    return x;
+                }, delegate (AiReply x) { return x.Ok && !string.IsNullOrEmpty(x.Text); }, WatchHedgeMs, "צפייה");
+                if (r.Ok && !string.IsNullOrEmpty(r.Text)) { error = null; return Times(r.Text, from); }
+                if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
+                error = r.Error ?? "לא התקבלה תשובה";
                 if (!gone) return null;
                 lock (_cache) _cache.Remove(key);
             }
@@ -249,14 +254,10 @@ namespace SubtitleStudio
             JavaScriptSerializer js = new JavaScriptSerializer();
             js.MaxJsonLength = 32 * 1024 * 1024;
             string json = js.Serialize(body);
-            foreach (string model in OcrModels)
-            {
-                if (StopToken.Here) { error = Lang.T("נעצר."); return null; }
-                AiReply r = Ai.SendJson(model, json);
-                if (r.Ok && !string.IsNullOrEmpty(r.Text)) return r.Text.Trim();
-                error = r.Error ?? "לא התקבלה תשובה";
-                if (r.HttpCode != 429 && r.HttpCode != 404 && r.HttpCode < 500 && !r.Empty) return null;
-            }
+            AiReply r = Ai.SendModels(OcrModels, delegate (string model) { return Ai.SendJson(model, json); },
+                delegate (AiReply x) { return x.Ok && !string.IsNullOrEmpty(x.Text); }, OcrHedgeMs, "קריאת טקסט");
+            if (r.Ok && !string.IsNullOrEmpty(r.Text)) return r.Text.Trim();
+            error = StopToken.Here ? Lang.T("נעצר.") : (r.Error ?? "לא התקבלה תשובה");
             return null;
         }
     }

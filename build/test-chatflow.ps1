@@ -399,6 +399,27 @@ $srv = StartServer @(
 Say 'מה כתוב על המסך?' 40
 $o1 = Req $srv 1; $o2 = Req $srv 2
 Check 'קריאת טקסט: תמונה ברזולוציה מלאה נשלחת, והטקסט חוזר לעוזר' ($o1.Contains('inline_data') -and $o1.Contains('image/jpeg') -and $o2.Contains('text_on_screen') -and $o2.Contains('היום נלמד על כתוביות')) ''
+# ---------- 16א. דגם שנתקע: קריאת טקסט ותרגום במרוץ - הדגם הבא במקביל (0.8.18). נמדד 14.10: צפייה חיכתה 3.5 דקות לדגם תקוע ----------
+(TY 'Ai').GetMethod('ForgetExhausted', $ST).Invoke($null, @())
+$awT = TY 'AiWatch'; $oh0 = $awT.GetField('OcrHedgeMs', $ST).GetValue($null); $awT.GetField('OcrHedgeMs', $ST).SetValue($null, 1500)
+$slowOcr = Reply (Txt 'תשובה מאוחרת'); $slowOcr.hold = 25
+$srv = StartServerC @($slowOcr, (Reply (Txt 'שלט: חנות ספרים')))
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$ra = New-Object object[] 5; $ra[0] = [string]$wmedia; $ra[1] = [int64]2000; $ra[2] = [int]640; $ra[3] = [int]360; $ra[4] = $null
+$ocr = $awT.GetMethod('ReadText', $ST).Invoke($null, $ra)
+$tookO = $sw.Elapsed.TotalSeconds
+Check 'קריאת טקסט, דגם תקוע: אחרי שנייה וחצי גם הבא, והתשובה שלו - לא אחרי 25 שניות' ($ocr -eq 'שלט: חנות ספרים' -and $tookO -lt 10 -and (ModelOf (ReqLine $srv 0)) -ne (ModelOf (ReqLine $srv 1))) ("" + [Math]::Round($tookO, 1) + " שניות, " + $ocr + $ra[4])
+$awT.GetField('OcrHedgeMs', $ST).SetValue($null, $oh0)
+$th0 = (TY 'Ai').GetField('TranslateHedgeMs', $ST).GetValue($null); (TY 'Ai').GetField('TranslateHedgeMs', $ST).SetValue($null, 1500)
+$slowTr = Reply (Txt '[{\"i\":0,\"t\":\"מאוחר\"}]'); $slowTr.hold = 25
+$srv = StartServerC @($slowTr, (Reply (Txt '[{\"i\":0,\"t\":\"שלום\"}]')))
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$lt = [Collections.Generic.List[string]]::new(); $lt.Add('hello')
+$ta = New-Object object[] 4; $ta[0] = $lt; $ta[1] = 'עברית'; $ta[2] = ''; $ta[3] = $null
+$trr = ((TY 'Ai').GetMethods($ST) | Where-Object { $_.Name -eq 'Translate' -and $_.GetParameters().Count -eq 4 }).Invoke($null, $ta)
+$tookT = $sw.Elapsed.TotalSeconds
+Check 'תרגום, דגם תקוע: אותו דבר - הבא במקביל, והתרגום חוזר תוך שניות' ($trr -ne $null -and $trr[0] -eq 'שלום' -and $tookT -lt 10) ("" + [Math]::Round($tookT, 1) + " שניות, " + ($trr -join ',') + $ta[3])
+(TY 'Ai').GetField('TranslateHedgeMs', $ST).SetValue($null, $th0)
 # ---------- 17. כתוביות צרובות ← כתוביות: חיפוש בתמונה (בלי רשת), רצועות לגוגל, וכתוביות עם זמנים (0.8.17) ----------
 $synth = Join-Path $env:TEMP 'ss-burn-synth.mp4'
 if (-not (Test-Path $synth)) {
