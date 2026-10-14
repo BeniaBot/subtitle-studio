@@ -706,7 +706,8 @@ $ai.Dispose()
 $cueT = T 'Cue'; $tl50 = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))
 for ($q = 0; $q -lt 50; $q++) { $tl50.Add([Activator]::CreateInstance($cueT, (Pack ([long]($q * 2000)) ([long]($q * 2000 + 1500)) ('line ' + $q)))) }
 $j40 = '[' + ((0..39 | ForEach-Object { '{"i":' + $_ + ',"t":"שורה ' + $_ + '"}' }) -join ',') + ']'
-$s = StartServer @((Resp 200 (GemText $j40) $null), (Resp 400 '{"error":{"code":400,"message":"Bad request","status":"FAILED_PRECONDITION"}}' $null))
+# קודם המילון לכל הסרט (0.8.21 - יותר ממנה אחת), ואז המנות
+$s = StartServer @((Resp 200 (GemText '1. סרטון בדיקה') $null), (Resp 200 (GemText $j40) $null), (Resp 400 '{"error":{"code":400,"message":"Bad request","status":"FAILED_PRECONDITION"}}' $null))
 $aiT2 = T 'Ai'; $oldRoot2 = $aiT2.GetField('EndpointRoot', $SF).GetValue($null); $oldKey2 = $aiT2.GetField('Key', $SF).GetValue($null)
 $aiT2.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/"); $aiT2.GetField('Key', $SF).SetValue($null, 'test-key')
 $ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl50 'עברית' ''))

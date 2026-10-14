@@ -1639,6 +1639,7 @@ namespace SubtitleStudio
             "תורגמו ל{0} {1} כתוביות מתוך {2}", "{1} of {2} subtitles were translated into {0}",
             " ({0} משפטים ״שנשמעו״ בשקט מוחלט הושמטו.)", " ({0} sentences 'heard' in complete silence were left out.)",
             "תכין תקציר של 2 דקות", "Make a 2-minute summary",
+            "קורא את כל הכתוביות ומכין רשימת שמות...", "Reading all the subtitles and preparing a list of names...",
         };
 
         public static void Fill(Dictionary<string, string> d)

@@ -373,6 +373,18 @@ namespace SubtitleStudio
                 StopToken.Attach(_stop);
                 List<string> all = new List<string>();
                 List<string[]> prev = new List<string[]>();           // ההמשכיות בין המנות
+                // **מילון שמות לכל הסרט** לפני המנות (0.8.21) - רק כשיש יותר ממנה אחת; לא הצליח - מתרגמים בלעדיו
+                string ctx = _context;
+                if (_cues.Count > BatchSize && !_cancel)
+                {
+                    try { BeginInvoke((MethodInvoker)delegate { _stat.Text = Lang.T("קורא את כל הכתוביות ומכין רשימת שמות..."); _stat.Invalidate(); }); }
+                    catch { }
+                    List<string> texts = new List<string>();
+                    foreach (Cue c in _cues) texts.Add(c.Text);
+                    string gerr;
+                    string g = Ai.Glossary(texts, _lang, out gerr);
+                    if (!string.IsNullOrEmpty(g)) ctx = string.IsNullOrEmpty(ctx) ? g : ctx + "\n" + g;
+                }
                 int done = 0;
                 for (int i = 0; i < _cues.Count && !_cancel; i += BatchSize)
                 {
@@ -382,7 +394,7 @@ namespace SubtitleStudio
 
                     string err = null;
                     List<string> res = null;
-                    try { res = Ai.Translate(batch, _lang, _context, prev, out err); }
+                    try { res = Ai.Translate(batch, _lang, ctx, prev, out err); }
                     catch (Exception ex) { err = ex.Message; Ai.Log("חריגה בתרגום: " + ex); }
                     if (res == null)
                     {

@@ -1789,6 +1789,45 @@ namespace SubtitleStudio
             return r.Trim();
         }
 
+        /// <summary>**מילון שמות לסרט, לפני התרגום (0.8.21).** נמדד 14.10, סרטון של שעה ורבע מ-Groq: ״Swamping Willow״ (במקום Whomping)
+        /// תורגם ״הערבה המפוארת״, ״Rupert Grant״ - פעם ״גרינט״ ופעם לא; כל מנה של 40 רואה רק את עצמה. בקשה אחת על כל הטקסט (עד ~24 אלף
+        /// תווים, שורות בפיזור שווה): על מה הסרטון, וכל שם ומונח בצורה הנכונה ובתעתיק המקובל בשפת היעד - גם כשהתמלול שמע לא נכון.
+        /// עובר לכל המנות כרקע. null כשלא הצליח (מתרגמים בלעדיו).</summary>
+        internal static string Glossary(List<string> lines, string targetLang, out string error)
+        {
+            error = null;
+            if (lines == null || lines.Count == 0) return null;
+            int total = 0;
+            foreach (string s in lines) total += (s ?? "").Length + 1;
+            double step = total > 24000 ? total / 24000.0 : 1.0;
+            StringBuilder sb = new StringBuilder();
+            double next = 0;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (i < next) continue;
+                sb.Append((lines[i] ?? "").Replace("\n", " ")).Append('\n');
+                next += step;
+                if (sb.Length > 26000) break;
+            }
+            string sys =
+                "לפניך תמלול אוטומטי של סרטון. ייתכנו בו שגיאות שמיעה, במיוחד בשמות. כתוב בקצרה, לשימוש של מתרגם ל" + targetLang + ":\n" +
+                "1. משפט אחד: על מה הסרטון, ומי מדבר בו.\n" +
+                "2. מילון: כל שם של אדם, מקום, יצירה, דמות ומונח מיוחד שחוזר או חשוב - בצורה הנכונה (גם אם בתמלול הוא נשמע אחרת, כתוב " +
+                "את שתיהן), ואיך כותבים אותו ב" + targetLang + " (התרגום או התעתיק המקובל, למשל שם רשמי של ספר, סרט או מקום). שורה לכל אחד: " +
+                "״בתמלול → הנכון → ב" + targetLang + "״. עד 40 שורות. רק מה שאתה בטוח בו, בלי הסברים ובלי הקדמה.";
+            List<AiMsg> h = new List<AiMsg>();
+            AiMsg m = new AiMsg();
+            m.Role = "user";
+            m.Text = sb.ToString();
+            h.Add(m);
+            AiReply r = Send(sys, h, null, false);
+            if (!r.Ok || string.IsNullOrEmpty(r.Text)) { error = r.Error ?? "לא התקבלה תשובה"; Log("מילון לתרגום: לא הצליח - " + error); return null; }
+            string g = r.Text.Trim();
+            if (g.Length > 3000) g = g.Substring(0, 3000);
+            Log("מילון לתרגום (" + LastModelUsed + "): " + g.Replace("\n", " | "));
+            return "מה שידוע על הסרטון (מקריאה של כל התמלול; השתמש בכתיב שכאן לשמות ולמונחים):\n" + g;
+        }
+
         /// <summary>כך תורגמו השורות שלפני המנה - כדי שהשמות, התארים והמשלב יישארו אותו דבר.</summary>
         internal static string PreviousBlock(List<string[]> previous)
         {
@@ -1839,7 +1878,8 @@ namespace SubtitleStudio
             {
                 Log("תרגום: המנה חזרה כמו המקור (" + LastModelUsed + ") - שוב, בדגם אחר");
                 string e3;
-                string[] again = TranslateOnce(lines, targetLang, context, previous, LastModelUsed, out e3);
+                // בלי ההמשכיות ובלי המילון: נמדד 14.10 - אותה מנה, בלעדיהם, תורגמה בכל שלושת הדגמים הקלים; איתם - ״הד״ פעמיים ברצף
+                string[] again = TranslateOnce(lines, targetLang, null, null, LastModelUsed, out e3);
                 if (again != null && !Echoes(lines, again)) byIndex = again;
             }
             for (int i = 0; i < byIndex.Length; i++)
