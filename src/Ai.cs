@@ -679,6 +679,8 @@ namespace SubtitleStudio
             bool logged = false;
             bool anyTried = false;
             bool onlyMissing = true;          // כל הדגמים שנכשלו לפני ההצלחה פשוט לא קיימים
+            int rejected = 0;                 // דגמים שדחו את הבקשה ב-400 ״invalid argument״
+            int dropped = 0;                  // דגמים שלא ענו בזמן (החיבור נפל או פסק זמן)
             string blocked = null;            // תשובה של ״נחסם בלי סיבה״ - אם גם כל השאר ייכשלו
             foreach (string model in tryModels)
             {
@@ -739,7 +741,19 @@ namespace SubtitleStudio
                 bool busy = LastHttpCode == 503 || LastHttpCode == 500 ||
                             LastHttpCode == 502 || LastHttpCode == 504;
 
-                if (!notFound && !quotaGone && !busy) break;         // שגיאה אמיתית
+                // **דגם אחד דחה בקשה תקינה (0.8.18).** נמדד 14.10: ‏gemini-3.5-flash-lite החזיר ״Request contains an invalid argument״
+                // על תרגום שהוא עצמו קיבל דקה קודם, בלי thinkingConfig - והתרגום כולו נעצר, עם ״בדקו שהמפתח הועתק במלואו״. עד שלושה
+                // דגמים כאלה - הלאה; מפתח שגוי (״API key not valid״) - לא
+                bool reject = LastHttpCode == 400 && err != null && !KeyProblem(err) &&
+                              err.IndexOf("invalid argument", StringComparison.OrdinalIgnoreCase) >= 0 && ++rejected <= 3;
+                if (reject) Log("הדגם " + model + " דחה את הבקשה - מנסים דגם אחר");
+
+                // **דגם שלא ענה בזמן** (0.8.18) - נמדד 14.10: ‏gemini-3.1-flash-lite ענה ״עמוס״, ובניסיון החוזר לא ענה שלוש דקות; התרגום
+                // נכשל ב״אין חיבור לאינטרנט״ כשהדגמים האחרים ענו. אין אינטרנט באמת - הדגם הבא נכשל מיד בחיבור (ConnectFailure), ונעצרים
+                bool drop = LastTransportFail && !StopToken.Here && ++dropped <= 2;
+                if (drop) Log("הדגם " + model + " לא ענה - מנסים דגם אחר");
+
+                if (!notFound && !quotaGone && !busy && !reject && !drop) break;         // שגיאה אמיתית
                 if (!notFound) onlyMissing = false;
                 if (busy) Log("הדגם " + model + " עמוס - מנסים דגם אחר");
                 if (quotaGone)
@@ -1037,6 +1051,7 @@ namespace SubtitleStudio
             // **נגרעת מאותו תקציב**, ותשובה ארוכה נחתכת באמצע משפט.
             cfg["maxOutputTokens"] = jsonOut ? 32768 : 16384;
             if (jsonOut) cfg["responseMimeType"] = "application/json";
+            if (jsonOut && JsonSchema != null) cfg["responseSchema"] = JsonSchema;
             // דגמי 2.5 ״חושבים״ לפני שהם עונים, והחשיבה נגרעת מתקציב הפלט.
             // כשהיא בולעת את כולו חוזר content בלי parts, כלומר תשובה ריקה
             // עם finishReason=STOP. הצ'אט הזה בוחר פונקציה - אין לו מה לחשוב.
@@ -1087,6 +1102,13 @@ namespace SubtitleStudio
                 cfg["thinkingConfig"] = new Dictionary<string, object> { { "thinkingBudget", 0 } };
 
             return Ser().Serialize(body);
+        }
+
+        /// <summary>השגיאה היא על המפתח עצמו (״API key not valid״, ‏API_KEY_INVALID).</summary>
+        internal static bool KeyProblem(string err)
+        {
+            return err != null && (err.IndexOf("API key", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                   err.IndexOf("API_KEY", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         /// <summary>דגמים שדחו ‏thinkingConfig ב-400.
@@ -1306,7 +1328,10 @@ namespace SubtitleStudio
 
             switch (code)
             {
-                case 400: return Lang.F("הבקשה נדחתה. אם זו הפעם הראשונה - בדקו שהמפתח הועתק במלואו. ({0})", inner);
+                // ״בדקו את המפתח״ - רק כשגוגל אומר שזה המפתח. ״invalid argument״ של דגם אחד הוצג כך, והמפתח היה תקין
+                case 400: return KeyProblem(inner) || string.IsNullOrEmpty(inner)
+                    ? Lang.F("הבקשה נדחתה. אם זו הפעם הראשונה - בדקו שהמפתח הועתק במלואו. ({0})", inner)
+                    : Lang.F("גוגל דחה את הבקשה ({0}). נסו שוב בעוד רגע.", inner);
                 case 401:
                 case 403: return Lang.T("המפתח לא תקף או שאין לו הרשאה. הפיקו מפתח חדש בדף של גוגל.");
                 case 404: return Lang.T("404 - הדגם לא נמצא בחשבון הזה.");
@@ -1722,6 +1747,22 @@ namespace SubtitleStudio
             List<string> outp = new List<string>();
             if (lines == null || lines.Count == 0) return outp;
             string[] byIndex = TranslateOnce(lines, targetLang, context, previous, out error);
+            // **תשובה שלא נקראה גם בדגם השני - כל חצי לבד** (0.8.18): תשובה קצרה נשברת פחות, ובחצי השני לפחות יש סיכוי
+            if (byIndex == null && error == FormatError && lines.Count >= 6 && !StopToken.Here)
+            {
+                int half = lines.Count / 2;
+                string e1, e2;
+                string[] p1 = TranslateOnce(lines.GetRange(0, half), targetLang, context, previous, out e1);
+                string[] p2 = StopToken.Here ? null : TranslateOnce(lines.GetRange(half, lines.Count - half), targetLang, context, previous, out e2);
+                if (p1 != null || p2 != null)
+                {
+                    byIndex = new string[lines.Count];
+                    if (p1 != null) Array.Copy(p1, 0, byIndex, 0, half);
+                    if (p2 != null) Array.Copy(p2, 0, byIndex, half, lines.Count - half);
+                    error = null;
+                    Log("תרגום: המנה תורגמה בשני חצאים" + (p1 == null || p2 == null ? " (אחד מהם לא)" : ""));
+                }
+            }
             if (byIndex == null) return null;
             for (int i = 0; i < byIndex.Length; i++)
                 if (byIndex[i] == null && (lines[i] ?? "").Trim().Length == 0) byIndex[i] = lines[i] ?? "";
@@ -1751,6 +1792,20 @@ namespace SubtitleStudio
             if (LastMissing > 0) Log("תרגום: " + LastMissing + " פריטים נשארו בשפת המקור");
             return outp;
         }
+
+        /// <summary>**תבנית התשובה של התרגום** (0.8.18): עם ‏responseSchema גוגל מפענח במגבלה - התשובה היא JSON תקין בצורה הזו, גם
+        /// בדגמים הקלים (בלעדיה ‏gemini-flash-lite-latest כתב ״{"i":19],...״ - ״התרגום חזר בפורמט לא צפוי״).</summary>
+        private static readonly object TranslationSchema = new Dictionary<string, object> {
+            { "type", "ARRAY" },
+            { "items", new Dictionary<string, object> {
+                { "type", "OBJECT" },
+                { "properties", new Dictionary<string, object> {
+                    { "i", new Dictionary<string, object> { { "type", "INTEGER" } } },
+                    { "t", new Dictionary<string, object> { { "type", "STRING" } } } } },
+                { "required", new string[] { "i", "t" } } } } };
+
+        /// <summary>בחוט הזה: תבנית לתשובת JSON (‏responseSchema). רק לבקשה שיודעת את הצורה - התרגום.</summary>
+        [ThreadStatic] private static object JsonSchema;
 
         /// <summary>בקשה אחת: התרגום לפי מספר הפריט, ו-null בפריט שלא חזר. ‏null כולו - כישלון.</summary>
         private static string[] TranslateOnce(List<string> lines, string targetLang, string context, List<string[]> previous, out string error)
@@ -1793,10 +1848,116 @@ namespace SubtitleStudio
             m.Text = payload;
             h.Add(m);
 
-            AiReply r = Send(sys, h, null, true);
+            AiReply r = SendTranslation(sys, h, null);
             if (!r.Ok) { error = r.Error; return null; }
             string[] res = ParseTranslation(r.Text, lines.Count);
-            if (res == null) error = Lang.T("התרגום חזר בפורמט לא צפוי.");
+            // **לא הצליח לקרוא - עוד ניסיון אחד, בדגם הבא** (0.8.18). בנימין: ״התרגום חזר בפורמט לא צפוי״ - והתרגום כולו נכשל
+            if (res == null && !StopToken.Here)
+            {
+                Log("תרגום: תשובה שלא נקראה (" + LastModelUsed + ", " + lines.Count + " פריטים, finish=" + r.Finish + "): " + HeadTail(r.Text));
+                r = SendTranslation(sys, h, LastModelUsed);
+                if (!r.Ok) { error = r.Error; return null; }
+                res = ParseTranslation(r.Text, lines.Count);
+                if (res == null) Log("תרגום: גם השנייה לא נקראה (" + LastModelUsed + ", finish=" + r.Finish + "): " + HeadTail(r.Text));
+            }
+            if (res == null) error = FormatError;
+            return res;
+        }
+
+        private static string FormatError { get { return Lang.T("התרגום חזר בפורמט לא צפוי."); } }
+
+        /// <summary>אחרי כמה זמן בלי תשובה לתרגום - גם הדגם הבא, במקביל. מנה רגילה חוזרת ב-2-10 שניות (נמדד 14.10).</summary>
+        internal static int TranslateHedgeMs = 30000;
+
+        /// <summary>**בקשת תרגום במרוץ (0.8.18):** נמדד 14.10 - דגם שענה ״עמוס״ לא ענה בניסיון החוזר שלוש דקות (פעמיים בסבב אחד),
+        /// והתרגום חיכה. אחרי <see cref="TranslateHedgeMs"/> - אותה בקשה גם לדגם הבא; הראשון שעונה מנצח. עם התבנית (`JsonSchema`).
+        /// ‏<paramref name="startAfter"/> - להתחיל מהדגם שאחריו (ניסיון חוזר אחרי תשובה שלא נקראה).</summary>
+        private static AiReply SendTranslation(string sys, List<AiMsg> h, string startAfter)
+        {
+            string slow = startAfter;
+            AiReply r = Race<AiReply>(2, TranslateHedgeMs, false,
+                delegate (int i)
+                {
+                    JsonSchema = TranslationSchema;
+                    if (i > 0 || startAfter != null) StartAfter = slow;
+                    try { return Send(sys, h, null, true); }
+                    finally { JsonSchema = null; StartAfter = null; }
+                },
+                delegate (AiReply x) { return x.Ok; },
+                delegate (int i)
+                {
+                    slow = Trying;
+                    Log("תרגום: הדגם " + slow + " לא ענה תוך " + (TranslateHedgeMs / 1000) + " שניות - שואלים גם את הבא, במקביל");
+                });
+            if (r == null) { r = new AiReply(); r.Error = StopToken.Here ? Lang.T("נעצר.") : Lang.T("לא התקבלה תשובה מהשרת."); }
+            return r;
+        }
+
+        /// <summary>תחילת התשובה וסופה, ליומן: תשובה שבורה נשברת לרוב בסוף (נקטעה) או בהתחלה (הקדמה).</summary>
+        private static string HeadTail(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return Lang.T("(ריק)");
+            string t = s.Replace("\r", " ").Replace("\n", " ");
+            if (t.Length > 700) t = t.Substring(0, 400) + " ... " + t.Substring(t.Length - 250);
+            return Safe(t) + "  [" + s.Length + " תווים]";
+        }
+
+        private static object TryJson(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            try { return Ser().DeserializeObject(s); }
+            catch { return null; }
+        }
+
+        /// <summary>בלי גדר קוד של מרקדאון (```json ... ```).</summary>
+        private static string Unfence(string s)
+        {
+            Match m = Regex.Match(s ?? "", "^```[a-zA-Z]*\\s*([\\s\\S]*?)\\s*```\\s*$");
+            return m.Success ? m.Groups[1].Value : s;
+        }
+
+        /// <summary>תרגום שחזר כמערך של שורות - שורה מתחת לשורה.</summary>
+        private static string Lines(object v)
+        {
+            System.Collections.IList l = Arr(v);
+            if (l == null) return Convert.ToString(v, CultureInfo.InvariantCulture);
+            List<string> s = new List<string>();
+            foreach (object o in l) s.Add(Convert.ToString(o, CultureInfo.InvariantCulture));
+            return string.Join("\n", s.ToArray());
+        }
+
+        private static object First(Dictionary<string, object> d, params string[] keys)
+        {
+            foreach (string k in keys)
+            {
+                object v;
+                if (d.TryGetValue(k, out v) && v != null) return v;
+            }
+            return null;
+        }
+
+        /// <summary>פריטים מתשובה שאינה JSON תקין: ‏{"i":N,"t":"...״}. **נמדד 14.10:** ‏gemini-flash-lite-latest כותב ״{"i":19],"t":...״ -
+        /// סוגר מיותר אחרי המספר, בעשר שורות מתוך חמישים; לכן אחרי המספר מותר זבל קצר. הערך נגמר ב-״"}״ הראשון שאחריו פסיק או
+        /// סוף המערך (סוף פריט ב-JSON), כך שמרכאה לא מוברחת בתוכו (״מנכ"ל״) לא שוברת אותו, ופריט פגום לא ״נבלע״ בקודם.
+        /// פריט שנקטע (בלי סוגר) - לא נכנס.</summary>
+        internal static List<KeyValuePair<int, string>> LenientItems(string txt)
+        {
+            List<KeyValuePair<int, string>> res = new List<KeyValuePair<int, string>>();
+            MatchCollection ms = Regex.Matches(txt ?? "", "\\{\\s*\"(?:i|id|index|n)\"\\s*:\\s*\"?(\\d+)\"?[^,\"{}]{0,3},\\s*\"(?:t|text|translation)\"\\s*:\\s*\"");
+            for (int k = 0; k < ms.Count; k++)
+            {
+                int start = ms[k].Index + ms[k].Length;
+                int limit = k + 1 < ms.Count ? ms[k + 1].Index : txt.Length;
+                string seg = txt.Substring(start, limit - start);
+                Match end = Regex.Match(seg, "\"\\s*\\}\\s*(?:,|\\]|$)");
+                if (!end.Success) continue;
+                string val = seg.Substring(0, end.Index);
+                val = Regex.Replace(val, "\\\\u([0-9a-fA-F]{4})", delegate (Match m) { return ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString(); });
+                val = val.Replace("\\n", "\n").Replace("\\r", "").Replace("\\t", " ").Replace("\\\"", "\"").Replace("\\/", "/").Replace("\\\\", "\\");
+                int idx;
+                if (int.TryParse(ms[k].Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out idx))
+                    res.Add(new KeyValuePair<int, string>(idx, val));
+            }
             return res;
         }
 
@@ -1808,26 +1969,61 @@ namespace SubtitleStudio
         {
             try
             {
-                string txt = (reply ?? "").Trim();
+                string full = (reply ?? "").Trim();
+                string txt = full;
                 int a = txt.IndexOf('[');
                 int b = txt.LastIndexOf(']');
                 if (a >= 0 && b > a) txt = txt.Substring(a, b - a + 1);
-                System.Collections.IList arr = Arr(Ser().DeserializeObject(txt));
-                if (arr == null) return null;
                 List<KeyValuePair<int, string>> got = new List<KeyValuePair<int, string>>();
-                bool zero = false, last = false;
-                foreach (object o in arr)
+                // **כל צורה שהדגם בוחר** (0.8.18): מערך, או עטוף באובייקט (״{"translations":[...]}״), או אובייקט של מספר ← תרגום;
+                // ‏״id״/״text״ במקום ״i״/״t״; מערך של מחרוזות בלבד, באורך הנכון; שורות כמערך
+                object root = TryJson(Unfence(full));
+                if (root == null && txt != full) root = TryJson(txt);
+                System.Collections.IList arr = Arr(root);
+                Dictionary<string, object> obj = root as Dictionary<string, object>;
+                if (arr == null && obj != null)
                 {
-                    Dictionary<string, object> d = o as Dictionary<string, object>;
-                    if (d == null) continue;
-                    object iv, tv;
-                    if (!d.TryGetValue("i", out iv) || !d.TryGetValue("t", out tv) || tv == null) continue;
-                    int idx;
-                    if (!int.TryParse(Convert.ToString(iv, CultureInfo.InvariantCulture), out idx)) continue;
-                    if (idx == 0) zero = true;
-                    if (idx == count) last = true;
-                    got.Add(new KeyValuePair<int, string>(idx, Convert.ToString(tv, CultureInfo.InvariantCulture)));
+                    foreach (KeyValuePair<string, object> kv in obj)
+                        if (Arr(kv.Value) != null) { arr = Arr(kv.Value); break; }
+                    if (arr == null)
+                        foreach (KeyValuePair<string, object> kv in obj)
+                        {
+                            int k;
+                            if (int.TryParse(kv.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out k) && kv.Value is string)
+                                got.Add(new KeyValuePair<int, string>(k, (string)kv.Value));
+                        }
                 }
+                if (arr != null)
+                {
+                    foreach (object o in arr)
+                    {
+                        Dictionary<string, object> d = o as Dictionary<string, object>;
+                        if (d == null) continue;
+                        object iv = First(d, "i", "id", "index", "n"), tv = First(d, "t", "text", "translation");
+                        if (iv == null || tv == null) continue;
+                        int idx;
+                        if (!int.TryParse(Convert.ToString(iv, CultureInfo.InvariantCulture), out idx)) continue;
+                        got.Add(new KeyValuePair<int, string>(idx, Lines(tv)));
+                    }
+                    // מחרוזות בלבד: לפי המקום - רק כשהאורך בדיוק נכון (אחרת אין לדעת מה דולג)
+                    if (got.Count == 0 && arr.Count == count)
+                    {
+                        bool all = true;
+                        foreach (object o in arr) if (!(o is string)) { all = false; break; }
+                        if (all) for (int k = 0; k < count; k++) got.Add(new KeyValuePair<int, string>(k, (string)arr[k]));
+                    }
+                }
+                // **JSON שבור** - פריט אחרי פריט, לפי הצורה. נמדד 14.10 בדגמים הקלים: ״{"i":19],"t":...״ (עשרה פריטים מחמישים, זה מה
+                // שהיה ״התרגום חזר בפורמט לא צפוי״); וגם מרכאה לא מוברחת (״מנכ"ל״), ותשובה שנקטעה באמצע
+                if (got.Count == 0)
+                {
+                    got = LenientItems(a >= 0 ? full.Substring(a) : full);
+                    if (got.Count > 0) Log("תרגום: התשובה לא JSON תקין - נקראו " + got.Count + " פריטים אחד-אחד");
+                }
+                else if (Arr(root) == null) Log("תרגום: התשובה בצורה אחרת (לא מערך) - נקראו " + got.Count + " פריטים");
+                if (got.Count == 0) return null;
+                bool zero = false, last = false;
+                foreach (KeyValuePair<int, string> p in got) { if (p.Key == 0) zero = true; if (p.Key == count) last = true; }
                 int shift = !zero && last ? 1 : 0;
                 string[] byIndex = new string[count];
                 foreach (KeyValuePair<int, string> p in got)

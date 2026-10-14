@@ -334,6 +334,9 @@ namespace SubtitleStudio
         public string Error;
         /// <summary>כמה כתוביות נשארו בשפת המקור - המודל דילג עליהן גם בניסיון החוזר.</summary>
         public int Untranslated;
+        /// <summary>**התרגום נעצר באמצע** (0.8.18): כמה תורגמו לפני המנה שנכשלה; ‏-1 - לא נעצר. ‏Translated מלא - השאר בשפת המקור,
+        /// ו-Error אומר למה. עד כאן מנה אחת שנכשלה זרקה את כל מה שכבר תורגם.</summary>
+        public int StoppedAt = -1;
 
         private const int BatchSize = 40;
 
@@ -385,7 +388,15 @@ namespace SubtitleStudio
                     {
                         // ביטול: הבקשה נקטעה, וזו לא שגיאה להציג
                         if (!_cancel) Error = err;
-                        try { BeginInvoke((MethodInvoker)delegate { Ok = false; Close(); }); }
+                        bool partial = !_cancel && all.Count > 0;
+                        if (partial)
+                        {
+                            StoppedAt = all.Count;
+                            for (int j = all.Count; j < _cues.Count; j++) all.Add(_cues[j].Text);
+                            Translated = all;
+                            Ai.Log("תרגום: נעצר אחרי " + StoppedAt + " מתוך " + _cues.Count + " - " + err);
+                        }
+                        try { BeginInvoke((MethodInvoker)delegate { Ok = partial; Close(); }); }
                         catch { }
                         return;
                     }

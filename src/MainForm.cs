@@ -1098,7 +1098,7 @@ namespace SubtitleStudio
                 _hintLbl.Text = Lang.F("הכתוביות תורגמו ל{0}. לביטול - Ctrl+Z.", d.Target);
                 _hintLbl.Flash();
                 UpdateHint();
-                TellUntranslated(run.Untranslated);
+                if (!TellStopped(run, cues)) TellUntranslated(run.Untranslated);
             }
             else
             {
@@ -1132,10 +1132,34 @@ namespace SubtitleStudio
                         _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
                     _hintLbl.Text = Lang.F("נשמר: {0}", Theme.FileName(System.IO.Path.GetFileName(sd.FileName)));
                     _hintLbl.Flash();
-                    TellUntranslated(run.Untranslated);
+                    if (!TellStopped(run, null)) TellUntranslated(run.Untranslated);
                 }
                 catch (Exception ex) { Ui.Error(this, Lang.T("לא נשמר"), ErrorText.Of(ex)); }
             }
+        }
+
+        /// <summary>תרגום שנעצר באמצע: מה תורגם, למה נעצר, ואיך ממשיכים. ‏<paramref name="cues"/> - כשהתרגום נכנס למסמך: הנגן
+        /// קופץ לכתובית הראשונה שלא תורגמה.</summary>
+        private bool TellStopped(AiRunDlg run, List<Cue> cues)
+        {
+            int stopped = run.StoppedAt;
+            if (stopped < 0) return false;
+            int total = run.Translated.Count;
+            if (cues != null && stopped < cues.Count && _doc.Cues.Contains(cues[stopped]))
+            {
+                Cue c = cues[stopped];
+                _doc.SelectNone();
+                c.Selected = true;
+                LoadEditor();
+                _list.ScrollToCue(c);
+                _list.Invalidate();
+                Seek(c.Start);
+            }
+            Notice(Lang.T("התרגום נעצר באמצע"),
+                Lang.F("תורגמו {0} מתוך {1} כתוביות, והשאר נשאר בשפת המקור.", Theme.Ltr(stopped.ToString(CultureInfo.InvariantCulture)),
+                    Theme.Ltr(total.ToString(CultureInfo.InvariantCulture))) + "\n" + run.Error + "\n" +
+                (cues != null ? Lang.T("כדי להמשיך: לסמן על הציר את הקטע שלא תורגם, ולתרגם שוב רק אותו.") : ""));
+            return true;
         }
 
         /// <summary>כתוביות שהמודל דילג עליהן נשארות בשפת המקור - וזה חייב להיאמר, אחרת שורה באנגלית

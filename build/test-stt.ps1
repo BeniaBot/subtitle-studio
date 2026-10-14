@@ -441,6 +441,65 @@ $t1 = $ptr.Invoke($null, (Pack '[{"i":1,"t":"אחת"},{"i":2,"t":"שתיים"}]'
 $tm = $ptr.Invoke($null, (Pack 'הנה: [{"i":0,"t":"אחת"}]' ([int]2)))
 Check 'תרגום: מספור מ-0 כרגיל, ומספור מ-1 מתוקן' (($t0[0] -eq 'אחת') -and ($t0[1] -eq 'שתיים') -and ($t1[0] -eq 'אחת') -and ($t1[1] -eq 'שתיים')) (($t1 -join ',') + ' / ' + ($t0 -join ','))
 Check 'תרגום: פריט שחסר - מסומן כחסר (ולא מקבל את המקור בשקט)' (($tm[0] -eq 'אחת') -and ($null -eq $tm[1])) ''
+# **כל צורה שהדגם בוחר** (0.8.18) - בנימין: ״התרגום חזר בפורמט לא צפוי״, והתרגום כולו נכשל
+$q = [char]34
+$tw = $ptr.Invoke($null, (Pack '{"translations":[{"id":0,"text":"אחת"},{"id":1,"text":"שתיים"}]}' ([int]2)))
+Check 'תרגום: מערך עטוף באובייקט, ו-id/text במקום i/t' (($tw[0] -eq 'אחת') -and ($tw[1] -eq 'שתיים')) ($tw -join ',')
+$tf = $ptr.Invoke($null, (Pack ("``````json`n" + '[{"i":0,"t":"אחת"},{"i":1,"t":"שתיים"}]' + "`n``````") ([int]2)))
+Check 'תרגום: בתוך גדר קוד' (($tf[0] -eq 'אחת') -and ($tf[1] -eq 'שתיים')) ($tf -join ',')
+$tg = $ptr.Invoke($null, (Pack ('[{"i":0,"t":"מנכ' + $q + 'ל החברה"},{"i":1,"t":"צה' + $q + 'ל, ארה' + $q + 'ב"}]') ([int]2)))
+Check 'תרגום: גרשיים לא מוברחים בראשי תיבות (JSON שבור) - נקרא' (($tg[0] -eq ('מנכ' + $q + 'ל החברה')) -and ($tg[1] -eq ('צה' + $q + 'ל, ארה' + $q + 'ב'))) ($tg -join ' | ')
+$tc = $ptr.Invoke($null, (Pack '[{"i":0,"t":"אחת"},{"i":1,"t":"שתיים"},{"i":2,"t":"של' ([int]3)))
+# נמדד 14.10: הדגם הקל כתב ״{"i":19],"t":...״ בעשר שורות מחמישים - והפריט הפגום ״נבלע״ בזה שלפניו
+$tb = $ptr.Invoke($null, (Pack '[{"i":0,"t":"אחת"},{"i":1],"t":"שתיים"},{"i":2,"t":"שלוש"}]' ([int]3)))
+Check 'תרגום: סוגר מיותר אחרי המספר - כל פריט נקרא לבד, ושום פריט לא נבלע בקודם' (($tb[0] -eq 'אחת') -and ($tb[1] -eq 'שתיים') -and ($tb[2] -eq 'שלוש')) ($tb -join ' | ')
+Check 'תרגום: תשובה שנקטעה באמצע - מה שהגיע נשמר, השאר חסר' (($tc[0] -eq 'אחת') -and ($tc[1] -eq 'שתיים') -and ($null -eq $tc[2])) ($tc -join ',')
+$ts = $ptr.Invoke($null, (Pack '["אחת","שתיים"]' ([int]2)))
+$ts3 = $ptr.Invoke($null, (Pack '["אחת","שתיים"]' ([int]3)))
+Check 'תרגום: מערך של מחרוזות - לפי המקום, רק באורך הנכון' (($ts[0] -eq 'אחת') -and ($ts[1] -eq 'שתיים') -and ($null -eq $ts3)) (($ts -join ',') + ' / ' + $ts3)
+$tl = $ptr.Invoke($null, (Pack '[{"i":0,"t":["שורה","שנייה"]}]' ([int]1)))
+$to = $ptr.Invoke($null, (Pack '{"0":"אחת","1":"שתיים"}' ([int]2)))
+Check 'תרגום: שורות כמערך, ואובייקט של מספר ← תרגום' (($tl[0] -eq "שורה`nשנייה") -and ($to[0] -eq 'אחת') -and ($to[1] -eq 'שתיים')) (($tl -join ',') + ' / ' + ($to -join ','))
+
+# ניסיון חוזר מול שרת מדומה: תשובה שלא נקראת - עוד ניסיון בדגם הבא; גם הוא לא - כל חצי לבד
+function GemText($s) { return '{"candidates":[{"content":{"parts":[{"text":' + (New-Object Web.Script.Serialization.JavaScriptSerializer).Serialize($s) + '}]},"finishReason":"STOP"}]}' }
+Add-Type -AssemblyName System.Web.Extensions
+$aiT = T 'Ai'
+$oldRoot = $aiT.GetField('EndpointRoot', $SF).GetValue($null); $oldKey = $aiT.GetField('Key', $SF).GetValue($null)
+$aiT.GetField('Key', $SF).SetValue($null, 'test-key')
+$trM = $aiT.GetMethods($SF) | Where-Object { $_.Name -eq 'Translate' -and $_.GetParameters().Count -eq 4 }
+function TrRun($items) {
+    $lt = [Collections.Generic.List[string]]::new(); foreach ($x in $items) { $lt.Add($x) }
+    $a = New-Object object[] 4; $a[0] = $lt; $a[1] = 'עברית'; $a[2] = ''; $a[3] = $null
+    $r = $trM.Invoke($null, $a)
+    return @{ Res = $r; Err = $a[3] }
+}
+$s = StartServer @((Resp 200 (GemText 'Sorry, here is the translation: one, two') $null), (Resp 200 (GemText '[{"i":0,"t":"אחת"},{"i":1,"t":"שתיים"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r1 = TrRun @('one', 'two')
+StopServer $s
+$n1 = @(Get-ChildItem $s.Dir -Filter 'req-*.bin').Count
+Check 'תרגום: תשובה שלא נקראה - ניסיון שני, והתרגום עובר' (($r1.Res -ne $null) -and ($r1.Res[0] -eq 'אחת') -and ($r1.Res[1] -eq 'שתיים') -and $n1 -eq 2) ("req=$n1 err=" + $r1.Err + ' res=' + ($r1.Res -join ','))
+$bad = GemText 'not json'
+$s = StartServer @((Resp 200 $bad $null), (Resp 200 $bad $null), (Resp 200 (GemText '[{"i":0,"t":"א"},{"i":1,"t":"ב"},{"i":2,"t":"ג"}]') $null), (Resp 200 (GemText '[{"i":0,"t":"ד"},{"i":1,"t":"ה"},{"i":2,"t":"ו"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r2 = TrRun @('a', 'b', 'c', 'd', 'e', 'f')
+StopServer $s
+Check 'תרגום: גם השני לא נקרא - כל חצי לבד, והמנה מתורגמת' (($r2.Res -ne $null) -and (($r2.Res -join '') -eq 'אבגדהו')) ("err=" + $r2.Err + ' res=' + ($r2.Res -join ','))
+# דגם שדחה בקשה תקינה (״invalid argument״, נמדד 14.10 ב-gemini-3.5-flash-lite) - הדגם הבא, ולא ״בדקו את המפתח״
+$inv = '{"error":{"code":400,"message":"Request contains an invalid argument.","status":"INVALID_ARGUMENT"}}'
+$s = StartServer @((Resp 400 $inv $null), (Resp 400 $inv $null), (Resp 200 (GemText '[{"i":0,"t":"אחת"}]') $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r3 = TrRun @('one')
+StopServer $s
+Check 'תרגום: דגם שדחה בקשה תקינה (400) - עוברים לדגם הבא' (($r3.Res -ne $null) -and ($r3.Res[0] -eq 'אחת')) ("err=" + $r3.Err)
+$badKey = '{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}'
+$s = StartServer @((Resp 400 $badKey $null))
+$aiT.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/")
+$r4 = TrRun @('one')
+StopServer $s
+$n4 = @(Get-ChildItem $s.Dir -Filter 'req-*.bin').Count
+Check 'תרגום: מפתח שגוי - נעצרים מיד, ואומרים שזה המפתח' (($null -eq $r4.Res) -and $n4 -eq 1 -and ($r4.Err -match 'המפתח')) ("req=$n4 err=" + $r4.Err)$aiT.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot); $aiT.GetField('Key', $SF).SetValue($null, $oldKey)
 # גוגל חוסם לפעמים בלי נימוק (OTHER) - דגם אחר עובר (0.8.6). עד אז דקה שלמה נשארה בלי כתוביות
 $bo = (T 'Ai').GetMethod('BlockedOther', $SF)
 $b1 = $bo.Invoke($null, @([string]'{"promptFeedback":{"blockReason":"OTHER"}}'))

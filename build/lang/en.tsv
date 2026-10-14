@@ -1690,3 +1690,11 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
 הערוץ הזה מכיל תמונות ולא טקסט (PGS/VobSub). העוזר יכול לקרוא אותן ולהפוך אותן לכתוביות רגילות - רצועות מהתמונה נשלחות לגוגל.	This track holds pictures, not text (PGS/VobSub). The assistant can read them and turn them into regular subtitles - strips of the picture are sent to Google.
 לקרוא בעזרת העוזר	Read with the assistant
 תקרא את ערוץ הכתוביות שעשוי מתמונות (ערוץ {0} בקובץ) ותהפוך אותו לכתוביות	Read the picture subtitle track (track {0} in the file) and turn it into subtitles
+מסתכל על {0} תמונות מכל הסרט	Looking at {0} pictures from the whole video
+צופה בסרט, ב-{0} חלקים	Watching the video, in {0} parts
+צופה בחלק {0} מתוך {1}	Watching part {0} of {1}
+התרגום נעצר באמצע	The translation stopped midway
+תורגמו {0} מתוך {1} כתוביות, והשאר נשאר בשפת המקור.	Translated {0} of {1} subtitles; the rest stayed in the original language.
+כדי להמשיך: לסמן על הציר את הקטע שלא תורגם, ולתרגם שוב רק אותו.	To continue: mark the untranslated part on the timeline and translate just that part again.
+תורגמו {0} מתוך {1} כתוביות - התרגום נעצר באמצע	Translated {0} of {1} subtitles - the translation stopped midway
+גוגל דחה את הבקשה ({0}). נסו שוב בעוד רגע.	Google rejected the request ({0}). Try again in a moment.
