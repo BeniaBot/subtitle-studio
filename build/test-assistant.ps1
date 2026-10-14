@@ -296,6 +296,13 @@ Check 'וסרט של ארבע שעות - שש בקשות, עד שלוש שעות
 $hf = $aw.GetMethod('HedgeFor', $ST)
 $h12 = $hf.Invoke($null, @([int64]0, [int64]720000)); $h30 = $hf.Invoke($null, @([int64]0, [int64]1800000)); $h0 = $hf.Invoke($null, @([int64]0, [int64]0))
 Check 'צפייה במרוץ: הדגם הבא נכנס לפי אורך הקטע (12 דקות - 37 שניות, חצי שעה - 55, לא ידוע - 60)' ($h12 -eq 37000 -and $h30 -eq 55000 -and $h0 -eq 60000) "$h12 $h30 $h0"
+# תקציר וידאו (0.8.19): הקטעים שגוגל בחר - בגבולות הסרט, לפי הזמן, קטעים נוגעים מתאחדים, קצרצרים נזרקים
+$hpT = $asm.GetType('SubtitleStudio.AiHighlights+Part')
+function HP($a, $b, $w) { $x = [Activator]::CreateInstance($hpT); $hpT.GetField('A').SetValue($x, [int64]$a); $hpT.GetField('B').SetValue($x, [int64]$b); $hpT.GetField('Why').SetValue($x, [string]$w); return $x }
+$hl = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($hpT))
+foreach ($x in @((HP 60000 80000 'שני'), (HP 0 10000 'ראשון'), (HP 79500 95000 'המשך'), (HP 200000 201000 'קצרצר'), (HP 590000 700000 'סוף'))) { $hl.Add($x) }
+$hc = @((TY 'AiHighlights').GetMethod('Clean', $ST).Invoke($null, (Pack $hl.psobject.BaseObject ([int64]600000))))
+Check 'תקציר: הקטעים מסודרים, נוגעים מתאחדים, קצרצר נזרק, והסוף בגבול הסרט' ($hc.Count -eq 3 -and $hc[0].A -eq 0 -and $hc[1].A -eq 60000 -and $hc[1].B -eq 95000 -and $hc[2].B -eq 600000) (($hc | ForEach-Object { '' + $_.A + '-' + $_.B }) -join ', ')
 $stems = (TY 'MainForm').GetMethod('SearchStems', $ST)
 $st1 = @($stems.Invoke($null, @([string]'ובבית הספר, משה!')))
 Check 'מילים לחיפוש: בלי אותיות שימוש ופיסוק, ״משה״ נשאר ״משה״' (($st1 -join ',') -eq 'בית,ספר,משה') ($st1 -join ',')

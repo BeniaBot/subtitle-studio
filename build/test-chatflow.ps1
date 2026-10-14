@@ -402,6 +402,15 @@ Say 'איפה מדברים על חרקים?' 40
 $sem = Req $srv 1; $back = Req $srv 2
 Check 'חיפוש לפי משמעות: כל הכתוביות נשלחות (מספר|טקסט) עם תבנית תשובה' ($sem.Contains('2|הדבורים עפות בין הפרחים') -and $sem.Contains('3|תודה רבה') -and $sem.Contains('responseSchema')) (ReqLine $srv 1)
 Check 'והתוצאה לעוזר: הכתובית שנמצאה, למה, והנגן קפץ אליה - מספר שהדגם המציא (9) נזרק' ($back.Contains('jumped_to') -and $back.Contains('דבורים הן חרקים') -and -not $back.Contains('מומצא') -and (TY 'Cue').GetField('Selected').GetValue((Cues)[1]) -eq $true) ''
+# ---------- 15ג. תקציר וידאו (0.8.19): קטעים מהכתוביות, ומחרוזת מוכנה ל-trim_video ----------
+$srv = StartServer @(
+    (Reply (Call 'plan_highlights' '{"minutes":1}' $null)),
+    (Reply (Txt '[{\"from\":5.5,\"to\":8,\"why\":\"תודה\"},{\"from\":1,\"to\":3.5,\"why\":\"השקיה ודבורים\"}]')),
+    (Reply (Txt 'הקטעים נבחרו.')))
+Say 'תכין תקציר של דקה' 40
+$hreq = Req $srv 1; $hback = Req $srv 2
+Check 'תקציר: הכתוביות נשלחות עם הזמנים (התחלה|סוף|טקסט) ותבנית תשובה' ($hreq.Contains('3|5|הדבורים עפות בין הפרחים') -and $hreq.Contains('responseSchema')) ''
+Check 'והתוצאה לעוזר: sections לפי הזמן, מוכן ל-trim_video' ($hback.Contains('00:01.0-00:03.5 keep; 00:05.5-00:08.0 keep') -and $hback.Contains('trim_video')) ''
 (Cues).Clear(); foreach ($c in $saved) { (Cues).Add($c) }
 # ---------- 16. טקסט מהתמונה: פריים ברזולוציה מלאה, והטקסט חוזר לעוזר ----------
 $srv = StartServer @(

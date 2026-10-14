@@ -127,6 +127,12 @@ namespace SubtitleStudio
                 "ואם אין - **לפי המשמעות** (״חרקים״ מוצא ״דבורים״) - אין צורך לנסות מילים נרדפות בעצמך. " +
                 "**בסרט בלי כתוביות - צופה בכל הסרט ושומע** (כמו watch_video), אז אין צורך לתמלל קודם")
                 .Req("query", "string", "מה לחפש - מילה, כמה מילים או משפט"));
+            // **תקציר וידאו (0.8.19)** - העוזר מנה נושאים וכתב ״אני יכול לחתוך אם תרצה״ במקום לבחור ולחתוך
+            t.Add(new AiTool("plan_highlights", "**תקציר וידאו** (״תכין תקציר של 3 דקות״, ״סרטון קצר עם הדברים החשובים״, ״רק הקטעים על...״): " +
+                "בוחר קטעים רצופים (8-60 שניות) שסך כולם כמה דקות שביקשו - החשובים ביותר, או רק מה שקשור לנושא. מהכתוביות כשיש (מהיר), " +
+                "ובלי כתוביות - צופה בסרט. מחזיר sections מוכן: **אחריו trim_video עם אותו sections, ואז main עד הסוף**")
+                .P("minutes", "number", "כמה דקות בסך הכול. ברירת מחדל 2")
+                .P("focus", "string", "רק על מה (״הקטעים על דבורים״). בלי - החשובים ביותר מכל הסרט"));
             t.Add(new AiTool("list_cues", "מחזיר כתוביות עם המספר, הזמנים והטקסט")
                 .P("from_index", "integer", "מאיזו כתובית להתחיל, מ-1. ברירת מחדל 1")
                 .P("count", "integer", "כמה להחזיר. ברירת מחדל 40, מקסימום 200"));
@@ -402,6 +408,7 @@ namespace SubtitleStudio
                     case "get_state": return AiState();
                     case "list_cues": return AiListCues(call);
                     case "find_text": return AiFindText(call);
+                    case "plan_highlights": return AiPlanHighlights(call, out refused);
                     case "edit_cue": return AiEditCue(call);
                     case "add_cue": return AiAddCue(call);
                     case "delete_cues": return AiDeleteCues(call, out refused);
@@ -1054,6 +1061,63 @@ namespace SubtitleStudio
                 w["jumped_to"] = found[0].Key;
                 w["_apply"] = (MethodInvoker)delegate { if (_doc.Cues.Contains(jump)) AiJumpTo(jump); };
                 w["how_to_use"] = "נמצא לפי המשמעות. הנגן קופץ לכתובית " + found[0].Key + ". ענה עם הזמנים; כתובית אחרת מתאימה יותר - select_cue";
+                return w;
+            };
+            return r;
+        }
+
+        /// <summary>תקציר וידאו: הקטעים לתקציר, ומחרוזת sections מוכנה ל-trim_video. מהכתוביות כשיש שלוש עם זמנים לפחות; אחרת - צפייה
+        /// (בשער של ״שליחה החוצה״, כמו watch_video).</summary>
+        private Dictionary<string, object> AiPlanHighlights(AiCall c, out bool refused)
+        {
+            refused = false;
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            double minutes = c.Num("minutes", 2);
+            if (minutes <= 0) minutes = 2;
+            if (minutes > 30) minutes = 30;
+            string focus = c.Str("focus", "").Trim();
+            List<Cue> cues = new List<Cue>();
+            foreach (Cue q in _doc.Cues) if (!q.Untimed) cues.Add(q.Clone());
+            bool fromCues = cues.Count >= 3;
+            if (!fromCues)
+            {
+                AiCall w0 = new AiCall();
+                w0.Name = "watch_video";
+                w0.Args = new Dictionary<string, object>();
+                string why = AiGate(AiPerms.CategoryOf("watch_video"), AiDescribe(w0), false, out refused);
+                if (why != null) { if (refused) r["cancelled"] = true; else r["error"] = why; return r; }
+            }
+            string path = _mi.Path; long dur = _mi.DurationMs; bool video = _mi.HasVideo; int sh = _mi.Height;
+            string mins = minutes.ToString("0.#", CultureInfo.InvariantCulture);
+            r["done"] = fromCues ? Lang.F("בוחר קטעים לתקציר של {0} דקות, מהכתוביות", mins) : Lang.F("צופה בסרט ובוחר קטעים לתקציר של {0} דקות", mins);
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                string err;
+                AiWatch.DurationHintMs = dur;
+                List<AiHighlights.Part> parts = fromCues ? AiHighlights.FromCues(cues, minutes, focus, out err)
+                                                         : AiHighlights.FromVideo(path, dur, video, sh, minutes, focus, out err);
+                parts = AiHighlights.Clean(parts, dur);
+                if (parts.Count == 0) { w["error"] = "לא נבחרו קטעים" + (err != null ? ": " + err : ""); return w; }
+                List<string> sec = new List<string>();
+                List<object> list = new List<object>();
+                long total = 0;
+                foreach (AiHighlights.Part p in parts)
+                {
+                    sec.Add(Tc.Short(p.A) + "-" + Tc.Short(p.B) + " keep");
+                    total += p.B - p.A;
+                    Dictionary<string, object> d = new Dictionary<string, object>();
+                    d["from"] = Tc.Short(p.A); d["to"] = Tc.Short(p.B);
+                    if (p.Why.Length > 0) d["what"] = p.Why;
+                    list.Add(d);
+                }
+                w["sections"] = string.Join("; ", sec.ToArray());
+                w["parts"] = list.ToArray();
+                w["total"] = Tc.Short(total);
+                w["from"] = fromCues ? "הכתוביות" : "צפייה בסרט";
+                w["how_to_use"] = "עכשיו trim_video עם sections בדיוק כמו כאן, ואז ui_click main כשמותר - הקובץ נשמר ליד הסרט. " +
+                                  "למשתמש - בקצרה מה נכנס (שורה לכל קטע) ואורך כולל. אל תשאל ״אם תרצה״ - הוא ביקש";
                 return w;
             };
             return r;
