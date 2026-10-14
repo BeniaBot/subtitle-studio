@@ -684,7 +684,24 @@ $ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl 'עברית' ''))
 Check 'תרגום: ‏× עוצר את העבודה ברקע' ($ai.GetType().GetField('_cancel', $IF).GetValue($ai) -eq $true) ''
 Check 'תרגום: ‏× קוטע גם את הבקשה שבדרך (StopToken)' ($ai.GetType().GetField('_stop', $IF).GetValue($ai).Stopped -eq $true) ''
 $ai.Dispose()
-# חלון התמלול (0.8.5): ״המפתח שכבר יש לכם״ רק למי שיש; והרקע מהתמלול הקודם של אותו סרט כבר בשדה
+# **תרגום שנעצר באמצע שומר את מה שתורגם** (0.8.18): המנה השנייה נכשלת - 40 הראשונות מתורגמות, השאר במקור, ונאמר למה. עד כאן הכול נזרק
+$cueT = T 'Cue'; $tl50 = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))
+for ($q = 0; $q -lt 50; $q++) { $tl50.Add([Activator]::CreateInstance($cueT, (Pack ([long]($q * 2000)) ([long]($q * 2000 + 1500)) ('line ' + $q)))) }
+$j40 = '[' + ((0..39 | ForEach-Object { '{"i":' + $_ + ',"t":"שורה ' + $_ + '"}' }) -join ',') + ']'
+$s = StartServer @((Resp 200 (GemText $j40) $null), (Resp 400 '{"error":{"code":400,"message":"Bad request","status":"FAILED_PRECONDITION"}}' $null))
+$aiT2 = T 'Ai'; $oldRoot2 = $aiT2.GetField('EndpointRoot', $SF).GetValue($null); $oldKey2 = $aiT2.GetField('Key', $SF).GetValue($null)
+$aiT2.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/"); $aiT2.GetField('Key', $SF).SetValue($null, 'test-key')
+$ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl50 'עברית' ''))
+[void]$ai.Handle
+$ai.GetType().GetMethod('Start', $IF).Invoke($ai, @())
+$sw = [Diagnostics.Stopwatch]::StartNew()
+while ($sw.Elapsed.TotalSeconds -lt 40 -and $ai.GetType().GetField('Translated').GetValue($ai) -eq $null -and $ai.GetType().GetField('StoppedAt').GetValue($ai) -lt 0 -and [string]::IsNullOrEmpty($ai.GetType().GetField('Error').GetValue($ai))) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 }
+for ($q = 0; $q -lt 10; $q++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 30 }
+StopServer $s
+$aiT2.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot2); $aiT2.GetField('Key', $SF).SetValue($null, $oldKey2)
+$trd = $ai.GetType().GetField('Translated').GetValue($ai); $sat = $ai.GetType().GetField('StoppedAt').GetValue($ai); $er = $ai.GetType().GetField('Error').GetValue($ai)
+Check 'תרגום שנעצר באמצע: 40 מתורגמות נשמרות, 10 נשארות במקור, ונאמר איפה ולמה' ($sat -eq 40 -and $trd -ne $null -and $trd.Count -eq 50 -and $trd[39] -eq 'שורה 39' -and $trd[40] -eq 'line 40' -and ('' + $er).Contains('Bad request')) ("stoppedAt=$sat count=" + $(if ($trd) { $trd.Count }) + " err=$er")
+$ai.Dispose()# חלון התמלול (0.8.5): ״המפתח שכבר יש לכם״ רק למי שיש; והרקע מהתמלול הקודם של אותו סרט כבר בשדה
 $mi0 = [Activator]::CreateInstance((T 'MediaInfo')); $mi0.DurationSec = 60
 (T 'Ai').GetField('Key', $SF).SetValue($null, '')
 $td = [Activator]::CreateInstance((T 'TranscribeDlg'), (Pack $mi0 ([int]0) 'שיעור של הרב כהן'))
