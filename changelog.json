@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.25",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "major",
+          "s": "תזמון אוטומטי של טקסט לפי הדיבור - מדויק בהרבה: כמעט כל משפט נופל במקומו גם כשהדובר מאט או ממהר, וגם בסרטון עם מוזיקת רקע",
+          "en": "Automatic timing of text by the speech - far more accurate: almost every sentence lands in place even when the speaker slows down or speeds up, and also in a video with background music"
+        },
+        {
+          "t": "fix",
+          "s": "אחרי תזמון אוטומטי, כתובית שהדיבור שלה מהיר נשארת עוד קצת על המסך - כדי שיספיקו לקרוא",
+          "en": "After automatic timing, a subtitle whose speech is fast stays a little longer on screen - so there is time to read it"
+        }
+      ]
+    },
+    {
       "v": "0.8.24",
       "date": "2026-10-20",
       "items": [

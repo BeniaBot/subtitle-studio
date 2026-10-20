@@ -17,7 +17,7 @@ namespace SubtitleStudio
     internal static class App
     {
         /// <summary>גרסת התוכנה. חייבת להיות זהה לתגית ה-Release בגיטהאב (בלי v).</summary>
-        public const string Version = "0.8.24";
+        public const string Version = "0.8.25";
         public const string Repo = "BeniaBot/subtitle-studio";
         public const string HomePage = "https://github.com/" + Repo;
 
