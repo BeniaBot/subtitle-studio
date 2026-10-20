@@ -109,7 +109,14 @@ namespace SubtitleStudio
             List<Cue> t = Target();
             string dir = ms == 0 ? "" : (ms > 0 ? Lang.T("מאוחר יותר") : Lang.T("מוקדם יותר"));
             string s = Lang.F("{0} כתוביות יזוזו {1} {2}.", t.Count, Tc.Short(Math.Abs(ms)), dir);
-            if (t.Count > 0)
+            // **לפני תחילת הסרט** (0.8.26): הזזה מוקדמת מעבר ל-0 - הכתוביות האלה נצמדות כולן ל-0:00, אחת על השנייה, בלי שמישהו אמר
+            int before = 0;
+            if (ms < 0) foreach (Cue c in t) if (c.Start + ms < 0) before++;
+            if (before > 0)
+                s += before == 1
+                    ? Lang.T("\nשימו לב: כתובית אחת תגיע לפני תחילת הסרט ותיצמד להתחלה.")
+                    : Lang.F("\nשימו לב: {0} כתוביות יגיעו לפני תחילת הסרט ויצטופפו בהתחלה.", before);
+            else if (t.Count > 0)
             {
                 Cue f = t[0];
                 s += Lang.F("\nלדוגמה: הכתובית הראשונה תעבור מ-{0} ל-{1}.", Tc.Clock(f.Start), Tc.Clock(Math.Max(0, f.Start + ms)));

@@ -1715,3 +1715,5 @@ Subtext · אולפן הכתוביות · גרסה {0}	Subtext · Subtitle Studi
  ({0} שמות ומילים שנשמעו לא נכון תוקנו.)	 ({0} misheard names and words were fixed.)
 תוזמנו {0} כתוביות - בקירוב	{0} subtitles timed - roughly
 בקול יש מוזיקה או רעש רקע כמעט בלי הפסקות, ולכן כאן הזמנים פחות מדויקים.\r\nכדי לדייק: מבטלים (Ctrl+Z), עוברים למצב תזמון ולוחצים Enter על משפט אחד מכל 20 בערך, ואז ״לתזמן לבד״ - כל השאר יתוזמנו סביבם.	The audio has music or background noise with almost no pauses, so the times here are less precise.\r\nTo be precise: undo (Ctrl+Z), switch to timing mode and press Enter on about one sentence in 20, then "Time it for me" - all the rest are timed around them.
+\nשימו לב: כתובית אחת תגיע לפני תחילת הסרט ותיצמד להתחלה.	\nNote: one subtitle will go before the start and stick to it.
+\nשימו לב: {0} כתוביות יגיעו לפני תחילת הסרט ויצטופפו בהתחלה.	\nNote: {0} subtitles will go before the start and pile up there.
