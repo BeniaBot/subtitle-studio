@@ -1613,6 +1613,7 @@ namespace SubtitleStudio
             AutoTime.Result res = RunAutoTime(all, Lang.T("תזמון אוטומטי מהצ'אט"));
             if (res.Timed == 0) { r["error"] = res.Error ?? Lang.T("לא נמצא דיבור ברור"); return r; }
             r["done"] = Lang.F("תוזמנו {0} כתוביות לפי השתיקות בסרט. כדאי שהמשתמש יעבור ויבדוק; Ctrl+Z מבטל", res.Timed);
+            if (res.Noisy) r["approximate"] = "background music or noise with almost no pauses - times are approximate. To be precise: undo, timing mode, Enter on about one sentence in 20, then auto-time again";
             return r;
         }
 

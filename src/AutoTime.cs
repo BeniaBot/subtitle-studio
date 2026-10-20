@@ -52,6 +52,11 @@ namespace SubtitleStudio
             public int Gaps;
             public int Threshold;
             public string Error;
+            /// <summary>כמה מהדיבור היה בשתיקות, וכמה דיבור בסך הכול (בקטעים שתוזמנו).</summary>
+            public long GapMs, SpanMs;
+            /// <summary>**רקע רועש - כמעט בלי הפסקות** (0.8.24): פחות מרבע מהזמן בשתיקות, בקטע של דקה ומעלה. נמדד 20.10: בשיעור עם
+            /// הפסקות 32-35% מהזמן בשתיקות (וטעות של עשירית שנייה); בסרטון עם מוזיקת רקע 14-22% (וטעות של 4 שניות). אז עדיף עוגנים.</summary>
+            public bool Noisy { get { return SpanMs >= 60000 && GapMs * 4 < SpanMs; } }
         }
 
         // ---------- זיהוי השתיקות ----------
@@ -210,6 +215,8 @@ namespace SubtitleStudio
             long speechTotal = speechEnd - speechStart;
             foreach (Gap g in gaps) speechTotal -= g.Len;
             if (speechTotal <= 0) return 0;
+            r.SpanMs += speechEnd - speechStart;
+            r.GapMs += speechEnd - speechStart - speechTotal;
 
             // המקום הצפוי של כל גבול (אחרי שורה k), בזמן שעון
             long[] expect = new long[n - 1];

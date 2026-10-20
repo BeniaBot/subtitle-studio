@@ -1646,6 +1646,8 @@ namespace SubtitleStudio
             "בודק שמות ושגיאות שמיעה...", "Checking names and misheard words...",
             ", והטקסט - לגוגל, לבדיקת שמות.", ", and the text to Google, to check names.",
             " ({0} שמות ומילים שנשמעו לא נכון תוקנו.)", " ({0} misheard names and words were fixed.)",
+            "תוזמנו {0} כתוביות - בקירוב", "{0} subtitles timed - roughly",
+            "בקול יש מוזיקה או רעש רקע כמעט בלי הפסקות, ולכן כאן הזמנים פחות מדויקים.\r\nכדי לדייק: מבטלים (Ctrl+Z), עוברים למצב תזמון ולוחצים Enter על משפט אחד מכל 20 בערך, ואז ״לתזמן לבד״ - כל השאר יתוזמנו סביבם.", "The audio has music or background noise with almost no pauses, so the times here are less precise.\r\nTo be precise: undo (Ctrl+Z), switch to timing mode and press Enter on about one sentence in 20, then \"Time it for me\" - all the rest are timed around them.",
         };
 
         public static void Fill(Dictionary<string, string> d)
