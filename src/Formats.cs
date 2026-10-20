@@ -1507,24 +1507,49 @@ namespace SubtitleStudio
 
             int lines = (int)Math.Ceiling(s.Length / (double)maxChars);
             if (lines > 3) lines = 3;
-            int target = (int)Math.Ceiling(s.Length / (double)lines);
 
-            StringBuilder sb = new StringBuilder();
-            StringBuilder cur = new StringBuilder();
-            int used = 1;
-            for (int i = 0; i < words.Length; i++)
+            // **הפיצול שבו השורה הארוכה הכי קצרה** (0.8.27). עד כאן - חמדני עד ״אורך היעד״ (חצי הטקסט) עם השוואה חדה: כשהמילה שחוצה את
+            // האמצע ארוכה, השבירה הייתה מוקדמת והשורה השנייה עברה את המקסימום - ״Besides that, he was constantly / wandering set...״ (31/47)
+            // כשיש ״...constantly wandering / set looking...״ (41/37). ‏״לתקן הכול״ בדק ״נכנס?״ וויתר: בכתוביות של סרטון אמיתי (1,430) נשארו
+            // 49 שורות ארוכות; אחרי - 26, ובכולן אין פיצול לשתי שורות של 42 (``hp-tools\qa-sweep.ps1``). בשוויון (עד שני תווים) - אחרי סימן
+            // פיסוק, ואז השורה התחתונה הארוכה. אין פיצול שנכנס - המאוזן ביותר
+            int n = words.Length;
+            int[] len = new int[n + 1];                     // len[i] = אורך המילים 0..i-1 עם הרווחים
+            for (int i = 0; i < n; i++) len[i + 1] = len[i] + words[i].Length + (i > 0 ? 1 : 0);
+            Func<int, int, int> span = delegate (int a, int b) { return len[b] - len[a] - (a > 0 ? 1 : 0); };   // מילים a..b-1
+            Func<int, bool> punct = delegate (int at) { char ch = words[at - 1][words[at - 1].Length - 1]; return ",.;:?!״\"".IndexOf(ch) >= 0; };
+            int[] best = null; double bestCost = double.MaxValue;
+            if (lines == 2)
             {
-                if (cur.Length > 0 && cur.Length + 1 + words[i].Length > target && used < lines)
+                for (int a = 1; a < n; a++)
                 {
-                    if (sb.Length > 0) sb.Append('\n');
-                    sb.Append(cur.ToString());
-                    cur.Length = 0;
-                    used++;
+                    int l1 = span(0, a), l2 = span(a, n);
+                    double cost = Math.Max(l1, l2) - (punct(a) ? 2.5 : 0) - (l2 >= l1 ? 0.1 : 0);
+                    if (Math.Max(l1, l2) > maxChars) cost += 1000;
+                    if (cost < bestCost) { bestCost = cost; best = new int[] { a }; }
                 }
-                if (cur.Length > 0) cur.Append(' ');
-                cur.Append(words[i]);
             }
-            if (cur.Length > 0) { if (sb.Length > 0) sb.Append('\n'); sb.Append(cur.ToString()); }
+            else
+            {
+                for (int a = 1; a < n - 1; a++)
+                    for (int b = a + 1; b < n; b++)
+                    {
+                        int l1 = span(0, a), l2 = span(a, b), l3 = span(b, n);
+                        int mx = Math.Max(l1, Math.Max(l2, l3));
+                        double cost = mx - (punct(a) ? 1.5 : 0) - (punct(b) ? 1.5 : 0);
+                        if (mx > maxChars) cost += 1000;
+                        if (cost < bestCost) { bestCost = cost; best = new int[] { a, b }; }
+                    }
+            }
+            if (best == null) return s;
+            StringBuilder sb = new StringBuilder();
+            int from = 0;
+            foreach (int cut in best)
+            {
+                sb.Append(string.Join(" ", words, from, cut - from)).Append('\n');
+                from = cut;
+            }
+            sb.Append(string.Join(" ", words, from, n - from));
             return sb.ToString();
         }
     }

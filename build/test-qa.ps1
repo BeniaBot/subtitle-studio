@@ -7,7 +7,7 @@
 #   לא נוגע בדו-שיח.
 # - **התיקון יציב:** הרצה שנייה לא משנה כלום. נבדק על 300 מסמכים אקראיים.
 # - ההסבר בשורת המצב לא דורס הודעה שמישהו אחר כתב.
-# צפוי: 100 בדיקות.
+# צפוי: 103 בדיקות.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $exe  = Join-Path $root 'dist\Subtext.exe'
@@ -134,6 +134,17 @@ Check 'סיכום בעברית, אומר מה נשאר ואיך מבטלים' ($
 $d.Undo()
 $after = @(foreach ($c in $d.Cues) { "$($c.Start)|$($c.End)|$($c.Text)" })
 Check 'ביטול אחד מחזיר הכול בדיוק' (($after -join "`n") -eq ($before -join "`n")) ("before=" + $before.Count + " after=" + $after.Count)
+
+# ---- שבירת שורות (0.8.27): מילה ארוכה שחוצה את האמצע דחפה את השורה השנייה מעבר ל-42, כשהיה פיצול שנכנס (מסרטון אמיתי) ----
+$mWrap = (T 'Formats').GetMethod('WrapText', $SF)
+function WrapLens([string]$s) { return (@(([string]$mWrap.Invoke($null, (Pack $s ([int]42)))).Split("`n") | ForEach-Object { $_.Length }) -join '/') }
+$wEn = 'Besides that, he was constantly wandering set looking for ways to prank people,'
+Check 'שבירה: ״Besides that...״ - ‏41/37 ולא 31/47' ((WrapLens $wEn) -eq '41/37') (WrapLens $wEn)
+$wHe = 'כאן אנחנו יכולים לראות את מתיו ובהתרגשותם הגדולה הם יוצאים אל המגרש הירוק.'
+Check 'שבירה בעברית: שתי השורות עד 42' ((WrapLens $wHe) -eq '41/32') (WrapLens $wHe)
+$dw = NewDoc @(,@(0, 5000, $wEn))
+[void]$mFix.Invoke($null, (Pack $dw))
+Check '״לתקן הכול״ מסדר אותה בשתי שורות' (-not (Has $dw 0 'LongLine') -and ($dw.Cues[0].Text -replace "`n", ' ') -eq $wEn) ($dw.Cues[0].Text -replace "`n", ' / ')
 
 # ---- מסמכים אקראיים ----
 $rnd = New-Object Random 42
