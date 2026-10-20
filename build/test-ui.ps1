@@ -219,6 +219,19 @@ $left = 0
 foreach ($c in $gcues) { if ($c.Untimed) { $left++ } }
 Eq 'לא נשארו שורות בלי תזמון' $left 0
 
+# **כתובית חדשה בלי שתיים על המסך** (0.8.26): ״הוספה לפני״ בין שתי צמודות, ו״כתובית חדשה כאן״ באמצע כתובית - בלי חפיפה
+$cueT2 = $asm.GetType('SubtitleStudio.Cue')
+$gcues.Clear(); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]1000) ([long]4000) 'ראשונה'))); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]4080) ([long]7000) 'שנייה')))
+Call $g 'SyncAfterDocChange' (Pack) | Out-Null
+Call $g 'InsertCueBefore' (Pack ([int]1)) | Out-Null
+$ins = @($gcues | Where-Object { $_.Text -eq '' })[0]
+Check 'הוספה לפני בין צמודות: בלי חפיפה, והחדשה לפחות 0.7 שנייה' ($gdoc.CountOverlaps() -eq 0 -and $ins -ne $null -and ($ins.End - $ins.Start) -ge 700) ("overlaps=" + $gdoc.CountOverlaps() + " new=" + $ins.Start + "-" + $ins.End + " first=" + $gcues[0].Start + "-" + $gcues[0].End)
+$gcues.Clear(); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]1000) ([long]4000) 'ראשונה'))); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]4080) ([long]7000) 'שנייה')))
+Call $g 'SyncAfterDocChange' (Pack) | Out-Null
+SeekTo 2500
+Call $g 'NewCueAtPlayhead' (Pack) | Out-Null
+$nw = @($gcues | Where-Object { $_.Text -eq '' })[0]
+Check 'כתובית חדשה באמצע כתובית: כאן מתחילה, הקודמת נגמרת לפניה, בלי חפיפה' ($gdoc.CountOverlaps() -eq 0 -and $nw.Start -eq 2500 -and $gcues[0].End -le 2420) ("overlaps=" + $gdoc.CountOverlaps() + " new=" + $nw.Start + "-" + $nw.End + " first-end=" + $gcues[0].End)
 $g.Close(); $g.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 

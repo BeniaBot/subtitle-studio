@@ -2135,6 +2135,7 @@ namespace SubtitleStudio
             if (end <= start) end = start + 600;
 
             _doc.Push(Lang.T("כתובית חדשה"));
+            FreeSlot(ref start, ref end);
             Cue nc = new Cue(start, end, "");
             _doc.SelectNone();
             nc.Selected = true;
@@ -2150,6 +2151,38 @@ namespace SubtitleStudio
             _hintLbl.Invalidate();
         }
 
+        /// <summary>**מקום לכתובית חדשה בלי שתיים על המסך בבת אחת** (0.8.26). נמדד (``hp-tools\edit-torture.ps1``, מסמך של 1,430 כתוביות
+        /// צפופות): ״הוספה לפני״ יצרה חפיפה ב-94 מ-104 פעמים (ההערה אמרה ״FixOverlaps יסדר״ - והוא לא נקרא), ״כתובית חדשה כאן״ ב-77 מ-82 -
+        /// כשהסמן באמצע כתובית. **מקומי, לא FixOverlaps על הכול** (שם יש גם חפיפות מכוונות - שני דוברים):
+        /// הסמן בתוך הקודמת - כאן מתחילה החדשה, והקודמת נגמרת רגע לפני (כמו במצב תזמון); קרוב מדי לתחילתה - החדשה אחריה. הסוף - לפני הבאה.
+        /// עדיין אין מקום (צמודות) - החדשה לוקחת שנייה מסוף הקודמת, אם נשאר לה לפחות 0.7. אחרת - כמו שהיה. בתוך אותו צעד ביטול.</summary>
+        private void FreeSlot(ref long start, ref long end)
+        {
+            const long Gap = 80, MinKeep = 700, MinNew = 700, Take = 1000;
+            Cue prev = null, next = null;
+            foreach (Cue c in _doc.Cues)
+            {
+                if (c.Untimed) continue;
+                if (c.Start <= start) prev = c;
+                else { next = c; break; }
+            }
+            long s = start, e = end;
+            long prevEnd = prev != null ? prev.End : 0;
+            if (prev != null && prev.End > s - Gap)
+            {
+                if (s - prev.Start >= MinKeep + Gap) prev.End = s - Gap;
+                else s = prev.End + Gap;
+            }
+            if (next != null && e > next.Start - Gap) e = next.Start - Gap;
+            if (e - s < MinNew && prev != null && next != null)
+            {
+                long ne = next.Start - Gap, ns = ne - Take;
+                if (ns - Gap - prev.Start >= MinKeep) { prev.End = Math.Min(prev.End, ns - Gap); s = ns; e = ne; }
+            }
+            if (e - s < MinNew) { if (prev != null) prev.End = prevEnd; return; }   // אין איך - נשאר כמו שהיה
+            start = s; end = e;
+        }
+
         private void NewCueAtPlayhead()
         {
             // עוצרים כדי שאפשר יהיה לכתוב בנחת
@@ -2159,6 +2192,7 @@ namespace SubtitleStudio
             long end = pos + 2500;
             foreach (Cue c in _doc.Cues)
                 if (c.Start > pos && c.Start < end) end = Math.Max(pos + 600, c.Start - 80);
+            FreeSlot(ref pos, ref end);
             Cue nc = new Cue(pos, end, "");
             _doc.SelectNone();
             nc.Selected = true;
