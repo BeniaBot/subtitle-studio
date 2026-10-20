@@ -46,6 +46,12 @@ $ends = @($r.Cues | Where-Object { ([string]$_.Text).TrimEnd() -match '[.,?!]$' 
 Check 'החיתוכים בסוף משפט או בפסיק' ($ends -eq $r.Cues.Count) ("$ends of " + $r.Cues.Count)
 Check 'לא נאבדה אף מילה' ((($r.Cues | ForEach-Object { ([string]$_.Text) -replace "`n", ' ' }) -join ' ') -eq $para) ''
 Check 'פיצול מדווח בתצוגה המקדימה' ($r.Info.SplitUnits -ge 1) ("split=" + $r.Info.SplitUnits)
+# **רשימה במסמך מול דו-שיח** (0.8.26): בכתוביות ״- ״ = דובר נוסף; אבל במסמך עם כותרת ״# ״ - זו רשימה, ולא נכנסת כ״דו-שיח״ מזויף
+$rMd = Imp ("# הכותרת`n`n- נקודה ראשונה`n- נקודה שנייה`n`n1. שלב אחד`n2. שלב שני") @{}
+$mdText = ($rMd.Cues | ForEach-Object { [string]$_.Text }) -join ' | '
+$rDl = Imp ("- שלום, מה שלומך?`n- ברוך השם, ואתה?") @{}
+$dlText = ($rDl.Cues | ForEach-Object { [string]$_.Text }) -join ' | '
+Check 'מסמך: ״- ״ ו-״1. ״ של רשימה יורדים; בלי כותרת - ״- ״ של דו-שיח נשאר' (($mdText -notmatch '(^|\n| \| )- ' -and $mdText -notmatch '1\. ' -and $mdText -match 'נקודה ראשונה') -and ($dlText -match '^- שלום')) ($mdText + ' || ' + $dlText)Check 'פיצול מדווח בתצוגה המקדימה' ($r.Info.SplitUnits -ge 1) ("split=" + $r.Info.SplitUnits)
 
 $r = Imp ("שלום לכולם" + $nl + "וברוכים הבאים" + $nl + $nl + "היום נלמד על כתוביות")
 Check 'קטע של שתי שורות קצרות - כתובית אחת עם השבירה שהוקלדה' ($r.Cues.Count -eq 2 -and ([string]$r.Cues[0].Text) -eq ("שלום לכולם" + $nl + "וברוכים הבאים")) ([string]$r.Cues[0].Text -replace "`n", ' / ')

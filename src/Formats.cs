@@ -1396,13 +1396,36 @@ namespace SubtitleStudio
                 numbered++;
             }
             bool stripNumbers = run && numbered >= 3 && numbered == nonEmpty;
+            // **מסמך (יש בו כותרת ״# ״) - ״- ״ ו-״1. ״ הם רשימה, לא דו-שיח** (0.8.26). בכתוביות ״- ״ בתחילת שורה = דובר נוסף, ולכן הוא נשאר
+            // בטקסט רגיל; אבל רשימה ממסמך נכנסה כ״- נקודה ראשונה / - נקודה שנייה״ - דו-שיח מזויף על המסך (text-sweep, ‏12-markdown.md)
+            bool doc = false;
+            foreach (string l in ls) if (Regex.IsMatch(l, @"^\s{0,3}#{1,6}\s+\S")) { doc = true; break; }
+            bool[] listNum = new bool[ls.Length];
+            if (doc)
+            {
+                // ״1. ״ ״2. ״ ברצף (לפחות שתיים, מ-1) - פריטי רשימה
+                for (int i = 0; i < ls.Length; i++)
+                {
+                    Match m0 = RxNumbered.Match(ls[i]);
+                    if (!m0.Success || m0.Groups[1].Value != "1") continue;
+                    int j = i, want = 1;
+                    while (j < ls.Length)
+                    {
+                        Match mj = RxNumbered.Match(ls[j]);
+                        if (!mj.Success || int.Parse(mj.Groups[1].Value, CultureInfo.InvariantCulture) != want) break;
+                        want++; j++;
+                    }
+                    if (j - i >= 2) for (int k = i; k < j; k++) listNum[k] = true;
+                }
+            }
             for (int i = 0; i < ls.Length; i++)
             {
                 string t = ls[i];
                 t = Regex.Replace(t, @"^\s{0,3}#{1,6}\s+", "");          // כותרת
                 t = Regex.Replace(t, @"^\s*[*•·▪►]\s+", "");              // תבליט
+                if (doc) t = Regex.Replace(t, @"^\s*[-+]\s+", "");        // תבליט של מסמך
                 t = t.Replace("**", "").Replace("__", "");                // הדגשה
-                if (stripNumbers) t = RxNumbered.Replace(t, "", 1);
+                if (stripNumbers || listNum[i]) t = RxNumbered.Replace(t, "", 1);
                 ls[i] = t;
             }
             return string.Join("\n", ls);
