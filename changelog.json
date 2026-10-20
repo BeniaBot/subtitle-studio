@@ -2,6 +2,17 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.23",
+      "date": "2026-10-20",
+      "items": [
+        {
+          "t": "major",
+          "s": "תרגום: כתובית ארוכה מדי לזמן שהיא על המסך מתקצרת קצת, כדי שיספיקו לקרוא אותה - בלי לשנות את מה שהיא אומרת",
+          "en": "Translation: a subtitle too long for its time on screen is shortened a little, so there is time to read it - without changing what it says"
+        }
+      ]
+    },
+    {
       "v": "0.8.22",
       "date": "2026-10-15",
       "items": [
