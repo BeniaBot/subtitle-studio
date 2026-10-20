@@ -292,11 +292,45 @@ namespace SubtitleStudio
             Section(Lang.T("הסרט שלכם בקצב"));
             _to = new Combo();
             _to.Items.AddRange(List);
-            _to.SelectedIndex = 0;
+            // **הקצב של הסרט הפתוח - כבר בחור** (0.8.26): התוכנה יודעת אותו (Formats.VideoFps), ועד כאן נפתח תמיד 23.976
+            _to.SelectedIndex = Nearest(Formats.VideoFps, 0);
+            if (_to.SelectedIndex == _from.SelectedIndex) _from.SelectedIndex = _to.SelectedIndex == 2 ? 0 : 2;
             Row(_to, 32, 12);
+
+            // מה יקרה, לפני שלוחצים: הכתובית האחרונה, שבה ההבדל הכי גדול
+            _preview = Hint("");
+            Row(_preview, 22, 4);
+            _from.SelectedIndexChanged += delegate { UpdatePreview(); };
+            _to.SelectedIndexChanged += delegate { UpdatePreview(); };
+            UpdatePreview();
 
             Row(Hint(Lang.T("אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הסרט.")), 34, 6);
             Buttons(Lang.T("להמיר"), Ico.Sync, Lang.T("ביטול"));
+        }
+
+        private Lbl _preview;
+
+        private static int Nearest(double fps, int fallback)
+        {
+            if (fps <= 0) return fallback;
+            int best = fallback; double bd = double.MaxValue;
+            for (int i = 0; i < List.Length; i++)
+            {
+                double d = Math.Abs(double.Parse(List[i], CultureInfo.InvariantCulture) - fps);
+                if (d < bd) { bd = d; best = i; }
+            }
+            return bd < 0.05 ? best : fallback;
+        }
+
+        private void UpdatePreview()
+        {
+            if (_preview == null || _from.SelectedItem == null || _to.SelectedItem == null) return;
+            double from = double.Parse((string)_from.SelectedItem, CultureInfo.InvariantCulture);
+            double to = double.Parse((string)_to.SelectedItem, CultureInfo.InvariantCulture);
+            Cue last = _doc.Cues.Count > 0 ? _doc.Cues[_doc.Cues.Count - 1] : null;
+            _preview.Text = last == null || Math.Abs(from - to) < 0.001 ? ""
+                : Lang.F("הכתובית האחרונה תעבור מ-{0} ל-{1}.", Theme.Ltr(Tc.Clock(last.Start)), Theme.Ltr(Tc.Clock((long)Math.Round(last.Start * from / to))));
+            _preview.Invalidate();
         }
 
         protected override bool OnOk()
