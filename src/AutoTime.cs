@@ -214,10 +214,28 @@ namespace SubtitleStudio
             // המקום הצפוי של כל גבול (אחרי שורה k), בזמן שעון
             long[] expect = new long[n - 1];
             double acc = 0;
+            // **ניסוי: לפי ההברות במקום לפי זמן-הדיבור** (20.10, ``hp-tools\at-bench.ps1`` - ‏ExpectMode). שני מבחנים מול זמנים ידועים:
+            // סרטון אמיתי עם מוזיקת רקע (שבעה קטעים של 10 דקות) ושיעור סינתטי בעברית עם הפסקות אמיתיות (נקי / רעש / מוזיקה).
+            //   - זמן-דיבור (0, הקיים): סרטון 4.35 שניות טעות חציונית, 18% עד שנייה; שיעור 0.11 שניות, 79-80% עד שנייה.
+            //   - הברות (1):            סרטון 3.02, 26%;                                שיעור 0.11-1.04, ‏49-72%.
+            //   - ממוצע של השניים (2):   סרטון 3.44, 23%;                                שיעור 0.11, ‏67-77%.
+            // **נשאר 0:** השיעור הוא השימוש העיקרי, וכל שעון אחר מקלקל בו. בסרטון עם מוזיקה מה שעובד הוא עוגנים: עוגן כל 20 שורות
+            // (מצב תזמון) ← 0.15 שניות, 75% עד שנייה. ברירה אוטומטית בין השעונים לא נמצאה: גם בסרטון יש ״שתיקות״ (1-1.4 לשורה; ירידות של המוזיקה)
+            int ia = (int)(speechStart / Waveform.PeriodMs), ib = (int)Math.Min(rms.Length - 1, speechEnd / Waveform.PeriodMs);
+            double[] clock = ExpectMode >= 1 ? PeakClock(rms, ia, ib) : null;
+            double c0 = clock != null ? clock[0] : 0, cN = clock != null ? clock[clock.Length - 1] : 0;
+            if (clock != null && cN - c0 < n * 2) clock = null;             // מעט מדי הברות - לא מספיק כדי לסמוך עליהן
             for (int k = 0; k < n - 1; k++)
             {
                 acc += w[k];
-                expect[k] = SpeechToClock((long)(acc / total * speechTotal), speechStart, gaps);
+                long bySpeech = SpeechToClock((long)(acc / total * speechTotal), speechStart, gaps);
+                if (clock != null)
+                {
+                    int at = InverseClock(clock, c0 + acc / total * (cN - c0));
+                    long byPeaks = (long)(ia + at) * Waveform.PeriodMs;
+                    expect[k] = ExpectMode == 2 ? (bySpeech + byPeaks) / 2 : byPeaks;
+                }
+                else expect[k] = bySpeech;
             }
 
             // גבול לכל אחד מ-n-1 המעברים
@@ -251,6 +269,44 @@ namespace SubtitleStudio
         }
 
         private static Gap GapAt(List<Gap> gaps, long idx) { return gaps[(int)idx]; }
+
+        /// <summary>0 = המקום הצפוי לפי זמן-דיבור (**ברירת המחדל** - ראו המדידה ב-`AlignRun`); 1 = לפי ספירת ההברות (`PeakClock`);
+        /// 2 = הממוצע. שדה - כדי להשוות בבדיקות.</summary>
+        internal static int ExpectMode = 0;
+
+        /// <summary>**שעון הברות:** לכל דגימה בקטע [a,b] - כמה שיאי עוצמה (הברות) עברו מתחילתו. מעטפת מוחלקת ב-70ms; שיא - מקסימום מקומי,
+        /// לפחות 100ms מהקודם, שבולט ב-30% מעל המינימום שסביבו (±150ms). הספים נבחרו במדידה (``hp-tools\at-bench.ps1``).</summary>
+        internal static double[] PeakClock(byte[] x, int a, int b)
+        {
+            int n = Math.Max(1, b - a + 1);
+            double[] s = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                double acc = 0; int cnt = 0;
+                for (int k = Math.Max(0, a + i - 3); k <= Math.Min(x.Length - 1, a + i + 3); k++) { acc += x[k]; cnt++; }
+                s[i] = cnt > 0 ? acc / cnt : 0;
+            }
+            double[] cum = new double[n];
+            int last = -10; double count = 0;
+            for (int i = 0; i < n; i++)
+            {
+                if (i > 0 && i < n - 1 && s[i] > s[i - 1] && s[i] >= s[i + 1] && i - last >= 10)
+                {
+                    double lo = s[i];
+                    for (int k = Math.Max(0, i - 15); k < Math.Min(n, i + 15); k++) if (s[k] < lo) lo = s[k];
+                    if (s[i] - lo >= 0.3 * (s[i] + 1)) { count++; last = i; }
+                }
+                cum[i] = count;
+            }
+            return cum;
+        }
+
+        private static int InverseClock(double[] cum, double v)
+        {
+            int lo = 0, hi = cum.Length - 1;
+            while (lo < hi) { int m = (lo + hi) / 2; if (cum[m] < v) lo = m + 1; else hi = m; }
+            return lo;
+        }
 
         /// <summary>ממיר מיקום בזמן-דיבור למיקום בשעון, בדילוג על השתיקות.</summary>
         public static long SpeechToClock(long speechMs, long speechStart, List<Gap> gaps)
