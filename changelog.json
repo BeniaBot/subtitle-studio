@@ -2,6 +2,17 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.24",
+      "date": "2026-10-20",
+      "items": [
+        {
+          "t": "fix",
+          "s": "תזמון אוטומטי של טקסט: כשבקול יש מוזיקה או רעש רקע כמעט בלי הפסקות, התוכנה אומרת שהזמנים בקירוב - ואיך לדייק אותם בכמה לחיצות",
+          "en": "Automatic timing of text: when the audio has music or background noise with almost no pauses, the program says the times are approximate - and how to make them precise with a few clicks"
+        }
+      ]
+    },
+    {
       "v": "0.8.23",
       "date": "2026-10-20",
       "items": [
