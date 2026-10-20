@@ -113,6 +113,17 @@ $worstD = 0
 for ($k = 0; $k -lt 10; $k++) { $err = [Math]::Abs(($fS.GetValue($cuesD[$k]) + 120) - $blkD[$k][0]); if ($err -gt $worstD) { $worstD = $err } }
 Check 'קצב משתנה: כל התחלה בתוך 150ms מהדיבור (לפי האורכים, לא לפי המקום מתחילת הקטע)' ($worstD -le 150) "סטייה מרבית=${worstD}ms"
 Write-Host ''
+Write-Host 'לחיצה במצב תזמון ← תחילת הדיבור (0.8.26)'
+# אדם לוחץ באיחור של זמן תגובה. דיבור ב-1000-4000 ו-4600-8000 (שקט באמצע); לחיצה ב-4900 (300ms אחרי) ← 4600-120, ולפני כן הדיבור נגמר ב-4000.
+# ולחיצה באמצע דיבור רציף (2500 - אין שקט לפניה) - כמו שהיא
+$trkT = Track @(@(1000,4000),@(4600,8000)) 9000 3 60
+$snapM = $at.GetMethod('SnapTap', $ST)
+$tapArgs = New-Object object[] 5; $tapArgs[0] = $trkT.psobject.BaseObject; $tapArgs[1] = $trkT.psobject.BaseObject; $tapArgs[2] = [long]9000; $tapArgs[3] = [long]4900; $tapArgs[4] = [long]0
+$tT = $snapM.Invoke($null, $tapArgs); $endT = $tapArgs[4]
+$tapArgs2 = New-Object object[] 5; $tapArgs2[0] = $trkT.psobject.BaseObject; $tapArgs2[1] = $trkT.psobject.BaseObject; $tapArgs2[2] = [long]9000; $tapArgs2[3] = [long]2500; $tapArgs2[4] = [long]0
+$tT2 = $snapM.Invoke($null, $tapArgs2)
+Check 'לחיצה מאחרת - ההתחלה בתחילת הדיבור, והקודם נגמר בסוף הדיבור שלו; באמצע דיבור רציף - לא זז' ([Math]::Abs($tT - 4480) -le 20 -and [Math]::Abs($endT - 4000) -le 20 -and $tT2 -eq 2500) "tap4900=$tT end=$endT tap2500=$tT2"
+Write-Host ''
 Write-Host 'נשימה באמצע משפט'
 $trk2 = Track @(@(500,1400),@(1500,2500),@(3100,6100)) 7000 3 60
 $cues2 = NewCues @('aaaaaaaaaaaaaaaaaaaa','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') $true

@@ -284,6 +284,31 @@ namespace SubtitleStudio
 
         private static Gap GapAt(List<Gap> gaps, long idx) { return gaps[(int)idx]; }
 
+        /// <summary>**לחיצה במצב תזמון ← תחילת הדיבור** (0.8.26). אדם לוחץ 0.2-0.4 שניות **אחרי** שהמשפט מתחיל (זמן תגובה), והכתובית הופיעה
+        /// באיחור. כאן: שתיקה שנגמרת בין ``TapBackMs`` לפני הלחיצה ל-``TapAheadMs`` אחריה - ההתחלה היא סוף השתיקה (פחות LeadMs, כמו בתזמון
+        /// האוטומטי). כמה - הקרובה לרגע שבו הדיבור התחיל כנראה (0.25 שניות לפני הלחיצה). בלי שתיקה כזו (מוזיקה, דיבור רציף) - הלחיצה כמו שהיא.
+        /// ‏<paramref name="speechEndBefore"/> - תחילת אותה שתיקה (סוף הדיבור של הקודמת), או ‎-1.</summary>
+        internal static long SnapTap(byte[] rms, byte[] peak, long durationMs, long pos, out long speechEndBefore)
+        {
+            speechEndBefore = -1;
+            byte[] ch = PickChannel(rms, peak, durationMs);
+            if (ch == null) return pos;
+            List<Gap> gaps = LocalGaps(ch, Math.Max(0, pos - TapBackMs - 1500), Math.Min(durationMs, pos + TapAheadMs + 300));
+            Gap best = null; long bestD = long.MaxValue;
+            foreach (Gap g in gaps)
+            {
+                if (g.End < pos - TapBackMs || g.End > pos + TapAheadMs) continue;
+                long d = Math.Abs(g.End - (pos - 250));
+                if (d < bestD) { bestD = d; best = g; }
+            }
+            if (best == null) return pos;
+            speechEndBefore = best.Start;
+            return Math.Max(0, best.End - LeadMs);
+        }
+
+        /// <summary>כמה אחורה מהלחיצה מחפשים את תחילת הדיבור, וכמה קדימה (מי שלחץ רגע מוקדם).</summary>
+        internal static int TapBackMs = 800, TapAheadMs = 150;
+
         /// <summary>0 = המקום הצפוי של כל גבול מתחילת הקטע (`PickGaps`, עד 0.8.24); 1 = **לפי אורכים** (`ByDurations`). שדה - כדי למדוד.</summary>
         internal static int Algo = 1;
         /// <summary>הסבולת לאורך כתובית: ‏σ = DurTol × האורך הצפוי + DurFloorMs.</summary>

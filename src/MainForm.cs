@@ -2496,10 +2496,22 @@ namespace SubtitleStudio
             long pos = _engine.Position;
             _doc.Push(Lang.T("תזמון בלחיצה"));
 
+            // **הלחיצה ← תחילת הדיבור** (0.8.26): אדם לוחץ 0.2-0.4 שניות אחרי שהמשפט התחיל, והכתובית הופיעה באיחור (נמדד בסימולציה על ארבעה
+            // שיעורים: 82-97% מאחרות, 0.4 שניות בחציון). אם יש שקט ממש לפני הלחיצה - ההתחלה היא סוף השקט (``hp-tools\tap-sim.ps1``: 98-100%
+            // בטווח 0.15 שניות), והקודמת נגמרת כשהדיבור שלה נגמר. בלי שקט כזה (מוזיקה, דיבור רציף) - הלחיצה כמו שהיא
+            long spEnd = -1;
+            if (_wave != null && _wave.Ready && !_wave.Failed && _mi != null)
+            {
+                long snapped = AutoTime.SnapTap(_wave.Rms, _wave.Peak, _mi.DurationMs, pos, out spEnd);
+                long floor = _tapIndex > 0 ? _doc.Cues[_tapIndex - 1].Start + 300 : 0;
+                if (snapped >= floor) pos = snapped; else spEnd = -1;
+            }
+
             if (_tapIndex > 0)
             {
                 Cue prev = _doc.Cues[_tapIndex - 1];
                 long end = pos - 40;
+                if (spEnd > prev.Start + 300) end = Math.Min(end, spEnd + AutoTime.TailMs);
                 long cap = prev.Start + GuessDur(prev) + 1500;   // לא להשאיר כתובית תלויה בשקט ארוך
                 if (end > cap) end = cap;
                 if (end < prev.Start + 300) end = prev.Start + 300;
