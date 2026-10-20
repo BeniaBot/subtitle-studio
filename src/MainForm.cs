@@ -1001,7 +1001,7 @@ namespace SubtitleStudio
                 int i = ((from + (forward ? k : -k)) % n + n) % n;
                 string t = _doc.Cues[i].Text;
                 if (t == null) continue;
-                if (t.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) < 0) continue;
+                if (!TextMatch.Contains(t, term, false, false)) continue;     // בלי ניקוד, ומעבר שורה = רווח (0.8.26)
                 Cue c = _doc.Cues[i];
                 _doc.SelectNone();
                 c.Selected = true;

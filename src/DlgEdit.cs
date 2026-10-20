@@ -693,45 +693,11 @@ namespace SubtitleStudio
             UpdateCount();
         }
 
-        private StringComparison Cmp
-        {
-            get { return _matchCase.Checked ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase; }
-        }
-
-        /// <summary>גבול מילה: מה שאינו אות, ספרה או קו תחתון. עובד גם בעברית,
-        /// כי char.IsLetter מכיר את כל האלפבית.</summary>
-        private static bool IsWordChar(char c) { return char.IsLetterOrDigit(c) || c == '_'; }
-
-        private bool BoundaryOk(string src, int at, int len)
-        {
-            if (!_whole.Checked) return true;
-            if (at > 0 && IsWordChar(src[at - 1])) return false;
-            int end = at + len;
-            if (end < src.Length && IsWordChar(src[end])) return false;
-            return true;
-        }
-
-        /// <summary>מחליף במחרוזת אחת ומחזיר כמה החלפות היו.</summary>
+        /// <summary>מחליף במחרוזת אחת ומחזיר כמה החלפות היו - בלי ניקוד, מעבר שורה = רווח, ו״מילה שלמה״ גם אחרי אותיות שימוש
+        /// (`TextMatch`, 0.8.26: עד כאן ״משה״ ב״מילים שלמות״ לא החליף את ״למשה״, ו״שלום״ לא מצא ״שָׁלוֹם״).</summary>
         private int ReplaceIn(string src, string find, string with, out string result)
         {
-            StringBuilder sb = new StringBuilder();
-            int i = 0, n = 0;
-            while (i < src.Length)
-            {
-                int j = src.IndexOf(find, i, Cmp);
-                if (j < 0) { sb.Append(src, i, src.Length - i); break; }
-                if (!BoundaryOk(src, j, find.Length))
-                {
-                    sb.Append(src, i, j - i + 1);
-                    i = j + 1;
-                    continue;
-                }
-                sb.Append(src, i, j - i).Append(with);
-                i = j + find.Length;
-                n++;
-            }
-            result = sb.ToString();
-            return n;
+            return TextMatch.ReplaceAll(src ?? "", find, with, _whole.Checked, _matchCase.Checked, out result);
         }
 
         private void UpdateCount()

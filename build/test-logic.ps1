@@ -887,5 +887,16 @@ Check 'SAMI בשתי שפות: השפה עם הכי הרבה טקסט, ו-&nbsp;
 $dfT = $fmt.GetMethod('DetectFormat')
 Check 'זיהוי לפי התוכן: SBV, ‏LRC, ‏TTML ו-SAMI בקובץ ‎.txt‎' ("$($dfT.Invoke($null, (Pack 'a.txt' "0:00:01.000,0:00:02.000`nא`n`n0:00:03.000,0:00:04.000`nב")))" -eq 'Sbv' -and "$($dfT.Invoke($null, (Pack 'a.txt' "[00:01.00]א`n[00:02.00]ב")))" -eq 'Lrc' -and "$($dfT.Invoke($null, (Pack 'a.xml' '<tt xmlns="http://www.w3.org/ns/ttml"><p begin="1s">x</p></tt>')))" -eq 'Ttml' -and "$($dfT.Invoke($null, (Pack 'a.txt' '<SAMI><SYNC Start=0>x')))" -eq 'Sami') ''
 
+# **חיפוש בעברית** (TextMatch, 0.8.26): ניקוד, מעבר שורה, אותיות שימוש במילים שלמות, גרש עברי
+$tmT = $asm.GetType('SubtitleStudio.TextMatch'); $SFm = [Reflection.BindingFlags]'NonPublic,Public,Static'
+$tmFind = $tmT.GetMethod('FindAll', $SFm); $tmHas = $tmT.GetMethod('Contains', $SFm); $tmRep = $tmT.GetMethod('ReplaceAll', $SFm)
+$nq = "ש" + [char]0x05C1 + [char]0x05B8 + "ל" + "ו" + [char]0x05B9 + "ם" + " לכולם"
+$h1 = $tmFind.Invoke($null, (Pack $nq 'שלום' $false $false))
+$h2 = $tmHas.Invoke($null, (Pack "אמר שלום`nעולם" 'שלום עולם' $false $false))
+$ra = New-Object object[] 6; $ra[0] = 'משה ולמשה ושמשה משהו'; $ra[1] = 'משה'; $ra[2] = 'יעקב'; $ra[3] = $true; $ra[4] = $false; $ra[5] = $null
+$n3 = $tmRep.Invoke($null, $ra)
+$h4 = $tmFind.Invoke($null, (Pack 'את לאת' 'את' $true $false))
+$h5 = $tmHas.Invoke($null, (Pack ('צ' + [char]0x05F3 + 'רלי בא') "צ'רלי" $true $false))
+Check 'חיפוש בעברית: בלי ניקוד, מעבר שורה = רווח, ״משה״ שלם גם ב״ולמשה״ (לא ב״משהו״), מילה קצרה בלי אותיות שימוש, גרש עברי' ($h1.Count -eq 1 -and $h1[0][1] -eq 7 -and $h2 -and $n3 -eq 3 -and $ra[5] -eq 'יעקב וליעקב ושיעקב משהו' -and $h4.Count -eq 1 -and $h5) ("niqqud=" + $h1.Count + "/" + $(if ($h1.Count) { $h1[0][1] }) + " break=$h2 replace=$n3 '" + $ra[5] + "' short=" + $h4.Count + " geresh=$h5")
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }
