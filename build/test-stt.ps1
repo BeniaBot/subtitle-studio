@@ -764,7 +764,26 @@ StopServer $s
 $aiT2.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot2); $aiT2.GetField('Key', $SF).SetValue($null, $oldKey2)
 $trd = $ai.GetType().GetField('Translated').GetValue($ai); $sat = $ai.GetType().GetField('StoppedAt').GetValue($ai); $er = $ai.GetType().GetField('Error').GetValue($ai)
 Check 'תרגום שנעצר באמצע: 40 מתורגמות נשמרות, 10 נשארות במקור, ונאמר איפה ולמה' ($sat -eq 40 -and $trd -ne $null -and $trd.Count -eq 50 -and $trd[39] -eq 'שורה 39' -and $trd[40] -eq 'line 40' -and ('' + $er).Contains('Bad request')) ("stoppedAt=$sat count=" + $(if ($trd) { $trd.Count }) + " err=$er")
-$ai.Dispose()# חלון התמלול (0.8.5): ״המפתח שכבר יש לכם״ רק למי שיש; והרקע מהתמלול הקודם של אותו סרט כבר בשדה
+$ai.Dispose()
+# **קיצור דרך חלון התרגום** (0.8.23): כתובית שמהירה מדי גם עם כל הזמן שיש לה (2 שניות, הבאה צמודה) - בקשה שנייה, והקצרה נכנסת
+$tl3 = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))
+foreach ($c3 in @(@(0, 2000, 'one'), @(2080, 3000, 'yes'), @(3080, 4000, 'good'))) { $tl3.Add([Activator]::CreateInstance($cueT, (Pack ([long]$c3[0]) ([long]$c3[1]) $c3[2]))) }
+$longHe = 'אני באמת לא כל כך חשבתי על זה, אבל זה היה טוב.'
+$shortHe = 'לא חשבתי על זה, אבל זה היה טוב.'
+$s = StartServer @((Resp 200 (GemText ('[{"i":0,"t":"' + $longHe + '"},{"i":1,"t":"כן."},{"i":2,"t":"טוב."}]')) $null), (Resp 200 (GemText ('[{"i":0,"t":"' + $shortHe + '"}]')) $null))
+$aiT2.GetField('EndpointRoot', $SF).SetValue($null, "http://127.0.0.1:$($s.Port)/v1beta/models/"); $aiT2.GetField('Key', $SF).SetValue($null, 'test-key')
+$ai = [Activator]::CreateInstance((T 'AiRunDlg'), (Pack $tl3 'עברית' ''))
+[void]$ai.Handle
+$ai.GetType().GetMethod('Start', $IF).Invoke($ai, @())
+$sw = [Diagnostics.Stopwatch]::StartNew()
+while ($sw.Elapsed.TotalSeconds -lt 40 -and $ai.GetType().GetField('Translated').GetValue($ai) -eq $null -and [string]::IsNullOrEmpty($ai.GetType().GetField('Error').GetValue($ai))) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 }
+for ($q = 0; $q -lt 40; $q++) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 }
+StopServer $s
+$aiT2.GetField('EndpointRoot', $SF).SetValue($null, $oldRoot2); $aiT2.GetField('Key', $SF).SetValue($null, $oldKey2)
+$trd = $ai.GetType().GetField('Translated').GetValue($ai); $cnd = $ai.GetType().GetField('Condensed').GetValue($ai)
+Check 'תרגום: כתובית מהירה מדי גם עם כל הזמן שיש לה - מתקצרת בבקשה שנייה, והשאר לא' ($trd -ne $null -and $trd[0] -eq $shortHe -and $trd[1] -eq 'כן.' -and $cnd -eq 1) ("condensed=$cnd first=" + $(if ($trd) { $trd[0] }))
+$ai.Dispose()
+# חלון התמלול (0.8.5): ״המפתח שכבר יש לכם״ רק למי שיש; והרקע מהתמלול הקודם של אותו סרט כבר בשדה
 $mi0 = [Activator]::CreateInstance((T 'MediaInfo')); $mi0.DurationSec = 60
 (T 'Ai').GetField('Key', $SF).SetValue($null, '')
 $td = [Activator]::CreateInstance((T 'TranscribeDlg'), (Pack $mi0 ([int]0) 'שיעור של הרב כהן'))
