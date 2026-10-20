@@ -2,6 +2,42 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.26",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "major",
+          "s": "מצב תזמון: כל לחיצה נצמדת לתחילת הדיבור - הכתובית מופיעה בזמן, לא באיחור של זמן התגובה",
+          "en": "Timing mode: every press lands on the start of the speech - the subtitle appears on time, not late by the reaction time"
+        },
+        {
+          "t": "major",
+          "s": "חיפוש והחלפה בעברית: בלי תלות בניקוד, גם כשהמשפט עובר שורה, ו״מילה שלמה״ גם עם אותיות שימוש (״למשה״)",
+          "en": "Hebrew find and replace: regardless of niqqud, also when the phrase crosses a line, and 'whole word' also with prefix letters"
+        },
+        {
+          "t": "fix",
+          "s": "כתובית חדשה כבר לא נוצרת על גבי אחרת - הקודמת נגמרת רגע לפניה",
+          "en": "A new subtitle no longer lands on top of another - the previous one ends just before it"
+        },
+        {
+          "t": "fix",
+          "s": "ציר הזמן: לחיצה לבחירה כבר לא נרשמת כשינוי, ולחיצה על מקום ריק לא יוצרת כתובית",
+          "en": "Timeline: a click to select is no longer recorded as a change, and a click on an empty spot does not create a subtitle"
+        },
+        {
+          "t": "fix",
+          "s": "הזזת זמנים מזהירה כשכתוביות יגיעו לפני תחילת הסרט; המרת קצב פריימים פותחת על הקצב של הסרט",
+          "en": "Shift timing warns when subtitles would go before the start; frame-rate conversion opens on the video's rate"
+        },
+        {
+          "t": "fix",
+          "s": "יבוא טקסט: רשימה במסמך לא הופכת לדו-שיח",
+          "en": "Text import: a list in a document does not become a dialogue"
+        }
+      ]
+    },
+    {
       "v": "0.8.25",
       "date": "2026-10-21",
       "items": [
