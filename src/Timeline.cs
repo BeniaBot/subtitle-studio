@@ -377,7 +377,9 @@ namespace SubtitleStudio
                 if (Doc != null)
                     foreach (Cue c in Doc.Cues)
                         if (c.Selected || c == h.Cue) _dragOrig[c] = new long[] { c.Start, c.End };
-                if (Doc != null) Doc.Push(Lang.T("עריכת תזמון"));
+                // **צעד ביטול רק כשמשהו זז** (0.8.26, `DragPushed`): עד כאן כל לחיצה לבחירה נרשמה כ״עריכת תזמון״ - Ctrl+Z ״ביטל״ לחיצה,
+                // והמסמך סומן כלא שמור בלי ששום דבר השתנה
+                _dragPushed = false;
                 Invalidate();
                 return;
             }
@@ -478,6 +480,7 @@ namespace SubtitleStudio
                     break;
                 case Mode.MoveCue:
                     {
+                        if (!StartDragEdit(e)) break;
                         long delta = ms - _dragStartMs;
                         long snapped = Snap(_dragOrig[_dragCue][0] + delta, _dragCue);
                         delta = snapped - _dragOrig[_dragCue][0];
@@ -493,6 +496,7 @@ namespace SubtitleStudio
                     }
                 case Mode.ResizeL:
                     {
+                        if (!StartDragEdit(e)) break;
                         long delta = ms - _dragStartMs;
                         long ns = Snap(_dragOrig[_dragCue][0] + delta, _dragCue);
                         foreach (KeyValuePair<Cue, long[]> kv in _dragOrig)
@@ -508,6 +512,7 @@ namespace SubtitleStudio
                     }
                 case Mode.ResizeR:
                     {
+                        if (!StartDragEdit(e)) break;
                         long delta = ms - _dragStartMs;
                         long ne = Snap(_dragOrig[_dragCue][1] + delta, _dragCue);
                         foreach (KeyValuePair<Cue, long[]> kv in _dragOrig)
@@ -539,8 +544,32 @@ namespace SubtitleStudio
             base.OnMouseLeave(e);
         }
 
+        /// <summary>נדחף צעד ביטול לגרירה הנוכחית (רק אחרי תזוזה אמיתית).</summary>
+        private bool _dragPushed;
+        /// <summary>מאיזה מרחק (פיקסלים) זו גרירה ולא לחיצה.</summary>
+        private static int ClickSlop { get { return Theme.S(5); } }
+
+        /// <summary>גרירה של כתובית: רק אחרי שהעכבר זז מעבר ל-ClickSlop - ואז צעד ביטול אחד לכל הגרירה.</summary>
+        private bool StartDragEdit(MouseEventArgs e)
+        {
+            if (_dragPushed) return true;
+            if (Math.Abs(e.X - _dragStart.X) < ClickSlop) return false;
+            if (Doc != null) Doc.Push(Lang.T("עריכת תזמון"));
+            _dragPushed = true;
+            return true;
+        }
+
         protected override void OnMouseUp(MouseEventArgs e)
         {
+            // **לחיצה בלי גרירה על מקום ריק בפס הכתוביות - לא יוצרת כתובית** (0.8.26): נוצרה כתובית ריקה של שתי שניות בכל לחיצה, גם מי
+            // שלחץ כדי לבטל בחירה. לחיצה = ביטול הבחירה והנגן לשם; יצירה - בגרירה (או לחיצה כפולה, כמו קודם)
+            if (_mode == Mode.CreateNew && Doc != null && Math.Abs(e.X - _dragStart.X) < ClickSlop)
+            {
+                Doc.SelectNone();
+                if (SelectionChanged != null) SelectionChanged(this, EventArgs.Empty);
+                if (SeekRequested != null) SeekRequested(this, Math.Max(0, _dragStartMs));
+                _mode = Mode.None;
+            }
             if (_mode == Mode.CreateNew && Doc != null)
             {
                 long a = Math.Min(_newA, _newB), b = Math.Max(_newA, _newB);
@@ -554,11 +583,12 @@ namespace SubtitleStudio
                 Doc.RaiseChanged();
                 if (CueActivated != null) CueActivated(this, c);
             }
-            if (_mode == Mode.MoveCue || _mode == Mode.ResizeL || _mode == Mode.ResizeR)
+            if ((_mode == Mode.MoveCue || _mode == Mode.ResizeL || _mode == Mode.ResizeR) && _dragPushed)
             {
                 if (Doc != null) { Doc.Sort(); Doc.RaiseChanged(); }
                 if (CuesEdited != null) CuesEdited(this, EventArgs.Empty);
             }
+            _dragPushed = false;
             _mode = Mode.None;
             _dragCue = null;
             _snapLine = -1;

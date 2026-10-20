@@ -232,6 +232,25 @@ SeekTo 2500
 Call $g 'NewCueAtPlayhead' (Pack) | Out-Null
 $nw = @($gcues | Where-Object { $_.Text -eq '' })[0]
 Check 'כתובית חדשה באמצע כתובית: כאן מתחילה, הקודמת נגמרת לפניה, בלי חפיפה' ($gdoc.CountOverlaps() -eq 0 -and $nw.Start -eq 2500 -and $gcues[0].End -le 2420) ("overlaps=" + $gdoc.CountOverlaps() + " new=" + $nw.Start + "-" + $nw.End + " first-end=" + $gcues[0].End)
+# **לחיצה על הציר היא לא עריכה** (0.8.26): בחירת כתובית בלחיצה לא נרשמת לביטול ולא מסמנת ״לא שמור״; לחיצה על מקום ריק בפס לא יוצרת
+# כתובית; גרירה כן - וצעד ביטול אחד
+$tlc = Fld $g '_tl'; $tlT = $tlc.GetType(); $NPP = [Reflection.BindingFlags]'NonPublic,Public,Instance'
+$gcues.Clear(); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]2000) ([long]5000) 'שלום'))); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]8000) ([long]11000) 'עולם')))
+Call $g 'SyncAfterDocChange' (Pack) | Out-Null
+$gdoc = Fld $g '_doc'
+function TlMouse($name, $x, $y) { $ea = New-Object object[] 1; $ea[0] = (New-Object Windows.Forms.MouseEventArgs ([Windows.Forms.MouseButtons]::Left), 1, $x, $y, 0).psobject.BaseObject; [void]$tlT.GetMethod($name, $NPP).Invoke($tlc, $ea) }
+$msX = $tlT.GetMethod('MsToX', $NPP); $ty = [int]($tlT.GetProperty('TrackTop', $NPP).GetValue($tlc, $null) + 30)
+$xc = [int]$msX.Invoke($tlc, (Pack ([long]3500))); $xe = [int]$msX.Invoke($tlc, (Pack ([long]6500)))
+$gdoc.Dirty = $false; $gdoc.ClearHistory()
+TlMouse 'OnMouseDown' $xc $ty; TlMouse 'OnMouseUp' $xc $ty
+TlMouse 'OnMouseDown' $xe $ty; TlMouse 'OnMouseUp' $xe $ty
+$cnt1 = $gdoc.GetType().GetField('Cues').GetValue($gdoc).Count
+Check 'ציר: לחיצה לבחירה - בלי ״לא שמור״ ובלי צעד ביטול; לחיצה על מקום ריק - בלי כתובית חדשה' ((-not $gdoc.Dirty) -and (-not $gdoc.CanUndo) -and $cnt1 -eq 2) ("dirty=" + $gdoc.Dirty + " undo=" + $gdoc.CanUndo + " cues=" + $cnt1)
+$s0 = $gdoc.GetType().GetField('Cues').GetValue($gdoc)[0].Start
+TlMouse 'OnMouseDown' $xc $ty; TlMouse 'OnMouseMove' ($xc + 60) $ty; TlMouse 'OnMouseUp' ($xc + 60) $ty
+$moved = $gdoc.GetType().GetField('Cues').GetValue($gdoc)[0].Start -ne $s0
+$gdoc.Undo(); $back = $gdoc.GetType().GetField('Cues').GetValue($gdoc)[0].Start -eq $s0
+Check 'ציר: גרירה מזיזה, וביטול אחד מחזיר' ($moved -and $back) ("moved=$moved back=$back")
 $g.Close(); $g.Dispose()
 [System.Windows.Forms.Application]::DoEvents()
 
