@@ -14,11 +14,12 @@ namespace SubtitleStudio
     /// יש שתיקה, ולכן גבול בין כתוביות צריך ליפול בשתיקה. נשאר רק להחליט
     /// **איזו** שתיקה - וזה מה שהקוד הזה עושה.
     ///
-    /// **איך מחליטים:** לכל גבול יש מקום ״צפוי״ - אם שורה היא 30% מהטקסט,
-    /// היא אמורה לתפוס בערך 30% מזמן הדיבור. **זמן דיבור, לא זמן שעון**: שתיקה
-    /// ארוכה באמצע לא אמורה לדחוף את כל הגבולות אחריה. אחר כך תכנות דינמי
-    /// בוחר לכל גבול שתיקה, כך שהסדר נשמר וסך הסטיות מהמקום הצפוי מינימלי,
-    /// עם עדיפות לשתיקות ארוכות (סוף משפט) על פני קצרות (נשימה).
+    /// **איך מחליטים (מ-0.8.25, `ByDurations`):** לכל שורה יש **אורך** צפוי - אם היא 30% מהטקסט, היא אמורה לתפוס בערך 30% מזמן
+    /// הדיבור (**זמן דיבור, לא זמן שעון** - בלי השתיקות). תכנות דינמי בוחר את רצף השתיקות שבו האורכים הכי קרובים לצפוי, עם מחיר
+    /// לשתיקה ארוכה (ועמוקה) שנשארה בלי גבול ולגבול שלא נפל בשתיקה. **עד 0.8.24** הוא בחר לכל גבול שתיקה ליד המקום הצפוי שלו
+    /// **מתחילת הקטע** (`PickGaps`), וכשהדובר האט - הכול אחריו נסחף. נמדד 20.10 (``hp-tools\at-tune.ps1``; ארבעה שיעורים סינתטיים
+    /// עם קצב והפסקות משתנים × נקי/רעש/מוזיקה, ושבעה קטעים מסרטון עם מוזיקת רקע; אחוז השורות עד שנייה מהאמת): **שיעורים 11-80% ←
+    /// 93-98%, סרטון 5-41% ← 56-86%**; הסרטון כולו ברצף בלי עוגנים - טעות חציונית 18.5 שניות ← 0.14, ‏2% ← 72%. ‏0.3 שניות לשעה ורבע.
     ///
     /// **מה זה לא עושה:** זה לא מבין מילים. אם הטקסט לא תואם את ההקלטה -
     /// משפט שנשמט, או דובר שמדבר מהר פתאום - גבול יכול לזוז משתיקה אחת.
@@ -248,6 +249,10 @@ namespace SubtitleStudio
             // גבול לכל אחד מ-n-1 המעברים
             long[] cut = PickGaps(expect, gaps, speechTotal / Math.Max(1, n));
 
+            // **לפי אורכים** (Algo 1): לכל גבול - הקצה של הכתובית שלפניו והתחלת זו שאחריו, בשעון
+            long[] endAt = null, startAt = null;
+            if (Algo == 1) ByDurations(w, total, gaps, speechStart, speechTotal, rms, threshold, out endAt, out startAt);
+
             // מהגבולות לזמנים
             long prevEnd = lo;
             for (int k = 0; k < n; k++)
@@ -255,8 +260,10 @@ namespace SubtitleStudio
                 Cue c = cues[first + k];
                 long s, e;
                 if (k == 0) s = speechStart;
+                else if (startAt != null) s = startAt[k - 1];
                 else s = cut[k - 1] >= 0 ? GapAt(gaps, cut[k - 1]).End : expect[k - 1];
                 if (k == n - 1) e = speechEnd;
+                else if (endAt != null) e = endAt[k];
                 else e = cut[k] >= 0 ? GapAt(gaps, cut[k]).Start : expect[k];
 
                 s -= LeadMs;
@@ -276,6 +283,124 @@ namespace SubtitleStudio
         }
 
         private static Gap GapAt(List<Gap> gaps, long idx) { return gaps[(int)idx]; }
+
+        /// <summary>0 = המקום הצפוי של כל גבול מתחילת הקטע (`PickGaps`, עד 0.8.24); 1 = **לפי אורכים** (`ByDurations`). שדה - כדי למדוד.</summary>
+        internal static int Algo = 1;
+        /// <summary>הסבולת לאורך כתובית: ‏σ = DurTol × האורך הצפוי + DurFloorMs.</summary>
+        internal static double DurTol = 0.35;
+        internal static int DurFloorMs = 400;
+        /// <summary>כמה יותר עולה להשאיר בלי גבול שתיקה עמוקה (0..1 - כמה מתחת לסף), בריבוע. 0 = לא תלוי בעומק.</summary>
+        internal static double DepthK = 3;
+        /// <summary>מחיר לגבול שלא נפל בשתיקה (משפט שנגמר בלי הפסקה מזוהה).</summary>
+        internal static double VirtualCost = 1.5;
+        /// <summary>עד כמה שורות ברצף בלי שתיקה ביניהן.</summary>
+        internal const int MaxBlock = 3;
+
+        /// <summary>**יישור לפי אורכים** (20.10). השיטה הקודמת (`PickGaps`) קבעה לכל גבול מקום צפוי **מתחילת הקטע** (חלקו בטקסט × זמן הדיבור),
+        /// וכשהדובר האט בחלק אחד - כל מה שאחריו נמשך אחורה: בשיעור סינתטי עם קצב משתנה 9 שניות סטייה באמצע, 11% עד שנייה. כאן השאלה
+        /// היא **כמה זמן כל שורה אמורה להימשך**: תכנות דינמי על רצף השתיקות, שבו המחיר הוא סטייה של **אורך** כל שורה מהאורך הצפוי (ביחס
+        /// לאורך - שורה ארוכה סובלת סטייה גדולה יותר), ועוד מחיר להפסקה ארוכה שנשארה בלי גבול (בסוף משפט יש בדרך כלל הפסקה) ולגבול
+        /// שלא נפל בשתיקה (עד MaxBlock שורות בלי שתיקה ביניהן - מתחלקות לפי האורך). סטייה מקומית לא נגררת הלאה. **בזמן-דיבור** (בלי
+        /// השתיקות). חלון: לכל גבול רק שתיקות עד ``band`` מהמקום הצפוי שלו - אחרת זה ריבועי בכל הסרט. לא נמצא מסלול - null (הקודמת).</summary>
+        private static void ByDurations(double[] w, double total, List<Gap> gaps, long speechStart, long speechTotal,
+                                        byte[] rms, int threshold, out long[] endAt, out long[] startAt)
+        {
+            endAt = null; startAt = null;
+            int n = w.Length, G = gaps.Count;
+            if (n < 2) return;
+            // זמן-הדיבור של כל שתיקה (הקצה של מה שלפניה = ההתחלה של מה שאחריה), וסכומי הקנס על שתיקות שלא נוצלו
+            double[] tau = new double[G];
+            double[] U = new double[G + 1];
+            long cum = 0;
+            for (int j = 0; j < G; j++)
+            {
+                tau[j] = gaps[j].Start - speechStart - cum;
+                cum += gaps[j].Len;
+                // **עומק השתיקה** (DepthK): שתיקה אמיתית יורדת הרבה מתחת לסף, ״שתיקה״ במוזיקה היא ירידה רגעית שבקושי מתחתיו.
+                // השארת שתיקה עמוקה בלי גבול - יקרה הרבה יותר
+                double depth = 0;
+                if (rms != null && threshold > 0)
+                {
+                    int a = (int)(gaps[j].Start / Waveform.PeriodMs), b = (int)Math.Min(rms.Length, gaps[j].End / Waveform.PeriodMs);
+                    double sum = 0; int cnt = 0;
+                    for (int i = a; i < b; i++) { sum += rms[i]; cnt++; }
+                    if (cnt > 0) depth = Math.Max(0, Math.Min(1, 1 - (sum / cnt) / threshold));
+                }
+                U[j + 1] = U[j] + UnusedW * (1 + DepthK * depth * depth) * Math.Max(0, gaps[j].Len - UnusedFromMs) / 1000.0;
+            }
+            double[] D = new double[n + 1];                      // הזמן הצפוי של גבול b (לפני שורה b), בזמן-דיבור
+            for (int k = 0; k < n; k++) D[k + 1] = D[k] + w[k] / total * speechTotal;
+            double band = Math.Min(120000, Math.Max(30000, speechTotal * 0.15));
+
+            // מועמדים לכל גבול: 0 = ההתחלה (מדומה -1), n = הסוף (מדומה G)
+            List<int>[] cand = new List<int>[n + 1];
+            cand[0] = new List<int>(); cand[0].Add(-1);
+            cand[n] = new List<int>(); cand[n].Add(G);
+            for (int b = 1; b < n; b++)
+            {
+                cand[b] = new List<int>();
+                for (int j = 0; j < G; j++) if (Math.Abs(tau[j] - D[b]) <= band) cand[b].Add(j);
+            }
+            double[][] best = new double[n + 1][];
+            int[][] fromB = new int[n + 1][], fromC = new int[n + 1][];
+            for (int b = 0; b <= n; b++)
+            {
+                best[b] = new double[cand[b].Count]; fromB[b] = new int[cand[b].Count]; fromC[b] = new int[cand[b].Count];
+                for (int i = 0; i < best[b].Length; i++) { best[b][i] = double.MaxValue; fromB[b][i] = -1; }
+            }
+            best[0][0] = 0;
+            for (int b = 1; b <= n; b++)
+            {
+                for (int ci = 0; ci < cand[b].Count; ci++)
+                {
+                    int j = cand[b][ci];
+                    double tj = j >= G ? speechTotal : tau[j];
+                    for (int bp = Math.Max(0, b - MaxBlock); bp < b; bp++)
+                    {
+                        double expect = D[b] - D[bp];
+                        double sigma = DurTol * expect + DurFloorMs;
+                        double extra = VirtualCost * (b - bp - 1);
+                        for (int cpi = 0; cpi < cand[bp].Count; cpi++)
+                        {
+                            if (best[bp][cpi] == double.MaxValue) continue;
+                            int jp = cand[bp][cpi];
+                            if (jp >= j) continue;
+                            double tp = jp < 0 ? 0 : tau[jp];
+                            double dd = (tj - tp - expect) / sigma;
+                            double unused = U[Math.Min(j, G)] - U[jp + 1];
+                            double v = best[bp][cpi] + dd * dd + extra + unused;
+                            if (v < best[b][ci]) { best[b][ci] = v; fromB[b][ci] = bp; fromC[b][ci] = cpi; }
+                        }
+                    }
+                }
+            }
+            if (best[n][0] == double.MaxValue) return;
+
+            // חזרה: גבולות אמיתיים בשתיקות, ובתוך רצף בלי שתיקה - לפי האורך הצפוי
+            endAt = new long[n]; startAt = new long[n];
+            int cb = n, cc = 0;
+            while (cb > 0)
+            {
+                int bp = fromB[cb][cc], cpi = fromC[cb][cc];
+                int j = cand[cb][cc], jp = cand[bp][cpi];
+                double tj = j >= G ? speechTotal : tau[j], tp = jp < 0 ? 0 : tau[jp];
+                if (cb < n) { endAt[cb - 1] = gaps[j].Start; startAt[cb - 1] = gaps[j].End; }
+                // גבולות מדומים בתוך הרצף bp..cb
+                double span = D[cb] - D[bp];
+                for (int b = bp + 1; b < cb; b++)
+                {
+                    double t = tp + (tj - tp) * ((D[b] - D[bp]) / Math.Max(1, span));
+                    long at = SpeechToClock((long)t, speechStart, gaps);
+                    endAt[b - 1] = at; startAt[b - 1] = at;
+                }
+                cb = bp; cc = cpi;
+            }
+        }
+
+        /// <summary>מחיר לכל שנייה של הפסקה (מעל `UnusedFromMs`) שנשארה בלי גבול בין כתוביות - בסוף משפט יש בדרך כלל הפסקה ארוכה, ובאמצעו
+        /// (פסיק, נשימה) קצרה. 0 = בלי מחיר (עד 0.8.24). שדה - כדי למדוד.</summary>
+        internal static double UnusedW = 1.5;
+        internal static int UnusedFromMs = 300;
 
         /// <summary>0 = המקום הצפוי לפי זמן-דיבור (**ברירת המחדל** - ראו המדידה ב-`AlignRun`); 1 = לפי ספירת ההברות (`PeakClock`);
         /// 2 = הממוצע. שדה - כדי להשוות בבדיקות.</summary>
@@ -359,6 +484,11 @@ namespace SubtitleStudio
             for (int st = 1; st <= G; st++) prev[st] = Inf;
             prev[0] = 0;
 
+            // **מחיר להפסקה ארוכה שנשארה בלי גבול** (UnusedW): ‏P[s] - סכום המחירים של השתיקות 0..s-1. מעבר ממצב p לשתיקה st-1 ״מדלג״ על
+            // השתיקות p..st-2, ובסוף - על כל מה שאחרי האחרונה שנוצלה
+            double[] P = new double[G + 1];
+            for (int j = 0; j < G; j++) P[j + 1] = P[j] + UnusedW * Math.Max(0, gaps[j].Len - UnusedFromMs) / 1000.0;
+
             // מאיפה הגיע כל מצב: -1 = דילוג (אותו מצב), אחרת המצב הקודם
             int[,] back = new int[m, G + 1];
             double[] pm = new double[G + 1];
@@ -366,10 +496,11 @@ namespace SubtitleStudio
 
             for (int k = 0; k < m; k++)
             {
-                pm[0] = prev[0]; pmArg[0] = 0;
+                pm[0] = prev[0] - P[0]; pmArg[0] = 0;
                 for (int st = 1; st <= G; st++)
                 {
-                    if (prev[st] < pm[st - 1]) { pm[st] = prev[st]; pmArg[st] = st; }
+                    double v = prev[st] - P[st];
+                    if (v < pm[st - 1]) { pm[st] = v; pmArg[st] = st; }
                     else { pm[st] = pm[st - 1]; pmArg[st] = pmArg[st - 1]; }
                 }
 
@@ -380,7 +511,7 @@ namespace SubtitleStudio
                     Gap g = gaps[st - 1];
                     double d = (g.Mid - expect[k]) / norm;
                     double cost = d * d - Math.Min(0.35, g.Len / 2000.0);
-                    double place = pm[st - 1] + cost;          // שתיקה מאוחרת מהאחרונה
+                    double place = pm[st - 1] + P[st - 1] + cost;  // שתיקה מאוחרת מהאחרונה (+ מה שדולג בדרך)
                     double skip = prev[st] + SkipCost;
                     if (place <= skip) { cur[st] = place; back[k, st] = pmArg[st - 1]; }
                     else { cur[st] = skip; back[k, st] = -1; }
@@ -389,7 +520,7 @@ namespace SubtitleStudio
             }
 
             int at = 0;
-            for (int st = 1; st <= G; st++) if (prev[st] < prev[at]) at = st;
+            for (int st = 1; st <= G; st++) if (prev[st] + P[G] - P[st] < prev[at] + P[G] - P[at]) at = st;
 
             for (int k = m - 1; k >= 0; k--)
             {

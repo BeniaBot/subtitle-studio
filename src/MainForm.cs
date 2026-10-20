@@ -2273,6 +2273,7 @@ namespace SubtitleStudio
             if (_tapping) StopTapping(false);
             _doc.Push(undoLabel);
             AutoTime.Result r;
+            List<Cue> touched = new List<Cue>();
             if (toMs > fromMs)
             {
                 List<Cue> part = new List<Cue>();
@@ -2289,14 +2290,22 @@ namespace SubtitleStudio
                     r.Error = Lang.T("בקטע המסומן על הציר אין כתוביות.");
                     return r;
                 }
+                foreach (Cue c in part) if (all || c.Untimed) touched.Add(c);
                 r = AutoTime.Run(part, _wave.Rms, _wave.Peak, _mi.DurationMs, all, lo, toMs);
             }
-            else r = AutoTime.Run(_doc.Cues, _wave.Rms, _wave.Peak, _mi.DurationMs, all);
+            else
+            {
+                foreach (Cue c in _doc.Cues) if (all || c.Untimed) touched.Add(c);
+                r = AutoTime.Run(_doc.Cues, _wave.Rms, _wave.Peak, _mi.DurationMs, all);
+            }
             if (r.Timed == 0)
             {
                 _doc.DropLastUndo();
                 return r;
             }
+            // **ואז זמן קריאה** (0.8.25), רק למה שתוזמן: כתובית שהדיבור שלה מהיר נשארת עוד קצת על המסך, עד הבאה - כמו אחרי תמלול
+            // (Qa.Tidy בלי שינוי מבנה). נמדד על ארבעה שיעורים: אחרי התזמון 0-1 ״מהירה מדי״ בשיעור, ואחרי הסידור - אפס בעיות
+            Qa.Tidy(_doc, false, false, null, touched);
             _doc.Sort();
             _doc.Dirty = true;
             SyncAfterDocChange();

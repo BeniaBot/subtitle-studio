@@ -102,6 +102,17 @@ for ($k = 0; $k -lt 4; $k++) {
 Check 'השתיקות מושכות את הגבולות גם כשהטקסט לא מדויק' ($worstU -le 150) "סטייה מרבית=${worstU}ms"
 
 Write-Host ''
+Write-Host 'דובר שמאט ואז ממהר (0.8.25)'
+# עשרה משפטים באותו אורך טקסט: חמשת הראשונים 3 שניות כל אחד, האחרונים שנייה וחצי, ‏500ms הפסקה ביניהם. עד 0.8.24 כל גבול חיפש שתיקה ליד
+# המקום ״הצפוי״ מתחילת הקטע (2.25 שניות לשורה) - והגבולות באמצע נסחפו לשתיקה הלא נכונה. לפי האורכים - כל אחד במקומו
+$blkD = @(); $t0 = 500; for ($q = 0; $q -lt 10; $q++) { $len = $(if ($q -lt 5) { 3000 } else { 1500 }); $blkD += ,@($t0, ($t0 + $len)); $t0 += $len + 500 }
+$trkD = Track $blkD ($t0 + 500) 3 60
+$cuesD = NewCues @(1..10 | ForEach-Object { 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }) $true
+[void]$run.Invoke($null, (Pack $cuesD $trkD $trkD ([long]($t0 + 500)) $false))
+$worstD = 0
+for ($k = 0; $k -lt 10; $k++) { $err = [Math]::Abs(($fS.GetValue($cuesD[$k]) + 120) - $blkD[$k][0]); if ($err -gt $worstD) { $worstD = $err } }
+Check 'קצב משתנה: כל התחלה בתוך 150ms מהדיבור (לפי האורכים, לא לפי המקום מתחילת הקטע)' ($worstD -le 150) "סטייה מרבית=${worstD}ms"
+Write-Host ''
 Write-Host 'נשימה באמצע משפט'
 $trk2 = Track @(@(500,1400),@(1500,2500),@(3100,6100)) 7000 3 60
 $cues2 = NewCues @('aaaaaaaaaaaaaaaaaaaa','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') $true
