@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.31",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "major",
+          "s": "טשטוש אזור בסרט: פס כותרת או כתוביות צרובות שמסתירים את הכתוביות - מסמנים בגרירה, בוחרים עוצמה, וכל הזמן או רק כשיש כתובית",
+          "en": "Blur an area of the video: a channel banner or burned-in subtitles hiding yours - drag to mark it, pick the strength, all the time or only with a subtitle"
+        },
+        {
+          "t": "fix",
+          "s": "הטשטוש נראה בתצוגה בדיוק כמו בסרט, נשמר בפרויקט, והעוזר החכם יודע לטשטש",
+          "en": "The blur looks in the preview exactly as in the video, is saved in the project, and the assistant can set it"
+        }
+      ]
+    },
+    {
       "v": "0.8.30",
       "date": "2026-10-21",
       "items": [
