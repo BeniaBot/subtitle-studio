@@ -1666,6 +1666,9 @@ namespace SubtitleStudio
             "טקסט שצרוב בסרט", "Text burned into the video",
             "blur_area: ארבעה מספרים באחוזים - x,y,רוחב,גובה", "blur_area: four percentages - x,y,width,height",
             "רק בזמן הכתוביות שלי", "Only during my subtitles",
+            "לתקן רק בקטע המסומן?", "Fix only the marked section?",
+            "אפשר לתקן רק את הכתוביות שמתחילות בתוכו, או את כולן.", "You can fix only the subtitles that start inside it, or all of them.",
+            "בקטע המסומן אין כתוביות", "There are no subtitles in the marked section",
         };
 
         public static void Fill(Dictionary<string, string> d)

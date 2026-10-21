@@ -3683,8 +3683,19 @@ namespace SubtitleStudio
         internal void FixProblems()
         {
             if (_doc.Cues.Count == 0) return;
+            // קטע מסומן - רק עליו, כמו בתזמון ובהצמדה (0.8.33; ROADMAP שלב 4: ״החלת שינוי על הבחירה בלבד״)
+            long ra, rb;
+            int which = AskRange(Lang.T("לתקן רק בקטע המסומן?"), Lang.T("אפשר לתקן רק את הכתוביות שמתחילות בתוכו, או את כולן."), out ra, out rb);
+            if (which < 0) return;
+            HashSet<Cue> only = null;
+            if (which == 0)
+            {
+                only = new HashSet<Cue>();
+                foreach (Cue c in _doc.Cues) if (c.Start >= ra && c.Start < rb) only.Add(c);
+                if (only.Count == 0) { _hintLbl.Text = Lang.T("בקטע המסומן אין כתוביות"); _hintLbl.Invalidate(); return; }
+            }
             _doc.Push(Lang.T("תיקון אוטומטי"));
-            QaFixResult r = Qa.FixAll(_doc);
+            QaFixResult r = Qa.FixAllIn(_doc, only);
             if (r.Total == 0 && r.Cleaned == 0) _doc.DropLastUndo();
             else _doc.RaiseChanged();
             SyncAfterDocChange();

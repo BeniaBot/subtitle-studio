@@ -146,6 +146,17 @@ $dw = NewDoc @(,@(0, 5000, $wEn))
 [void]$mFix.Invoke($null, (Pack $dw))
 Check '״לתקן הכול״ מסדר אותה בשתי שורות' (-not (Has $dw 0 'LongLine') -and ($dw.Cues[0].Text -replace "`n", ' ') -eq $wEn) ($dw.Cues[0].Text -replace "`n", ' / ')
 
+# ---- ״לתקן הכול״ רק בקטע מסומן (0.8.33) ----
+$fixIn = $qaT.GetMethod('FixAllIn', $SF)
+$dr = NewDoc @(@(0, 3000, 'חופפת בקטע'), @(2500, 5000, 'גם בקטע'), @(10000, 13000, 'חופפת בחוץ'), @(12500, 15000, 'גם בחוץ'), @(20000, 20300, 'קצרה בחוץ'))
+$inT = [System.Collections.Generic.HashSet``1].MakeGenericType($cueT); $only = [Activator]::CreateInstance($inT); [void]$only.Add($dr.Cues[0]); [void]$only.Add($dr.Cues[1])
+$outBefore = @(foreach ($i in 2..4) { "$($dr.Cues[$i].Start)-$($dr.Cues[$i].End)" }) -join ' '
+$rr = $fixIn.Invoke($null, (Pack $dr $only))
+$outAfter = @(foreach ($i in 2..4) { "$($dr.Cues[$i].Start)-$($dr.Cues[$i].End)" }) -join ' '
+Check 'לתקן רק בקטע: החפיפה בקטע נפתרה, ומחוץ לקטע שום דבר לא זז' ($dr.Cues[0].End -le $dr.Cues[1].Start -and $outAfter -eq $outBefore -and $dr.Cues[2].End -gt $dr.Cues[3].Start) ("before " + $outBefore + " / after " + $outAfter)
+$leftKinds2 = @($rr.Left | ForEach-Object { [string]$_.Kind })
+Check 'והבעיות שנשארו - רק אלה שבקטע' (-not ($leftKinds2 -contains 'Overlap') -and -not ($leftKinds2 -contains 'TooShort')) ($leftKinds2 -join ',')
+
 # ---- מסמכים אקראיים ----
 $rnd = New-Object Random 42
 $words = @('שלום', 'תורה', 'והיום', 'נלמד', 'את', 'הסוגיה', 'של', 'ברכות', 'רש"י', 'אומר', 'כך', 'ותוספות', 'חולקים', '-', 'כן')

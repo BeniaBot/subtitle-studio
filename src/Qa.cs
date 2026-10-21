@@ -421,23 +421,38 @@ namespace SubtitleStudio
         /// 5. קיצור של ארוכות מ-7 שניות, רק אם הקצב אחרי הקיצור עדיין קריא.
         ///
         /// שורות בלי תזמון לא מוארכות ולא מקוצרות: הזמנים שלהן הערכה.</summary>
-        public static QaFixResult FixAll(Doc doc)
+        public static QaFixResult FixAll(Doc doc) { return FixAllIn(doc, null); }
+
+        private static int OverlapsIn(Doc doc, ICollection<Cue> only)
+        {
+            int n = 0;
+            for (int i = 0; i + 1 < doc.Cues.Count; i++)
+                if (doc.Cues[i].End > doc.Cues[i + 1].Start && (only.Contains(doc.Cues[i]) || only.Contains(doc.Cues[i + 1]))) n++;
+            return n;
+        }
+
+        /// <summary>״לתקן הכול״ **רק בכתוביות של <paramref name="only"/>** (קטע מסומן על הציר, 0.8.33); ‏null - בכולן. כתובית מחוץ לקטע לא
+        /// משתנה בשום שלב (`Doc.FixOverlapsIn`), והבעיות שנשארו נספרות רק בקטע.</summary>
+        public static QaFixResult FixAllIn(Doc doc, ICollection<Cue> only)
         {
             QaFixResult res = new QaFixResult();
             if (doc == null) return res;
+            Predicate<Cue> mine = delegate (Cue c) { return only == null || only.Contains(c); };
 
             // 1. ניקוי
             foreach (Cue c in doc.Cues)
             {
+                if (!mine(c)) continue;
                 string clean = string.Join("\n", CleanLines(c.Text).ToArray());
                 if (clean != c.Text) { c.Text = clean; res.Cleaned++; }
             }
-            res.Removed = doc.Cues.RemoveAll(delegate (Cue c) { return c.Text.Length == 0; });
+            res.Removed = doc.Cues.RemoveAll(delegate (Cue c) { return c.Text.Length == 0 && mine(c); });
             doc.Sort();
 
             // 2. שורות
             foreach (Cue c in doc.Cues)
             {
+                if (!mine(c)) continue;
                 List<string> lines = Lines(c.Text);
                 bool tooMany = lines.Count > MaxLines;
                 bool tooWide = false;
@@ -458,14 +473,14 @@ namespace SubtitleStudio
             }
 
             // 3. חפיפות
-            res.Overlaps = doc.CountOverlaps();
-            doc.FixOverlaps(GapMs);
+            res.Overlaps = only == null ? doc.CountOverlaps() : OverlapsIn(doc, only);
+            doc.FixOverlapsIn(GapMs, only);
 
             // 4. הארכה לתוך המקום הפנוי
             for (int i = 0; i < doc.Cues.Count; i++)
             {
                 Cue c = doc.Cues[i];
-                if (c.Untimed) continue;
+                if (c.Untimed || !mine(c)) continue;
                 long want = c.End;
                 if (c.Duration < MinDurMs) want = Math.Max(want, c.Start + FixMinDurMs);
                 if (c.Cps > FastCps)
@@ -482,7 +497,7 @@ namespace SubtitleStudio
             // 5. קיצור ארוכות, רק אם נשאר קריא
             foreach (Cue c in doc.Cues)
             {
-                if (c.Untimed || c.Duration <= MaxDurMs) continue;
+                if (c.Untimed || c.Duration <= MaxDurMs || !mine(c)) continue;
                 double cpsAfter = c.CharCount / (MaxDurMs / 1000.0);
                 if (cpsAfter > FastCps) continue;
                 c.End = c.Start + MaxDurMs;
@@ -490,6 +505,7 @@ namespace SubtitleStudio
             }
 
             res.Left = Find(doc);
+            if (only != null) res.Left.RemoveAll(delegate (Issue x) { return !only.Contains(x.Cue); });
             return res;
         }
 

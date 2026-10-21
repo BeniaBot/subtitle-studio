@@ -338,6 +338,35 @@ namespace SubtitleStudio
         ///
         /// חפיפה פירושה שתי שורות על המסך בו-זמנית; דחיפה של עשיריות שנייה
         /// כמעט לא מורגשת. לכן העדיפות היא לדחוף.</summary>
+        /// <summary>כמו <see cref="FixOverlaps"/>, אבל רק כתובית שב-<paramref name="only"/> משתנה (״לתקן הכול״ בקטע מסומן, 0.8.33): היא מתקצרת
+        /// לפני הבאה, ואת הבאה דוחפים רק אם גם היא בפנים. כתובית מחוץ לקטע לא זזה, גם אם נשארת חפיפה.</summary>
+        public int FixOverlapsIn(int gapMs, ICollection<Cue> only)
+        {
+            if (only == null) return FixOverlaps(gapMs);
+            Sort();
+            const long MinDur = 100;
+            int n = 0;
+            for (int i = 0; i < Cues.Count - 1; i++)
+            {
+                Cue cur = Cues[i], next = Cues[i + 1];
+                if (cur.End <= next.Start - gapMs) continue;
+                bool curIn = only.Contains(cur), nextIn = only.Contains(next);
+                if (!curIn && !nextIn) continue;
+                long ne = next.Start - gapMs;
+                if (curIn && ne >= cur.Start + MinDur) { cur.End = ne; n++; continue; }
+                if (curIn && nextIn)
+                {
+                    cur.End = cur.Start + MinDur;
+                    long dur = Math.Max(MinDur, next.End - next.Start);
+                    next.Start = cur.End + gapMs;
+                    next.End = next.Start + dur;
+                    n++;
+                }
+                else if (curIn && cur.End > cur.Start + MinDur) { cur.End = Math.Max(cur.Start + MinDur, ne); n++; }
+            }
+            return n;
+        }
+
         public int FixOverlaps(int gapMs)
         {
             Sort();
