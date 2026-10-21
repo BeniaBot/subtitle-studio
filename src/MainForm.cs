@@ -1191,7 +1191,7 @@ namespace SubtitleStudio
             if (c != null && Spell.Ready)
             {
                 int shown = 0;
-                foreach (string bad in Spell.Misspelled(c.Text))
+                foreach (string bad in Qa.Misspelled(_doc, c))
                 {
                     if (shown++ >= 3) break;
                     string word = bad;

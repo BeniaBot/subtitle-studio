@@ -638,11 +638,12 @@ namespace SubtitleStudio
             if (!Spell.Enabled) { r["done"] = Lang.T("בדיקת האיות כבויה. אפשר להדליק אותה בהגדרות."); return r; }
             if (!Spell.Installed) { r["done"] = Lang.T("המילון עוד לא הורד. בהגדרות יש כפתור להורדה (1.2 MB, פעם אחת)."); return r; }
             if (!Spell.Ready) { Spell.LoadNow(); }
+            Qa.NamesFor(_doc, true);
             List<object> found = new List<object>();
             int total = 0;
             for (int i = 0; i < _doc.Cues.Count; i++)
             {
-                List<string> bad = Spell.Misspelled(_doc.Cues[i].Text);
+                List<string> bad = Qa.Misspelled(_doc, _doc.Cues[i]);
                 if (bad.Count == 0) continue;
                 total += bad.Count;
                 if (found.Count >= 30) continue;

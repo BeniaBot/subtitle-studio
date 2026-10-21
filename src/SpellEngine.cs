@@ -252,6 +252,64 @@ namespace SubtitleStudio
                 string t = w.Substring(0, w.Length - 1);
                 if (t.Length <= 1 || Core(t) || Aramaic(t)) return true;
             }
+            if (Transliterated(w) || Acronym(w)) return true;
+            return MaleChaser(w);
+        }
+
+        /// <summary>**ראשי תיבות** (0.8.27): אותיות, גרשיים, ואות אחת - ״לשה״ר״, ״ולפי״ז״, ״נפק״מ״, ״בפנ״ע״. אין להם רשימה סגורה: בשיעור
+        /// ובתשובה הם עד חצי מהסימונים, והרשימה שלנו (torah-he.txt) מכסה רק את הנפוצים.</summary>
+        private static bool Acronym(string w)
+        {
+            int q = w.IndexOf('"');
+            if (q < 1 || q != w.Length - 2 || w.IndexOf('"', q + 1) >= 0) return false;
+            for (int i = 0; i < w.Length; i++) if (i != q && (w[i] < 'א' || w[i] > 'ת')) return false;
+            return true;
+        }
+
+        /// <summary>**שם או מילה לועזית בתעתיק** (0.8.27): ג׳, ז׳, צ׳, ת׳ במילה של שלוש אותיות ומעלה - ״ג׳ייסון״, ״סמית׳״, ״וקריצ׳ר״. אין
+        /// לתעתיק כתיב אחד נכון, וכתוביות של סרט מלאות בשמות.</summary>
+        private static bool Transliterated(string w)
+        {
+            if (w.Length < 3) return false;
+            for (int i = 1; i < w.Length; i++)
+                if (w[i] == '\'' && "גזצת".IndexOf(w[i - 1]) >= 0) return true;
+            return false;
+        }
+
+        private static bool IsMater(char c) { return c == 'י' || c == 'ו'; }
+
+        /// <summary>**כתיב מלא שהמילון לא מכיר** (0.8.27). המילון הוא הכתיב המלא של 1996, וכותבים יותר מלא - ״אמיתי״, ״השיער״, ״החוכמה״,
+        /// ״לעיתים״, ״מירוץ״, ״תיאטרון״ (חלקן כמו העדכון של האקדמיה ב-2017) - ו-י׳ עיצורית יחידה (״היתה״, ״ענין״ - כך בספרים).
+        /// מילה שלא נמצאה נבדקת שוב: (1) **בלי י׳/ו׳ אחת** מתוך המילה, לא ליד י׳/ו׳ אחרת, ורק כשנשארות 4 אותיות ומעלה; (2) **עם י׳ כפולה**
+        /// במקום י׳ בודדת. ‏<see cref="Variants"/> - אילו מהשניים.
+        ///
+        /// **נמדד** (``hp-tools\spell-modes.ps1``): 3,000 שגיאות הקלדה אקראיות במילים מטקסטים אמיתיים, מול הסימונים בתרגום סרטון (1,430
+        /// כתוביות) ובשמונה טקסטים (שיעורים, תשובות, פודקאסט):
+        /// - בלי: כל השגיאות; 618 סימונים בסרטון, 627 בטקסטים.
+        /// - **כמו כאן:** 92% מהשגיאות; 498 ו-470.
+        /// - בלי מגבלת האורך: 90%, אבל ״בורד״ נהיית ״ברד״ ו״שגיאוות״ - ״שגאוות״. מגבלה של 5 אותיות: 95%, ‏546 ו-548.
+        /// - **גם י׳/ו׳ אחת יותר** (כתיב חסר: ״ישאר״, ״מכח״): 81%. כל השמטה של אות הופכת למילה אחרת - לא.
+        /// ״כתובייות״, ״תלמידיים״, ״לקוווה״ (שלוש) נשארות שגיאות.</summary>
+        internal static int Variants = 3;
+        internal const int VariantMinLength = 4;
+
+        private bool MaleChaser(string w)
+        {
+            int n = w.Length;
+            if (n < 3) return false;
+            if ((Variants & 1) != 0 && n - 1 >= VariantMinLength)
+                for (int p = 1; p < n - 1; p++)
+                {
+                    if (!IsMater(w[p]) || IsMater(w[p - 1]) || IsMater(w[p + 1])) continue;
+                    if (Core(w.Remove(p, 1))) return true;
+                }
+            // י׳ עיצורית כפולה: ״היתה״ ← ״הייתה״, ״ענין״ ← ״עניין״ (לא שלוש)
+            if ((Variants & 2) != 0)
+                for (int p = 1; p < n - 1; p++)
+                {
+                    if (w[p] != 'י' || IsMater(w[p - 1]) || IsMater(w[p + 1])) continue;
+                    if (Core(w.Insert(p, "י"))) return true;
+                }
             return false;
         }
 

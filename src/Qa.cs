@@ -88,7 +88,8 @@ namespace SubtitleStudio
         {
             List<Issue> r = new List<Issue>();
             if (doc == null) return r;
-            for (int i = 0; i < doc.Cues.Count; i++) AddFor(doc.Cues, i, r);
+            HashSet<string> names = NamesFor(doc, true);
+            for (int i = 0; i < doc.Cues.Count; i++) AddFor(doc.Cues, i, r, names);
             return r;
         }
 
@@ -96,8 +97,79 @@ namespace SubtitleStudio
         public static List<Issue> For(Doc doc, int index)
         {
             List<Issue> r = new List<Issue>();
-            if (doc != null && index >= 0 && index < doc.Cues.Count) AddFor(doc.Cues, index, r);
+            if (doc != null && index >= 0 && index < doc.Cues.Count) AddFor(doc.Cues, index, r, NamesFor(doc, false));
             return r;
+        }
+
+        // ---------- איות: שמות ----------
+
+        /// <summary>מילה ״שגויה״ שמופיעה בכל כך הרבה כתוביות שונות - שם (0.8.27).</summary>
+        public const int NameRepeats = 3;
+        private static Doc _namesDoc;
+        private static HashSet<string> _names = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>המילים שאולי שגויות בכתובית, **בלי שמות** (`NamesFor`). מה שמסומן, מה שהקליק הימני מציע ומה שהעוזר מקבל.</summary>
+        internal static List<string> Misspelled(Doc doc, Cue c)
+        {
+            List<string> bad = Spell.Misspelled(c.Text);
+            if (bad.Count == 0 || doc == null) return bad;
+            HashSet<string> names = NamesFor(doc, false);
+            if (names.Count == 0) return bad;
+            List<string> r = new List<string>();
+            foreach (string w in bad) if (!names.Contains(w)) r.Add(w);
+            return r;
+        }
+
+        /// <summary>**מילה לא מוכרת שחוזרת היא שם** (0.8.27): בתרגום של סרטון אמיתי (1,430 כתוביות) שליש מהכתוביות סומנו, כמעט כולן
+        /// בגלל שמות - ״רדקליף״ ב-36, ״הוגוורטס״ ב-22 - והשגיאות האמיתיות (״נפעץ״, ״סופוף״) טבעו בהן. מילה שהמילון לא מכיר ומופיעה
+        /// ב-<see cref="NameRepeats"/> כתוביות **בנוסח שונה** ומעלה (עם תחיליות: ״ורופרט״, ״לרופרט״ = ״רופרט״) - לא מסומנת: 25% ← 11%,
+        /// ואף שגיאה אמיתית לא הוסתרה. **נוסח שונה** - בשיר הפזמון חוזר, ושגיאה בו הייתה נעלמת. **אות משולשת** (״יייטס״) - תמיד שגיאה.
+        /// ‏<paramref name="fresh"/>: לחשב מחדש (`Find`, בטיימר); אחרת - מה שחושב לאחרונה לאותו מסמך (`For` רצה לכל שורה בציור).</summary>
+        internal static HashSet<string> NamesFor(Doc doc, bool fresh)
+        {
+            if (doc == null || !Spell.Ready) return new HashSet<string>(StringComparer.Ordinal);
+            if (!fresh && ReferenceEquals(doc, _namesDoc)) return _names;
+            HashSet<string> all = new HashSet<string>(StringComparer.Ordinal);
+            List<List<string>> per = new List<List<string>>();
+            foreach (Cue c in doc.Cues)
+            {
+                List<string> bad = Spell.Misspelled(c.Text);
+                per.Add(bad);
+                foreach (string w in bad) all.Add(w);
+            }
+            Dictionary<string, HashSet<string>> seen = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            for (int i = 0; i < per.Count; i++)
+            {
+                if (per[i].Count == 0) continue;
+                string line = doc.Cues[i].PlainText.Trim();
+                foreach (string w in per[i])
+                {
+                    string b = NameBase(w, all);
+                    HashSet<string> lines;
+                    if (!seen.TryGetValue(b, out lines)) { lines = new HashSet<string>(StringComparer.Ordinal); seen[b] = lines; }
+                    lines.Add(line);
+                }
+            }
+            HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string w in all)
+                if (seen[NameBase(w, all)].Count >= NameRepeats && !Tripled(w)) names.Add(w);
+            _names = names;
+            _namesDoc = doc;
+            return names;
+        }
+
+        /// <summary>המילה בלי תחיליות (עד שלוש), כל עוד מה שנשאר מסומן גם הוא במקום אחר: ״לרופרט״ ← ״רופרט״.</summary>
+        private static string NameBase(string w, HashSet<string> all)
+        {
+            string b = w;
+            for (int k = 0; k < 3 && b.Length > 3 && "ושהבכלמ".IndexOf(b[0]) >= 0 && all.Contains(b.Substring(1)); k++) b = b.Substring(1);
+            return b;
+        }
+
+        private static bool Tripled(string w)
+        {
+            for (int i = 2; i < w.Length; i++) if (w[i] == w[i - 1] && w[i] == w[i - 2]) return true;
+            return false;
         }
 
         public static bool Has(Doc doc, int index, out bool severe)
@@ -108,7 +180,7 @@ namespace SubtitleStudio
             return l.Count > 0;
         }
 
-        private static void AddFor(List<Cue> cues, int i, List<Issue> r)
+        private static void AddFor(List<Cue> cues, int i, List<Issue> r, HashSet<string> names)
         {
             Cue c = cues[i];
             string plain = c.PlainText;
@@ -133,10 +205,16 @@ namespace SubtitleStudio
             if (lines > MaxLines) Add(r, i, c, IssueKind.ManyLines, false);
             if (longest > MaxLineChars) Add(r, i, c, IssueKind.LongLine, false);
 
-            // איות: בעיה אחת לכתובית, עם כל המילים שבה. ‏Spell ממטמן לפי הטקסט.
+            // איות: בעיה אחת לכתובית, עם כל המילים שבה, בלי שמות (`NamesFor`). ‏Spell ממטמן לפי הטקסט.
             if (Spell.Ready)
             {
                 List<string> bad = Spell.Misspelled(c.Text);
+                if (bad.Count > 0 && names.Count > 0)
+                {
+                    List<string> keep = new List<string>();
+                    foreach (string w in bad) if (!names.Contains(w)) keep.Add(w);
+                    bad = keep;
+                }
                 if (bad.Count > 0)
                 {
                     Add(r, i, c, IssueKind.Spelling, false);

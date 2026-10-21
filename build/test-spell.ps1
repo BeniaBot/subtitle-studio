@@ -7,7 +7,7 @@
 # **לא נוגעים ב-%TEMP%\ss-test-dict**, התיקייה שמצב הבדיקה של התוכנה משתמש בה.
 # מילון שנשאר שם היה נטען ברקע בכל בדיקת ממשק אחרת, ומוסיף ״בעיות״ באמצע מדידה.
 # כאן הכול דרך Spell.FolderOverride לתיקיות זמניות.
-# צפוי: 59 בדיקות.
+# צפוי: 65 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -59,7 +59,8 @@ Check 'מילים תקינות, עם תחיליות, ניקוד וגרשיים �
 Check 'כלל הוא״ו: בוורד כן, בורד לא' ($e.Check('בוורד') -and -not $e.Check('בורד')) ''
 
 # NEEDAFFIX: מילה עם הסוג j לא עומדת לבד, ועם תחילית מהסוג שלה כן
-$dicLine = Get-Content (Join-Path $dict 'he_IL.dic') -Encoding UTF8 -TotalCount 300000 | Where-Object { $_ -match '/hj$' } | Select-Object -First 1
+# (בלי י׳/ו׳ באמצע: ״אבותה״ בלי ו׳ היא ״אבתה״, ומילה אחרת היא לא מה שנבדק כאן - SpellEngine.MaleChaser)
+$dicLine = Get-Content (Join-Path $dict 'he_IL.dic') -Encoding UTF8 -TotalCount 300000 | Where-Object { $_ -match '/hj$' -and $_.Split('/')[0] -notmatch '.[יו].' } | Select-Object -First 1
 $njWord = $dicLine.Split('/')[0]
 $hRule = Get-Content (Join-Path $dict 'he_IL.aff') -Encoding UTF8 | Where-Object { $_ -match '^PFX h 0 \S+ \.$' } | Select-Object -First 1
 $hAdd = ($hRule -split '\s+')[3]
@@ -104,6 +105,17 @@ foreach ($k in $typos.Keys) {
     if (-not $caught -or $s.Count -eq 0 -or $s[0] -ne $typos[$k]) { $badTop += ("$k -> " + ($s -join '/')) }
 }
 Check 'שגיאות כתיב נתפסות, והתיקון הנכון הוא ההצעה הראשונה' ($badTop.Count -eq 0) ($badTop -join ' | ')
+
+# ---- 0.8.27: כתיב מלא שהמילון לא מכיר, ראשי תיבות, תעתיק (מתרגום של סרטון אמיתי ומשיעורים) ----
+$variants = @('אמיתי', 'האמיתיים', 'השיער', 'החוכמה', 'לעיתים', 'מירוץ', 'היתה', 'שהיתה', 'ענין', 'איתו', 'אמא', 'שהכל')
+$rej = @($variants | Where-Object { -not $e.Check($_) })
+Check 'כתיב מלא ומקובל שהמילון לא מכיר (אמיתי, השיער, היתה, ענין...)' ($rej.Count -eq 0) ($rej -join ', ')
+$still = @('כתובייות', 'תלמידיים', 'לקוווה', 'נפעץ', 'סופוף', 'בורד', 'יייטס')
+$acc = @($still | Where-Object { $e.Check($_) })
+Check 'ושגיאות עדיין נתפסות (י׳ אחת יותר מדי, אות משולשת, ״בורד״)' ($acc.Count -eq 0) ($acc -join ', ')
+$abbr = @('לשה"ר', 'ולפי"ז', 'נפק"מ', "סמית'", "ג'ייסון", "וקריצ'ר")
+$rej = @($abbr | Where-Object { -not $e.Check($_) })
+Check 'ראשי תיבות ושמות בתעתיק (ג׳, צ׳, ת׳) - לא שגיאה' ($rej.Count -eq 0) ($rej -join ', ')
 
 $toks = @(@($wordsM.Invoke($null, (Pack ([string]'צה״ל אמר ״שלום״ ל-John בשנת 2024, ג׳ירפה־גדולה/קטנה, ותוס׳ ')))) | ForEach-Object { $_.Text })
 Check 'חלוקה למילים: גרשיים באמצע נשארים, בקצוות לא; אנגלית ומספרים נשארים בחוץ' (($toks -join '|') -eq 'צה״ל|אמר|שלום|ל|בשנת|ג׳ירפה|גדולה|קטנה|ותוס׳') ($toks -join '|')
@@ -243,6 +255,19 @@ Check 'ההסבר מציע את התיקון, ואומר איפה מתקנים' 
 $fix = $qaT.GetMethod('FixAll', $SF).Invoke($null, (Pack $d))
 Check 'תיקון אוטומטי לא נוגע באיות (זה דורש אדם)' ($d.Cues[0].Text.Contains('ברכוט')) ''
 Check 'ReplaceWord מחליף רק מילה שלמה' (([string]$spT.GetMethod('ReplaceWord', $SF).Invoke($null, (Pack 'שלום שלומות, שלום.' 'שלום' 'היי'))) -eq 'היי שלומות, היי.') ''
+
+# ---- 0.8.27: מילה לא מוכרת שחוזרת בשלוש כתוביות שונות היא שם (Qa.NamesFor) ----
+function SpellWords($rows) {
+    $dn = [Activator]::CreateInstance($docT); $t0 = 0
+    foreach ($r in $rows) { $dn.Cues.Add((NewCue $t0 ($t0 + 2000) $r)); $t0 += 3000 }
+    return @(@($qaT.GetMethod('Find', $SF).Invoke($null, (Pack $dn))) | Where-Object { [string]$_.Kind -eq 'Spelling' } | ForEach-Object { $_.Words } | ForEach-Object { $_ })
+}
+$w = SpellWords @('רדקליף הגיע לצילומים', 'ווטסון ורדקליף צחקו', 'גם לרדקליף היה קשה', 'שלום לכולם', 'נפעץ ברגל')
+Check 'שם שחוזר בשלוש כתוביות (גם עם תחיליות) - לא מסומן; שגיאה אחת - כן' (($w -join ',') -eq 'ווטסון,נפעץ') ($w -join ',')
+$w = SpellWords @('ברכוט השחר', 'ברכוט השחר', 'ברכוט השחר')
+Check 'אבל אותה שורה שחוזרת (פזמון) - השגיאה בה מסומנת' (@($w | Where-Object { $_ -eq 'ברכוט' }).Count -eq 3) ($w -join ',')
+$w = SpellWords @('יייטס הגיע', 'עם יייטס', 'ושוב יייטס כאן')
+Check 'ומילה עם אות משולשת - תמיד שגיאה' (@($w | Where-Object { $_ -eq 'יייטס' }).Count -eq 3) ($w -join ',')
 
 $f = [Activator]::CreateInstance($formT)
 $f.StartPosition = 'Manual'; $f.Location = New-Object Drawing.Point -3000, -3000
