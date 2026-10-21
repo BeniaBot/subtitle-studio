@@ -981,15 +981,58 @@ namespace SubtitleStudio
 
         public static void Save(string path, List<Cue> cues, SubFormat fmt, SubStyle style, int vw, int vh, bool bom)
         {
-            string s;
+            SafeFile.Write(path, new UTF8Encoding(bom).GetBytes(Render(cues, fmt, style, vw, vh)));
+        }
+
+        private static string Render(List<Cue> cues, SubFormat fmt, SubStyle style, int vw, int vh)
+        {
             switch (fmt)
             {
-                case SubFormat.Vtt: s = ToVtt(cues); break;
-                case SubFormat.Ass: s = ToAssForPlayers(cues, style, vw, vh); break;
-                case SubFormat.Txt: s = ToTranslationText(cues); break;
-                default: s = ToSrt(cues); break;
+                case SubFormat.Vtt: return ToVtt(cues);
+                case SubFormat.Ass: return ToAssForPlayers(cues, style, vw, vh);
+                case SubFormat.Txt: return ToTranslationText(cues);
+                default: return ToSrt(cues);
             }
-            SafeFile.Write(path, new UTF8Encoding(bom).GetBytes(s));
+        }
+
+        /// <summary>**שמירה בקידוד של המקור** (0.8.29): SRT שנפתח בקידוד ישן של חלונות (``Windows-1255`` - טלוויזיות ונגנים ישנים קוראים
+        /// רק אותו) נשמר בו, כל עוד כל התווים נכנסים בו. עד כאן כל שמירה הפכה אותו ל-UTF-8 - מי שתיקן תזמון קיבל ג׳יבריש בטלוויזיה.
+        /// כל השאר, ומה שלא נכנס (אימוג׳י, כתב אחר) - UTF-8 עם BOM. ‏<paramref name="used"/> - הקידוד הישן, אם נשמר בו; אחרת null.</summary>
+        public static void SaveKeepingEncoding(string path, List<Cue> cues, SubFormat fmt, SubStyle style, int vw, int vh, string sourceEncoding, out string used)
+        {
+            string s = Render(cues, fmt, style, vw, vh);
+            used = null;
+            Encoding enc = new UTF8Encoding(true);
+            int cp = LegacyCodePage(sourceEncoding);
+            if (fmt == SubFormat.Srt && cp > 0)
+            {
+                try
+                {
+                    Encoding strict = Encoding.GetEncoding(cp, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+                    strict.GetBytes(s);
+                    enc = strict;
+                    used = sourceEncoding;
+                }
+                catch { }
+            }
+            SafeFile.Write(path, enc.GetPreamble().Length > 0 ? Concat(enc.GetPreamble(), enc.GetBytes(s)) : enc.GetBytes(s));
+        }
+
+        /// <summary>״Windows-1255 (עברית)״ ← 1255; כל דבר אחר ← 0.</summary>
+        internal static int LegacyCodePage(string encodingName)
+        {
+            if (string.IsNullOrEmpty(encodingName) || !encodingName.StartsWith("Windows-", StringComparison.Ordinal)) return 0;
+            int i = 8, cp = 0;
+            while (i < encodingName.Length && char.IsDigit(encodingName[i])) cp = cp * 10 + (encodingName[i++] - '0');
+            return cp >= 1250 && cp <= 1258 ? cp : 0;
+        }
+
+        private static byte[] Concat(byte[] a, byte[] b)
+        {
+            byte[] r = new byte[a.Length + b.Length];
+            Buffer.BlockCopy(a, 0, r, 0, a.Length);
+            Buffer.BlockCopy(b, 0, r, a.Length, b.Length);
+            return r;
         }
 
         /// <summary>האם ״שמירה״ יכולה לכתוב לתוך הקובץ שנפתח, בלי לשנות את הפורמט שלו.

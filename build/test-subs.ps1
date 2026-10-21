@@ -3,7 +3,7 @@
 # תגיות עיצוב, ‏WebVTT עם הגדרות, ‏ASS מעוצב, ‏MicroDVD. בודק שהטקסט שחזר הוא
 # הטקסט שנכתב, בלי שאריות תגיות - ושהשמירה חזרה משמרת אותו.
 # **נולד מבאג** (24.9.2026): כל קידוד ישן נחשב עברית, ו״Déjà vu״ נפתח כ-״Dיjא vu״.
-# צפוי: 31 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
+# צפוי: 33 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -74,6 +74,24 @@ $ass2 = $ass.Replace('{\pos(960,100)}' + $he[1], 'שורה א\Nשורה ב')
 Check 'ass \N line break' ($u8.GetBytes($ass2)) '.ass' @($he[0], "שורה א`r`nשורה ב", $he[2]) $null
 $sub = "{1}{1}25.000`r`n{25}{75}" + $he[0] + "`r`n{100}{162}" + $he[1] + "`r`n{175}{225}" + $he[2] + "`r`n"
 Check 'microdvd with fps line' ($u8.GetBytes($sub)) '.sub' $he $null
+
+Write-Host '---- save keeps the old encoding (0.8.29) ----'
+# SRT בקידוד הישן של חלונות - טלוויזיות ונגנים ישנים קוראים רק אותו. עד 0.8.29 כל שמירה הפכה אותו ל-UTF-8.
+$src1255 = Join-Path $dir 'srt windows-1255.srt'
+$r1255 = Load $src1255
+$keepM = (TY 'Formats').GetMethod('SaveKeepingEncoding', $ST)
+function SaveKeep($cues, $path, $enc) {
+    $a = New-Object object[] 8; $a[0] = [string]$path; $a[1] = $cues; $a[2] = [Enum]::Parse((TY 'SubFormat'), 'Srt'); $a[3] = [Activator]::CreateInstance((TY 'SubStyle')); $a[4] = 1920; $a[5] = 1080; $a[6] = [string]$enc
+    [void]$keepM.Invoke($null, $a); return $a[7]
+}
+$o1 = Join-Path $dir 'kept-1255.srt'; $used = SaveKeep $r1255.Cues $o1 $r1255.Encoding
+$b1 = [IO.File]::ReadAllBytes($o1)
+$back1 = [Text.Encoding]::GetEncoding(1255).GetString($b1)
+Rep 'save: a Windows-1255 file stays Windows-1255 (no BOM), and says so' ($used -like '*1255*' -and $b1[0] -ne 0xEF -and $back1.Contains($he[0]) -and $back1.Contains($he[2])) ("used=" + $used)
+$r1255.Cues[0].Text = 'שלום 🙂 עם סמל'
+$o2 = Join-Path $dir 'kept-emoji.srt'; $used2 = SaveKeep $r1255.Cues $o2 $r1255.Encoding
+$b2 = [IO.File]::ReadAllBytes($o2)
+Rep 'save: a character that 1255 cannot hold - UTF-8 with BOM, nothing lost' ($used2 -eq $null -and $b2[0] -eq 0xEF -and [Text.Encoding]::UTF8.GetString($b2).Contains('🙂')) ''
 
 Write-Host '---- save and load back ----'
 $src = Join-Path $dir 'srt utf8.srt'

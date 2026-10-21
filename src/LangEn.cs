@@ -1655,6 +1655,7 @@ namespace SubtitleStudio
             "צבע הרקע", "Box colour",
             "שקיפות הרקע", "Box transparency",
             " · רקע", " · background",
+            "   (בקידוד {0}, כמו המקור)", "   (in {0}, like the original)",
         };
 
         public static void Fill(Dictionary<string, string> d)

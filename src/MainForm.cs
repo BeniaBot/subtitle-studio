@@ -3266,14 +3266,16 @@ namespace SubtitleStudio
             try
             {
                 _doc.Sort();
-                Formats.Save(path, _doc.Cues, Formats.FormatFromExt(path), _style,
-                    _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, true);
+                string kept;
+                Formats.SaveKeepingEncoding(path, _doc.Cues, Formats.FormatFromExt(path), _style,
+                    _mi != null ? _mi.Width : 1920, _mi != null ? _mi.Height : 1080, _doc.SourceEncoding, out kept);
+                string keptNote = kept != null ? Lang.F("   (בקידוד {0}, כמו המקור)", kept) : "";
                 _doc.FilePath = path;
                 _doc.Dirty = false;
                 // הגיבוי האוטומטי ישן מהשמירה. אם הוא נשאר וקרתה קריסה, ההפעלה
                 // הבאה הייתה מציעה ״לשחזר״ גרסה ישנה מזו שנשמרה.
                 ClearAutoSave();
-                _hintLbl.Text = Lang.F("הכתוביות נשמרו:  {0}\u200F{1}", Theme.FileName(Path.GetFileName(path)), (blanks > 0 ? Lang.F("   (הושמטו {0} כתוביות בלי טקסט)", blanks) : ""));
+                _hintLbl.Text = Lang.F("הכתוביות נשמרו:  {0}\u200F{1}", Theme.FileName(Path.GetFileName(path)), keptNote + (blanks > 0 ? Lang.F("   (הושמטו {0} כתוביות בלי טקסט)", blanks) : ""));
                 _hintLbl.Invalidate();
                 return true;
             }
