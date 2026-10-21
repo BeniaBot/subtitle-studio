@@ -121,6 +121,39 @@ Check 'מספר בלי גרשיים: אחרי ״פסחים״ ו״בסעיף״ כ
 $vy = @(@('מסויים', 'במסויים', 'מצויין', 'יצוייר', 'ריש', 'וכו', 'פארק', 'בפודקאסט', 'האקרים') | Where-Object { -not $e.Check($_) })
 $vyBad = @(@('סבייבו', 'אחרייות', 'עמייתו') | Where-Object { $e.Check($_) })
 Check '״מסויים״, ״מצויין״ ומילים שנוספו - נכון; ״יי״ שלא אחרי ו׳ (״סבייבו״) - עדיין שגיאה' ($vy.Count -eq 0 -and $vyBad.Count -eq 0) (($vy + $vyBad) -join ', ')
+# 0.8.33: הקו האדום ברשימה - **מתחת למילה עצמה**. לא מול אותו חישוב: מציירים את השורה באמת (Theme.Str), מוצאים את גושי הדיו
+# (הפערים הגדולים ביותר הם הרווחים בין המילים), ומשווים לגוש של המילה - גם כשמספר ו״Harry Potter״ באמצע (רצף משמאל לימין)
+(T 'Theme').GetField('Scale', $SF).SetValue($null, [float]1.25)
+$uiFont = (T 'Theme').GetProperty('Ui', $SF).GetValue($null, $null)
+$strM = (T 'Theme').GetMethod('Str', $SF, $null, [Type[]]@([Drawing.Graphics], [string], [Drawing.Font], [Drawing.Color], [Drawing.RectangleF], [Drawing.StringFormat]), $null)
+$spanM = (T 'CueList').GetMethod('SquiggleSpans', $SF)
+function SquiggleVsInk([string]$text, [int]$units, [int]$fromRight) {
+    $W = 900; $H = 44
+    $bmp = New-Object Drawing.Bitmap $W, $H; $g = [Drawing.Graphics]::FromImage($bmp); $g.Clear([Drawing.Color]::Black)
+    $r = New-Object Drawing.RectangleF 20, 6, 860, 32
+    $sf = (T 'Theme').GetMethod('SfText', $SF).Invoke($null, (Pack $text))
+    [void]$strM.Invoke($null, (Pack $g $text $uiFont ([Drawing.Color]::White) $r $sf))
+    $bad = New-Object 'System.Collections.Generic.List[string]'; $bad.Add('כתובייות')
+    $spans = @($spanM.Invoke($null, (Pack $g $text $bad $r $uiFont)))
+    $g.Dispose()
+    $ink = New-Object bool[] $W
+    $d = $bmp.LockBits((New-Object Drawing.Rectangle 0, 0, $W, $H), 'ReadOnly', 'Format32bppArgb'); $px = New-Object byte[] ($d.Stride * $H); [Runtime.InteropServices.Marshal]::Copy($d.Scan0, $px, 0, $px.Length); $bmp.UnlockBits($d); $bmp.Dispose()
+    for ($x = 0; $x -lt $W; $x++) { for ($y = 0; $y -lt $H; $y++) { if ($px[$y * $d.Stride + $x * 4 + 1] -gt 80) { $ink[$x] = $true; break } } }
+    $runs = New-Object Collections.ArrayList; $s = -1
+    for ($x = 0; $x -lt $W; $x++) { if ($ink[$x] -and $s -lt 0) { $s = $x }; if (-not $ink[$x] -and $s -ge 0) { [void]$runs.Add(@($s, ($x - 1))); $s = -1 } }
+    $gaps = @(for ($i = 1; $i -lt $runs.Count; $i++) { [pscustomobject]@{ I = $i; W = $runs[$i][0] - $runs[$i - 1][1] } }) | Sort-Object W -Descending | Select-Object -First ($units - 1)
+    $cuts = @($gaps | ForEach-Object { $_.I })
+    $cl = New-Object Collections.ArrayList; $cur = @($runs[0][0], $runs[0][1])
+    for ($i = 1; $i -lt $runs.Count; $i++) { if ($cuts -contains $i) { [void]$cl.Add($cur); $cur = @($runs[$i][0], $runs[$i][1]) } else { $cur[1] = $runs[$i][1] } }
+    [void]$cl.Add($cur)
+    if ($spans.Count -ne 1 -or $cl.Count -ne $units) { return "spans=$($spans.Count) clusters=$($cl.Count)" }
+    $want = $cl[$cl.Count - 1 - $fromRight]
+    $dl = [Math]::Abs($spans[0].Left - $want[0]); $dr = [Math]::Abs($spans[0].Right - ($want[1] + 1))
+    return $(if ($dl -le 3 -and $dr -le 3) { '' } else { 'squiggle {0:0}-{1:0}, word ink {2}-{3}' -f $spans[0].Left, $spans[0].Right, $want[0], ($want[1] + 1) })
+}
+$sq1 = SquiggleVsInk 'היום כתובייות חדשות לכולם' 4 1
+$sq2 = SquiggleVsInk 'בשנת 2024 ראיתי Harry Potter כתובייות חדשות' 7 5
+Check 'קו אדום ברשימה: מתחת למילה השגויה בדיוק (עברית; ועם מספר ושם באנגלית באמצע)' ($sq1 -eq '' -and $sq2 -eq '') ("$sq1 | $sq2")
 $abbr = @('לשה"ר', 'ולפי"ז', 'נפק"מ', "סמית'", "ג'ייסון", "וקריצ'ר")
 $rej = @($abbr | Where-Object { -not $e.Check($_) })
 Check 'ראשי תיבות ושמות בתעתיק (ג׳, צ׳, ת׳) - לא שגיאה' ($rej.Count -eq 0) ($rej -join ', ')

@@ -393,6 +393,63 @@ namespace SubtitleStudio
             }
         }
 
+        /// <summary>**קו אדום גלי מתחת למילה שהאיות מסמן** (0.8.33), כמו בכל מעבד תמלילים - עד כאן רק סימן בשורה, ואת המילה מצאו
+        /// בקליק ימני. ‏<paramref name="shown"/> - הטקסט כמו שצויר (`Theme.Str`: ‏TextRenderer, שורה אחת, ״...״ בסוף).
+        ///
+        /// **איפה המילה:** בפסקה מימין לשמאל מילה עברית תמיד ברצף משלה, וכל מה שלפניה (גם מספר או ״Harry Potter״ שלם) יושב מימינה
+        /// באותו רוחב - אז הצד השמאלי שלה = הקצה הימני פחות הרוחב של הטקסט עד סופה, והימני = זה ועוד הרוחב שלה. מודדים ״עד סוף
+        /// המילה״ ולא ״עד תחילתה״ - רווח בסוף מדידה לא תמיד נספר. מילה שנחתכה ב״...״ - בלי קו. ‏test-spell מודד מול הדיו של הטקסט.</summary>
+        internal static List<RectangleF> SquiggleSpans(Graphics g, string shown, List<string> bad, RectangleF r, Font f)
+        {
+            List<RectangleF> spans = new List<RectangleF>();
+            if (bad == null || bad.Count == 0 || string.IsNullOrEmpty(shown)) return spans;
+            StringFormat sf = Theme.SfText(shown);
+            bool rtl = (sf.FormatFlags & StringFormatFlags.DirectionRightToLeft) != 0;
+            bool right = (sf.Alignment == StringAlignment.Far) != rtl;
+            if (!rtl || !right) return spans;
+            Rectangle rr = Rectangle.Round(r);
+            TextFormatFlags mf = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
+            Size big = new Size(int.MaxValue, int.MaxValue);
+            int full = TextRenderer.MeasureText(g, shown, f, big, mf).Width;
+            int limit = rr.Left + (full > rr.Width ? TextRenderer.MeasureText(g, "...", f, big, mf).Width : 0);
+            float cy = r.Y + r.Height / 2f;
+            float lineBottom = cy + f.Height / 2f;
+            float desc = f.FontFamily.GetCellDescent(f.Style) * f.Height / (float)Math.Max(1, f.FontFamily.GetLineSpacing(f.Style));
+            float y = lineBottom - desc + Theme.S(2);
+            foreach (SpellEngine.Token t in SpellEngine.Words(shown))
+            {
+                if (!bad.Contains(t.Text)) continue;
+                int upTo = TextRenderer.MeasureText(g, shown.Substring(0, t.Start + t.Length), f, big, mf).Width;
+                int w = TextRenderer.MeasureText(g, t.Text, f, big, mf).Width;
+                float x1 = rr.Right - upTo, x2 = x1 + w;
+                if (x1 < limit || x2 > rr.Right + 1) continue;
+                spans.Add(new RectangleF(x1, y, w, Theme.S(3)));
+            }
+            return spans;
+        }
+
+        private void Squiggles(Graphics g, Cue c, string shown, RectangleF r)
+        {
+            if (!Spell.Ready) return;
+            List<string> bad = Qa.Misspelled(Doc, c);
+            if (bad.Count == 0) return;
+            float amp = Math.Max(2f, Theme.S(2f)), step = Math.Max(3f, Theme.S(3f));
+            using (Pen p = new Pen(Theme.Bad, Math.Max(1f, Theme.S(1f))))
+            {
+                System.Drawing.Drawing2D.SmoothingMode was = g.SmoothingMode;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                foreach (RectangleF s in SquiggleSpans(g, shown, bad, r, Theme.Ui))
+                {
+                    List<PointF> pts = new List<PointF>();
+                    bool up = true;
+                    for (float x = s.Left; x <= s.Right + 0.01f; x += step, up = !up)
+                        pts.Add(new PointF(Math.Min(x, s.Right), s.Top + (up ? 0 : amp)));
+                    if (pts.Count >= 2) g.DrawLines(p, pts.ToArray());
+                }
+                g.SmoothingMode = was;
+            }
+        }
+
         /// <summary>הקו עם ה-+ שמופיע בריחוף בין שתי שורות.</summary>
         private void DrawInsertLine(Graphics g)
         {
@@ -517,6 +574,7 @@ namespace SubtitleStudio
                 if (blank) txt = Lang.T("(ריק - לחצו כדי לכתוב)");
                 RectangleF tr = Theme.Mir(all, new RectangleF(textX, y + Theme.S(4), textW, _rowH - Theme.S(8)));
                 Theme.Str(g, txt, Theme.Ui, blank ? Theme.TextFaint : Theme.Text, tr, blank ? Theme.SfUi : Theme.SfText(txt));
+                if (!blank) Squiggles(g, c, txt, tr);
 
                 // זמנים
                 // ״≈״ מסמן שהזמן הוא הערכה מיבוא טקסט ועוד לא נקבע מול הסרט
