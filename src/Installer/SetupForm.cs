@@ -7,7 +7,8 @@ using System.Windows.Forms;
 
 namespace SubtitleStudioSetup
 {
-    /// <summary>חלון ההתקנה. שלושה מסכים באותו טופס: בחירה, התקדמות, סיום.</summary>
+    /// <summary>חלון ההתקנה. שלושה מסכים באותו טופס: בחירה, התקדמות, סיום.
+    /// בעברית מימין לשמאל, ובאנגלית (0.8.33, `T`) - הלוגו, הסימן והטקסט מתהפכים; הכפתורים נשארים מימין.</summary>
     internal class SetupForm : Form
     {
         private const int W = 520, H = 352, Pad = 26;
@@ -28,13 +29,13 @@ namespace SubtitleStudioSetup
         {
             _opt = opt;
 
-            Text = "התקנה · " + Prod.Name;
+            Text = T.S("התקנה · ", "Setup · ") + Prod.Name;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.None;
-            RightToLeft = RightToLeft.Yes;          // בלי RightToLeftLayout - הוא מהפך את הציור
+            RightToLeft = T.Rtl ? RightToLeft.Yes : RightToLeft.No;   // בלי RightToLeftLayout - הוא מהפך את הציור
             BackColor = Skin.Bg;
             ForeColor = Skin.Text;
             Font = Skin.Body;
@@ -54,17 +55,17 @@ namespace SubtitleStudioSetup
             Controls.Add(_path);
 
             _browse = new FlatBtn();
-            _browse.Text = "עיון…";
+            _browse.Text = T.S("עיון…", "Browse…");
             _browse.Click += delegate { Browse(); };
             Controls.Add(_browse);
 
             _desk = new CheckLine();
-            _desk.Text = "ליצור קיצור בשולחן העבודה";
+            _desk.Text = T.S("ליצור קיצור בשולחן העבודה", "Create a desktop shortcut");
             _desk.Checked = _opt.Desktop;
             Controls.Add(_desk);
 
             _run = new CheckLine();
-            _run.Text = "להפעיל את התוכנה עכשיו";
+            _run.Text = T.S("להפעיל את התוכנה עכשיו", "Start Subtext now");
             _run.Checked = true;
             _run.Visible = false;
             Controls.Add(_run);
@@ -75,12 +76,12 @@ namespace SubtitleStudioSetup
 
             _ok = new FlatBtn();
             _ok.Kind = BtnKind.Primary;
-            _ok.Text = "התקנה";
+            _ok.Text = T.S("התקנה", "Install");
             _ok.Click += delegate { OnPrimary(); };
             Controls.Add(_ok);
 
             _cancel = new FlatBtn();
-            _cancel.Text = "ביטול";
+            _cancel.Text = T.S("ביטול", "Cancel");
             _cancel.Click += delegate { Close(); };
             Controls.Add(_cancel);
 
@@ -104,15 +105,23 @@ namespace SubtitleStudioSetup
             }
         }
 
+        /// <summary>שדה הנתיב: ״עיון״ בסוף השורה (משמאל בעברית, מימין באנגלית), והמסגרת של השדה לידו.</summary>
+        private Rectangle FieldRect()
+        {
+            int w = ClientSize.Width, pad = Skin.S(Pad), bw = Skin.S(84), gap = Skin.S(10);
+            int fw = w - pad * 2 - bw - gap;
+            return new Rectangle(T.Rtl ? pad + bw + gap : pad, Skin.S(134), fw, Skin.S(32));
+        }
+
         private void Layout_()
         {
             int w = ClientSize.Width, pad = Skin.S(Pad);
             int bw = Skin.S(84), bh = Skin.S(32);
 
-            _browse.Bounds = new Rectangle(pad, Skin.S(134), bw, bh);
-            int px = pad + bw + Skin.S(10);
-            _path.Bounds = new Rectangle(px + Skin.S(10), Skin.S(134) + (bh - _path.PreferredHeight) / 2,
-                                         w - pad - px - Skin.S(20), _path.PreferredHeight);
+            _browse.Bounds = new Rectangle(T.Rtl ? pad : w - pad - bw, Skin.S(134), bw, bh);
+            Rectangle f = FieldRect();
+            _path.Bounds = new Rectangle(f.X + Skin.S(10), f.Y + (bh - _path.PreferredHeight) / 2,
+                                         f.Width - Skin.S(20), _path.PreferredHeight);
 
             _desk.Bounds = new Rectangle(pad, Skin.S(184), w - pad * 2, Skin.S(26));
             _bar.Bounds = new Rectangle(pad, Skin.S(196), w - pad * 2, Skin.S(10));
@@ -154,6 +163,7 @@ namespace SubtitleStudioSetup
             using (SolidBrush b = new SolidBrush(Skin.Bg)) g.FillRectangle(b, ClientRectangle);
 
             int w = ClientSize.Width, pad = Skin.S(Pad);
+            bool rtl = T.Rtl;
 
             // כותרת
             using (SolidBrush b = new SolidBrush(Skin.Panel))
@@ -162,40 +172,43 @@ namespace SubtitleStudioSetup
                 g.DrawLine(p, 0, Skin.S(92), w, Skin.S(92));
 
             int ls = Skin.S(48);
-            Skin.Logo(g, new RectangleF(w - pad - ls, Skin.S(22), ls, ls));
+            Rectangle logo = Skin.Lead(w, pad, Skin.S(22), ls, ls);
+            Skin.Logo(g, new RectangleF(logo.X, logo.Y, ls, ls));
             int tw = w - pad - ls - Skin.S(16) - pad;
+            int tx = rtl ? pad : pad + ls + Skin.S(16);
             Skin.Str(g, Prod.Name, Skin.Title, Skin.Text,
-                     new Rectangle(pad, Skin.S(26), tw, Skin.S(30)), true, false, true);
-            Skin.Str(g, _page == 2 ? "ההתקנה הסתיימה" : "התקנה · גרסה " + Prod.Version,
+                     new Rectangle(tx, Skin.S(26), tw, Skin.S(30)), rtl, false, true);
+            Skin.Str(g, _page == 2 ? T.S("ההתקנה הסתיימה", "Setup finished") : T.S("התקנה · גרסה ", "Setup · version ") + Prod.Version,
                      Skin.Small, Skin.TextDim,
-                     new Rectangle(pad, Skin.S(56), tw, Skin.S(20)), true, false, true);
+                     new Rectangle(tx, Skin.S(56), tw, Skin.S(20)), rtl, false, true);
 
             if (_page == 0)
             {
-                Skin.Str(g, "לאן להתקין את התוכנה?", Skin.Semi, Skin.Text,
-                         new Rectangle(pad, Skin.S(106), w - pad * 2, Skin.S(22)), true, false, true);
+                Skin.Str(g, T.S("לאן להתקין את התוכנה?", "Where should Subtext be installed?"), Skin.Semi, Skin.Text,
+                         new Rectangle(pad, Skin.S(106), w - pad * 2, Skin.S(22)), rtl, false, true);
                 // מסגרת שדה הנתיב
-                Rectangle f = new Rectangle(pad + Skin.S(84) + Skin.S(10), Skin.S(134),
-                                            w - pad - (pad + Skin.S(84) + Skin.S(10)), Skin.S(32));
+                Rectangle f = FieldRect();
                 Skin.Fill(g, f, Skin.S(8), Skin.PanelAlt);
                 Skin.Draw(g, new RectangleF(f.X, f.Y, f.Width - 1, f.Height - 1), Skin.S(8), Skin.Border, 1f);
 
-                Skin.Str(g, "ההתקנה היא למשתמש הנוכחי בלבד - בלי הרשאות מנהל.\n" +
-                            "התוכנה תופיע בתפריט התחל וברשימת התוכנות של ווינדוס.",
+                Skin.Str(g, T.S("ההתקנה היא למשתמש הנוכחי בלבד - בלי הרשאות מנהל.\n" +
+                                "התוכנה תופיע בתפריט התחל וברשימת התוכנות של ווינדוס.",
+                                "Installs for the current user only - no administrator rights needed.\n" +
+                                "Subtext will appear in the Start menu and in the Windows list of apps."),
                          Skin.Small, Skin.TextFaint,
-                         new Rectangle(pad, Skin.S(222), w - pad * 2, Skin.S(46)), true, false, false);
+                         new Rectangle(pad, Skin.S(222), w - pad * 2, Skin.S(46)), rtl, false, false);
             }
             else if (_page == 1)
             {
                 Skin.Str(g, _status, Skin.Body, Skin.Text,
-                         new Rectangle(pad, Skin.S(150), w - pad * 2, Skin.S(30)), true, false, true);
+                         new Rectangle(pad, Skin.S(150), w - pad * 2, Skin.S(30)), rtl, false, true);
                 Skin.Path_(g, _doneDir, Skin.Small, Skin.TextFaint,
                            new Rectangle(pad, Skin.S(224), w - pad * 2, Skin.S(20)));
             }
             else
             {
                 int cy = Skin.S(132);
-                Rectangle dot = new Rectangle(w - pad - Skin.S(34), cy, Skin.S(34), Skin.S(34));
+                Rectangle dot = Skin.Lead(w, pad, cy, Skin.S(34), Skin.S(34));
                 Skin.Fill(g, dot, Skin.S(17), Color.FromArgb(0x1E, 0x3A, 0x2C));
                 using (Pen p = new Pen(Skin.Good, Math.Max(2f, Skin.S(3))))
                 {
@@ -208,24 +221,25 @@ namespace SubtitleStudioSetup
                         new PointF(dot.X + dot.Width * 0.75f, dot.Y + dot.Height * 0.31f)
                     });
                 }
-                int tx = pad, tw2 = w - pad * 2 - Skin.S(34) - Skin.S(14);
-                Skin.Str(g, "Subtext מוכן לשימוש", Skin.Big, Skin.Text,
-                         new Rectangle(tx, cy - Skin.S(2), tw2, Skin.S(24)), true, false, true);
-                Skin.Str(g, "התוכנה הותקנה אל:", Skin.Small, Skin.TextFaint,
-                         new Rectangle(tx, cy + Skin.S(24), tw2, Skin.S(18)), true, false, true);
+                int tw2 = w - pad * 2 - Skin.S(34) - Skin.S(14);
+                int tx2 = rtl ? pad : pad + Skin.S(34) + Skin.S(14);
+                Skin.Str(g, T.S("Subtext מוכן לשימוש", "Subtext is ready"), Skin.Big, Skin.Text,
+                         new Rectangle(tx2, cy - Skin.S(2), tw2, Skin.S(24)), rtl, false, true);
+                Skin.Str(g, T.S("התוכנה הותקנה אל:", "Installed to:"), Skin.Small, Skin.TextFaint,
+                         new Rectangle(tx2, cy + Skin.S(24), tw2, Skin.S(18)), rtl, false, true);
                 // הנתיב על שורה נפרדת ומקוצר באמצע - הוא ארוך מכל רוחב חלון סביר
                 Skin.Path_(g, _doneDir, Skin.Small, Skin.TextDim,
                            new Rectangle(pad, cy + Skin.S(42), w - pad * 2, Skin.S(20)));
                 if (_warn.Length > 0)
                     Skin.Str(g, _warn, Skin.Small, Skin.Bad,
-                             new Rectangle(pad, Skin.S(244), w - pad * 2, Skin.S(38)), true, false, false);
+                             new Rectangle(pad, Skin.S(244), w - pad * 2, Skin.S(38)), rtl, false, false);
             }
         }
 
         private void Browse()
         {
             FolderBrowserDialog fb = new FolderBrowserDialog();
-            fb.Description = "לאן להתקין את Subtext?";
+            fb.Description = T.S("לאן להתקין את Subtext?", "Where should Subtext be installed?");
             fb.ShowNewFolderButton = true;
             try
             {
@@ -264,7 +278,7 @@ namespace SubtitleStudioSetup
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this, "לא הצלחתי להפעיל את התוכנה:\n" + ex.Message,
+                        MessageBox.Show(this, T.S("לא הצלחתי להפעיל את התוכנה:\n", "Could not start Subtext:\n") + ex.Message,
                                         Prod.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
@@ -275,14 +289,14 @@ namespace SubtitleStudioSetup
             if (_page == 1) return;
 
             string dir = (_path.Text == null ? "" : _path.Text.Trim().Trim('"'));
-            if (dir.Length == 0) { Warn("צריך לבחור תיקייה."); return; }
+            if (dir.Length == 0) { Warn(T.S("צריך לבחור תיקייה.", "Please choose a folder.")); return; }
             try
             {
                 dir = Path.GetFullPath(dir);
                 string leaf = Path.GetFileName(dir.TrimEnd('\\'));
                 if (leaf.Length == 0 || leaf.EndsWith(":")) dir = Path.Combine(dir, "SubtitleStudio");
             }
-            catch (Exception ex) { Warn("הנתיב לא תקין: " + ex.Message); return; }
+            catch (Exception ex) { Warn(T.S("הנתיב לא תקין: ", "This path is not valid: ") + ex.Message); return; }
 
             // תיקייה קיימת שכבר יש בה דברים: להתקין לתוכה בערום זה להתערבב
             // בחומר של המשתמש, וההסרה בהמשך תרוקן חלקים ממנה. עדיף להציע
@@ -290,11 +304,13 @@ namespace SubtitleStudioSetup
             if (!IsOurFolder(dir) && HasContent(dir))
             {
                 string sub = Path.Combine(dir, "SubtitleStudio");
+                string nl = Environment.NewLine;
                 DialogResult ans = MessageBox.Show(this,
-                    "בתיקייה הזאת כבר יש קבצים:" + Environment.NewLine + dir + Environment.NewLine + Environment.NewLine +
-                    "עדיף להתקין לתיקייה משלה, כדי שהסרה בעתיד לא תיגע בשום דבר אחר:" +
-                    Environment.NewLine + sub + Environment.NewLine + Environment.NewLine +
-                    "להתקין לתיקייה משלה?",
+                    T.S("בתיקייה הזאת כבר יש קבצים:", "This folder already has files in it:") + nl + dir + nl + nl +
+                    T.S("עדיף להתקין לתיקייה משלה, כדי שהסרה בעתיד לא תיגע בשום דבר אחר:",
+                        "It is better to install into a folder of its own, so that uninstalling later touches nothing else:") +
+                    nl + sub + nl + nl +
+                    T.S("להתקין לתיקייה משלה?", "Install into a folder of its own?"),
                     Prod.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (ans == DialogResult.Cancel) return;
                 if (ans == DialogResult.Yes) dir = sub;
@@ -335,7 +351,7 @@ namespace SubtitleStudioSetup
         {
             _page = 1;
             _doneDir = dir;
-            _status = "מתחיל…";
+            _status = T.S("מתחיל…", "Starting…");
             _path.Visible = false;
             _browse.Visible = false;
             _desk.Visible = false;
@@ -343,7 +359,7 @@ namespace SubtitleStudioSetup
             _bar.Visible = true;
             _bar.Value = 0;
             _ok.Enabled = false;
-            _ok.Text = "מתקין…";
+            _ok.Text = T.S("מתקין…", "Installing…");
             Invalidate();
 
             Job job = new Job();
@@ -388,9 +404,9 @@ namespace SubtitleStudioSetup
                 _desk.Visible = true;
                 _cancel.Visible = true;
                 _ok.Enabled = true;
-                _ok.Text = "התקנה";
+                _ok.Text = T.S("התקנה", "Install");
                 Invalidate();
-                MessageBox.Show(this, job.Error == null ? "ההתקנה נכשלה." : job.Error,
+                MessageBox.Show(this, job.Error == null ? T.S("ההתקנה נכשלה.", "Setup failed.") : job.Error,
                                 Prod.Name, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ExitCode = Codes.Error;
                 return;
@@ -401,12 +417,13 @@ namespace SubtitleStudioSetup
             _bar.Visible = false;
             _run.Visible = true;
             _ok.Enabled = true;
-            _ok.Text = "סיום";
+            _ok.Text = T.S("סיום", "Finish");
             ExitCode = Codes.Ok;
             if (!job.ShortcutStart)
-                _warn = "לא הצלחתי ליצור קיצור בתפריט התחל. אפשר להפעיל את הקובץ מהתיקייה.";
+                _warn = T.S("לא הצלחתי ליצור קיצור בתפריט התחל. אפשר להפעיל את הקובץ מהתיקייה.",
+                            "Could not create the Start menu shortcut. You can run Subtext.exe from the folder.");
             else if (_desk.Checked && !job.ShortcutDesktop)
-                _warn = "לא הצלחתי ליצור קיצור בשולחן העבודה.";
+                _warn = T.S("לא הצלחתי ליצור קיצור בשולחן העבודה.", "Could not create the desktop shortcut.");
             Invalidate();
         }
     }

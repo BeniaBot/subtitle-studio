@@ -24,13 +24,13 @@ namespace SubtitleStudioSetup
         {
             _dir = dir;
 
-            Text = "הסרה · " + Prod.Name;
+            Text = T.S("הסרה · ", "Uninstall · ") + Prod.Name;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.None;
-            RightToLeft = RightToLeft.Yes;
+            RightToLeft = T.Rtl ? RightToLeft.Yes : RightToLeft.No;
             BackColor = Skin.Bg;
             ForeColor = Skin.Text;
             Font = Skin.Body;
@@ -42,18 +42,18 @@ namespace SubtitleStudioSetup
             _engine = new CheckLine();
             _engine.Checked = false;
             _engine.Text = eng > 0
-                ? "למחוק גם את מנוע הווידאו ואת המילון (" + Skin.Ltr(Fmt(eng)) + ")"
-                : "למחוק גם את מנוע הווידאו ואת המילון";
+                ? T.S("למחוק גם את מנוע הווידאו ואת המילון (" + Skin.Ltr(Fmt(eng)) + ")", "Also delete the video engine and the dictionary (" + Fmt(eng) + ")")
+                : T.S("למחוק גם את מנוע הווידאו ואת המילון", "Also delete the video engine and the dictionary");
             Controls.Add(_engine);
 
             _ok = new FlatBtn();
             _ok.Kind = BtnKind.Primary;
-            _ok.Text = "להסיר";
+            _ok.Text = T.S("להסיר", "Uninstall");
             _ok.Click += delegate { OnPrimary(); };
             Controls.Add(_ok);
 
             _cancel = new FlatBtn();
-            _cancel.Text = "ביטול";
+            _cancel.Text = T.S("ביטול", "Cancel");
             _cancel.Click += delegate { Close(); };
             Controls.Add(_cancel);
 
@@ -125,34 +125,39 @@ namespace SubtitleStudioSetup
                 g.DrawLine(p, 0, Skin.S(84), w, Skin.S(84));
 
             int ls = Skin.S(42);
-            Skin.Logo(g, new RectangleF(w - pad - ls, Skin.S(21), ls, ls));
+            bool rtl = T.Rtl;
+            Rectangle logo = Skin.Lead(w, pad, Skin.S(21), ls, ls);
+            Skin.Logo(g, new RectangleF(logo.X, logo.Y, ls, ls));
             int tw = w - pad - ls - Skin.S(14) - pad;
+            int tx = rtl ? pad : pad + ls + Skin.S(14);
             Skin.Str(g, Prod.Name, Skin.Title, Skin.Text,
-                     new Rectangle(pad, Skin.S(24), tw, Skin.S(28)), true, false, true);
-            Skin.Str(g, _page == 2 ? "ההסרה הסתיימה" : "הסרת התוכנה", Skin.Small, Skin.TextDim,
-                     new Rectangle(pad, Skin.S(52), tw, Skin.S(18)), true, false, true);
+                     new Rectangle(tx, Skin.S(24), tw, Skin.S(28)), rtl, false, true);
+            Skin.Str(g, _page == 2 ? T.S("ההסרה הסתיימה", "Uninstall finished") : T.S("הסרת התוכנה", "Uninstall"), Skin.Small, Skin.TextDim,
+                     new Rectangle(tx, Skin.S(52), tw, Skin.S(18)), rtl, false, true);
 
             if (_page == 0)
             {
-                Skin.Str(g, "להסיר את Subtext מהמחשב?", Skin.Semi, Skin.Text,
-                         new Rectangle(pad, Skin.S(100), w - pad * 2, Skin.S(24)), true, false, true);
-                Skin.Str(g, "יימחקו התוכנה, הקיצורים והרישום בווינדוס.\n" +
-                            "ההגדרות שלכם וקבצי הכתוביות שיצרתם יישארו במקומם.",
+                Skin.Str(g, T.S("להסיר את Subtext מהמחשב?", "Remove Subtext from this computer?"), Skin.Semi, Skin.Text,
+                         new Rectangle(pad, Skin.S(100), w - pad * 2, Skin.S(24)), rtl, false, true);
+                Skin.Str(g, T.S("יימחקו התוכנה, הקיצורים והרישום בווינדוס.\n" +
+                                "ההגדרות שלכם וקבצי הכתוביות שיצרתם יישארו במקומם.",
+                                "The program, its shortcuts and its Windows registration will be removed.\n" +
+                                "Your settings and the subtitle files you made stay where they are."),
                          Skin.Small, Skin.TextFaint,
-                         new Rectangle(pad, Skin.S(124), w - pad * 2, Skin.S(38)), true, false, false);
+                         new Rectangle(pad, Skin.S(124), w - pad * 2, Skin.S(38)), rtl, false, false);
             }
             else if (_page == 1)
             {
-                Skin.Str(g, "מסיר…", Skin.Big, Skin.Text,
-                         new Rectangle(pad, Skin.S(120), w - pad * 2, Skin.S(28)), true, false, true);
+                Skin.Str(g, T.S("מסיר…", "Removing…"), Skin.Big, Skin.Text,
+                         new Rectangle(pad, Skin.S(120), w - pad * 2, Skin.S(28)), rtl, false, true);
             }
             else
             {
-                Skin.Str(g, "התוכנה הוסרה מהמחשב.", Skin.Big, Skin.Text,
-                         new Rectangle(pad, Skin.S(108), w - pad * 2, Skin.S(28)), true, false, true);
-                Skin.Str(g, _note.Length > 0 ? _note : "ההגדרות נשמרו - התקנה מחדש תמצא אותן.",
+                Skin.Str(g, T.S("התוכנה הוסרה מהמחשב.", "Subtext was removed."), Skin.Big, Skin.Text,
+                         new Rectangle(pad, Skin.S(108), w - pad * 2, Skin.S(28)), rtl, false, true);
+                Skin.Str(g, _note.Length > 0 ? _note : T.S("ההגדרות נשמרו - התקנה מחדש תמצא אותן.", "Your settings were kept - installing again will find them."),
                          Skin.Small, Skin.TextFaint,
-                         new Rectangle(pad, Skin.S(140), w - pad * 2, Skin.S(46)), true, false, false);
+                         new Rectangle(pad, Skin.S(140), w - pad * 2, Skin.S(46)), rtl, false, false);
             }
         }
 
@@ -165,7 +170,7 @@ namespace SubtitleStudioSetup
             _engine.Visible = false;
             _cancel.Visible = false;
             _ok.Enabled = false;
-            _ok.Text = "מסיר…";
+            _ok.Text = T.S("מסיר…", "Removing…");
             Invalidate();
 
             bool alsoEngine = _engine.Checked;
@@ -199,7 +204,7 @@ namespace SubtitleStudioSetup
             _page = 2;
             _note = note == null ? "" : note;
             _ok.Enabled = true;
-            _ok.Text = "סיום";
+            _ok.Text = T.S("סיום", "Finish");
             ExitCode = ok ? Codes.Ok : Codes.Error;
             Invalidate();
         }

@@ -86,8 +86,14 @@ namespace SubtitleStudioSetup
             if (string.IsNullOrEmpty(s)) return;
             TextRenderer.DrawText(g, s, f, r, c,
                 TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine |
-                TextFormatFlags.PathEllipsis | TextFormatFlags.Right |
+                TextFormatFlags.PathEllipsis | (T.Rtl ? TextFormatFlags.Right : TextFormatFlags.Left) |
                 TextFormatFlags.VerticalCenter);
+        }
+
+        /// <summary>מלבן בצד ה״התחלה״ של השורה: מימין בעברית, משמאל באנגלית (0.8.33). <paramref name="x"/> - המרחק מהקצה הזה.</summary>
+        public static Rectangle Lead(int clientW, int x, int y, int w, int h)
+        {
+            return T.Rtl ? new Rectangle(clientW - x - w, y, w, h) : new Rectangle(x, y, w, h);
         }
 
         public static GraphicsPath RoundRect(RectangleF r, float rad)
@@ -237,7 +243,7 @@ namespace SubtitleStudioSetup
                           Math.Max(1f, rad - in_),
                           Kind == BtnKind.Primary ? Color.White : Skin.Accent, 1.4f);
             }
-            Skin.Str(g, Text, Font, fore, ClientRectangle, true, true, true);
+            Skin.Str(g, Text, Font, fore, ClientRectangle, T.Rtl, true, true);
         }
     }
 
@@ -298,7 +304,8 @@ namespace SubtitleStudioSetup
 
             int box = Skin.S(18);
             int y = (Height - box) / 2;
-            RectangleF r = new RectangleF(Width - box, y, box - 1, box - 1);   // ‏RTL: התיבה מימין
+            // ‏RTL: התיבה מימין, והטקסט משמאל לה; באנגלית - הפוך
+            RectangleF r = new RectangleF(T.Rtl ? Width - box : 0, y, box - 1, box - 1);
             if (_checked)
             {
                 Skin.Fill(g, r, Skin.S(5), Skin.Accent);
@@ -319,20 +326,21 @@ namespace SubtitleStudioSetup
                 Skin.Draw(g, r, Skin.S(5), Skin.Border, 1f);
             }
 
-            Rectangle t = new Rectangle(0, 0, Width - box - Skin.S(9), Height);
-            Skin.Str(g, Text, Font, (_hot || Focused) ? Skin.Text : Skin.TextDim, t, true, false, true);
+            Rectangle t = T.Rtl ? new Rectangle(0, 0, Width - box - Skin.S(9), Height)
+                                : new Rectangle(box + Skin.S(9), 0, Width - box - Skin.S(9), Height);
+            Skin.Str(g, Text, Font, (_hot || Focused) ? Skin.Text : Skin.TextDim, t, T.Rtl, false, true);
             if (Focused)
             {
                 Size m = TextRenderer.MeasureText(Text, Font);
                 float pad = Skin.S(4);
-                Skin.Draw(g, new RectangleF(t.Right - m.Width - pad, (Height - m.Height) / 2f - pad + 1,
+                Skin.Draw(g, new RectangleF((T.Rtl ? t.Right - m.Width : t.Left) - pad, (Height - m.Height) / 2f - pad + 1,
                                             m.Width + pad * 2, m.Height + pad * 2 - 2),
                           Skin.S(5), Skin.Accent, 1.2f);
             }
         }
     }
 
-    /// <summary>פס התקדמות שמתמלא מימין לשמאל, כמו כל השאר בחלון.</summary>
+    /// <summary>פס התקדמות שמתמלא מימין לשמאל, כמו כל השאר בחלון (באנגלית - משמאל לימין).</summary>
     internal class Bar : Control
     {
         private double _v;
@@ -360,7 +368,7 @@ namespace SubtitleStudioSetup
             RectangleF track = new RectangleF(0, 0, Width, Height);
             Skin.Fill(g, track, Height / 2f, Skin.PanelAlt);
             float w = (float)(Width * Math.Max(0.015, _v));
-            Skin.Fill(g, new RectangleF(Width - w, 0, w, Height), Height / 2f, Skin.Accent);
+            Skin.Fill(g, new RectangleF(T.Rtl ? Width - w : 0, 0, w, Height), Height / 2f, Skin.Accent);
         }
     }
 }

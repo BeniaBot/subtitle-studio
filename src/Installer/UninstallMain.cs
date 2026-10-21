@@ -23,6 +23,7 @@ namespace SubtitleStudioSetup
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Skin.Init();
+            T.Init();
 
             bool silent = false, cleanup = false;
             string dir = null;

@@ -114,6 +114,65 @@ namespace SubtitleStudioSetup
         }
     }
 
+    /// <summary>**שפת המתקין והמסיר** (0.8.33; עד אז רק עברית). אותם כללים כמו התוכנה (`Lang.Detect`, ‏`Settings.PeekLang`):
+    /// מה שנבחר בהגדרות שלה (``lang=``; קובץ הגדרות בלי השורה = גרסה ישנה = עברית), ואחרת עברית על כל סימן - שפת ווינדוס,
+    /// התבנית האזורית, ישראל, מקלדת עברית. ‏``SUBTEXT_LANG`` גובר (צילומים ובדיקות), כמו בתוכנה.</summary>
+    internal static class T
+    {
+        public static bool En;
+
+        public static bool Rtl { get { return !En; } }
+
+        public static string S(string he, string en) { return En ? en : he; }
+
+        public static void Init()
+        {
+            string forced = Environment.GetEnvironmentVariable("SUBTEXT_LANG");
+            if (!string.IsNullOrEmpty(forced)) { En = forced.Trim().ToLowerInvariant() == "en"; return; }
+            string saved = Saved();
+            En = saved != null ? saved == "en" : !LooksHebrew();
+        }
+
+        private static string Saved()
+        {
+            try
+            {
+                string f = Path.Combine(Prod.SettingsDir, "settings.ini");
+                if (!File.Exists(f)) return null;
+                foreach (string line in File.ReadAllLines(f, Encoding.UTF8))
+                    if (line.StartsWith("lang=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string v = line.Substring(5).Trim().ToLowerInvariant();
+                        return v.Length > 0 ? v : "he";
+                    }
+                return "he";
+            }
+            catch { return null; }
+        }
+
+        private static bool LooksHebrew()
+        {
+            try
+            {
+                if (IsHe(System.Globalization.CultureInfo.CurrentUICulture)) return true;
+                if (IsHe(System.Globalization.CultureInfo.InstalledUICulture)) return true;
+                if (IsHe(System.Globalization.CultureInfo.CurrentCulture)) return true;
+                if (System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName == "IL") return true;
+                foreach (System.Windows.Forms.InputLanguage il in System.Windows.Forms.InputLanguage.InstalledInputLanguages)
+                    if (IsHe(il.Culture)) return true;
+            }
+            catch { return true; }
+            return false;
+        }
+
+        private static bool IsHe(System.Globalization.CultureInfo c)
+        {
+            if (c == null) return false;
+            string n = c.TwoLetterISOLanguageName;
+            return n == "he" || n == "iw";
+        }
+    }
+
     /// <summary>קודי יציאה - חשוב לזרימת העדכון, שבודקת אם ההתקנה השקטה הצליחה.</summary>
     internal static class Codes
     {
@@ -234,8 +293,8 @@ namespace SubtitleStudioSetup
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + ProgId))
                 {
-                    k.SetValue("", Prod.Name + " - פרויקט");
-                    k.SetValue("FriendlyTypeName", Prod.Name + " - פרויקט");
+                    k.SetValue("", Prod.Name + T.S(" - פרויקט", " project"));
+                    k.SetValue("FriendlyTypeName", Prod.Name + T.S(" - פרויקט", " project"));
                 }
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(classesRoot + "\\" + ProgId + "\\DefaultIcon"))
                     k.SetValue("", "\"" + exe + "\",0");
@@ -327,7 +386,7 @@ namespace SubtitleStudioSetup
         public static bool RemoveFiles(string dir, bool alsoEngine, string keep, out string note)
         {
             note = "";
-            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) { note = "התיקייה כבר לא קיימת."; return true; }
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) { note = T.S("התיקייה כבר לא קיימת.", "The folder no longer exists."); return true; }
 
             string[] known = new string[]
             {
@@ -351,8 +410,8 @@ namespace SubtitleStudioSetup
             }
             if (stuck)
             {
-                note = "התוכנה עדיין פתוחה, ולכן חלק מהקבצים לא נמחקו." + Environment.NewLine +
-                       "לסגור אותה ולהריץ את ההסרה שוב.";
+                note = T.S("התוכנה עדיין פתוחה, ולכן חלק מהקבצים לא נמחקו." + Environment.NewLine + "לסגור אותה ולהריץ את ההסרה שוב.",
+                           "Subtext is still open, so some files were not removed." + Environment.NewLine + "Close it and run the uninstaller again.");
                 Log.W("remove: files still locked in " + dir);
                 return false;
             }
@@ -387,11 +446,11 @@ namespace SubtitleStudioSetup
                     if (Directory.GetFiles(dir).Length == 0) Directory.Delete(dir);
                 }
                 else
-                    note = "נשארו בתיקייה קבצים שלא שייכים לתוכנה, אז היא לא נמחקה.";
+                    note = T.S("נשארו בתיקייה קבצים שלא שייכים לתוכנה, אז היא לא נמחקה.", "The folder has files that are not part of Subtext, so it was kept.");
             }
             catch (Exception ex)
             {
-                note = "התיקייה לא נמחקה: " + ex.Message;
+                note = T.S("התיקייה לא נמחקה: ", "The folder was not removed: ") + ex.Message;
                 Log.W("dir delete: " + ex.Message);
                 return false;
             }

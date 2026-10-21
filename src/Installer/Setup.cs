@@ -68,6 +68,7 @@ namespace SubtitleStudioSetup
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Skin.Init();
+            T.Init();
 
             Options o = Options.Parse(argv);
             Log.W("setup " + Prod.Version + " start: " + string.Join(" ", argv));
@@ -85,7 +86,7 @@ namespace SubtitleStudioSetup
             {
                 Log.W("FATAL: " + ex);
                 if (!o.Silent)
-                    MessageBox.Show("ההתקנה נכשלה:\n\n" + ex.Message, Prod.Name,
+                    MessageBox.Show(T.S("ההתקנה נכשלה:\n\n", "Setup failed:\n\n") + ex.Message, Prod.Name,
                                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return Codes.Error;
             }
@@ -168,11 +169,11 @@ namespace SubtitleStudioSetup
             {
                 if (WaitPid > 0)
                 {
-                    P(0.01, "ממתין לסגירת התוכנה…");
+                    P(0.01, T.S("ממתין לסגירת התוכנה…", "Waiting for Subtext to close…"));
                     Remover.WaitForPid(WaitPid, 30000);
                 }
 
-                P(0.02, "מכין את התיקייה…");
+                P(0.02, T.S("מכין את התיקייה…", "Preparing the folder…"));
                 if (string.IsNullOrEmpty(Dir)) Dir = Prod.DefaultDir;
                 Dir = Path.GetFullPath(Dir);
                 Directory.CreateDirectory(Dir);
@@ -180,12 +181,12 @@ namespace SubtitleStudioSetup
                 string exe = Path.Combine(Dir, Prod.ExeName);
                 string tmp = exe + ".new";
                 long size = Extract(Prod.ExeName, tmp, 0.04, 0.80);
-                if (size <= 0) { Error = "הקובץ המוטמע חסר - קובץ ההתקנה פגום."; return false; }
+                if (size <= 0) { Error = T.S("הקובץ המוטמע חסר - קובץ ההתקנה פגום.", "The program inside the setup file is missing - the setup file is damaged."); return false; }
 
-                P(0.82, "מתקין…");
+                P(0.82, T.S("מתקין…", "Installing…"));
                 if (!Place(tmp, exe)) return false;
 
-                P(0.86, "מתקין…");
+                P(0.86, T.S("מתקין…", "Installing…"));
                 long usize = Extract(Prod.UninstallExe, Path.Combine(Dir, Prod.UninstallExe), 0.86, 0.90);
 
                 // **שאריות השם הישן (0.7.x).** עדכון של עותק מותקן מתקין לאותה
@@ -195,21 +196,21 @@ namespace SubtitleStudioSetup
                 RemoveLegacy(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "אולפן הכתוביות.lnk"));
                 RemoveLegacy(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "אולפן הכתוביות.lnk"));
 
-                P(0.92, "יוצר קיצורי דרך…");
+                P(0.92, T.S("יוצר קיצורי דרך…", "Creating shortcuts…"));
                 ShortcutStart = Shortcuts.Create(Prod.StartMenuLink, exe, Dir,
                                                  Prod.Name + " - " + Prod.NameEn, exe);
                 if (Desktop)
                     ShortcutDesktop = Shortcuts.Create(Prod.DesktopLink, exe, Dir,
                                                        Prod.Name + " - " + Prod.NameEn, exe);
 
-                P(0.96, "רושם את התוכנה…");
+                P(0.96, T.S("רושם את התוכנה…", "Registering Subtext…"));
                 WriteMarker(Dir, size);
                 WriteRegistry(Dir, exe, size + Math.Max(0, usize));
                 Assoc.Register(Assoc.Classes, exe);
                 string ow = SubtitleStudio.OpenWith.Register(SubtitleStudio.OpenWith.Classes, exe);
                 if (ow != null) Log.W("open with: " + ow);
 
-                P(1.0, "ההתקנה הסתיימה.");
+                P(1.0, T.S("ההתקנה הסתיימה.", "Setup finished."));
                 return true;
             }
             catch (Exception ex)
@@ -239,7 +240,7 @@ namespace SubtitleStudioSetup
                         dst.Write(buf, 0, n);
                         got += n;
                         if ((tick++ & 1) == 0 && total > 0)
-                            P(from + (to - from) * (got / (double)total), "מעתיק את התוכנה…");
+                            P(from + (to - from) * (got / (double)total), T.S("מעתיק את התוכנה…", "Copying Subtext…"));
                     }
                 }
                 return total;
@@ -295,15 +296,15 @@ namespace SubtitleStudioSetup
                     if (i == 4)
                     {
                         if (Silent && !asked) { Remover.AskAppToClose(dir); asked = true; }
-                        P(0.83, "התוכנה עדיין פתוחה - נא לסגור אותה…");
+                        P(0.83, T.S("התוכנה עדיין פתוחה - נא לסגור אותה…", "Subtext is still open - please close it…"));
                     }
                     System.Threading.Thread.Sleep(500);
                 }
             }
             try { if (File.Exists(tmp)) File.Delete(tmp); }
             catch { }
-            Error = "לא הצלחתי לכתוב את " + Prod.ExeName + "." + Environment.NewLine +
-                    "אם התוכנה פתוחה - לסגור אותה ולהריץ שוב.";
+            Error = T.S("לא הצלחתי לכתוב את " + Prod.ExeName + "." + Environment.NewLine + "אם התוכנה פתוחה - לסגור אותה ולהריץ שוב.",
+                        "Could not write " + Prod.ExeName + "." + Environment.NewLine + "If Subtext is open, close it and run setup again.");
             return false;
         }
 
