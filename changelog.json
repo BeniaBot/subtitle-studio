@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.29",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "fix",
+          "s": "קובץ כתוביות בקידוד הישן של חלונות (כמו שטלוויזיות קוראות) נשמר בקידוד שלו - עד עכשיו כל שמירה הפכה אותו לקידוד אחר",
+          "en": "A subtitle file in the old Windows encoding (as TVs read it) is saved in its own encoding - until now every save converted it"
+        },
+        {
+          "t": "fix",
+          "s": "רקע לכתוביות בקובץ ASS שנשמר ובערוץ נפרד - בצורה שכל נגן מכיר",
+          "en": "A subtitle background in a saved ASS file and in a separate track - in a form every player knows"
+        }
+      ]
+    },
+    {
       "v": "0.8.28",
       "date": "2026-10-21",
       "items": [
