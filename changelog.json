@@ -2,6 +2,27 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.28",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "major",
+          "s": "עיצוב הכתוביות: רקע מאחורי הטקסט בכל צבע ובכל שקיפות - גם רקע בהיר חצי-שקוף - והטקסט שומר על המתאר שלו",
+          "en": "Subtitle style: a background behind the text in any colour and transparency - even a light, half-transparent one - and the text keeps its outline"
+        },
+        {
+          "t": "fix",
+          "s": "הרקע נצרב בסרט כמו שהוא נראה בחלון העיצוב - עד עכשיו הוא יצא שחור ואטום",
+          "en": "The background is burned into the video as it looks in the style window - until now it came out solid black"
+        },
+        {
+          "t": "fix",
+          "s": "שורה רחבה מהמסך נשברת בתצוגה כמו בסרט, ולא נחתכת; ורשימת הגופנים מציעה רק גופנים שיש בהם עברית",
+          "en": "A line wider than the screen wraps in the preview as in the video, instead of being cut; the font list offers only fonts with Hebrew"
+        }
+      ]
+    },
+    {
       "v": "0.8.27",
       "date": "2026-10-21",
       "items": [
