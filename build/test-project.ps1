@@ -11,7 +11,7 @@
 # 4. **בתוך החלון**: פתיחה אמיתית, בלי טעינת SRT שיושב ליד הסרט, סרט
 #    חסר, מה שואלים ביציאה, גיבוי ושחזור.
 #
-# צפוי: 106 בדיקות. **פחות מזה = משהו דולג.**
+# צפוי: 107 בדיקות. **פחות מזה = משהו דולג.**
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
@@ -287,6 +287,8 @@ Check 'נפתח: המיקום' ([Math]::Abs($tl2.Position - 1234) -le 50) ("pos=
 Check 'נפתח: העיצוב' ((Fld $g '_style').FontPct -eq 8.5) ''
 Check 'נפתח: הפרויקט ראשון באחרונים, והסרט לא נוסף' (((T 'Settings').GetField('Recent', $ST).GetValue($null))[0] -eq $pp) ''
 Check 'אחרי פתיחה - אין היסטוריית ביטול מהסשן הקודם' (-not $doc2.CanUndo) ''
+$ed2 = Fld $g '_editing'; $exp2 = $doc2.At(1234); if (-not $exp2) { $exp2 = @($doc2.Cues | Where-Object { -not $_.Untimed -and $_.Start -ge 1234 })[0] }
+Check 'נפתח: בעורך הכתובית שבמקום הנגן, ועדיין לא מסומן כלא-שמור (עד 0.8.30 - העורך ריק)' ($ed2 -ne $null -and [object]::ReferenceEquals($ed2, $exp2) -and -not $doc2.Dirty) $(if ($ed2) { $ed2.Text } else { 'null' })
 $g.Close(); $g.Dispose(); Pump 200
 
 # פתיחת SRT רגיל: עד 0.7.0 זה סימן ״יש שינויים״, והיציאה שאלה ״לשמור?״ על כלום

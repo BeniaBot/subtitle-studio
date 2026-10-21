@@ -4227,6 +4227,18 @@ namespace SubtitleStudio
             // נפתח היה שואל ״לשמור?״ ביציאה
             _doc.Dirty = recovered;
             SyncAfterDocChange();
+            // **כתובית בעורך** (0.8.30): עד כאן אחרי פתיחת פרויקט או שחזור העורך נשאר ריק (״בחרו כתובית, או צרו חדשה״; פתוח מ-0.8.0,
+            // נראה שוב בשחזור אחרי קריסה - ``hp-tools\crash-recovery.ps1``). זו שבמקום של הנגן, או הבאה אחריו, או הראשונה
+            if (_doc.SelectedCues().Count == 0 && _doc.Cues.Count > 0)
+            {
+                long at = _mi != null && d.Position > 0 && d.Position < _mi.DurationMs ? d.Position : 0;
+                Cue pick = _doc.At(at);
+                if (pick == null) foreach (Cue c in _doc.Cues) if (!c.Untimed && c.Start >= at) { pick = c; break; }
+                if (pick == null) pick = _doc.Cues[0];
+                pick.Selected = true;
+                LoadEditor();
+                _list.ScrollToCue(pick);
+            }
             UpdateTapUi();
             _video.Invalidate();
             _hintLbl.Text = (recovered ? Lang.T("העבודה שוחזרה") : Lang.F("נפתח הפרויקט {0}\u200F", Theme.FileName(Path.GetFileName(projectPath)))) +
