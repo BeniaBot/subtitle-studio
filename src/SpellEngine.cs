@@ -253,7 +253,55 @@ namespace SubtitleStudio
                 if (t.Length <= 1 || Core(t) || Aramaic(t)) return true;
             }
             if (Transliterated(w) || Acronym(w)) return true;
-            return MaleChaser(w);
+            if (MaleChaser(w)) return true;
+            // **רבים ב-״ין״ של לשון חכמים** (0.8.32): ״ממתינין״, ״הדינין״, ״דמעמידין״ - כמו ״ים״ (גם אחרי ד׳ ארמית)
+            if (w.Length >= 5 && w.EndsWith("ין", StringComparison.Ordinal))
+            {
+                string m = w.Substring(0, w.Length - 2) + "ים";
+                if (Core(m) || Aramaic(m)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>**מילה עם מה שלפניה** (0.8.32): מספר בלי גרשיים אחרי מסכת או מילת הפניה - ״פסחים קיח״, ״סעיף יא״, ״עמוד שנט״. מספר כזה
+        /// לבד (״קיג״) הוא כמעט תמיד שגיאה, ולכן רק אחרי מילה כזאת.</summary>
+        public bool Check(string word, string previous)
+        {
+            if (Check(word)) return true;
+            if (string.IsNullOrEmpty(previous)) return false;
+            string w = Normalize(word), p = Normalize(previous).TrimEnd('\'');
+            return w.Length >= 2 && w.Length <= 4 && BareNumber(w) && IsReference(p);
+        }
+
+        private static bool BareNumber(string w)
+        {
+            if (w == "טו" || w == "טז") return true;
+            int prev = int.MaxValue;
+            foreach (char c in w)
+            {
+                int v = Value(c);
+                if (v <= 0 || v > prev || (v == prev && v < 400)) return false;
+                prev = v;
+            }
+            return !w.EndsWith("יה", StringComparison.Ordinal) && !w.EndsWith("יו", StringComparison.Ordinal);
+        }
+
+        private static readonly HashSet<string> RefWords = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "דף", "דפים", "עמוד", "עמ", "סימן", "סי", "סימנים", "סעיף", "סעי", "סק", "אות", "פרק", "פרשה", "הלכה", "הל", "שורש", "כלל",
+            "חלק", "תשובה", "שאלה", "משנה", "מצוה", "מצווה", "פסוק",
+            "ברכות", "שבת", "עירובין", "פסחים", "שקלים", "יומא", "סוכה", "ביצה", "השנה", "תענית", "מגילה", "קטן", "חגיגה", "יבמות",
+            "כתובות", "נדרים", "נזיר", "סוטה", "גיטין", "קידושין", "קמא", "מציעא", "בתרא", "סנהדרין", "מכות", "שבועות", "זרה", "הוריות",
+            "זבחים", "מנחות", "חולין", "בכורות", "ערכין", "תמורה", "כריתות", "מעילה", "תמיד", "נדה"
+        };
+
+        private static bool IsReference(string p)
+        {
+            if (RefWords.Contains(p)) return true;
+            // עם תחילית: ״בפסחים״, ״ובסעיף״, ״מדף״
+            for (int i = 1; i <= 2 && i < p.Length - 1; i++)
+                if ("ובלמשה".IndexOf(p[i - 1]) >= 0 && RefWords.Contains(p.Substring(i))) return true;
+            return false;
         }
 
         /// <summary>**ראשי תיבות** (0.8.27): אותיות, גרשיים, ואות אחת - ״לשה״ר״, ״ולפי״ז״, ״נפק״מ״, ״בפנ״ע״. אין להם רשימה סגורה: בשיעור

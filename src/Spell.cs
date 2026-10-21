@@ -225,8 +225,13 @@ namespace SubtitleStudio
                 if (_cache.TryGetValue(text, out r)) return r;
             }
             r = new List<string>();
+            string prev = null;
             foreach (SpellEngine.Token t in SpellEngine.Words(text))
-                if (!e.Check(t.Text) && !r.Contains(t.Text)) r.Add(t.Text);
+            {
+                // עם המילה שלפני - מספר דף/סעיף בלי גרשיים אחרי ״פסחים״, ״סעיף״ (0.8.32)
+                if (!e.Check(t.Text, prev) && !r.Contains(t.Text)) r.Add(t.Text);
+                prev = t.Text;
+            }
             lock (_cache)
             {
                 if (_cache.Count > 50000) _cache.Clear();
