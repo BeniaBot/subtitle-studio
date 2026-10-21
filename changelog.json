@@ -2,6 +2,41 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.33",
+      "date": "2026-10-22",
+      "items": [
+        {
+          "t": "major",
+          "s": "קו אדום מתחת למילה שהאיות מסמן, ישר ברשימת הכתוביות - כבר לא צריך לחפש אותה",
+          "en": "A red wavy line under each word the spell check flags, right in the subtitle list - no more hunting for it"
+        },
+        {
+          "t": "feature",
+          "s": "צריבה של סרט 4K: ״להקטין ל-1080p״ - מהיר פי 3 בערך, וקובץ קטן בהרבה",
+          "en": "Burning a 4K video: 'Shrink to 1080p' - about 3x faster, and a much smaller file"
+        },
+        {
+          "t": "feature",
+          "s": "״לתקן אוטומטית״ כשיש קטע מסומן על הציר - רק בו, או בכל הכתוביות",
+          "en": "'Fix automatically' with a section marked on the timeline - just that section, or all subtitles"
+        },
+        {
+          "t": "feature",
+          "s": "תוכנת ההתקנה וההסרה מדברת גם אנגלית",
+          "en": "Setup and uninstall now speak English too"
+        },
+        {
+          "t": "fix",
+          "s": "טשטוש: תיבת ״מתי״ בחלון העיצוב הייתה ריקה ב-0.8.32 - חזרה",
+          "en": "Blur: the 'When' box in the style window was empty in 0.8.32 - it is back"
+        },
+        {
+          "t": "fix",
+          "s": "איות: ״מסויים״, ״מצויין״, מילים לועזיות נפוצות (״פארק״, ״פודקאסט״) ומספר מצווה אחרי ״במ״ע״ - לא שגיאה; וחלון העיצוב מראה כתובית אמיתית מהסרט",
+          "en": "Spelling: common spellings with a double yod, everyday loanwords and commandment numbers are no longer flagged; and the style window shows a real subtitle from the video"
+        }
+      ]
+    },    {
       "v": "0.8.32",
       "date": "2026-10-22",
       "items": [
