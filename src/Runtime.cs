@@ -377,7 +377,8 @@ namespace SubtitleStudio
             {
                 MessageBox.Show(
                     Lang.F("לא הצלחתי להכין את מנוע הווידאו:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.", error, dir),
-                    "Subtext", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    "Subtext", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1,
+                    Lang.Rtl ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : 0);
                 return;
             }
             _ffmpeg = File.Exists(target) ? target : null;

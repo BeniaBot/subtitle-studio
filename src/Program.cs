@@ -66,8 +66,9 @@ namespace SubtitleStudio
                 File.WriteAllText(p, ex.ToString(), Encoding.UTF8);
             }
             catch { }
+            // חלון של ווינדוס (התוכנה עצמה אולי לא במצב לצייר) - ובעברית מימין לשמאל, אחרת הנקודה עוברת צד (0.8.33)
             MessageBox.Show(Lang.F("קרתה תקלה בלתי צפויה:\n\n{0}", ex.Message), "Subtext",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Lang.Rtl ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : 0);
         }
     }
 
