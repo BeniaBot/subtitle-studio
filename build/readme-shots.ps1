@@ -2,7 +2,7 @@
 # (הברות ושתיקות בין משפטים - גל שנראה כמו דיבור, בלי קול של אף אחד). הכתוביות מתוזמנות למשפטים.
 # מסך הפתיחה עם רשימת אחרונים נקייה (בלי קבצי בדיקה), מסך העבודה, וחלון החיתוך. מחוץ למסך, כמו main-shot.
 #   readme-shots.ps1 [-Lang en] [-Light] [-Out dir]
-# הפלט: <Out>\start-<ערכה>-<שפה>.png, work-..., cut-...   (ברירת מחדל: %TEMP%\ss-readme)
+# הפלט: <Out>\start-<ערכה>-<שפה>.png, work-..., cut-..., style-...   (ברירת מחדל: %TEMP%\ss-readme)
 param([string]$Lang = 'he', [switch]$Light, [string]$Out = '', [int]$W = 1493, [int]$H = 997)
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
@@ -144,3 +144,14 @@ $secs.Clear()
 Pump 1500
 Snap $dlg (Join-Path $Out "cut-$tag.png")
 $dlg.Close(); $m.Close(); $m.Dispose()
+
+# ---- חלון העיצוב (0.8.33): רקע חצי שקוף, וטשטוש של ״טקסט שצרוב בסרט״ - התמונה לדוגמה של החלון כשאין סרט ----
+$sty = [Activator]::CreateInstance((TY 'SubStyle'))
+$sty.OpaqueBox = $true; $sty.BlurOn = $true; $sty.FontPct = 7.0; $sty.MarginVPct = 11.0
+$argv = New-Object object[] 3; $argv[0] = $sty; $argv[1] = $null; $argv[2] = [bool]($Lang -ne 'en')
+$sd = [Activator]::CreateInstance((TY 'StyleDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $argv, $null)
+$sd.Sample = $(if ($Lang -eq 'en') { 'Readable even over burned-in text' } else { 'הכתובית נקראת גם מעל טקסט צרוב' })
+$sd.StartPosition = 'Manual'; $sd.Location = New-Object Drawing.Point -4000, -3000
+$sd.Show(); Pump 800
+Snap $sd (Join-Path $Out "style-$tag.png")
+$sd.Close(); $sd.Dispose()

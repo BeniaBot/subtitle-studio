@@ -36,7 +36,7 @@
 * **תמלול** - התוכנה מאזינה וכותבת לבד, עם התזמונים. מפרידה בין דוברים, ומסמנת מילה שלא נשמעה ברור.
 * **תרגום** - לכל שפה, והשורות מסתדרות לקריאה נוחה.
 * **עוזר** - מבקשים במילים רגילות: ״תקן חפיפות״, ״תגדיל את הכתוביות״, ״תכין גרסה שנכנסת ב-200 מגה״.
-* **רק קטע** - מסמנים על הציר (`I` ו-`O`), והתמלול, התרגום והתזמון רצים רק עליו.
+* **רק קטע** - מסמנים על הציר (`I` ו-`O`), והתמלול, התרגום, התזמון והתיקון האוטומטי רצים רק עליו.
 * **פרטיות** - השמע נשלח החוצה רק אחרי אישור מפורש. זו הפעולה היחידה ששולחת את התוכן עצמו.
 
 <sub>דורש אינטרנט ומפתח חינמי: מגוגל, או מ-Groq (עד 8 שעות הקלטה ביום). התוכנה מסבירה בדיוק איך משיגים אותו.</sub>
@@ -51,6 +51,12 @@
 
 * **צרובות בתמונה** - נראות בכל נגן ובכל טלפון, ועברית מימין לשמאל כמו שצריך.
 * **ערוץ נפרד** - כתוביות שאפשר להדליק ולכבות.
+* **עיצוב** - גופן, גודל, צבע, מתאר, ורקע חצי שקוף מאחורי הטקסט. מה שרואים בחלון העיצוב - זה מה שנצרב.
+* **טשטוש אזור** - טקסט שכבר צרוב בסרט מפריע לקרוא? מסמנים אותו בגרירה, והוא מיטשטש: כל הזמן, או רק כשיש כתובית.
+
+<div align="center">
+<img src="docs/screenshots/style.png" width="560" alt="חלון העיצוב: כתובית עם רקע חצי שקוף מעל פס של טקסט צרוב שמטושטש, ומתחת הגופן, הצבעים, הרקע והטשטוש">
+</div>
 
 ### ✂️ לחתוך
 
@@ -161,9 +167,10 @@ Built for Hebrew (right‑to‑left done properly), with a complete English inte
 * **Write** subtitles against the waveform; each one shows on the picture as you type.
 * **Open** SRT, VTT, ASS or SUB - or plain text, split into subtitles and timed to the speech. Old Hebrew encodings open correctly.
 * **Transcribe** automatically, with speakers separated and unsure words marked, and **translate** into any language. Online, with a free key from Google or Groq; the audio is sent only after you agree.
-* **Work on part of the video** - mark a section (`I` / `O`) and transcription, translation and timing run on it alone.
+* **Work on part of the video** - mark a section (`I` / `O`) and transcription, translation, timing and auto‑fix run on it alone.
 * **Fix out‑of‑sync subtitles** by pointing at where a line is actually spoken, and **check** for overlaps, reading speed, long lines and spelling.
-* **Burn** the subtitles into the picture, or add them as a separate track.
+* **Burn** the subtitles into the picture, or add them as a separate track. Font, size, colour, outline and a semi‑transparent box behind the text - what the style window shows is what gets burned.
+* **Blur an area** - text already burned into the video getting in the way? Drag over it, and it's blurred: all the time, or only while a subtitle is on screen.
 * **Cut** several sections at once on the waveform - keep or remove, hear the result first, or save each section to its own file. MP3, WAV and the like are cut without re‑encoding, and the subtitles move with the video.
 * Volume, noise reduction, extract the audio, convert, rotate, speed, reverse, GIF, and shrink to a target size.
 
