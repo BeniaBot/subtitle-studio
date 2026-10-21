@@ -3694,8 +3694,25 @@ namespace SubtitleStudio
             _hintLbl.Invalidate();
         }
 
+        /// <summary>**התצוגה בחלון העיצוב = מה שעורכים** (בקשה של משתמש, 0.8.33): הכתובית שנבחרה או שעל המסך; ואם הנגן בין כתוביות (או
+        /// בהתחלה - לרוב פריים שחור) - הקרובה אחריו, והפריים **מאמצע הזמן שלה** (<paramref name="at"/>). עד כאן: פריים שחור ו״זו דוגמה לכתובית״.</summary>
+        internal Cue StyleSampleCue(long position, out long at)
+        {
+            at = position;
+            Cue shown = _editing ?? _doc.At(position);
+            if (shown != null && shown.PlainText.Trim().Length == 0) shown = null;
+            if (shown != null) return shown;
+            foreach (Cue c in _doc.Cues) if (!c.Untimed && c.Start >= position && c.PlainText.Trim().Length > 0) { shown = c; break; }
+            if (shown == null)
+                for (int i = _doc.Cues.Count - 1; i >= 0; i--) if (_doc.Cues[i].PlainText.Trim().Length > 0) { shown = _doc.Cues[i]; break; }
+            if (shown != null && !shown.Untimed) at = (shown.Start + shown.End) / 2;
+            return shown;
+        }
+
         private void EditStyle()
         {
+            long at;
+            Cue shown = StyleSampleCue(_engine.Position, out at);
             Bitmap frame = null;
             try
             {
@@ -3705,16 +3722,15 @@ namespace SubtitleStudio
                     int h = (int)Math.Round(480.0 * _mi.Height / Math.Max(1, _mi.Width));
                     h -= h % 2;
                     if (h < 2) h = 270;
-                    frame = FrameGrabber.Grab(_mediaPath, _engine.Position, w, h);
+                    frame = FrameGrabber.Grab(_mediaPath, Math.Max(0, Math.Min(at, _mi.DurationMs - 100)), w, h);
                 }
             }
             catch { }
-            // גופנים עם עברית - כשיש בכתוביות עברית (או אין עדיין כתוביות, בממשק עברי); והדוגמה - הכתובית שעל המסך
+            // גופנים עם עברית - כשיש בכתוביות עברית (או אין עדיין כתוביות, בממשק עברי)
             bool hebrew = _doc.Cues.Count == 0 ? !Lang.IsEn : false;
             foreach (Cue c in _doc.Cues) if (Theme.HasRtl(c.Text)) { hebrew = true; break; }
             StyleDlg d = new StyleDlg(_style, frame, hebrew);
-            Cue shown = _editing ?? _doc.At(_engine.Position);
-            if (shown != null && shown.PlainText.Trim().Length > 0) d.Sample = shown.Text;
+            if (shown != null) d.Sample = shown.Text;
             d.ShowDialog(this);
             if (d.Ok && d.Result != null)
             {

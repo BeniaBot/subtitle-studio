@@ -114,6 +114,11 @@ $res = Call 'set_style' @{ blur_area = 'למטה' }
 Check 'set_style עם אזור לא מובן - שגיאה שאומרת איך כותבים' (('' + $res['error']).Contains('x,y')) ('' + $res['error'])
 $res = Call 'set_style' @{ blur = $false }
 Check 'ולכבות' (-not $sty.BlurOn) ''
+# חלון העיצוב מראה כתובית אמיתית (0.8.33): בהתחלה (0:00, בין כתוביות) - הראשונה, והפריים מאמצע הזמן שלה; בתוך כתובית - היא
+$ssc = $mfT.GetMethod('StyleSampleCue', $IN)
+$a1 = New-Object object[] 2; $a1[0] = [int64]0; $c1 = $ssc.Invoke($mf, $a1)
+$a2 = New-Object object[] 2; $a2[0] = [int64]3500; $c2 = $ssc.Invoke($mf, $a2)
+Check 'חלון העיצוב: בהתחלה - הכתובית הראשונה, מאמצע הזמן שלה; בתוך כתובית - היא, באותו מקום' ($c1 -ne $null -and $c1.Start -eq 1000 -and $a1[1] -eq 1750 -and $c2.Start -eq 3000 -and $a2[1] -eq 3500) ("{0} @{1} / {2} @{3}" -f $c1.Start, $a1[1], $c2.Start, $a2[1])
 $res = Call 'list_cues' @{}
 Check 'קריאה תמיד מותרת' ($res['cues'].Length -eq 3) ''
 
