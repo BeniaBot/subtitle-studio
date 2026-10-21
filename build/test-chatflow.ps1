@@ -228,13 +228,13 @@ $style = $mfT.GetField('_style', $IN).GetValue($mf)
 (TY 'SubStyle').GetField('OpaqueBox').SetValue($style, $false)
 $srv = StartServer @(
     (Reply (Call 'run_command' '{"name":"עיצוב הכתוביות"}' $null)),
-    (Reply ((Call 'ui_set' '{"control":"רקע מלא","value":"on"}' $null) + ',' + (Call 'ui_click' '{"control":"שמירת העיצוב"}' $null))),
-    (Reply (Txt 'הדלקתי רקע מלא.')))
+    (Reply ((Call 'ui_set' '{"control":"רקע מאחורי","value":"on"}' $null) + ',' + (Call 'ui_click' '{"control":"שמירת העיצוב"}' $null))),
+    (Reply (Txt 'הדלקתי רקע.')))
 Say 'תשים רקע כהה מאחורי הטקסט' 40
 $r4 = Req $srv 1
 Check 'החלון שנפתח מצורף לתוצאה של הפקודה (window_now)' ($r4.Contains('window_now') -and ($r4.Contains('שמירת העיצוב') -or $r4.Contains('שמירת'))) ''
 $style = $mfT.GetField('_style', $IN).GetValue($mf)
-Check 'המילוי והלחיצה רצו בתוך החלון - העיצוב נשמר עם רקע מלא' ((TY 'SubStyle').GetField('OpaqueBox').GetValue($style)) ''
+Check 'המילוי והלחיצה רצו בתוך החלון - העיצוב נשמר עם רקע' ((TY 'SubStyle').GetField('OpaqueBox').GetValue($style)) ''
 Check 'החלון נסגר בלחיצה' ((TY 'AiUi').GetMethod('Current', $ST).Invoke($null, @($mf, $chat)) -eq $null) ''
 
 # ---------- 6. עצירה באמצע ----------

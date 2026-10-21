@@ -3702,7 +3702,12 @@ namespace SubtitleStudio
                 }
             }
             catch { }
-            StyleDlg d = new StyleDlg(_style, frame);
+            // גופנים עם עברית - כשיש בכתוביות עברית (או אין עדיין כתוביות, בממשק עברי); והדוגמה - הכתובית שעל המסך
+            bool hebrew = _doc.Cues.Count == 0 ? !Lang.IsEn : false;
+            foreach (Cue c in _doc.Cues) if (Theme.HasRtl(c.Text)) { hebrew = true; break; }
+            StyleDlg d = new StyleDlg(_style, frame, hebrew);
+            Cue shown = _editing ?? _doc.At(_engine.Position);
+            if (shown != null && shown.PlainText.Trim().Length > 0) d.Sample = shown.Text;
             d.ShowDialog(this);
             if (d.Ok && d.Result != null)
             {

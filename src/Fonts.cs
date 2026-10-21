@@ -18,6 +18,50 @@ namespace SubtitleStudio
     {
         [DllImport("gdi32.dll", ExactSpelling = true)]
         private static extern IntPtr AddFontMemResourceEx(IntPtr pbFont, uint cbFont, IntPtr pdv, out uint pcFonts);
+        [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+        [DllImport("gdi32.dll")] private static extern bool DeleteDC(IntPtr hdc);
+        [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
+        [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr obj);
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint GetGlyphIndicesW(IntPtr hdc, string text, int count, [Out] ushort[] indices, uint flags);
+        [DllImport("gdi32.dll")] private static extern int GetTextCharset(IntPtr hdc);
+
+        private static readonly Dictionary<string, bool> _hebrew = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>**יש בגופן אותיות עבריות?** (0.8.28) בגופן בלי עברית (Consolas, Calibri...) גם התצוגה וגם הצריבה מחליפות את האותיות
+        /// בגופן אחר - וכל אחת בגופן אחר (``hp-tools\style-compare.ps1``: רוחב 403 מול 387). לכן חלון העיצוב בממשק העברי מציע רק גופנים
+        /// שיש בהם עברית. ‏GetGlyphIndices עם GGI_MARK_NONEXISTING_GLYPHS: אות שאין - 0xFFFF.</summary>
+        public static bool HasHebrew(string family)
+        {
+            bool r;
+            lock (_hebrew) { if (_hebrew.TryGetValue(family ?? "", out r)) return r; }
+            r = false;
+            IntPtr dc = IntPtr.Zero, hf = IntPtr.Zero, old = IntPtr.Zero;
+            try
+            {
+                using (Font f = new Font(family, 20f, FontStyle.Regular, GraphicsUnit.Pixel))
+                {
+                    if (string.Equals(f.Name, family, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hf = f.ToHfont();
+                        dc = CreateCompatibleDC(IntPtr.Zero);
+                        old = SelectObject(dc, hf);
+                        ushort[] idx = new ushort[4];
+                        // גופן סמלים (Wingdings) ״ממפה״ כל תו לסמל - לא עברית
+                        if (GetTextCharset(dc) != 2 && GetGlyphIndicesW(dc, "אבשת", 4, idx, 1) == 4)
+                            r = idx[0] != 0xFFFF && idx[1] != 0xFFFF && idx[2] != 0xFFFF && idx[3] != 0xFFFF;
+                    }
+                }
+            }
+            catch { r = false; }
+            finally
+            {
+                if (dc != IntPtr.Zero) { if (old != IntPtr.Zero) SelectObject(dc, old); DeleteDC(dc); }
+                if (hf != IntPtr.Zero) DeleteObject(hf);
+            }
+            lock (_hebrew) _hebrew[family ?? ""] = r;
+            return r;
+        }
 
         private static PrivateFontCollection _pfc;
         private static readonly List<IntPtr> _pinned = new List<IntPtr>();

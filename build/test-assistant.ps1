@@ -146,8 +146,8 @@ Check 'חלון העיצוב נבנה לבדיקה' ($sd -ne $null) ''
 if ($sd) {
     $items = (TY 'AiUi').GetMethod('Items', $ST).Invoke($null, @($sd))
     $sliders = @($items | Where-Object { $_.Kind -eq 'slider' } | ForEach-Object { $_.Label })
-    Check 'שני הפסים שזה ליד זה - כל אחד עם התווית שמעליו (עד כאן שניהם ״מרחק מהקצה״)' (($sliders -contains 'עובי המתאר') -and ($sliders -contains 'מרחק מהקצה')) ($sliders -join ', ')
-    $box = (TY 'AiUi').GetMethod('Find', $ST).Invoke($null, (Pack $sd 'רקע מלא'))
+    Check 'הפסים שזה ליד זה - כל אחד עם התווית שמעליו (עד כאן שניהם ״מרחק מהקצה״), גם ״שקיפות הרקע״' (($sliders -contains 'עובי המתאר') -and ($sliders -contains 'מרחק מהקצה') -and ($sliders -contains 'שקיפות הרקע')) ($sliders -join ', ')
+    $box = (TY 'AiUi').GetMethod('Find', $ST).Invoke($null, (Pack $sd 'רקע מאחורי'))
     Check 'מוצא פקד לפי חלק מהתווית' ($box -ne $null -and $box.Kind -eq 'switch') ''
     $why = (TY 'AiUi').GetMethod('Set', $ST).Invoke($null, (Pack $box 'on'))
     Check 'מדליק מתג' ($why -eq $null -and (TY 'AiUi').GetMethod('Value', $ST).Invoke($null, @($box)) -eq 'on') ''

@@ -32,6 +32,9 @@ namespace SubtitleStudio
             return (SubStyle)MemberwiseClone();
         }
 
+        /// <summary>הריפוד של הרקע סביב הטקסט, בפיקסלים של הסרט: חמישית מגודל הגופן.</summary>
+        internal static double BoxPad(double fontPx) { return Math.Round(fontPx * 0.2, 1); }
+
         private static string AssColor(Color c, bool invertAlpha)
         {
             int a = invertAlpha ? 255 - c.A : c.A;
@@ -53,14 +56,17 @@ namespace SubtitleStudio
                 AssColor(Primary, true),
                 AssColor(Color.FromArgb(255, 255, 0, 0), true),
                 AssColor(Outline, true),
+                // ‏**רקע = BorderStyle 4** (0.8.28): מלבן אחד מאחורי כל הכתובית, בצבע ובשקיפות של BoxColor, והטקסט שומר על המתאר
+                // שלו; הריפוד סביב הטקסט הוא ערך ״הצל״ (נמדד ב-libass של המנוע: צל 10 = 10 פיקסלים מכל צד). עד כאן BorderStyle 3 -
+                // קופסה לכל שורה **בצבע המתאר, אטומה**: הסרט קיבל שחור מלא, וחלון העיצוב הראה רקע שקוף-למחצה
                 AssColor(OpaqueBox ? BoxColor : Shadow, true),
                 Bold ? "-1" : "0",
                 Italic ? "-1" : "0",
                 "0", "0",
                 "100", "100", "0", "0",
-                OpaqueBox ? "3" : "1",
+                OpaqueBox ? "4" : "1",
                 (OutlineWidth * scale).ToString("0.#", CultureInfo.InvariantCulture),
-                (ShadowDepth * scale).ToString("0.#", CultureInfo.InvariantCulture),
+                (OpaqueBox ? BoxPad(fs) : ShadowDepth * scale).ToString("0.#", CultureInfo.InvariantCulture),
                 Alignment.ToString(CultureInfo.InvariantCulture),
                 Math.Round(mh).ToString(CultureInfo.InvariantCulture),
                 Math.Round(mh).ToString(CultureInfo.InvariantCulture),
@@ -98,12 +104,13 @@ namespace SubtitleStudio
 
             // אותו תיקון bidi שנעשה בדרך לצריבה, אחרת התצוגה המקדימה
             // מראה דבר אחד והקובץ שייצא יראה אחר - וזה הגרוע משניהם.
-            string[] lines = Formats.RtlFix(text).Replace("\r\n", "\n").Split('\n');
-            float lineH = font.GetHeight(g) * (float)LineSpacing;
-            float totalH = lineH * lines.Length;
-
             float marginV = (float)(video.Height * MarginVPct / 100.0);
             float marginH = (float)(video.Height * MarginHPct / 100.0);
+            string[] lines = Wrap(g, font, Formats.RtlFix(text).Replace("\r\n", "\n").Split('\n'), video.Width - 2 * marginH);
+            // ‏**שורה = גובה התא (גודל הגופן), כמו ב-libass** - לא GetHeight, שמוסיף את ״רווח השורות״ של הגופן: בכתובית של חמש שורות
+            // בסרטון לאורך התצוגה יצאה גבוהה ב-8 פיקסלים מהצריבה (0.8.28, ``hp-tools\style-compare.ps1``)
+            float lineH = fontPx * (float)LineSpacing;
+            float totalH = lineH * lines.Length;
 
             int vAlign = (Alignment - 1) / 3;      // 0=תחתון 1=אמצע 2=עליון
             int hAlign = (Alignment - 1) % 3;      // 0=שמאל 1=מרכז 2=ימין
@@ -129,46 +136,54 @@ namespace SubtitleStudio
             sfLtr.Alignment = StringAlignment.Center;
             sfLtr.LineAlignment = StringAlignment.Near;
 
+            RectangleF[] boxes = new RectangleF[lines.Length];
+            float minX = float.MaxValue, maxX = float.MinValue;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string ln = lines[i];
+                if (ln.Length == 0) continue;
+                SizeF sz = g.MeasureString(ln, font, 100000, Theme.HasRtl(ln) ? sfRtl : sfLtr);
+                float x;
+                if (hAlign == 1) x = video.X + (video.Width - sz.Width) / 2f;
+                else if (hAlign == 0) x = video.X + marginH;
+                else x = video.Right - marginH - sz.Width;
+                boxes[i] = new RectangleF(x, top + i * lineH, sz.Width, lineH);
+                minX = Math.Min(minX, x); maxX = Math.Max(maxX, x + sz.Width);
+            }
+
+            // ‏**רקע: מלבן אחד מאחורי כל הכתובית**, כמו BorderStyle 4 של libass (`ToAssStyleLine`): הטקסט עם המתאר, ועוד `BoxPad`
+            // מכל צד. עד 0.8.28 - מלבן לכל שורה, ברוחב אחר מהצריבה (``hp-tools\style-compare.ps1``)
+            if (OpaqueBox && maxX > minX)
+            {
+                float pad = outline + (float)BoxPad(fontPx);
+                using (SolidBrush bb = new SolidBrush(BoxColor))
+                    g.FillRectangle(bb, minX - pad, top - pad, maxX - minX + 2 * pad, (lines.Length - 1) * lineH + fontPx + 2 * pad);
+            }
+
             for (int i = 0; i < lines.Length; i++)
             {
                 string ln = lines[i];
                 if (ln.Length == 0) continue;
                 StringFormat sf = Theme.HasRtl(ln) ? sfRtl : sfLtr;
-                SizeF sz = g.MeasureString(ln, font, 100000, sf);
-                float y = top + i * lineH;
-                float x;
-                if (hAlign == 1) x = video.X + (video.Width - sz.Width) / 2f;
-                else if (hAlign == 0) x = video.X + marginH;
-                else x = video.Right - marginH - sz.Width;
-
-                RectangleF box = new RectangleF(x, y, sz.Width, lineH);
-
-                if (OpaqueBox)
-                {
-                    using (SolidBrush bb = new SolidBrush(BoxColor))
-                        g.FillRectangle(bb, box.X - fontPx * 0.18f, box.Y, box.Width + fontPx * 0.36f, lineH);
-                }
+                RectangleF box = boxes[i];
 
                 // ‏**כמו libass: צורת האותיות, מתאר שהוא קו סביבה, וצל שהוא כל הצורה הזאת מוזזת.**
                 // עד 0.8.2 המתאר היה העתקים מוזזים במעגל, והצל היה רק האותיות - מתחת למתאר
-                // הוא לא נראה בכלל, בזמן שבצריבה הוא כן
+                // הוא לא נראה בכלל, בזמן שבצריבה הוא כן. עם רקע אין צל: ״הצל״ הוא הריפוד של הרקע
                 using (GraphicsPath path = new GraphicsPath())
                 {
                     path.AddString(ln, font.FontFamily, (int)font.Style, font.Size,
                         new RectangleF(box.X, box.Y, box.Width, lineH + 4), sf);
-                    if (!OpaqueBox)
+                    if (!OpaqueBox && shadow > 0.2f)
                     {
-                        if (shadow > 0.2f)
-                        {
-                            using (Matrix m = new Matrix()) { m.Translate(shadow, shadow); path.Transform(m); }
-                            using (SolidBrush sb2 = new SolidBrush(Shadow)) g.FillPath(sb2, path);
-                            if (outline > 0.3f)
-                                using (Pen sp = new Pen(Shadow, outline * 2)) { sp.LineJoin = LineJoin.Round; g.DrawPath(sp, path); }
-                            using (Matrix m = new Matrix()) { m.Translate(-shadow, -shadow); path.Transform(m); }
-                        }
+                        using (Matrix m = new Matrix()) { m.Translate(shadow, shadow); path.Transform(m); }
+                        using (SolidBrush sb2 = new SolidBrush(Shadow)) g.FillPath(sb2, path);
                         if (outline > 0.3f)
-                            using (Pen op = new Pen(Outline, outline * 2)) { op.LineJoin = LineJoin.Round; g.DrawPath(op, path); }
+                            using (Pen sp = new Pen(Shadow, outline * 2)) { sp.LineJoin = LineJoin.Round; g.DrawPath(sp, path); }
+                        using (Matrix m = new Matrix()) { m.Translate(-shadow, -shadow); path.Transform(m); }
                     }
+                    if (outline > 0.3f)
+                        using (Pen op = new Pen(Outline, outline * 2)) { op.LineJoin = LineJoin.Round; g.DrawPath(op, path); }
                     using (SolidBrush pb = new SolidBrush(Primary)) g.FillPath(pb, path);
                 }
             }
@@ -177,6 +192,47 @@ namespace SubtitleStudio
             sfLtr.Dispose();
             g.SmoothingMode = oldS;
             g.TextRenderingHint = oldT;
+        }
+
+        /// <summary>**שורה רחבה מהמסך נשברת כמו ב-libass** (``WrapStyle: 0`` ב-`Formats.ToAss`; 0.8.28). עד כאן התצוגה ציירה אותה בשורה אחת
+        /// שנחתכה בשני הקצוות, והצריבה שברה לשתיים - מי שהגדיל את הגופן ראה דבר אחר ממה שיצא (``hp-tools\style-compare.ps1``). כמו שם:
+        /// קודם שבירה חמדנית ברווח האחרון שנכנס ברוחב (פחות השוליים), ואז מילים עוברות מסוף שורה לתחילת הבאה כל עוד ההפרש באורך קטן -
+        /// כך העליונה יוצאת הרחבה. מילה אחת רחבה מהמסך - נשארת כמו שהיא.</summary>
+        private static string[] Wrap(Graphics g, Font font, string[] lines, float maxW)
+        {
+            System.Collections.Generic.List<string> r = new System.Collections.Generic.List<string>();
+            using (StringFormat sf = new StringFormat(StringFormat.GenericTypographic))
+            {
+                sf.FormatFlags |= StringFormatFlags.NoWrap | StringFormatFlags.MeasureTrailingSpaces;
+                Func<string, float> w = delegate (string s) { return s.Length == 0 ? 0 : g.MeasureString(s.Trim(), font, 100000, sf).Width; };
+                foreach (string line in lines)
+                {
+                    string[] words = line.Split(' ');
+                    if (maxW <= 0 || words.Length < 2 || w(line) <= maxW) { r.Add(line); continue; }
+                    System.Collections.Generic.List<int> starts = new System.Collections.Generic.List<int>();
+                    starts.Add(0);
+                    for (int i = 1; i < words.Length; i++)
+                        if (w(string.Join(" ", words, starts[starts.Count - 1], i - starts[starts.Count - 1] + 1)) > maxW) starts.Add(i);
+                    for (int k = 1; k < starts.Count; k++)
+                    {
+                        int end = k + 1 < starts.Count ? starts[k + 1] : words.Length;
+                        while (starts[k] - 1 > starts[k - 1])
+                        {
+                            float l1 = w(string.Join(" ", words, starts[k - 1], starts[k] - starts[k - 1]));
+                            float l2 = w(string.Join(" ", words, starts[k], end - starts[k]));
+                            float n1 = w(string.Join(" ", words, starts[k - 1], starts[k] - 1 - starts[k - 1]));
+                            float n2 = w(string.Join(" ", words, starts[k] - 1, end - starts[k] + 1));
+                            if (Math.Abs(n1 - n2) < Math.Abs(l1 - l2)) starts[k]--; else break;
+                        }
+                    }
+                    for (int k = 0; k < starts.Count; k++)
+                    {
+                        int end = k + 1 < starts.Count ? starts[k + 1] : words.Length;
+                        r.Add(string.Join(" ", words, starts[k], end - starts[k]));
+                    }
+                }
+            }
+            return r.ToArray();
         }
 
         private static readonly System.Collections.Generic.Dictionary<string, Font> _fontCache =
@@ -234,7 +290,7 @@ namespace SubtitleStudio
 
         public string Describe()
         {
-            return FontName + " · " + FontPct.ToString("0.#") + "%" + (Bold ? Lang.T(" · מודגש") : "") + (OpaqueBox ? Lang.T(" · רקע מלא") : "");
+            return FontName + " · " + FontPct.ToString("0.#") + "%" + (Bold ? Lang.T(" · מודגש") : "") + (OpaqueBox ? Lang.T(" · רקע") : "");
         }
     }
 }

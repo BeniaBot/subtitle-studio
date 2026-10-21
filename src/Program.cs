@@ -179,6 +179,7 @@ namespace SubtitleStudio
                 sb.AppendLine("outline=" + s.OutlineWidth.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("primary=" + s.Primary.ToArgb().ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("outlinecol=" + s.Outline.ToArgb().ToString(CultureInfo.InvariantCulture));
+                sb.AppendLine("boxcol=" + s.BoxColor.ToArgb().ToString(CultureInfo.InvariantCulture));
                 foreach (string r in Recent) sb.AppendLine("recent=" + r);
                 System.IO.File.WriteAllText(File_, sb.ToString(), Encoding.UTF8);
                 LastError = "";
@@ -245,6 +246,8 @@ namespace SubtitleStudio
                         case "outline": { double o = D(v, s.OutlineWidth); if (Math.Abs(o - 2.2) > 0.001) s.OutlineWidth = o; } break;
                         case "primary": s.Primary = Color.FromArgb((int)D(v, s.Primary.ToArgb())); break;
                         case "outlinecol": s.Outline = Color.FromArgb((int)D(v, s.Outline.ToArgb())); break;
+                        // צבע הרקע ושקיפותו (0.8.28; עד כאן לא נשמר - כל הפעלה חזרה לשחור)
+                        case "boxcol": s.BoxColor = Color.FromArgb((int)D(v, s.BoxColor.ToArgb())); break;
                         case "recent": if (v.Length > 0 && Recent.Count < 6) Recent.Add(v); break;
                         case "autoupdate": AutoUpdate = v != "0"; break;
                         case "lastcheck": LastCheck = v; break;

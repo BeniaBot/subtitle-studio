@@ -3,7 +3,7 @@
 # תגיות עיצוב, ‏WebVTT עם הגדרות, ‏ASS מעוצב, ‏MicroDVD. בודק שהטקסט שחזר הוא
 # הטקסט שנכתב, בלי שאריות תגיות - ושהשמירה חזרה משמרת אותו.
 # **נולד מבאג** (24.9.2026): כל קידוד ישן נחשב עברית, ו״Déjà vu״ נפתח כ-״Dיjא vu״.
-# צפוי: 26 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
+# צפוי: 30 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -126,6 +126,52 @@ $dApp = PixDiff $pa $pr; $dOld = PixDiff $po $pr
 Rep 'burn: Hebrew+English word order' ($dApp -lt 40) ("differs from the reference in $dApp sampled pixels")
 Rep 'burn: the old style would fail here' ($dOld -gt 400) ("old Encoding=177 differs in $dOld")
 Rep 'burn: style asks libass to detect direction' ($appAss -match '(?m)^Style: .*,-1\r?$') ''
+
+# ---- התצוגה = הצריבה (0.8.28; המדידה המלאה: ``hp-tools\style-compare.ps1``) ----
+# עד 0.8.28: ״רקע מלא״ נצרב כקופסה שחורה אטומה לכל שורה, והתצוגה הראתה רקע שקוף-למחצה; ושורה רחבה מהמסך נשברה בצריבה
+# לשתיים ונחתכה בתצוגה. צורבים פריים ומציירים אותו ב-SubStyle.Render, ומשווים את המלבן של מה שאינו רקע.
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices;
+public static class SubsInk {
+  public static int[] Box(Bitmap b, Color r) {
+    BitmapData d = b.LockBits(new Rectangle(0, 0, b.Width, b.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+    byte[] buf = new byte[d.Stride * b.Height]; Marshal.Copy(d.Scan0, buf, 0, buf.Length); b.UnlockBits(d);
+    int l = int.MaxValue, t = int.MaxValue, rr = -1, bb = -1;
+    for (int y = 0; y < b.Height; y++) for (int x = 0; x < b.Width; x++) {
+      int i = y * d.Stride + x * 4;
+      if (Math.Abs(buf[i] - r.B) + Math.Abs(buf[i + 1] - r.G) + Math.Abs(buf[i + 2] - r.R) <= 40) continue;
+      if (x < l) l = x; if (x > rr) rr = x; if (y < t) t = y; if (y > bb) bb = y;
+    }
+    return new int[] { l, t, rr, bb };
+  }
+}
+"@
+function SameAsBurn($name, $setup, [string]$text) {
+    $sty = [Activator]::CreateInstance((TY 'SubStyle')); & $setup $sty
+    $one = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($cueT))
+    $one.Add([Activator]::CreateInstance($cueT, @([int64]0, [int64]5000, $text)))
+    $argv = New-Object object[] 4; $argv[0] = $one; $argv[1] = $sty; $argv[2] = [int]1280; $argv[3] = [int]720
+    $ass = [string](TY 'Formats').GetMethod('ToAss', $ST).Invoke($null, $argv)
+    $png = BurnAss $name $ass
+    $raw = [Drawing.Image]::FromFile($png); $burn = New-Object Drawing.Bitmap $raw; $raw.Dispose()
+    $bg = $burn.GetPixel(2, 2)
+    $prev = New-Object Drawing.Bitmap 1280, 720; $g = [Drawing.Graphics]::FromImage($prev); $g.Clear($bg)
+    $sty.Render($g, (New-Object Drawing.RectangleF 0, 0, 1280, 720), $text); $g.Dispose()
+    $a = [SubsInk]::Box($burn, $bg); $b = [SubsInk]::Box($prev, $bg); $burn.Dispose(); $prev.Dispose()
+    $worst = 0; for ($k = 0; $k -lt 4; $k++) { $worst = [Math]::Max($worst, [Math]::Abs($a[$k] - $b[$k])) }
+    return [pscustomobject]@{ Worst = $worst; Burn = ($a -join ','); Prev = ($b -join ','); Ass = $ass }
+}
+$light = SameAsBurn 'same-lightbox' { param($s) $s.OpaqueBox = $true; $s.BoxColor = [Drawing.Color]::FromArgb(128, 255, 255, 255); $s.Primary = [Drawing.Color]::FromArgb(20, 20, 30); $s.OutlineWidth = 0.0 } "זו דוגמה לכתובית`nבשתי שורות"
+Rep 'preview = burn: light half-transparent background, one box behind both lines' ($light.Worst -le 3) ("burn " + $light.Burn + " / preview " + $light.Prev)
+Rep 'background: BorderStyle 4, its colour and alpha in BackColour, outline kept' ($light.Ass -match '(?m)^Style: Main,[^,]*,\d+,&H00[0-9A-F]{6},&H[0-9A-F]{8},&H00000000,&H7FFFFFFF,(?:[^,]*,){8}4,') ''
+$wide = SameAsBurn 'same-wide' { param($s) $s.FontPct = 8.0 } 'זו שורה ארוכה מאוד שלא נכנסת ברוחב המסך כשהגופן גדול, וצריך לראות מה קורה לה בצריבה ובתצוגה'
+Rep 'preview = burn: a line wider than the screen wraps the same way' ($wide.Worst -le 8) ("burn " + $wide.Burn + " / preview " + $wide.Prev)
+# גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו
+$hh = (TY 'Fonts').GetMethod('HasHebrew', $ST)
+$sdlg = [Activator]::CreateInstance((TY 'StyleDlg'), @([Activator]::CreateInstance((TY 'SubStyle')), $null, $true))
+$fontItems = (TY 'StyleDlg').GetField('_font', [Reflection.BindingFlags]'NonPublic,Instance').GetValue($sdlg).Items
+$fontNames = @(for ($k = 0; $k -lt $fontItems.Count; $k++) { [string]$fontItems[$k] }); $sdlg.Dispose()
+Rep 'fonts: Hebrew in Arial, not in Consolas or a symbol font; the style window offers only Hebrew fonts' ($hh.Invoke($null, @('Arial')) -and -not $hh.Invoke($null, @('Consolas')) -and -not $hh.Invoke($null, @('Wingdings')) -and ($fontNames -contains 'Arial') -and -not ($fontNames -contains 'Consolas')) ("{0} fonts" -f $fontNames.Count)
 
 # ---- ערוץ נפרד בקובץ שכבר יש בו כתוביות (0.8.5) ----
 # עד 0.8.5 ״לשמור גם ערוצי כתוביות שכבר קיימים״ כתב את השפה, השם ו״ברירת מחדל״ על הערוץ הישן

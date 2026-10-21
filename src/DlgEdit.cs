@@ -489,12 +489,18 @@ namespace SubtitleStudio
         private readonly Bitmap _frame;
         private Panel _preview;
         private Combo _font, _align;
-        private Slider _size, _outline, _marginV;
+        private Slider _size, _outline, _marginV, _boxClear;
         private Toggle _bold, _box;
-        private Btn _colText, _colOutline;
+        private Btn _colText, _colOutline, _colBox;
         public SubStyle Result;
+        /// <summary>הטקסט בתצוגה: הכתובית שעל המסך (0.8.28), כדי לבחור גודל לפי מה שבאמת ייכתב; null - דוגמה.</summary>
+        public string Sample;
 
-        public StyleDlg(SubStyle style, Bitmap frame) : base(Lang.T("עיצוב הכתוביות"), Ico.TextIcon, 620)
+        public StyleDlg(SubStyle style, Bitmap frame) : this(style, frame, !Lang.IsEn) { }
+
+        /// <param name="hebrew">בכתוביות יש עברית: רק גופנים שיש בהם אותיות עבריות (`Fonts.HasHebrew`; 0.8.28) - בגופן בלי עברית התצוגה
+        /// והצריבה מחליפות כל אחת לגופן אחר. הגופן הנוכחי נשאר ברשימה גם אם אין בו.</param>
+        public StyleDlg(SubStyle style, Bitmap frame, bool hebrew) : base(Lang.T("עיצוב הכתוביות"), Ico.TextIcon, 620)
         {
             _style = style.Clone();
             _frame = frame;
@@ -518,7 +524,9 @@ namespace SubtitleStudio
             Section(Lang.T("גופן וגודל"));
             _font = new Combo();
             List<string> names = new List<string>();
-            foreach (FontFamily ff in FontFamily.Families) names.Add(ff.Name);
+            foreach (FontFamily ff in FontFamily.Families)
+                if (!ff.Name.StartsWith("@") && (!hebrew || Fonts.HasHebrew(ff.Name) || string.Equals(ff.Name, _style.FontName, StringComparison.OrdinalIgnoreCase)))
+                    names.Add(ff.Name);
             names.Sort(StringComparer.OrdinalIgnoreCase);
             foreach (string n in names) _font.Items.Add(n);
             _font.SelectedItem = _style.FontName;
@@ -534,62 +542,17 @@ namespace SubtitleStudio
             Controls.Add(_size);
             Y += Theme.S(42);
 
+            // **שלוש עמודות מכאן** (0.8.28 - צבע הרקע ושקיפותו נוספו בלי להגביה את החלון): מימין לשמאל
+            int third = (ContentW - 2 * gapX) / 3;
+            int c1 = Pad + 2 * (third + gapX), c2 = Pad + third + gapX, c3 = Pad;
+
             _bold = new Toggle();
             _bold.Text = Lang.T("מודגש");
             _bold.Checked = _style.Bold;
             _bold.CheckedChanged += delegate { _style.Bold = _bold.Checked; _preview.Invalidate(); };
-            _bold.SetBounds(right, Y, half, Theme.S(26));
+            _bold.SetBounds(c1, Y + Theme.S(3), third, Theme.S(26));
             Controls.Add(_bold);
 
-            _box = new Toggle();
-            _box.Text = Lang.T("רקע מלא במקום מתאר");
-            _box.Checked = _style.OpaqueBox;
-            _box.CheckedChanged += delegate { _style.OpaqueBox = _box.Checked; _preview.Invalidate(); };
-            _box.SetBounds(left, Y, half, Theme.S(26));
-            Controls.Add(_box);
-            Y += Theme.S(38);
-
-            Section(Lang.T("צבעים"));
-            _colText = new Btn();
-            _colText.Text = Lang.T("צבע הטקסט");
-            _colText.Kind = BtnKind.Ghost;
-            _colText.Swatch = _style.Primary;
-            _colText.SetBounds(right, Y, half, Theme.S(36));
-            _colText.Click += delegate { PickColor(true); };
-            Controls.Add(_colText);
-            _colOutline = new Btn();
-            _colOutline.Text = Lang.T("צבע המתאר");
-            _colOutline.Kind = BtnKind.Ghost;
-            _colOutline.Swatch = _style.Outline;
-            _colOutline.SetBounds(left, Y, half, Theme.S(36));
-            _colOutline.Click += delegate { PickColor(false); };
-            Controls.Add(_colOutline);
-            Y += Theme.S(48);
-
-            Lbl outlineLbl = Label(Lang.T("עובי המתאר"), true, Theme.TextDim);
-            outlineLbl.Font = Theme.SmallBold;
-            outlineLbl.SetBounds(right, Y, half, Theme.S(18));
-            Controls.Add(outlineLbl);
-            Lbl marginLbl = Label(Lang.T("מרחק מהקצה"), true, Theme.TextDim);
-            marginLbl.Font = Theme.SmallBold;
-            marginLbl.SetBounds(left, Y, half, Theme.S(18));
-            Controls.Add(marginLbl);
-            Y += Theme.S(24);
-
-            _outline = new Slider();
-            _outline.Min = 0; _outline.Max = 6; _outline.Value = _style.OutlineWidth; _outline.Step = 0.1; _outline.Editable = true;
-            _outline.ValueChanged += delegate { _style.OutlineWidth = _outline.Value; _preview.Invalidate(); };
-            _outline.SetBounds(right, Y, half, Theme.S(28));
-            Controls.Add(_outline);
-
-            _marginV = new Slider();
-            _marginV.Min = 0; _marginV.Max = 25; _marginV.Value = _style.MarginVPct; _marginV.Step = 0.5; _marginV.Suffix = "%"; _marginV.Editable = true;
-            _marginV.ValueChanged += delegate { _style.MarginVPct = _marginV.Value; _preview.Invalidate(); };
-            _marginV.SetBounds(left, Y, half, Theme.S(28));
-            Controls.Add(_marginV);
-            Y += Theme.S(38);
-
-            Section(Lang.T("מיקום"));
             _align = new Combo();
             _align.Items.AddRange(new object[] { Lang.T("למטה במרכז"), Lang.T("למטה מימין"), Lang.T("למטה משמאל"), Lang.T("למעלה במרכז"), Lang.T("באמצע המסך") });
             _align.SelectedIndex = _style.Alignment == 8 ? 3 : (_style.Alignment == 5 ? 4 : (_style.Alignment == 3 ? 1 : (_style.Alignment == 1 ? 2 : 0)));
@@ -599,30 +562,93 @@ namespace SubtitleStudio
                 _style.Alignment = map[_align.SelectedIndex];
                 _preview.Invalidate();
             };
-            _align.SetBounds(right, Y, half, Theme.S(32));
+            _align.SetBounds(c2, Y, third, Theme.S(32));
             Controls.Add(_align);
+
+            // ‏״רקע מאחורי הטקסט״ - מלבן אחד, בצבע ובשקיפות שבוחרים כאן, והטקסט שומר על המתאר (SubStyle.ToAssStyleLine)
+            _box = new Toggle();
+            _box.Text = Lang.T("רקע מאחורי הטקסט");
+            _box.Checked = _style.OpaqueBox;
+            _box.CheckedChanged += delegate { _style.OpaqueBox = _box.Checked; _preview.Invalidate(); };
+            _box.SetBounds(c3, Y + Theme.S(3), third, Theme.S(26));
+            Controls.Add(_box);
             Y += Theme.S(42);
+
+            Section(Lang.T("צבעים"));
+            _colText = ColorBtn(Lang.T("צבע הטקסט"), _style.Primary, c1, third, 0);
+            _colOutline = ColorBtn(Lang.T("צבע המתאר"), _style.Outline, c2, third, 1);
+            _colBox = ColorBtn(Lang.T("צבע הרקע"), Color.FromArgb(255, _style.BoxColor), c3, third, 2);
+            Y += Theme.S(48);
+
+            string[] caps = { Lang.T("עובי המתאר"), Lang.T("מרחק מהקצה"), Lang.T("שקיפות הרקע") };
+            int[] xs = { c1, c2, c3 };
+            for (int i = 0; i < 3; i++)
+            {
+                Lbl l = Label(caps[i], true, Theme.TextDim);
+                l.Font = Theme.SmallBold;
+                l.SetBounds(xs[i], Y, third, Theme.S(18));
+                Controls.Add(l);
+            }
+            Y += Theme.S(24);
+
+            _outline = new Slider();
+            _outline.Min = 0; _outline.Max = 6; _outline.Value = _style.OutlineWidth; _outline.Step = 0.1; _outline.Editable = true;
+            _outline.ValueChanged += delegate { _style.OutlineWidth = _outline.Value; _preview.Invalidate(); };
+            _outline.SetBounds(c1, Y, third, Theme.S(28));
+            Controls.Add(_outline);
+
+            _marginV = new Slider();
+            _marginV.Min = 0; _marginV.Max = 25; _marginV.Value = _style.MarginVPct; _marginV.Step = 0.5; _marginV.Suffix = "%"; _marginV.Editable = true;
+            _marginV.ValueChanged += delegate { _style.MarginVPct = _marginV.Value; _preview.Invalidate(); };
+            _marginV.SetBounds(c2, Y, third, Theme.S(28));
+            Controls.Add(_marginV);
+
+            // שקיפות: 0% אטום, 90% כמעט שקוף. נגיעה בה מדליקה את הרקע - מי שמזיז אותה רוצה רקע
+            _boxClear = new Slider();
+            _boxClear.Min = 0; _boxClear.Max = 90; _boxClear.Step = 5; _boxClear.Suffix = "%"; _boxClear.Editable = true;
+            _boxClear.Value = Math.Round((1 - _style.BoxColor.A / 255.0) * 100);
+            _boxClear.ValueChanged += delegate
+            {
+                _style.BoxColor = Color.FromArgb((int)Math.Round(255 * (1 - _boxClear.Value / 100.0)), _style.BoxColor);
+                if (!_box.Checked) _box.Checked = true;
+                _preview.Invalidate();
+            };
+            _boxClear.SetBounds(c3, Y, third, Theme.S(28));
+            Controls.Add(_boxClear);
+            Y += Theme.S(38);
 
             Buttons(Lang.T("שמירת העיצוב"), Ico.Check, Lang.T("ביטול"));
         }
 
-        private void PickColor(bool text)
+        private Btn ColorBtn(string text, Color swatch, int x, int w, int which)
+        {
+            Btn b = new Btn();
+            b.Text = text;
+            b.Kind = BtnKind.Ghost;
+            b.Swatch = swatch;
+            b.SetBounds(x, Y, w, Theme.S(36));
+            b.Click += delegate { PickColor(which); };
+            Controls.Add(b);
+            return b;
+        }
+
+        /// <param name="which">0 - הטקסט, 1 - המתאר, 2 - הרקע (השקיפות נשארת; בחירת צבע מדליקה את הרקע).</param>
+        private void PickColor(int which)
         {
             ColorDialog d = new ColorDialog();
             d.FullOpen = true;
-            d.Color = text ? _style.Primary : _style.Outline;
-            if (d.ShowDialog(this) == DialogResult.OK)
+            d.Color = Color.FromArgb(255, which == 0 ? _style.Primary : which == 1 ? _style.Outline : _style.BoxColor);
+            if (d.ShowDialog(this) != DialogResult.OK) return;
+            if (which == 0) { _style.Primary = d.Color; _colText.Swatch = d.Color; _colText.Invalidate(); }
+            else if (which == 1) { _style.Outline = d.Color; _colOutline.Swatch = d.Color; _colOutline.Invalidate(); }
+            else
             {
-                if (text) { _style.Primary = d.Color; _colText.Swatch = d.Color; _colText.Invalidate(); }
-                else
-                {
-                    _style.Outline = d.Color;
-                    _style.BoxColor = Color.FromArgb(170, d.Color);
-                    _colOutline.Swatch = d.Color;
-                    _colOutline.Invalidate();
-                }
-                _preview.Invalidate();
+                _style.BoxColor = Color.FromArgb(_style.BoxColor.A, d.Color);
+                _colBox.Swatch = d.Color;
+                _colBox.Invalidate();
+                if (!_box.Checked) _box.Checked = true;
             }
+            _preview.Invalidate();
         }
 
         private void PreviewPaint(object sender, PaintEventArgs e)
@@ -649,7 +675,7 @@ namespace SubtitleStudio
                     Rectangle.Round(r), Color.FromArgb(52, 58, 72), Color.FromArgb(18, 20, 26), 60f))
                     g.FillRectangle(b, r);
             }
-            _style.Render(g, r, Lang.T("זו דוגמה לכתובית\nבשתי שורות"));
+            _style.Render(g, r, Sample ?? Lang.T("זו דוגמה לכתובית\nבשתי שורות"));
         }
 
         protected override bool OnOk()

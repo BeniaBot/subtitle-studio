@@ -1651,6 +1651,10 @@ namespace SubtitleStudio
             "\nשימו לב: כתובית אחת תגיע לפני תחילת הסרט ותיצמד להתחלה.", "\nNote: one subtitle will go before the start and stick to it.",
             "\nשימו לב: {0} כתוביות יגיעו לפני תחילת הסרט ויצטופפו בהתחלה.", "\nNote: {0} subtitles will go before the start and pile up there.",
             "הכתובית האחרונה תעבור מ-{0} ל-{1}.", "The last subtitle will move from {0} to {1}.",
+            "רקע מאחורי הטקסט", "Background box",
+            "צבע הרקע", "Box colour",
+            "שקיפות הרקע", "Box transparency",
+            " · רקע", " · background",
         };
 
         public static void Fill(Dictionary<string, string> d)

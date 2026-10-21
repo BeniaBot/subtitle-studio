@@ -179,7 +179,9 @@ namespace SubtitleStudio
                 .P("size_percent", "number", "גודל הגופן באחוזים מגובה התמונה, בערך 3 עד 12")
                 .P("position", "string", "top / middle / bottom")
                 .P("color", "string", "צבע הטקסט: white, yellow, cyan, green, red, blue, orange, pink, gray, black, או ‎#RRGGBB")
-                .P("box", "boolean", "רקע כהה אטום מאחורי הטקסט")
+                .P("box", "boolean", "רקע (מלבן) מאחורי הטקסט; הטקסט שומר על המתאר")
+                .P("box_color", "string", "צבע הרקע, כמו color (למשל white לרקע בהיר); מדליק את הרקע")
+                .P("box_transparency", "number", "שקיפות הרקע באחוזים: 0 אטום, 90 כמעט שקוף; מדליק את הרקע")
                 .P("font", "string", "שם גופן שמותקן במחשב (למשל Arial, David, Narkisim)")
                 .P("bold", "boolean", "מודגש")
                 .P("outline_width", "number", "עובי המתאר, 0-8 (0 = בלי מתאר)")
@@ -485,7 +487,7 @@ namespace SubtitleStudio
             // למודל, לא לממשק
             r["style"] = string.Format("גופן {0}, גודל {1}% מגובה התמונה, צבע #{2:X6}, מיקום {3}{4}", _style.FontName,
                 _style.FontPct.ToString("0.#", CultureInfo.InvariantCulture), _style.Primary.ToArgb() & 0xFFFFFF,
-                _style.Alignment >= 7 ? "למעלה" : _style.Alignment >= 4 ? "באמצע" : "למטה", _style.OpaqueBox ? ", עם רקע אטום" : "");
+                _style.Alignment >= 7 ? "למעלה" : _style.Alignment >= 4 ? "באמצע" : "למטה", BoxNote());
             if (_tl != null && _tl.InPoint >= 0 && _tl.OutPoint > _tl.InPoint)
             {
                 r["marked_from_sec"] = Math.Round(_tl.InPoint / 1000.0, 2);
@@ -773,6 +775,13 @@ namespace SubtitleStudio
             return r;
         }
 
+        /// <summary>הרקע, למודל: צבע ושקיפות.</summary>
+        private string BoxNote()
+        {
+            if (!_style.OpaqueBox) return "";
+            return string.Format(", רקע #{0:X6} בשקיפות {1}%", _style.BoxColor.ToArgb() & 0xFFFFFF, Math.Round((1 - _style.BoxColor.A / 255.0) * 100));
+        }
+
         private Dictionary<string, object> AiSetStyle(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
@@ -785,6 +794,14 @@ namespace SubtitleStudio
             System.Drawing.Color k = ColorOf(c.Str("color", ""));
             if (k != System.Drawing.Color.Empty) _style.Primary = k;
             if (c.Args.ContainsKey("box")) _style.OpaqueBox = c.Bool("box", _style.OpaqueBox);
+            System.Drawing.Color kb = ColorOf(c.Str("box_color", ""));
+            if (kb != System.Drawing.Color.Empty) { _style.BoxColor = System.Drawing.Color.FromArgb(_style.BoxColor.A, kb); _style.OpaqueBox = true; }
+            if (c.Args.ContainsKey("box_transparency"))
+            {
+                double clear = Math.Max(0, Math.Min(90, c.Num("box_transparency", 37)));
+                _style.BoxColor = System.Drawing.Color.FromArgb((int)Math.Round(255 * (1 - clear / 100.0)), _style.BoxColor);
+                _style.OpaqueBox = true;
+            }
             // **העיצוב המלא (0.8.13)** - כל מה שבחלון ״עיצוב הכתוביות״
             System.Drawing.Color ko = ColorOf(c.Str("outline_color", ""));
             if (ko != System.Drawing.Color.Empty) _style.Outline = ko;
@@ -808,7 +825,7 @@ namespace SubtitleStudio
                 _style.FontName, _style.Bold ? " מודגש" : "", _style.FontPct.ToString("0.#", CultureInfo.InvariantCulture),
                 _style.Primary.ToArgb() & 0xFFFFFF, _style.Outline.ToArgb() & 0xFFFFFF, _style.OutlineWidth.ToString("0.#", CultureInfo.InvariantCulture),
                 _style.Alignment >= 7 ? "למעלה" : _style.Alignment >= 4 ? "באמצע" : "למטה",
-                _style.MarginVPct.ToString("0.#", CultureInfo.InvariantCulture), _style.OpaqueBox ? ", רקע אטום" : "");
+                _style.MarginVPct.ToString("0.#", CultureInfo.InvariantCulture), BoxNote());
             return r;
         }
 
