@@ -637,7 +637,7 @@ namespace SubtitleStudio
             Y += Theme.S(22);
 
             _blurWhen = new Combo();
-            _blurWhen.Items.AddRange(new object[] { Lang.T("כל הזמן"), Lang.T("רק כשיש כתובית") });
+            // ״רק כשיש כתובית״ (0.8.31) הובן כ״ערוץ כתוביות בסרט״ - הכוונה לכתוביות שכותבים כאן
             _blurWhen.SelectedIndex = _style.BlurOnlyWithCue ? 1 : 0;
             _blurWhen.SelectedIndexChanged += delegate
             {

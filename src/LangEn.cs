@@ -1665,6 +1665,7 @@ namespace SubtitleStudio
             "את האזור מסמנים בגרירה על התמונה למעלה", "Mark the area by dragging on the picture above",
             "טקסט שצרוב בסרט", "Text burned into the video",
             "blur_area: ארבעה מספרים באחוזים - x,y,רוחב,גובה", "blur_area: four percentages - x,y,width,height",
+            "רק בזמן הכתוביות שלי", "Only during my subtitles",
         };
 
         public static void Fill(Dictionary<string, string> d)
