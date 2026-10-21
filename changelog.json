@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.27",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "major",
+          "s": "בדיקת האיות: שמות, ראשי תיבות וכתיב מלא מקובל (״אמיתי״, ״היתה״, ״ענין״) כבר לא מסומנים - בסרט מתורגם: שליש מהכתוביות ← עשירית, והשגיאות האמיתיות עדיין נתפסות",
+          "en": "Spell check: names, acronyms and accepted full spellings are no longer flagged - in a translated film a third of the subtitles went down to a tenth, and real typos are still caught"
+        },
+        {
+          "t": "fix",
+          "s": "״לתקן הכול״ מחלק שורה ארוכה לשתי שורות גם כשמילה ארוכה יושבת באמצע - עד עכשיו השורה השנייה יצאה ארוכה מדי ונשארה כך",
+          "en": "'Fix all' splits a long line in two even when a long word sits in the middle - until now the second line came out too long and stayed that way"
+        }
+      ]
+    },
+    {
       "v": "0.8.26",
       "date": "2026-10-21",
       "items": [
