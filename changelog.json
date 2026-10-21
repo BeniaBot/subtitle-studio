@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.32",
+      "date": "2026-10-22",
+      "items": [
+        {
+          "t": "fix",
+          "s": "בדיקת האיות בשיעורים: ״ממתינין״, ״פסחים קיח״, ״לא תשא״, ״סיעתא״ כבר לא מסומנים כשגיאה - והשגיאות האמיתיות עדיין נתפסות",
+          "en": "Spell check in Torah lessons: rabbinic plurals, page numbers after a tractate and book spellings are no longer flagged - real typos are still caught"
+        },
+        {
+          "t": "fix",
+          "s": "בטשטוש: ״רק בזמן הכתוביות שלי״ במקום ״רק כשיש כתובית״ - שלא יתבלבל עם ערוץ כתוביות בסרט",
+          "en": "Blur: 'Only during my subtitles' instead of 'Only with a subtitle' - not to be confused with a subtitle track"
+        }
+      ]
+    },
+    {
       "v": "0.8.31",
       "date": "2026-10-21",
       "items": [

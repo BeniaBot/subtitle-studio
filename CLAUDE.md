@@ -13,7 +13,7 @@
 - קוד: `src\*.cs` (C#, WinForms)
 - פלט: `dist\Subtext.exe` (~29MB — הכל בפנים) ו-`dist\Subtext-app-update-<זהות>.gz` (~0.5MB, העדכון הקטן)
 - בנייה: `build.cmd`
-- גרסה נוכחית: `App.Version` ב-`src\Updater.cs` (כרגע `0.8.31`)
+- גרסה נוכחית: `App.Version` ב-`src\Updater.cs` (כרגע `0.8.32`)
 
 ---
 
