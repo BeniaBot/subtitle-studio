@@ -41,7 +41,15 @@ namespace SubtitleStudio
             return "&H" + a.ToString("X2") + c.B.ToString("X2") + c.G.ToString("X2") + c.R.ToString("X2");
         }
 
-        public string ToAssStyleLine(int videoH)
+        /// <summary>שורת הסגנון **לצריבה** - במנוע שלנו.</summary>
+        public string ToAssStyleLine(int videoH) { return StyleLine(videoH, true); }
+
+        /// <summary>שורת הסגנון **לקובץ ASS שנשמר ולערוץ נפרד** - נגן אחר יציג אותם. ‏**רקע כאן = BorderStyle 3** (מלבן לכל שורה
+        /// בצבע ובשקיפות של BoxColor, בלי מתאר לאותיות): את 4 מכירים רק libass חדש; VSFilter ו-libass ישן מציירים במקומו **צל מוזז**
+        /// בגודל הריפוד ובצבע הרקע. ריפוד דק - שורות שקופות-למחצה חופפות בפס של פעמיים הריפוד, וזה נראה כהה יותר.</summary>
+        public string ToAssStyleLineForPlayers(int videoH) { return StyleLine(videoH, false); }
+
+        private string StyleLine(int videoH, bool burn)
         {
             double fs = videoH * FontPct / 100.0;
             double mv = videoH * MarginVPct / 100.0;
@@ -55,18 +63,18 @@ namespace SubtitleStudio
                 Math.Round(fs).ToString(CultureInfo.InvariantCulture),
                 AssColor(Primary, true),
                 AssColor(Color.FromArgb(255, 255, 0, 0), true),
-                AssColor(Outline, true),
+                AssColor(OpaqueBox && !burn ? BoxColor : Outline, true),
                 // ‏**רקע = BorderStyle 4** (0.8.28): מלבן אחד מאחורי כל הכתובית, בצבע ובשקיפות של BoxColor, והטקסט שומר על המתאר
                 // שלו; הריפוד סביב הטקסט הוא ערך ״הצל״ (נמדד ב-libass של המנוע: צל 10 = 10 פיקסלים מכל צד). עד כאן BorderStyle 3 -
                 // קופסה לכל שורה **בצבע המתאר, אטומה**: הסרט קיבל שחור מלא, וחלון העיצוב הראה רקע שקוף-למחצה
-                AssColor(OpaqueBox ? BoxColor : Shadow, true),
+                AssColor(OpaqueBox ? (burn ? BoxColor : Color.Transparent) : Shadow, true),
                 Bold ? "-1" : "0",
                 Italic ? "-1" : "0",
                 "0", "0",
                 "100", "100", "0", "0",
-                OpaqueBox ? "4" : "1",
-                (OutlineWidth * scale).ToString("0.#", CultureInfo.InvariantCulture),
-                (OpaqueBox ? BoxPad(fs) : ShadowDepth * scale).ToString("0.#", CultureInfo.InvariantCulture),
+                OpaqueBox ? (burn ? "4" : "3") : "1",
+                (OpaqueBox && !burn ? Math.Round(fs * 0.08, 1) : OutlineWidth * scale).ToString("0.#", CultureInfo.InvariantCulture),
+                (OpaqueBox ? (burn ? BoxPad(fs) : 0) : ShadowDepth * scale).ToString("0.#", CultureInfo.InvariantCulture),
                 Alignment.ToString(CultureInfo.InvariantCulture),
                 Math.Round(mh).ToString(CultureInfo.InvariantCulture),
                 Math.Round(mh).ToString(CultureInfo.InvariantCulture),

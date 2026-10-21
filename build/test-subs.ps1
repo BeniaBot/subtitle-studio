@@ -3,7 +3,7 @@
 # תגיות עיצוב, ‏WebVTT עם הגדרות, ‏ASS מעוצב, ‏MicroDVD. בודק שהטקסט שחזר הוא
 # הטקסט שנכתב, בלי שאריות תגיות - ושהשמירה חזרה משמרת אותו.
 # **נולד מבאג** (24.9.2026): כל קידוד ישן נחשב עברית, ו״Déjà vu״ נפתח כ-״Dיjא vu״.
-# צפוי: 30 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
+# צפוי: 31 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -164,6 +164,9 @@ function SameAsBurn($name, $setup, [string]$text) {
 $light = SameAsBurn 'same-lightbox' { param($s) $s.OpaqueBox = $true; $s.BoxColor = [Drawing.Color]::FromArgb(128, 255, 255, 255); $s.Primary = [Drawing.Color]::FromArgb(20, 20, 30); $s.OutlineWidth = 0.0 } "זו דוגמה לכתובית`nבשתי שורות"
 Rep 'preview = burn: light half-transparent background, one box behind both lines' ($light.Worst -le 3) ("burn " + $light.Burn + " / preview " + $light.Prev)
 Rep 'background: BorderStyle 4, its colour and alpha in BackColour, outline kept' ($light.Ass -match '(?m)^Style: Main,[^,]*,\d+,&H00[0-9A-F]{6},&H[0-9A-F]{8},&H00000000,&H7FFFFFFF,(?:[^,]*,){8}4,') ''
+$boxSt = [Activator]::CreateInstance((TY 'SubStyle')); $boxSt.OpaqueBox = $true; $boxSt.BoxColor = [Drawing.Color]::FromArgb(128, 255, 255, 255)
+$forPlayers = [string]$boxSt.ToAssStyleLineForPlayers(720)
+Rep 'saved .ass / separate track: background as BorderStyle 3 (every player knows it; 4 is new libass only)' ($forPlayers -match '^Style: Main,[^,]*,\d+,&H00[0-9A-F]{6},&H[0-9A-F]{8},&H7FFFFFFF,&HFF[0-9A-F]{6},(?:[^,]*,){8}3,') $forPlayers
 $wide = SameAsBurn 'same-wide' { param($s) $s.FontPct = 8.0 } 'זו שורה ארוכה מאוד שלא נכנסת ברוחב המסך כשהגופן גדול, וצריך לראות מה קורה לה בצריבה ובתצוגה'
 Rep 'preview = burn: a line wider than the screen wraps the same way' ($wide.Worst -le 8) ("burn " + $wide.Burn + " / preview " + $wide.Prev)
 # גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו

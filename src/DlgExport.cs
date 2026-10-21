@@ -118,7 +118,7 @@ namespace SubtitleStudio
                     render.Add(c);
                 }
             }
-            string s = fmt == SubFormat.Ass ? Formats.ToAss(cues, st, vw, vh)
+            string s = fmt == SubFormat.Ass ? Formats.ToAssForPlayers(cues, st, vw, vh)
                      : fmt == SubFormat.Vtt ? Formats.ToVtt(render) : Formats.ToSrt(render);
             File.WriteAllBytes(Path.Combine(dir, name), new UTF8Encoding(true).GetBytes(s));
             return name;

@@ -804,7 +804,13 @@ namespace SubtitleStudio
             return sb.ToString();
         }
 
-        public static string ToAss(List<Cue> cues, SubStyle st, int videoW, int videoH)
+        /// <summary>ASS **לצריבה**, במנוע שלנו.</summary>
+        public static string ToAss(List<Cue> cues, SubStyle st, int videoW, int videoH) { return AssCore(cues, st, videoW, videoH, true); }
+
+        /// <summary>ASS **לקובץ שנשמר ולערוץ נפרד** - נגן אחר יציג אותו (`SubStyle.ToAssStyleLineForPlayers`).</summary>
+        public static string ToAssForPlayers(List<Cue> cues, SubStyle st, int videoW, int videoH) { return AssCore(cues, st, videoW, videoH, false); }
+
+        private static string AssCore(List<Cue> cues, SubStyle st, int videoW, int videoH, bool burn)
         {
             if (st == null) st = new SubStyle();
             if (videoW <= 0) videoW = 1920;
@@ -820,7 +826,7 @@ namespace SubtitleStudio
             sb.Append("PlayResY: ").Append(videoH).Append("\r\n\r\n");
             sb.Append("[V4+ Styles]\r\n");
             sb.Append("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\n");
-            sb.Append(st.ToAssStyleLine(videoH)).Append("\r\n\r\n");
+            sb.Append(burn ? st.ToAssStyleLine(videoH) : st.ToAssStyleLineForPlayers(videoH)).Append("\r\n\r\n");
             sb.Append("[Events]\r\n");
             sb.Append("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\n");
             for (int i = 0; i < cues.Count; i++)
@@ -979,7 +985,7 @@ namespace SubtitleStudio
             switch (fmt)
             {
                 case SubFormat.Vtt: s = ToVtt(cues); break;
-                case SubFormat.Ass: s = ToAss(cues, style, vw, vh); break;
+                case SubFormat.Ass: s = ToAssForPlayers(cues, style, vw, vh); break;
                 case SubFormat.Txt: s = ToTranslationText(cues); break;
                 default: s = ToSrt(cues); break;
             }
