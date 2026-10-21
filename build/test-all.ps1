@@ -10,10 +10,10 @@ $here = $PSScriptRoot
 $expect = [ordered]@{
     'logic' = 224; 'autotime' = 36; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 51; 'layout' = 98; 'project' = 108; 'screens' = 36
-    'fuzz' = 11; 'long' = 15; 'stt' = 146; 'errors' = 38; 'buttons' = 12
+    'fuzz' = 11; 'long' = 15; 'stt' = 146; 'errors' = 38; 'buttons' = 13
     'source' = 8; 'qa' = 105; 'spell' = 68; 'release' = 67; 'settings' = 19; 'subs' = 35; 'cut' = 54; 'import' = 34; 'assistant' = 90; 'chatflow' = 50
     # name@en = the same package with -Lang en: the whole layout is mirrored there
-    'buttons@en' = 12; 'layout@en' = 98; 'screens@en' = 36
+    'buttons@en' = 13; 'layout@en' = 98; 'screens@en' = 36
 }
 $names = @($expect.Keys)
 if ($Only -ne '') { $names = @($Only -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) }

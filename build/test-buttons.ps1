@@ -132,6 +132,9 @@ for ($k = 0; $k -lt $allTools.Count; $k++) {
 }
 
 $btnT = TY 'Btn'
+$comboT = TY 'Combo'
+# תיבת בחירה בלי פריטים או בלי בחירה - ״מתי״ של הטשטוש יצאה כך ב-0.8.32, ושום בדיקה לא שמה לב
+$emptyCombo = New-Object Collections.ArrayList
 $createCtl = [Windows.Forms.Control].GetMethod('CreateControl', $IN, $null, [Type[]]@([bool]), $null)
 $getState = [Windows.Forms.Control].GetMethod('GetState', $IN, $null, [Type[]]@([int]), $null)
 function Walk($c) { foreach ($k in $c.Controls) { $k; Walk $k } }
@@ -163,6 +166,7 @@ foreach ($f in $forms) {
         foreach ($x in $bidi) { if ($x.StartsWith('LTR ')) { [void]$clipped.Add(($f.n + ': ' + $x)) } }
     }
     foreach ($c in (Walk $form)) {
+        if ($comboT.IsInstanceOfType($c) -and (Shown $c $form) -and ($c.Items.Count -eq 0 -or $c.SelectedIndex -lt 0)) { [void]$emptyCombo.Add(("{0}: תיבה ב-{1},{2} - {3} פריטים, נבחר {4}" -f $f.n, $c.Left, $c.Top, $c.Items.Count, $c.SelectedIndex)) }
         if (-not $btnT.IsInstanceOfType($c)) { continue }
         if (-not (Shown $c $form) -or $c.Width -lt 8 -or $c.Height -lt 8) { continue }
         $bmp = New-Object Drawing.Bitmap $c.Width, $c.Height
@@ -195,6 +199,8 @@ foreach ($f in $forms) {
     }
     if ($f.n -notlike 'Main*') { $form.Dispose() }
 }
+
+Check 'כל תיבת בחירה גלויה - עם פריטים ועם בחירה' ($emptyCombo.Count -eq 0) ("`n     " + ($emptyCombo -join "`n     "))
 
 function Report($list, $fmt) { if ($list.Count -eq 0) { return '' }; return "`n     " + (($list | Select-Object -First 12 | ForEach-Object { & $fmt $_ }) -join "`n     ") }
 
