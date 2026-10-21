@@ -2,6 +2,17 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.30",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "t": "fix",
+          "s": "אחרי פתיחת פרויקט או שחזור עבודה, הכתובית שבמקום הנגן פתוחה לעריכה - עד עכשיו העורך נשאר ריק",
+          "en": "After opening a project or restoring work, the subtitle at the playhead is open for editing - until now the editor stayed empty"
+        }
+      ]
+    },
+    {
       "v": "0.8.29",
       "date": "2026-10-21",
       "items": [
