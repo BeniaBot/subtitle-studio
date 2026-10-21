@@ -1669,6 +1669,7 @@ namespace SubtitleStudio
             "לתקן רק בקטע המסומן?", "Fix only the marked section?",
             "אפשר לתקן רק את הכתוביות שמתחילות בתוכו, או את כולן.", "You can fix only the subtitles that start inside it, or all of them.",
             "בקטע המסומן אין כתוביות", "There are no subtitles in the marked section",
+            "להקטין ל-1080p - מהיר פי 3 בערך, וקובץ קטן בהרבה", "Shrink to 1080p - about 3× faster, and a much smaller file",
         };
 
         public static void Fill(Dictionary<string, string> d)

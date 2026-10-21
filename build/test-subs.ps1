@@ -204,7 +204,7 @@ Push-Location $dir; & $ffx -hide_banner -loglevel error -y -f lavfi -i 'testsrc2
 function BurnBlur($name, $onlyCue, $at) {
     $blurSt.BlurOnlyWithCue = $onlyCue
     $assName = "$name.ass"; [IO.File]::WriteAllText((Join-Path $dir $assName), "[Script Info]`r`nScriptType: v4.00+`r`n", (New-Object Text.UTF8Encoding $true))
-    $vfa = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $blurSt.psobject.BaseObject, [int]640, [int]360, [int64]0, $assName, [string]$dir))
+    $vfa = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $blurSt.psobject.BaseObject, [int]640, [int]360, [int64]0, $assName, [string]$dir, [string]''))
     Push-Location $dir
     $cmd = "-hide_banner -loglevel error -y -f lavfi -i testsrc2=s=640x360:d=4:r=10 " + $vfa + "-ss $at -frames:v 1 $name.png"
     $p = Start-Process $ffx -ArgumentList $cmd -NoNewWindow -Wait -PassThru
@@ -262,6 +262,29 @@ foreach ($ext in '.mkv', '.mp4') {
     $good = $subs.Count -eq 2 -and $mine.Language -eq 'heb' -and ($ext -ne '.mkv' -or $mine.Title -eq 'עברית') -and $mine.Default -and -not $subs[0].Default -and $subs[0].Language -eq 'eng'
     Rep ('soft track beside an old one ' + $ext) $good (($subs | ForEach-Object { '{0}:{1}:{2}:{3}' -f $_.Codec, $_.Language, $_.Title, $(if ($_.Default) { 'default' } else { '-' }) }) -join '  ')
 }
+
+# ---- 4K: ״להקטין ל-1080p״ (0.8.33) - רק כשהמקור גדול מ-1080p; הכתוביות והטשטוש במידות המקור, ואז הקטנה ----
+$src4 = Join-Path $dir 'big-4k.mp4'
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'color=c=0x405060:s=3840x2160:d=1:r=10' -c:v libx264 -preset ultrafast -pix_fmt yuv420p $src4
+function Burn4k($mi, [bool]$down, $name) {
+    $doc = [Activator]::CreateInstance((TY 'Doc'))
+    (TY 'Doc').GetField('Cues', $IN).GetValue($doc).Add([Activator]::CreateInstance($cueT, @([int64]0, [int64]900, [string]'כתובית')))
+    $st4 = [Activator]::CreateInstance((TY 'SubStyle')); $st4.BlurOn = $true
+    $dlg = [Activator]::CreateInstance((TY 'ExportVideoDlg'), @($null, $doc, $mi, $st4, [long]-1, [long]-1))
+    $dlg.GetType().GetField('_quality', $IN).GetValue($dlg).SelectedIndex = 2
+    $tg = $dlg.GetType().GetField('_down', $IN).GetValue($dlg); $tg.Checked = $down
+    $big = [bool]$dlg.GetType().GetField('_big', $IN).GetValue($dlg)
+    $o = Join-Path $dir $name; if ([IO.File]::Exists($o)) { [IO.File]::Delete($o) }
+    $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $dlg.Dispose()
+    $argv = New-Object object[] 5; $argv[0] = $ffx; $argv[1] = [string]$job.Args; $argv[4] = [string]$job.WorkDir
+    [void](TY 'Ff').GetMethod('RunSync', $ST).Invoke($null, $argv)
+    $out = ProbeIt $job.OutputPath
+    return @($big, $out.Width, $out.Height)
+}
+$mi4 = ProbeIt $src4
+$r4 = Burn4k $mi4 $true 'big-down.mp4'; $r4b = Burn4k $mi4 $false 'big-full.mp4'
+$small = Burn4k (ProbeIt (Join-Path $dir 'with-track.mkv')) $true 'small-down.mp4'
+Rep '4K: "shrink to 1080p" is offered, burns 1920x1080 (with blur), and off keeps 3840x2160; not offered for a small video' ($r4[0] -and $r4[1] -eq 1920 -and $r4[2] -eq 1080 -and $r4b[1] -eq 3840 -and -not $small[0] -and $small[2] -eq 240) ("on {0}x{1}, off {2}x{3}, small offered={4} {5}x{6}" -f $r4[1], $r4[2], $r4b[1], $r4b[2], $small[0], $small[1], $small[2])
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }

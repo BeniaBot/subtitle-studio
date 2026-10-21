@@ -103,12 +103,15 @@ namespace SubtitleStudio
 
         /// <summary>הארגומנט של המסננים לצריבה: ``-vf "subtitles=..."``, ועם טשטוש אזור (`SubStyle.BlurGraph`) - השרשרת בקובץ ליד
         /// ה-ASS (``-/vf``; ‏ffmpeg 9 קורא ערך של אפשרות מקובץ), כי ״רק כשיש כתובית״ בסרט ארוך חורג משורת הפקודה.</summary>
-        public static string VideoFilterArgs(List<Cue> cues, SubStyle st, int vw, int vh, long shiftMs, string assName, string dir)
+        /// <param name="after">פילטר אחרי הכתוביות (״scale=-2:1080״ - הקטנה של 4K, 0.8.33), או ריק. **אחרי** ולא לפני: הכתוביות
+        /// והטשטוש מחושבים במידות המקור (<paramref name="vw"/>, <paramref name="vh"/>), ומוקטנים יחד עם התמונה.</param>
+        public static string VideoFilterArgs(List<Cue> cues, SubStyle st, int vw, int vh, long shiftMs, string assName, string dir, string after)
         {
+            string tail = string.IsNullOrEmpty(after) ? "" : "," + after;
             string blur = st != null ? st.BlurGraph(vw, vh, Shifted(cues, shiftMs)) : "";
-            if (blur.Length == 0) return "-vf \"subtitles=" + assName + "\" ";
+            if (blur.Length == 0) return "-vf \"subtitles=" + assName + tail + "\" ";
             string vfName = Path.GetFileNameWithoutExtension(assName) + "_vf.txt";
-            File.WriteAllText(Path.Combine(dir, vfName), blur + "subtitles=" + assName, new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(dir, vfName), blur + "subtitles=" + assName + tail, new UTF8Encoding(false));
             return "-/vf " + vfName + " ";
         }
 
@@ -396,9 +399,15 @@ namespace SubtitleStudio
         private bool _burn = true;
         private Field _out;
         private Combo _quality, _lang;
-        private Toggle _rangeOnly, _keepExisting, _defaultTrack;
+        private Toggle _rangeOnly, _keepExisting, _defaultTrack, _down;
         private Lbl _note, _qualityLabel;
         private long _inMs, _outMs;
+        /// <summary>המקור גדול מ-1080p (‏4K, ‏1440p) - יש מה להקטין.</summary>
+        private readonly bool _big;
+
+        /// <summary>**להקטין ל-1080p** (0.8.33): צריבה של 4K ארוכה פי כמה מאורך הסרט (נמדד ב-0.8.1: פי 5.7). נמדד על 15 שניות 4K
+        /// בהגדרות ״איכות מקסימלית״: 53 שניות ו-97 מגה מול 15 שניות ו-17 מגה. כבוי כברירת מחדל - לא משנים רזולוציה בלי שביקשו.</summary>
+        internal bool Down1080 { get { return _burn && _big && _down.Checked; } }
 
         public ExportVideoDlg(MainForm main, Doc doc, MediaInfo mi, SubStyle style, long inMs, long outMs)
             : base(Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
@@ -442,6 +451,12 @@ namespace SubtitleStudio
             });
             _quality.SelectedIndex = 0;
             Row(_quality, 32, 12);
+
+            _big = mi != null && Burn.ScaleShort(mi, 1080).Length > 0;
+            _down = new Toggle();
+            _down.Text = Lang.T("להקטין ל-1080p - מהיר פי 3 בערך, וקובץ קטן בהרבה");
+            _down.Visible = _big;
+            if (_big) Row(_down, 26, 8);
 
             _lang = new Combo();
             _lang.Items.AddRange(new object[] { Lang.T("עברית"), Lang.T("אנגלית"), Lang.T("ערבית"), Lang.T("רוסית"), Lang.T("לא מוגדר") });
@@ -494,6 +509,7 @@ namespace SubtitleStudio
             _modeBurn.Tint = Theme.Accent;
             _modeSoft.Tint = Theme.Accent;
             _quality.Visible = burn;
+            _down.Visible = burn && _big;
             _lang.Visible = !burn;
             _qualityLabel.Text = burn ? Lang.T("איכות") : Lang.T("שפת הכתוביות");
             _qualityLabel.Invalidate();
@@ -598,7 +614,7 @@ namespace SubtitleStudio
                 if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" ");
                 sb.Append("-i ").Append(Ff.Q(_mi.Path)).Append(" ");
                 if (ranged) sb.Append("-t ").Append(Tc.Ff(b - a)).Append(" ");
-                sb.Append(Burn.VideoFilterArgs(cues, _style, _mi.Width, _mi.Height, a, ass, dir));
+                sb.Append(Burn.VideoFilterArgs(cues, _style, _mi.Width, _mi.Height, a, ass, dir, Down1080 ? Burn.ScaleShort(_mi, 1080) : ""));
                 sb.Append(video).Append(" ");
                 string cap = Burn.RateCap(_mi, _quality.SelectedIndex);
                 if (cap.Length > 0) sb.Append(cap).Append(" ");
