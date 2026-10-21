@@ -637,7 +637,9 @@ namespace SubtitleStudio
             Y += Theme.S(22);
 
             _blurWhen = new Combo();
-            // ״רק כשיש כתובית״ (0.8.31) הובן כ״ערוץ כתוביות בסרט״ - הכוונה לכתוביות שכותבים כאן
+            // ״רק כשיש כתובית״ (0.8.31) הובן כ״ערוץ כתוביות בסרט״ - הכוונה לכתוביות שכותבים כאן.
+            // **ב-0.8.32 השורה הזאת נמחקה עם החלפת הנוסח, והתיבה יצאה ריקה** - test-assistant בודק עכשיו את הפריטים
+            _blurWhen.Items.AddRange(new object[] { Lang.T("כל הזמן"), Lang.T("רק בזמן הכתוביות שלי") });
             _blurWhen.SelectedIndex = _style.BlurOnlyWithCue ? 1 : 0;
             _blurWhen.SelectedIndexChanged += delegate
             {

@@ -172,6 +172,12 @@ if ($sd) {
     Check 'קובע מספר בפס' ((TY 'AiUi').GetMethod('Value', $ST).Invoke($null, @($sl)) -eq '4') ''
     $why = (TY 'AiUi').GetMethod('Set', $ST).Invoke($null, (Pack $sl 'הרבה'))
     Check 'ערך לא מספרי לפס - הסבר, לא חריגה' ($why -ne $null) $why
+    # ״מתי״ של הטשטוש - ב-0.8.32 יצאה ריקה (הפריטים נמחקו עם החלפת הנוסח); הממשק והעוזר בוחרים בה
+    $when = (TY 'AiUi').GetMethod('Find', $ST).Invoke($null, (Pack $sd 'מתי'))
+    $whenWas = if ($when) { [string](TY 'AiUi').GetMethod('Value', $ST).Invoke($null, @($when)) } else { '' }
+    $why = if ($when) { (TY 'AiUi').GetMethod('Set', $ST).Invoke($null, (Pack $when 'רק בזמן הכתוביות שלי')) } else { 'no combo' }
+    $whenNow = if ($when) { [string](TY 'AiUi').GetMethod('Value', $ST).Invoke($null, @($when)) } else { '' }
+    Check 'טשטוש, ״מתי״: ״כל הזמן״ ואפשר לבחור ״רק בזמן הכתוביות שלי״' ($whenWas -eq 'כל הזמן' -and $why -eq $null -and $whenNow -eq 'רק בזמן הכתוביות שלי') ("was=$whenWas now=$whenNow why=$why")
     $desc = (TY 'AiUi').GetMethod('Describe', $ST).Invoke($null, @($sd))
     $main = @($desc['controls'] | Where-Object { $_['main'] })
     Check 'תיאור החלון מסמן את הכפתור הראשי' ($main.Count -eq 1 -and $main[0]['label'] -eq 'שמירת העיצוב') ''
