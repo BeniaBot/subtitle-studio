@@ -86,8 +86,7 @@ namespace SubtitleStudioSetup
             {
                 Log.W("FATAL: " + ex);
                 if (!o.Silent)
-                    MessageBox.Show(T.S("ההתקנה נכשלה:\n\n", "Setup failed:\n\n") + ex.Message, Prod.Name,
-                                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    T.Box(null, T.S("ההתקנה נכשלה:\n\n", "Setup failed:\n\n") + ex.Message, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return Codes.Error;
             }
         }

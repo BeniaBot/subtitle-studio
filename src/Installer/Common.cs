@@ -125,6 +125,18 @@ namespace SubtitleStudioSetup
 
         public static string S(string he, string en) { return En ? en : he; }
 
+        /// <summary>חלון הודעה של ווינדוס, ובעברית מימין לשמאל (0.8.33) - בלי זה הנקודה בסוף משפט עברי עוברת לצד הלא נכון.</summary>
+        public static System.Windows.Forms.DialogResult Box(System.Windows.Forms.IWin32Window owner, string text,
+            System.Windows.Forms.MessageBoxButtons buttons, System.Windows.Forms.MessageBoxIcon icon)
+        {
+            System.Windows.Forms.MessageBoxOptions o = Rtl
+                ? System.Windows.Forms.MessageBoxOptions.RtlReading | System.Windows.Forms.MessageBoxOptions.RightAlign
+                : 0;
+            return owner == null
+                ? System.Windows.Forms.MessageBox.Show(text, Prod.Name, buttons, icon, System.Windows.Forms.MessageBoxDefaultButton.Button1, o)
+                : System.Windows.Forms.MessageBox.Show(owner, text, Prod.Name, buttons, icon, System.Windows.Forms.MessageBoxDefaultButton.Button1, o);
+        }
+
         public static void Init()
         {
             string forced = Environment.GetEnvironmentVariable("SUBTEXT_LANG");

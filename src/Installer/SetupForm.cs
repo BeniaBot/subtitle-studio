@@ -278,8 +278,8 @@ namespace SubtitleStudioSetup
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this, T.S("לא הצלחתי להפעיל את התוכנה:\n", "Could not start Subtext:\n") + ex.Message,
-                                        Prod.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        T.Box(this, T.S("לא הצלחתי להפעיל את התוכנה:\n", "Could not start Subtext:\n") + ex.Message,
+                              MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
                 ExitCode = Codes.Ok;
@@ -305,13 +305,13 @@ namespace SubtitleStudioSetup
             {
                 string sub = Path.Combine(dir, "SubtitleStudio");
                 string nl = Environment.NewLine;
-                DialogResult ans = MessageBox.Show(this,
+                DialogResult ans = T.Box(this,
                     T.S("בתיקייה הזאת כבר יש קבצים:", "This folder already has files in it:") + nl + dir + nl + nl +
                     T.S("עדיף להתקין לתיקייה משלה, כדי שהסרה בעתיד לא תיגע בשום דבר אחר:",
                         "It is better to install into a folder of its own, so that uninstalling later touches nothing else:") +
                     nl + sub + nl + nl +
                     T.S("להתקין לתיקייה משלה?", "Install into a folder of its own?"),
-                    Prod.Name, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                    MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (ans == DialogResult.Cancel) return;
                 if (ans == DialogResult.Yes) dir = sub;
             }
@@ -344,7 +344,7 @@ namespace SubtitleStudioSetup
 
         private void Warn(string msg)
         {
-            MessageBox.Show(this, msg, Prod.Name, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            T.Box(this, msg, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void Start(string dir)
@@ -406,8 +406,8 @@ namespace SubtitleStudioSetup
                 _ok.Enabled = true;
                 _ok.Text = T.S("התקנה", "Install");
                 Invalidate();
-                MessageBox.Show(this, job.Error == null ? T.S("ההתקנה נכשלה.", "Setup failed.") : job.Error,
-                                Prod.Name, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                T.Box(this, job.Error == null ? T.S("ההתקנה נכשלה.", "Setup failed.") : job.Error,
+                      MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ExitCode = Codes.Error;
                 return;
             }
