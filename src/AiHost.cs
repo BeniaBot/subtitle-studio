@@ -186,7 +186,11 @@ namespace SubtitleStudio
                 .P("bold", "boolean", "מודגש")
                 .P("outline_width", "number", "עובי המתאר, 0-8 (0 = בלי מתאר)")
                 .P("outline_color", "string", "צבע המתאר, כמו color")
-                .P("margin_percent", "number", "המרחק מהקצה (מלמטה או מלמעלה) באחוזים מגובה התמונה, 0-30"));
+                .P("margin_percent", "number", "המרחק מהקצה (מלמטה או מלמעלה) באחוזים מגובה התמונה, 0-30")
+                .P("blur", "boolean", "טשטוש אזור בסרט - למשל פס כותרת של ערוץ או כתוביות צרובות מתחת לכתוביות")
+                .P("blur_area", "string", "אזור הטשטוש באחוזים מהתמונה: x,y,רוחב,גובה (0,75,100,20 = רצועה בתחתית); מדליק את הטשטוש")
+                .P("blur_strength", "number", "עוצמת הטשטוש, 5-100; מדליק את הטשטוש")
+                .P("blur_only_with_subtitle", "boolean", "לטשטש רק כשיש כתובית על המסך (אחרת כל הזמן)"));
 
             t.Add(new AiTool("seek", "מקפיץ את הנגן לזמן מסוים")
                 .Req("seconds", "number", "הזמן בשניות")
@@ -778,8 +782,16 @@ namespace SubtitleStudio
         /// <summary>הרקע, למודל: צבע ושקיפות.</summary>
         private string BoxNote()
         {
-            if (!_style.OpaqueBox) return "";
-            return string.Format(", רקע #{0:X6} בשקיפות {1}%", _style.BoxColor.ToArgb() & 0xFFFFFF, Math.Round((1 - _style.BoxColor.A / 255.0) * 100));
+            string s = "";
+            if (_style.OpaqueBox)
+                s = string.Format(", רקע #{0:X6} בשקיפות {1}%", _style.BoxColor.ToArgb() & 0xFFFFFF, Math.Round((1 - _style.BoxColor.A / 255.0) * 100));
+            if (_style.BlurOn)
+            {
+                System.Drawing.RectangleF a = _style.BlurArea;
+                s += string.Format(CultureInfo.InvariantCulture, ", טשטוש {0}% באזור {1:0},{2:0},{3:0},{4:0} (אחוזים){5}", _style.BlurPct,
+                    a.X * 100, a.Y * 100, a.Width * 100, a.Height * 100, _style.BlurOnlyWithCue ? " רק כשיש כתובית" : "");
+            }
+            return s;
         }
 
         private Dictionary<string, object> AiSetStyle(AiCall c)
@@ -808,6 +820,27 @@ namespace SubtitleStudio
             if (c.Args.ContainsKey("outline_width")) _style.OutlineWidth = Math.Max(0, Math.Min(8, c.Num("outline_width", _style.OutlineWidth)));
             if (c.Args.ContainsKey("margin_percent")) _style.MarginVPct = Math.Max(0, Math.Min(30, c.Num("margin_percent", _style.MarginVPct)));
             if (c.Args.ContainsKey("bold")) _style.Bold = c.Bool("bold", _style.Bold);
+            // טשטוש אזור (0.8.31)
+            if (c.Args.ContainsKey("blur")) _style.BlurOn = c.Bool("blur", _style.BlurOn);
+            string area = c.Str("blur_area", "").Trim();
+            if (area.Length > 0)
+            {
+                string[] parts = area.Split(new char[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                double bx, by, bw, bh;
+                if (parts.Length == 4 && double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out bx) &&
+                    double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out by) &&
+                    double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out bw) &&
+                    double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out bh))
+                {
+                    bx = Math.Max(0, Math.Min(99, bx)); by = Math.Max(0, Math.Min(99, by));
+                    bw = Math.Max(1, Math.Min(100 - bx, bw)); bh = Math.Max(1, Math.Min(100 - by, bh));
+                    _style.BlurArea = new System.Drawing.RectangleF((float)(bx / 100), (float)(by / 100), (float)(bw / 100), (float)(bh / 100));
+                    _style.BlurOn = true;
+                }
+                else { r["error"] = Lang.T("blur_area: ארבעה מספרים באחוזים - x,y,רוחב,גובה"); return r; }
+            }
+            if (c.Args.ContainsKey("blur_strength")) { _style.BlurPct = (int)Math.Max(5, Math.Min(100, c.Num("blur_strength", _style.BlurPct))); _style.BlurOn = true; }
+            if (c.Args.ContainsKey("blur_only_with_subtitle")) _style.BlurOnlyWithCue = c.Bool("blur_only_with_subtitle", _style.BlurOnlyWithCue);
             string font = c.Str("font", "").Trim();
             if (font.Length > 0)
             {

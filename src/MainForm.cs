@@ -2875,7 +2875,12 @@ namespace SubtitleStudio
                 }
                 // הרקע (שמות, מונחים) שייך לסרט: סרט אחר לא מקבל את השמות של הקודם, שהמודל היה
                 // ״מתקן״ אליהם מילים - בדיוק הטעות של שם שהוחלף בשם אחר (0.8.4)
-                if (!string.Equals(path, _mediaPath, StringComparison.OrdinalIgnoreCase)) _contentContext = "";
+                if (!string.Equals(path, _mediaPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _contentContext = "";
+                    // גם אזור הטשטוש שייך לסרט (0.8.31): בסרט אחר הפס במקום אחר, או שאין. מפרויקט - חוזר ממנו (OpenProject)
+                    if (!fromProject && _style != null) _style.BlurOn = false;
+                }
                 _mediaPath = path;
                 if (!fromProject)
                 {

@@ -11,7 +11,7 @@
 # 4. **בתוך החלון**: פתיחה אמיתית, בלי טעינת SRT שיושב ליד הסרט, סרט
 #    חסר, מה שואלים ביציאה, גיבוי ושחזור.
 #
-# צפוי: 107 בדיקות. **פחות מזה = משהו דולג.**
+# צפוי: 108 בדיקות. **פחות מזה = משהו דולג.**
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms
@@ -75,6 +75,7 @@ $sty.Primary = [Drawing.Color]::FromArgb(200, 255, 220, 10); $sty.Outline = [Dra
 $sty.Shadow = [Drawing.Color]::FromArgb(10, 20, 30, 40); $sty.BoxColor = [Drawing.Color]::FromArgb(128, 0, 0, 255)
 $sty.OutlineWidth = 3.5; $sty.ShadowDepth = 1.25; $sty.OpaqueBox = $true; $sty.Alignment = 8
 $sty.MarginVPct = 9; $sty.MarginHPct = 2.5; $sty.LineSpacing = 1.3
+$sty.BlurOn = $true; $sty.BlurPct = 45; $sty.BlurOnlyWithCue = $true; $sty.BlurArea = New-Object Drawing.RectangleF 0.125, 0.5, 0.75, 0.25
 $d.Style = $sty
 $cutsL = [Activator]::CreateInstance([Collections.Generic.List[long]])
 foreach ($x in @(5333, 9733, 16700)) { $cutsL.Add($x) }
@@ -98,6 +99,7 @@ Check 'origin (לשחזור)' ($e.Origin -eq 'C:\x\y.subtext') ''
 $es = $e.Style
 Check 'עיצוב: גופן, גודל, מודגש, נטוי' ($es.FontName -eq 'Frank Ruhl Libre' -and $es.FontPct -eq 7.25 -and -not $es.Bold -and $es.Italic) ''
 Check 'עיצוב: ארבעה צבעים כולל שקיפות' ($es.Primary.ToArgb() -eq $sty.Primary.ToArgb() -and $es.Outline.ToArgb() -eq $sty.Outline.ToArgb() -and $es.Shadow.ToArgb() -eq $sty.Shadow.ToArgb() -and $es.BoxColor.ToArgb() -eq $sty.BoxColor.ToArgb()) ''
+Check 'טשטוש אזור (0.8.31): דלוק, אזור, עוצמה, ורק כשיש כתובית' ($es.BlurOn -and $es.BlurPct -eq 45 -and $es.BlurOnlyWithCue -and [Math]::Abs($es.BlurArea.X - 0.125) -lt 1e-6 -and [Math]::Abs($es.BlurArea.Height - 0.25) -lt 1e-6) ('' + $es.BlurArea)
 Check 'עיצוב: קו, צל, רקע, יישור, שוליים, ריווח' ($es.OutlineWidth -eq 3.5 -and $es.ShadowDepth -eq 1.25 -and $es.OpaqueBox -and $es.Alignment -eq 8 -and $es.MarginVPct -eq 9 -and $es.MarginHPct -eq 2.5 -and $es.LineSpacing -eq 1.3) ''
 Check 'חיתוכי סצנה' ((@($e.SceneCuts) -join ',') -eq '5333,9733,16700') (@($e.SceneCuts) -join ',')
 Check 'עברית נכתבת כעברית, לא כקודים' ($json.Contains('שיעור #3') -and -not $json.Contains('\u05')) ''

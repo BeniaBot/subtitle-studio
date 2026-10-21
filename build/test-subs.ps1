@@ -3,7 +3,7 @@
 # תגיות עיצוב, ‏WebVTT עם הגדרות, ‏ASS מעוצב, ‏MicroDVD. בודק שהטקסט שחזר הוא
 # הטקסט שנכתב, בלי שאריות תגיות - ושהשמירה חזרה משמרת אותו.
 # **נולד מבאג** (24.9.2026): כל קידוד ישן נחשב עברית, ו״Déjà vu״ נפתח כ-״Dיjא vu״.
-# צפוי: 33 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
+# צפוי: 35 בדיקות. הקבצים ב-%TEMP%\ss-sweep\subs
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -187,6 +187,46 @@ $forPlayers = [string]$boxSt.ToAssStyleLineForPlayers(720)
 Rep 'saved .ass / separate track: background as BorderStyle 3 (every player knows it; 4 is new libass only)' ($forPlayers -match '^Style: Main,[^,]*,\d+,&H00[0-9A-F]{6},&H[0-9A-F]{8},&H7FFFFFFF,&HFF[0-9A-F]{6},(?:[^,]*,){8}3,') $forPlayers
 $wide = SameAsBurn 'same-wide' { param($s) $s.FontPct = 8.0 } 'זו שורה ארוכה מאוד שלא נכנסת ברוחב המסך כשהגופן גדול, וצריך לראות מה קורה לה בצריבה ובתצוגה'
 Rep 'preview = burn: a line wider than the screen wraps the same way' ($wide.Worst -le 8) ("burn " + $wide.Burn + " / preview " + $wide.Prev)
+# ---- טשטוש אזור (0.8.31): הצריבה דרך המסלול של החלון (Burn.VideoFilterArgs), מול התצוגה (SubStyle.RenderBlur) ----
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices;
+public static class SubsMad {
+  static byte[] Px(Bitmap b, out int st) { BitmapData d = b.LockBits(new Rectangle(0,0,b.Width,b.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb); st = d.Stride; byte[] x = new byte[d.Stride*b.Height]; Marshal.Copy(d.Scan0, x, 0, x.Length); b.UnlockBits(d); return x; }
+  public static double Mad(Bitmap a, Bitmap b, Rectangle r) { int sa, sb; byte[] pa = Px(a, out sa), pb = Px(b, out sb); double s = 0; long n = 0;
+    for (int y = r.Top; y < r.Bottom; y++) for (int x = r.Left; x < r.Right; x++) { int i = y*sa+x*4, j = y*sb+x*4; s += Math.Abs(pa[i]-pb[j]) + Math.Abs(pa[i+1]-pb[j+1]) + Math.Abs(pa[i+2]-pb[j+2]); n += 3; }
+    return n > 0 ? s / n : 0; }
+}
+"@
+$IN2 = [Reflection.BindingFlags]'NonPublic,Public,Instance'
+$blurSt = [Activator]::CreateInstance((TY 'SubStyle')); $blurSt.BlurOn = $true; $blurSt.BlurPct = 70; $blurSt.BlurArea = New-Object Drawing.RectangleF 0.1, 0.6, 0.8, 0.3
+$bl = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($cueT)); $bl.Add([Activator]::CreateInstance($cueT, @([int64]1000, [int64]2000, 'כתובית')))
+Push-Location $dir; & $ffx -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=s=640x360:d=4:r=10' -frames:v 1 -ss 1.5 blur-src.png; Pop-Location
+function BurnBlur($name, $onlyCue, $at) {
+    $blurSt.BlurOnlyWithCue = $onlyCue
+    $assName = "$name.ass"; [IO.File]::WriteAllText((Join-Path $dir $assName), "[Script Info]`r`nScriptType: v4.00+`r`n", (New-Object Text.UTF8Encoding $true))
+    $vfa = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $blurSt.psobject.BaseObject, [int]640, [int]360, [int64]0, $assName, [string]$dir))
+    Push-Location $dir
+    $cmd = "-hide_banner -loglevel error -y -f lavfi -i testsrc2=s=640x360:d=4:r=10 " + $vfa + "-ss $at -frames:v 1 $name.png"
+    $p = Start-Process $ffx -ArgumentList $cmd -NoNewWindow -Wait -PassThru
+    Pop-Location
+    $raw = [Drawing.Image]::FromFile((Join-Path $dir "$name.png")); $b = New-Object Drawing.Bitmap $raw; $raw.Dispose(); return @($b, $vfa)
+}
+$srcRaw = [Drawing.Image]::FromFile((Join-Path $dir 'blur-src.png')); $bsrc = New-Object Drawing.Bitmap $srcRaw; $srcRaw.Dispose()
+$area = $blurSt.GetType().GetMethod('BlurPixels', $IN2).Invoke($blurSt.psobject.BaseObject, @([int]640, [int]360))
+$inner = New-Object Drawing.Rectangle ($area.X + 2), ($area.Y + 2), ($area.Width - 4), ($area.Height - 4)
+$above = New-Object Drawing.Rectangle 0, 0, 640, ($area.Y - 4)
+$r1 = BurnBlur 'blur-always' $false 1.5; $burnA = $r1[0]
+$prev = New-Object Drawing.Bitmap 640, 360; $gp = [Drawing.Graphics]::FromImage($prev); $gp.DrawImage($bsrc, 0, 0, 640, 360)
+$blurSt.RenderBlur($gp, (New-Object Drawing.RectangleF 0, 0, 640, 360), $bsrc); $gp.Dispose()
+$effect = [SubsMad]::Mad($burnA, $bsrc, $inner); $gap = [SubsMad]::Mad($prev, $burnA, $inner); $out = [SubsMad]::Mad($burnA, $bsrc, $above)
+Rep 'blur: the burned area is blurred, the rest untouched, and the preview matches it' ($effect -gt 8 -and $gap -lt $effect * 0.35 -and $out -lt 2) ("effect {0:0.0}, preview gap {1:0.0}, outside {2:0.0}; {3}" -f $effect, $gap, $out, $r1[1].Trim())
+$on = (BurnBlur 'blur-cue-on' $true 1.5)[0]; $off = (BurnBlur 'blur-cue-off' $true 2.6)[0]
+Push-Location $dir; & $ffx -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=s=640x360:d=4:r=10' -ss 2.6 -frames:v 1 blur-src2.png; Pop-Location
+$s2Raw = [Drawing.Image]::FromFile((Join-Path $dir 'blur-src2.png')); $bsrc2 = New-Object Drawing.Bitmap $s2Raw; $s2Raw.Dispose()
+$eOn = [SubsMad]::Mad($on, $bsrc, $inner); $eOff = [SubsMad]::Mad($off, $bsrc2, $inner)
+Rep 'blur only with a subtitle: blurred at 1.5s (subtitle 1-2s), untouched at 2.6s' ($eOn -gt 8 -and $eOff -lt 2) ("{0:0.0} / {1:0.0}" -f $eOn, $eOff)
+foreach ($b in @($burnA, $prev, $on, $off, $bsrc, $bsrc2)) { $b.Dispose() }
+
 # גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו
 $hh = (TY 'Fonts').GetMethod('HasHebrew', $ST)
 $sdlg = [Activator]::CreateInstance((TY 'StyleDlg'), @([Activator]::CreateInstance((TY 'SubStyle')), $null, $true))

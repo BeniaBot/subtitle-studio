@@ -80,6 +80,14 @@ namespace SubtitleStudio
         {
             dir = Ff.TempDir();
             string name = "burn_" + DateTime.Now.Ticks.ToString() + ".ass";
+            string ass = Formats.ToAss(Shifted(cues, shiftMs), st, vw, vh);
+            File.WriteAllBytes(Path.Combine(dir, name), new UTF8Encoding(true).GetBytes(ass));
+            return name;
+        }
+
+        /// <summary>הכתוביות בזמני הקובץ שיוצא (צריבה של קטע מתחילה ב-<paramref name="shiftMs"/>).</summary>
+        private static List<Cue> Shifted(List<Cue> cues, long shiftMs)
+        {
             List<Cue> use = new List<Cue>();
             foreach (Cue c in cues)
             {
@@ -90,9 +98,18 @@ namespace SubtitleStudio
                 if (n.Start < 0) n.Start = 0;
                 use.Add(n);
             }
-            string ass = Formats.ToAss(use, st, vw, vh);
-            File.WriteAllBytes(Path.Combine(dir, name), new UTF8Encoding(true).GetBytes(ass));
-            return name;
+            return use;
+        }
+
+        /// <summary>הארגומנט של המסננים לצריבה: ``-vf "subtitles=..."``, ועם טשטוש אזור (`SubStyle.BlurGraph`) - השרשרת בקובץ ליד
+        /// ה-ASS (``-/vf``; ‏ffmpeg 9 קורא ערך של אפשרות מקובץ), כי ״רק כשיש כתובית״ בסרט ארוך חורג משורת הפקודה.</summary>
+        public static string VideoFilterArgs(List<Cue> cues, SubStyle st, int vw, int vh, long shiftMs, string assName, string dir)
+        {
+            string blur = st != null ? st.BlurGraph(vw, vh, Shifted(cues, shiftMs)) : "";
+            if (blur.Length == 0) return "-vf \"subtitles=" + assName + "\" ";
+            string vfName = Path.GetFileNameWithoutExtension(assName) + "_vf.txt";
+            File.WriteAllText(Path.Combine(dir, vfName), blur + "subtitles=" + assName, new UTF8Encoding(false));
+            return "-/vf " + vfName + " ";
         }
 
         public static string WriteTempSubs(List<Cue> cues, SubFormat fmt, SubStyle st, int vw, int vh, out string dir)
@@ -581,7 +598,7 @@ namespace SubtitleStudio
                 if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" ");
                 sb.Append("-i ").Append(Ff.Q(_mi.Path)).Append(" ");
                 if (ranged) sb.Append("-t ").Append(Tc.Ff(b - a)).Append(" ");
-                sb.Append("-vf \"subtitles=").Append(ass).Append("\" ");
+                sb.Append(Burn.VideoFilterArgs(cues, _style, _mi.Width, _mi.Height, a, ass, dir));
                 sb.Append(video).Append(" ");
                 string cap = Burn.RateCap(_mi, _quality.SelectedIndex);
                 if (cap.Length > 0) sb.Append(cap).Append(" ");

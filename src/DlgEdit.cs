@@ -581,7 +581,7 @@ namespace SubtitleStudio
             Y += Theme.S(48);
 
             string[] caps = { Lang.T("עובי המתאר"), Lang.T("מרחק מהקצה"), Lang.T("שקיפות הרקע") };
-            int[] xs = { c1, c2, c3 };
+            xs = new int[] { c1, c2, c3 };
             for (int i = 0; i < 3; i++)
             {
                 Lbl l = Label(caps[i], true, Theme.TextDim);
@@ -617,7 +617,130 @@ namespace SubtitleStudio
             Controls.Add(_boxClear);
             Y += Theme.S(38);
 
+            // **טשטוש אזור** (0.8.31): טקסט צרוב בסרט (פס כותרת של ערוץ, כתוביות מקור) מתחת לכתוביות שלנו. האזור - בגרירה על התמונה
+            // למעלה; העוצמה והזמן כאן. נגיעה בכל אחד מהם מדליקה את הטשטוש - מי שמזיז אותם רוצה טשטוש
+            Section(Lang.T("טשטוש אזור בסרט"));
+            string[] bcaps = { "", Lang.T("מתי"), Lang.T("עוצמת הטשטוש") };
+            for (int i = 1; i < 3; i++)
+            {
+                Lbl l = Label(bcaps[i], true, Theme.TextDim);
+                l.Font = Theme.SmallBold;
+                l.SetBounds(xs[i], Y, third, Theme.S(18));
+                Controls.Add(l);
+            }
+            _blurOn = new Toggle();
+            _blurOn.Text = Lang.T("לטשטש");
+            _blurOn.Checked = _style.BlurOn;
+            _blurOn.CheckedChanged += delegate { _style.BlurOn = _blurOn.Checked; _preview.Invalidate(); };
+            _blurOn.SetBounds(c1, Y + Theme.S(24), third, Theme.S(26));
+            Controls.Add(_blurOn);
+            Y += Theme.S(22);
+
+            _blurWhen = new Combo();
+            _blurWhen.Items.AddRange(new object[] { Lang.T("כל הזמן"), Lang.T("רק כשיש כתובית") });
+            _blurWhen.SelectedIndex = _style.BlurOnlyWithCue ? 1 : 0;
+            _blurWhen.SelectedIndexChanged += delegate
+            {
+                _style.BlurOnlyWithCue = _blurWhen.SelectedIndex == 1;
+                if (!_blurOn.Checked) _blurOn.Checked = true;
+                _preview.Invalidate();
+            };
+            _blurWhen.SetBounds(c2, Y, third, Theme.S(32));
+            Controls.Add(_blurWhen);
+
+            _blurPct = new Slider();
+            _blurPct.Min = 5; _blurPct.Max = 100; _blurPct.Step = 5; _blurPct.Suffix = "%"; _blurPct.Editable = true;
+            _blurPct.Value = _style.BlurPct;
+            _blurPct.ValueChanged += delegate
+            {
+                _style.BlurPct = (int)Math.Round(_blurPct.Value);
+                if (!_blurOn.Checked) _blurOn.Checked = true;
+                _preview.Invalidate();
+            };
+            _blurPct.SetBounds(c3, Y + Theme.S(2), third, Theme.S(28));
+            Controls.Add(_blurPct);
+            Y += Theme.S(38);
+
+            Lbl how = Label(Lang.T("את האזור מסמנים בגרירה על התמונה למעלה"), false, Theme.TextDim);
+            how.Font = Theme.Small;
+            how.SetBounds(Pad, Y, ContentW, Theme.S(20));
+            Controls.Add(how);
+            Y += Theme.S(26);
+
+            // גרירה על התמונה = האזור. סימן הצלב רק מעל התמונה עצמה
+            _preview.MouseDown += delegate (object s, MouseEventArgs e)
+            {
+                if (e.Button != MouseButtons.Left || !_frameRect.Contains(e.Location)) return;
+                _dragFrom = e.Location; _dragNow = e.Location; _dragging = true;
+            };
+            _preview.MouseMove += delegate (object s, MouseEventArgs e)
+            {
+                _preview.Cursor = _frameRect.Contains(e.Location) ? Cursors.Cross : Cursors.Default;
+                if (!_dragging) return;
+                _dragNow = e.Location;
+                _preview.Invalidate();
+            };
+            _preview.MouseUp += delegate (object s, MouseEventArgs e)
+            {
+                if (!_dragging) return;
+                _dragging = false;
+                RectangleF sel = DragRect();
+                if (sel.Width >= Theme.S(6) && sel.Height >= Theme.S(6))
+                {
+                    _style.BlurArea = new RectangleF((sel.X - _frameRect.X) / _frameRect.Width, (sel.Y - _frameRect.Y) / _frameRect.Height,
+                        sel.Width / _frameRect.Width, sel.Height / _frameRect.Height);
+                    if (!_blurOn.Checked) _blurOn.Checked = true;
+                }
+                _preview.Invalidate();
+            };
+
             Buttons(Lang.T("שמירת העיצוב"), Ico.Check, Lang.T("ביטול"));
+        }
+
+        private int[] xs;
+        private Toggle _blurOn;
+        private Combo _blurWhen;
+        private Slider _blurPct;
+        private RectangleF _frameRect;
+        private Point _dragFrom, _dragNow;
+        private bool _dragging;
+        private Bitmap _sampleFrame;
+
+        /// <summary>מלבן הגרירה, חתוך לתמונה.</summary>
+        private RectangleF DragRect()
+        {
+            float x1 = Math.Max(_frameRect.Left, Math.Min(_dragFrom.X, _dragNow.X)), y1 = Math.Max(_frameRect.Top, Math.Min(_dragFrom.Y, _dragNow.Y));
+            float x2 = Math.Min(_frameRect.Right, Math.Max(_dragFrom.X, _dragNow.X)), y2 = Math.Min(_frameRect.Bottom, Math.Max(_dragFrom.Y, _dragNow.Y));
+            return new RectangleF(x1, y1, Math.Max(0, x2 - x1), Math.Max(0, y2 - y1));
+        }
+
+        /// <summary>בלי סרט פתוח - תמונה לדוגמה עם ״טקסט צרוב״ למטה, כדי שיהיה מה לראות כשמטשטשים.</summary>
+        private Bitmap SampleFrame()
+        {
+            if (_sampleFrame != null) return _sampleFrame;
+            Bitmap b = new Bitmap(640, 360);
+            using (Graphics g = Graphics.FromImage(b))
+            {
+                using (System.Drawing.Drawing2D.LinearGradientBrush br = new System.Drawing.Drawing2D.LinearGradientBrush(
+                    new Rectangle(0, 0, 640, 360), Color.FromArgb(52, 58, 72), Color.FromArgb(18, 20, 26), 60f))
+                    g.FillRectangle(br, 0, 0, 640, 360);
+                using (SolidBrush band = new SolidBrush(Color.FromArgb(200, 30, 60, 140))) g.FillRectangle(band, 0, 268, 640, 62);
+                using (Font f = new Font("Arial", 26, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (StringFormat sf = new StringFormat(StringFormatFlags.DirectionRightToLeft))
+                {
+                    sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                    g.DrawString(Lang.T("טקסט שצרוב בסרט"), f, Brushes.White, new RectangleF(0, 268, 640, 62), sf);
+                }
+            }
+            _sampleFrame = b;
+            return b;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _sampleFrame != null) { _sampleFrame.Dispose(); _sampleFrame = null; }
+            base.Dispose(disposing);
         }
 
         private Btn ColorBtn(string text, Color swatch, int x, int w, int which)
@@ -657,24 +780,27 @@ namespace SubtitleStudio
             using (SolidBrush bg = new SolidBrush(Color.FromArgb(10, 11, 14)))
                 g.FillRectangle(bg, 0, 0, _preview.Width, _preview.Height);
 
-            double aw = _frame != null ? _frame.Width : 16;
-            double ah = _frame != null ? _frame.Height : 9;
+            Bitmap frame = _frame ?? SampleFrame();
+            double aw = frame.Width;
+            double ah = frame.Height;
             double scale = Math.Min(_preview.Width / aw, _preview.Height / ah);
             RectangleF r = new RectangleF(
                 (float)((_preview.Width - aw * scale) / 2), (float)((_preview.Height - ah * scale) / 2),
                 (float)(aw * scale), (float)(ah * scale));
+            _frameRect = r;
 
-            if (_frame != null)
-            {
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
-                g.DrawImage(_frame, r);
-            }
-            else
-            {
-                using (System.Drawing.Drawing2D.LinearGradientBrush b = new System.Drawing.Drawing2D.LinearGradientBrush(
-                    Rectangle.Round(r), Color.FromArgb(52, 58, 72), Color.FromArgb(18, 20, 26), 60f))
-                    g.FillRectangle(b, r);
-            }
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
+            g.DrawImage(frame, r);
+            // הטשטוש כמו בסרט (`SubStyle.RenderBlur`, כמו בתצוגה הראשית), ומסגרת מקווקוות סביב האזור - כאן בלבד, לא בסרט
+            if (_style.BlurOn) _style.RenderBlur(g, r, frame);
+            RectangleF area = _dragging ? DragRect() : new RectangleF(r.X + _style.BlurArea.X * r.Width, r.Y + _style.BlurArea.Y * r.Height,
+                _style.BlurArea.Width * r.Width, _style.BlurArea.Height * r.Height);
+            if (_dragging || _style.BlurOn)
+                using (Pen p = new Pen(Color.FromArgb(220, 255, 255, 255), 1f))
+                {
+                    p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                    g.DrawRectangle(p, area.X, area.Y, area.Width, area.Height);
+                }
             _style.Render(g, r, Sample ?? Lang.T("זו דוגמה לכתובית\nבשתי שורות"));
         }
 

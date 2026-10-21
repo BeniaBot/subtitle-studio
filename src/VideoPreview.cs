@@ -116,6 +116,10 @@ namespace SubtitleStudio
                 }
             }
 
+            // הטשטוש מתחת לכתובית, כמו בצריבה (0.8.31): ״רק כשיש כתובית״ - רק כשיש כתובית על המסך
+            if (Style != null && Style.BlurOn && _frame != null && (!Style.BlurOnlyWithCue || !string.IsNullOrEmpty(CueText)))
+                Style.RenderBlur(g, vr, _frame);
+
             if (!string.IsNullOrEmpty(CueText) && Style != null)
                 Style.Render(g, vr, CueText);
         }

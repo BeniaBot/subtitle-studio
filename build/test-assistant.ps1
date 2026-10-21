@@ -106,6 +106,14 @@ Check 'עריכה ״לשאול״ ואישר - מבצע' ((CueText 0) -eq 'שונ
 $perms.GetMethod('Parse', $ST).Invoke($null, @('0,0,0,0,0')); $script:asked.Clear()
 $res = Call 'edit_cue' @{ index = 1; text = 'ברוכים הבאים' }
 Check 'עריכה ״מותר״ - בלי לשאול' ((CueText 0) -eq 'ברוכים הבאים' -and $script:asked.Count -eq 0) ''
+# טשטוש אזור (0.8.31): ״תטשטש את הפס למטה״ - האזור באחוזים, עוצמה, ורק כשיש כתובית; ומה שהעוזר רואה אחר כך
+$res = Call 'set_style' @{ blur_area = '0,75,100,20'; blur_strength = 80; blur_only_with_subtitle = $true }
+$sty = $mfT.GetField('_style', $IN).GetValue($mf)
+Check 'set_style עם טשטוש: אזור, עוצמה, רק כשיש כתובית - ודולק' ($sty.BlurOn -and $sty.BlurPct -eq 80 -and $sty.BlurOnlyWithCue -and [Math]::Abs($sty.BlurArea.Y - 0.75) -lt 1e-6 -and ('' + $res['style_now']).Contains('טשטוש 80%')) ('' + $res['style_now'])
+$res = Call 'set_style' @{ blur_area = 'למטה' }
+Check 'set_style עם אזור לא מובן - שגיאה שאומרת איך כותבים' (('' + $res['error']).Contains('x,y')) ('' + $res['error'])
+$res = Call 'set_style' @{ blur = $false }
+Check 'ולכבות' (-not $sty.BlurOn) ''
 $res = Call 'list_cues' @{}
 Check 'קריאה תמיד מותרת' ($res['cues'].Length -eq 3) ''
 

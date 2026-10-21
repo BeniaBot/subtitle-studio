@@ -27,11 +27,161 @@ namespace SubtitleStudio
         public double MarginHPct = 4.0;
         public double LineSpacing = 1.0;
 
+        // ---------- טשטוש אזור (0.8.31) ----------
+        // בקשה מהמשתמשים: ״אם יש טקסט מתחת אז לפעמים לא רואים את הכתוביות״ - פס כותרת של ערוץ, כתוביות מקור צרובות. מסמנים אזור
+        // בחלון העיצוב (גרירה על התמונה), בוחרים עוצמה, ומתי: כל הזמן או רק כשיש כתובית. **שייך לסרט** - נשמר בפרויקט, לא בהגדרות,
+        // ונכבה כשנפתח סרט אחר (`MainForm.OpenMediaCore`).
+        public bool BlurOn = false;
+        /// <summary>האזור, יחסית לתמונה (0-1). ברירת המחדל - הרצועה שבה הכתוביות יושבות.</summary>
+        public RectangleF BlurArea = new RectangleF(0.05f, 0.72f, 0.9f, 0.22f);
+        /// <summary>עוצמה באחוזים: 100 = ״סיגמה״ של 3% מגובה התמונה (ב-1080 - ‏32 פיקסלים: טקסט לא נקרא בכלל).</summary>
+        public int BlurPct = 60;
+        public bool BlurOnlyWithCue = false;
+
         public SubStyle Clone()
         {
             return (SubStyle)MemberwiseClone();
         }
 
+        /// <summary>עוצמת הטשטוש בפיקסלים של תמונה בגובה <paramref name="h"/>.</summary>
+        internal double BlurSigma(double h) { return Math.Max(0.5, BlurPct / 100.0 * h * 0.03); }
+
+        /// <summary>האזור בפיקסלים של סרט ברוחב w וגובה h - זוגי (צבע 4:2:0) ובתוך התמונה; ריק כשקטן מ-8.</summary>
+        internal Rectangle BlurPixels(int w, int h)
+        {
+            RectangleF a = BlurArea;
+            int x = Math.Max(0, (int)Math.Round(a.X * w)) & ~1, y = Math.Max(0, (int)Math.Round(a.Y * h)) & ~1;
+            int r = Math.Min(w, (int)Math.Round((a.X + a.Width) * w)), b = Math.Min(h, (int)Math.Round((a.Y + a.Height) * h));
+            int ww = (r - x) & ~1, hh = (b - y) & ~1;
+            return ww < 8 || hh < 8 ? Rectangle.Empty : new Rectangle(x, y, ww, hh);
+        }
+
+        /// <summary>**הטשטוש לצריבה:** תחילת שרשרת המסננים, לפני ``subtitles=`` (``split`` ← ``crop`` ← ``gblur`` ← ``overlay`` במקום); ריק
+        /// כשאין. ״רק כשיש כתובית״ - ``enable`` עם ``between`` לכל רצף של כתוביות (<paramref name="cues"/> כבר בזמני הקובץ שיוצא). השרשרת
+        /// נכתבת לקובץ (``-/vf``) - בסרט של אלפי כתוביות היא ארוכה משורת פקודה של ווינדוס. נבדק במנוע: האזור מטושטש רק בזמנים האלה.</summary>
+        internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues)
+        {
+            if (!BlurOn) return "";
+            Rectangle px = BlurPixels(w, h);
+            if (px.IsEmpty) return "";
+            string enable = "";
+            if (BlurOnlyWithCue)
+            {
+                System.Text.StringBuilder e = new System.Text.StringBuilder();
+                long a = -1, b = -1;
+                System.Collections.Generic.List<Cue> sorted = new System.Collections.Generic.List<Cue>(cues ?? new System.Collections.Generic.List<Cue>());
+                sorted.Sort(delegate (Cue p, Cue q) { return p.Start.CompareTo(q.Start); });
+                foreach (Cue c in sorted)
+                {
+                    if (c.End <= c.Start || c.End <= 0) continue;
+                    long s = Math.Max(0, c.Start);
+                    if (a >= 0 && s <= b + 200) { b = Math.Max(b, c.End); continue; }     // רצף - טשטוש אחד, בלי הבהוב ביניהן
+                    if (a >= 0) e.Append(e.Length > 0 ? "+" : "").Append(Between(a, b));
+                    a = s; b = c.End;
+                }
+                if (a >= 0) e.Append(e.Length > 0 ? "+" : "").Append(Between(a, b));
+                if (e.Length == 0) return "";
+                enable = ":enable='" + e + "'";
+            }
+            string s2 = BlurSigma(h).ToString("0.##", CultureInfo.InvariantCulture);
+            return string.Format(CultureInfo.InvariantCulture,
+                "split[sx_a][sx_b];[sx_b]crop={0}:{1}:{2}:{3},format=gbrp,gblur=sigma={4}:steps=2[sx_bl];[sx_a][sx_bl]overlay={2}:{3}{5},",
+                px.Width, px.Height, px.X, px.Y, s2, enable);
+        }
+
+        private static string Between(long a, long b)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "between(t,{0:0.###},{1:0.###})", a / 1000.0, b / 1000.0);
+        }
+
+        /// <summary>**הטשטוש בתצוגה**, על הפריים שכבר צויר ב-<paramref name="video"/>: האזור מהפריים מטושטש באמת - שלושה מעברים של ממוצע
+        /// נע לכל כיוון (״boxes for gauss״, קרוב מאוד לגאוסיאני), באותה עוצמה יחסית כמו ``gblur`` בצריבה, וקצוות משוכפלים כמו שם.
+        /// **לא הקטנה והגדלה:** נמדד (``hp-tools\blur-compare.ps1``) - בעוצמה גבוהה היא נתנה ״מדרגות״, והפער מהצריבה היה שליש מהטשטוש עצמו.</summary>
+        public void RenderBlur(Graphics g, RectangleF video, Bitmap frame)
+        {
+            if (!BlurOn || frame == null || video.Width < 4 || video.Height < 4) return;
+            Rectangle src = BlurPixels(frame.Width, frame.Height);
+            if (src.IsEmpty) return;
+            float kx = video.Width / frame.Width, ky = video.Height / frame.Height;
+            RectangleF dest = new RectangleF(video.X + src.X * kx, video.Y + src.Y * ky, src.Width * kx, src.Height * ky);
+            InterpolationMode oldI = g.InterpolationMode;
+            PixelOffsetMode oldP = g.PixelOffsetMode;
+            try
+            {
+                using (Bitmap part = frame.Clone(src, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                {
+                    GaussBlur(part, BlurSigma(frame.Height));
+                    g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    g.DrawImage(part, dest);
+                }
+            }
+            catch { }
+            finally { g.InterpolationMode = oldI; g.PixelOffsetMode = oldP; }
+        }
+
+        /// <summary>טשטוש גאוסיאני משוער במקום: שלושה ממוצעים נעים בכל כיוון, ברוחבים שמתאימים לסיגמה (Kovesi).</summary>
+        internal static void GaussBlur(Bitmap bmp, double sigma)
+        {
+            if (sigma < 0.3) return;
+            int w = bmp.Width, h = bmp.Height;
+            System.Drawing.Imaging.BitmapData d = bmp.LockBits(new Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadWrite,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = d.Stride;
+                byte[] buf = new byte[stride * h];
+                System.Runtime.InteropServices.Marshal.Copy(d.Scan0, buf, 0, buf.Length);
+                int[] boxes = BoxesFor(sigma, 3);
+                byte[] tmp = new byte[buf.Length];
+                foreach (int bw in boxes)
+                {
+                    int r = (bw - 1) / 2;
+                    BoxPass(buf, tmp, w, h, stride, r, true);
+                    BoxPass(tmp, buf, w, h, stride, r, false);
+                }
+                System.Runtime.InteropServices.Marshal.Copy(buf, 0, d.Scan0, buf.Length);
+            }
+            finally { bmp.UnlockBits(d); }
+        }
+
+        private static int[] BoxesFor(double sigma, int n)
+        {
+            double wIdeal = Math.Sqrt(12 * sigma * sigma / n + 1);
+            int wl = (int)Math.Floor(wIdeal); if (wl % 2 == 0) wl--;
+            int wu = wl + 2;
+            double mIdeal = (12 * sigma * sigma - n * wl * wl - 4 * n * wl - 3 * n) / (-4 * wl - 4);
+            int m = (int)Math.Round(mIdeal);
+            int[] r = new int[n];
+            for (int i = 0; i < n; i++) r[i] = Math.Max(1, i < m ? wl : wu);
+            return r;
+        }
+
+        /// <summary>ממוצע נע ברדיוס r, שורה-שורה (horizontal) או עמודה-עמודה; מחוץ לתמונה - הפיקסל שבקצה.</summary>
+        private static void BoxPass(byte[] s, byte[] t, int w, int h, int stride, int r, bool horizontal)
+        {
+            int n = horizontal ? w : h, lines = horizontal ? h : w;
+            int step = horizontal ? 4 : stride;
+            double inv = 1.0 / (2 * r + 1);
+            for (int line = 0; line < lines; line++)
+            {
+                int baseI = horizontal ? line * stride : line * 4;
+                for (int c = 0; c < 4; c++)
+                {
+                    int first = s[baseI + c], last = s[baseI + (n - 1) * step + c];
+                    int acc = r * first;                                     // החלון של הפיקסל הראשון: r העתקים של הקצה, ואז 0..r
+                    for (int k = 0; k < r; k++) acc += s[baseI + Math.Min(k, n - 1) * step + c];
+                    for (int i = 0; i < n; i++)
+                    {
+                        int add = i + r < n ? s[baseI + (i + r) * step + c] : last;
+                        acc += add;
+                        t[baseI + i * step + c] = (byte)Math.Min(255, acc * inv + 0.5);
+                        int rem = i - r >= 0 ? s[baseI + (i - r) * step + c] : first;
+                        acc -= rem;
+                    }
+                }
+            }
+        }
         /// <summary>הריפוד של הרקע סביב הטקסט, בפיקסלים של הסרט: חמישית מגודל הגופן.</summary>
         internal static double BoxPad(double fontPx) { return Math.Round(fontPx * 0.2, 1); }
 

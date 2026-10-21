@@ -1656,6 +1656,15 @@ namespace SubtitleStudio
             "שקיפות הרקע", "Box transparency",
             " · רקע", " · background",
             "   (בקידוד {0}, כמו המקור)", "   (in {0}, like the original)",
+            "טשטוש אזור בסרט", "Blur an area of the video",
+            "מתי", "When",
+            "עוצמת הטשטוש", "Blur strength",
+            "לטשטש", "Blur",
+            "כל הזמן", "All the time",
+            "רק כשיש כתובית", "Only with a subtitle",
+            "את האזור מסמנים בגרירה על התמונה למעלה", "Mark the area by dragging on the picture above",
+            "טקסט שצרוב בסרט", "Text burned into the video",
+            "blur_area: ארבעה מספרים באחוזים - x,y,רוחב,גובה", "blur_area: four percentages - x,y,width,height",
         };
 
         public static void Fill(Dictionary<string, string> d)

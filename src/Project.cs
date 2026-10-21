@@ -118,7 +118,12 @@ namespace SubtitleStudio
                 Prop(sb, 2, "align", s.Alignment.ToString(CultureInfo.InvariantCulture), true);
                 Prop(sb, 2, "marginV", Num(s.MarginVPct), true);
                 Prop(sb, 2, "marginH", Num(s.MarginHPct), true);
-                Prop(sb, 2, "lineSpacing", Num(s.LineSpacing), false);
+                Prop(sb, 2, "lineSpacing", Num(s.LineSpacing), true);
+                // טשטוש אזור (0.8.31) - שייך לסרט, ולכן בפרויקט ולא בהגדרות
+                Prop(sb, 2, "blur", s.BlurOn ? "true" : "false", true);
+                Prop(sb, 2, "blurArea", "[" + Num(s.BlurArea.X) + ", " + Num(s.BlurArea.Y) + ", " + Num(s.BlurArea.Width) + ", " + Num(s.BlurArea.Height) + "]", true);
+                Prop(sb, 2, "blurStrength", s.BlurPct.ToString(CultureInfo.InvariantCulture), true);
+                Prop(sb, 2, "blurOnlyWithSubtitle", s.BlurOnlyWithCue ? "true" : "false", false);
                 sb.Append("  },\n");
             }
 
@@ -291,6 +296,16 @@ namespace SubtitleStudio
                 s.MarginVPct = Clamp(Dbl(st, "marginV", s.MarginVPct), 0, 50);
                 s.MarginHPct = Clamp(Dbl(st, "marginH", s.MarginHPct), 0, 50);
                 s.LineSpacing = Clamp(Dbl(st, "lineSpacing", s.LineSpacing), 0.5, 3);
+                s.BlurOn = B(st, "blur", false);
+                object[] ba = Arr(st, "blurArea");
+                if (ba != null && ba.Length == 4)
+                {
+                    double bx = Clamp(ToDbl(ba[0], 0), 0, 1), by = Clamp(ToDbl(ba[1], 0), 0, 1);
+                    double bw = Clamp(ToDbl(ba[2], 0), 0, 1 - bx), bh = Clamp(ToDbl(ba[3], 0), 0, 1 - by);
+                    if (bw > 0.01 && bh > 0.01) s.BlurArea = new System.Drawing.RectangleF((float)bx, (float)by, (float)bw, (float)bh);
+                }
+                s.BlurPct = (int)Clamp(L(st, "blurStrength", s.BlurPct), 5, 100);
+                s.BlurOnlyWithCue = B(st, "blurOnlyWithSubtitle", false);
                 d.Style = s;
             }
 
@@ -346,9 +361,9 @@ namespace SubtitleStudio
             try { return Convert.ToInt64(v, CultureInfo.InvariantCulture); }
             catch { return def; }
         }
-        private static double Dbl(Dictionary<string, object> o, string k, double def)
+        private static double Dbl(Dictionary<string, object> o, string k, double def) { return ToDbl(Get(o, k), def); }
+        private static double ToDbl(object v, double def)
         {
-            object v = Get(o, k);
             if (v == null || v is string || v is bool) return def;
             try { return Convert.ToDouble(v, CultureInfo.InvariantCulture); }
             catch { return def; }
