@@ -123,7 +123,19 @@ namespace SubtitleStudio
                 Prop(sb, 2, "blur", s.BlurOn ? "true" : "false", true);
                 Prop(sb, 2, "blurArea", "[" + Num(s.BlurArea.X) + ", " + Num(s.BlurArea.Y) + ", " + Num(s.BlurArea.Width) + ", " + Num(s.BlurArea.Height) + "]", true);
                 Prop(sb, 2, "blurStrength", s.BlurPct.ToString(CultureInfo.InvariantCulture), true);
-                Prop(sb, 2, "blurOnlyWithSubtitle", s.BlurOnlyWithCue ? "true" : "false", false);
+                Prop(sb, 2, "blurOnlyWithSubtitle", s.BlurOnlyWithCue ? "true" : "false", true);
+                // אזורי צנזורה לפי זמן (0.8.34, 2כט)
+                StringBuilder zs = new StringBuilder("[");
+                for (int i = 0; i < s.Zones.Count; i++)
+                {
+                    BlurZone z = s.Zones[i];
+                    if (i > 0) zs.Append(", ");
+                    zs.Append("{\"area\": [").Append(Num(z.Area.X)).Append(", ").Append(Num(z.Area.Y)).Append(", ").Append(Num(z.Area.Width)).Append(", ").Append(Num(z.Area.Height))
+                      .Append("], \"from\": ").Append(z.FromMs.ToString(CultureInfo.InvariantCulture)).Append(", \"to\": ").Append(z.ToMs.ToString(CultureInfo.InvariantCulture))
+                      .Append(", \"look\": ").Append(z.Look.ToString(CultureInfo.InvariantCulture)).Append(", \"strength\": ").Append(z.Pct.ToString(CultureInfo.InvariantCulture))
+                      .Append(", \"circle\": ").Append(z.Ellipse ? "true" : "false").Append("}");
+                }
+                Prop(sb, 2, "blurZones", zs.Append("]").ToString(), false);
                 sb.Append("  },\n");
             }
 
@@ -306,6 +318,26 @@ namespace SubtitleStudio
                 }
                 s.BlurPct = (int)Clamp(L(st, "blurStrength", s.BlurPct), 5, 100);
                 s.BlurOnlyWithCue = B(st, "blurOnlyWithSubtitle", false);
+                object[] zones = Arr(st, "blurZones");
+                if (zones != null)
+                    foreach (object zo in zones)
+                    {
+                        Dictionary<string, object> zd = zo as Dictionary<string, object>;
+                        if (zd == null) continue;
+                        object[] za = Arr(zd, "area");
+                        if (za == null || za.Length != 4) continue;
+                        BlurZone z = new BlurZone();
+                        double zx = Clamp(ToDbl(za[0], 0), 0, 1), zy = Clamp(ToDbl(za[1], 0), 0, 1);
+                        double zw = Clamp(ToDbl(za[2], 0), 0, 1 - zx), zh = Clamp(ToDbl(za[3], 0), 0, 1 - zy);
+                        if (zw < 0.005 || zh < 0.005) continue;
+                        z.Area = new System.Drawing.RectangleF((float)zx, (float)zy, (float)zw, (float)zh);
+                        z.FromMs = Math.Max(-1, L(zd, "from", -1));
+                        z.ToMs = Math.Max(-1, L(zd, "to", -1));
+                        z.Look = (int)Clamp(L(zd, "look", 0), 0, 2);
+                        z.Pct = (int)Clamp(L(zd, "strength", 60), 5, 100);
+                        z.Ellipse = B(zd, "circle", false);
+                        s.Zones.Add(z);
+                    }
                 d.Style = s;
             }
 

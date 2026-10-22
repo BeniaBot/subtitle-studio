@@ -2896,7 +2896,7 @@ namespace SubtitleStudio
                 {
                     _contentContext = "";
                     // גם אזור הטשטוש שייך לסרט (0.8.31): בסרט אחר הפס במקום אחר, או שאין. מפרויקט - חוזר ממנו (OpenProject)
-                    if (!fromProject && _style != null) _style.BlurOn = false;
+                    if (!fromProject && _style != null) { _style.BlurOn = false; _style.Zones.Clear(); }     // אזורי הצנזורה - גם הם של הסרט (0.8.34)
                 }
                 _mediaPath = path;
                 if (!fromProject)
