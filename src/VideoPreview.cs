@@ -10,6 +10,8 @@ namespace SubtitleStudio
     {
         private Bitmap _frame;
         public string CueText = "";
+        /// <summary>הזמן שמוצג (0.8.34) - אזורי הצנזורה נדלקים ונכבים לפי הזמן שלהם.</summary>
+        public long PosMs = -1;
         public SubStyle Style;
         public bool ShowSafeArea = false;
         public bool HasMedia = false;
@@ -119,6 +121,7 @@ namespace SubtitleStudio
             // הטשטוש מתחת לכתובית, כמו בצריבה (0.8.31): ״רק כשיש כתובית״ - רק כשיש כתובית על המסך
             if (Style != null && Style.BlurOn && _frame != null && (!Style.BlurOnlyWithCue || !string.IsNullOrEmpty(CueText)))
                 Style.RenderBlur(g, vr, _frame);
+            if (Style != null && _frame != null && Style.Zones.Count > 0) Style.RenderZones(g, vr, _frame, PosMs);
 
             if (!string.IsNullOrEmpty(CueText) && Style != null)
                 Style.Render(g, vr, CueText);

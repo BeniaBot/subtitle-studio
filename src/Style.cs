@@ -141,6 +141,55 @@ namespace SubtitleStudio
             finally { g.InterpolationMode = oldI; g.PixelOffsetMode = oldP; }
         }
 
+        /// <summary>**אזורי הצנזורה בתצוגה** (0.8.34), לפי הזמן - כמו בצריבה (`BlurZone.Graph`): טשטוש (`GaussBlur`, אותה סיגמה יחסית), פיקסלים
+        /// (הקטנה ממוצעת והגדלה בלי החלקה, אותה משבצת יחסית), או שחור; עיגול - חיתוך באליפסה.</summary>
+        public void RenderZones(Graphics g, RectangleF video, Bitmap frame, long posMs)
+        {
+            if (frame == null || video.Width < 4 || video.Height < 4) return;
+            foreach (BlurZone z in Zones)
+            {
+                if (!z.ActiveAt(posMs)) continue;
+                Rectangle src = z.Pixels_(frame.Width, frame.Height);
+                if (src.IsEmpty) continue;
+                float kx = video.Width / frame.Width, ky = video.Height / frame.Height;
+                RectangleF dest = new RectangleF(video.X + src.X * kx, video.Y + src.Y * ky, src.Width * kx, src.Height * ky);
+                GraphicsState saved = g.Save();
+                try
+                {
+                    if (z.Ellipse)
+                        using (GraphicsPath p = new GraphicsPath()) { p.AddEllipse(dest); g.SetClip(p, CombineMode.Intersect); }
+                    if (z.Look == BlurZone.Black) { g.FillRectangle(Brushes.Black, dest); continue; }
+                    using (Bitmap part = frame.Clone(src, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                    {
+                        if (z.Look == BlurZone.Pixels)
+                        {
+                            int k = z.Block(frame.Height);
+                            using (Bitmap small = new Bitmap(Math.Max(1, src.Width / k), Math.Max(1, src.Height / k)))
+                            {
+                                using (Graphics sg = Graphics.FromImage(small))
+                                {
+                                    sg.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                                    sg.DrawImage(part, 0, 0, small.Width, small.Height);
+                                }
+                                g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                                g.PixelOffsetMode = PixelOffsetMode.Half;
+                                g.DrawImage(small, dest);
+                            }
+                        }
+                        else
+                        {
+                            GaussBlur(part, Math.Max(0.5, z.Pct / 100.0 * frame.Height * 0.03));
+                            g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                            g.DrawImage(part, dest);
+                        }
+                    }
+                }
+                catch { }
+                finally { g.Restore(saved); }
+            }
+        }
+
         /// <summary>טשטוש גאוסיאני משוער במקום: שלושה ממוצעים נעים בכל כיוון, ברוחבים שמתאימים לסיגמה (Kovesi).</summary>
         internal static void GaussBlur(Bitmap bmp, double sigma)
         {

@@ -1889,6 +1889,15 @@ namespace SubtitleStudio
 
             string cueText = CurrentCueText(pos);
             if (cueText != _video.CueText) { _video.CueText = cueText; _video.Invalidate(); }
+            // אזורי צנזורה (0.8.34): מציירים מחדש רק כשאחד מהם נדלק או נכבה
+            if (_style != null && _style.Zones.Count > 0)
+            {
+                bool flip = false;
+                foreach (BlurZone z in _style.Zones) if (z.ActiveAt(pos) != z.ActiveAt(_video.PosMs)) { flip = true; break; }
+                _video.PosMs = pos;
+                if (flip) _video.Invalidate();
+            }
+            else _video.PosMs = pos;
 
             bool playing = _engine.IsPlaying;
             if ((_playBtn.Icon == Ico.Play) == playing)

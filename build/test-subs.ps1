@@ -247,6 +247,13 @@ $bc = $b15.GetPixel(480, 270); $corner = [SubsMad]::Mad($b15, $s15, (New-Object 
 $zA15 = [SubsMad]::Mad($b15, $s15, $rA); $zA30 = [SubsMad]::Mad($b30, $s30, $rA); $zC15 = [SubsMad]::Mad($b15, $s15, $rC); $zC30 = [SubsMad]::Mad($b30, $s30, $rC)
 Rep 'censor zones: each only in its time (blur 1-2s, pixels from 2.5s), black circle covers the centre and leaves the corners' ($zA15 -gt 4 -and $zA30 -lt 2 -and $zC15 -lt 2 -and $zC30 -gt 8 -and ($bc.R + $bc.G + $bc.B) -lt 30 -and $corner -lt 2) ("blur {0:0.0}/{1:0.0}  pixels {2:0.0}/{3:0.0}  centre rgb {4} corner {5:0.0}" -f $zA15, $zA30, $zC15, $zC30, ($bc.R + $bc.G + $bc.B), $corner)
 foreach ($b in @($s15, $b15, $s30, $b30)) { $b.Dispose() }
+# והתצוגה בנגן (`RenderZones`): אותו אזור שחור בעיגול - רק בזמן שלו, ומחוץ לעיגול בלי שינוי
+$pz = [Activator]::CreateInstance((TY 'SubStyle')); $pz.Zones.Add((Zone 0.25 0.25 0.5 0.5 0 1000 2 $true))
+function PreviewAt([long]$ms) { $fr = New-Object Drawing.Bitmap 320, 180; $gf = [Drawing.Graphics]::FromImage($fr); $gf.Clear([Drawing.Color]::FromArgb(200, 120, 40)); $gf.Dispose(); $out = New-Object Drawing.Bitmap 320, 180; $go = [Drawing.Graphics]::FromImage($out); $go.DrawImage($fr, 0, 0, 320, 180); $pz.RenderZones($go, (New-Object Drawing.RectangleF 0, 0, 320, 180), $fr, $ms); $go.Dispose(); $fr.Dispose(); return $out }
+$pIn = PreviewAt 500; $pOut = PreviewAt 1500
+$cIn = $pIn.GetPixel(160, 90); $cornerIn = $pIn.GetPixel(84, 48); $cOut = $pOut.GetPixel(160, 90)
+Rep 'censor zones in the preview: black circle only in its time, corners outside the circle untouched' (($cIn.R + $cIn.G + $cIn.B) -lt 30 -and $cornerIn.R -gt 150 -and $cOut.R -gt 150) ("in {0}/{1}/{2}, corner R {3}, after R {4}" -f $cIn.R, $cIn.G, $cIn.B, $cornerIn.R, $cOut.R)
+$pIn.Dispose(); $pOut.Dispose()
 
 # גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו
 $hh = (TY 'Fonts').GetMethod('HasHebrew', $ST)
