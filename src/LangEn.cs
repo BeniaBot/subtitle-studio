@@ -1743,6 +1743,11 @@ namespace SubtitleStudio
             "הקטע המסומן ארוך מדקה - GIF כזה יוצא ענק. סמנו קטע קצר יותר (עד חצי דקה).", "The marked section is longer than a minute - such a GIF comes out huge. Mark a shorter one (up to half a minute).",
             "לא סומן קטע, והסרט ארוך מדקה - GIF של כל הסרט יוצא ענק. סמנו על הציר קטע קצר (I ו-O), עד חצי דקה.", "No section is marked, and the video is longer than a minute - a GIF of all of it comes out huge. Mark a short section on the timeline (I and O), up to half a minute.",
             "{0} שניות - GIF ארוך יוצא כבד. לשיתוף, עדיף עד 10-15 שניות.", "{0} seconds - a long GIF comes out heavy. For sharing, 10-15 seconds is better.",
+            "הוספת מוזיקת רקע", "Add background music",
+            "מוזיקה בשקט מתחת לדיבור - ויורדת עוד כשמדברים", "Quiet music under the speech - and it dips further while people talk",
+            "קובץ המוזיקה", "The music file",
+            " - עם מוזיקה", " - with music",
+            "הדיבור נשאר כמו שהוא. מוזיקה קצרה מהסרט - חוזרת מההתחלה, והכול נגמר עם הסרט.", "The speech stays as it is. Music shorter than the video starts over, and everything ends with the video.",
         };
 
         public static void Fill(Dictionary<string, string> d)

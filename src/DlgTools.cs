@@ -391,6 +391,44 @@ namespace SubtitleStudio
             };
             t.Add(swap);
 
+            // **מוזיקת רקע מתחת לדיבור** (0.8.34, מהסבב ״משתמש בפעם הראשונה״): ״החלפת הפסקול״ מוחקת את הקול המקורי, והצורך הנפוץ
+            // הוא להוסיף מוזיקה **מתחת** לדיבור. המוזיקה מתנרמלת ל-‎-30 LUFS (דיבור רגיל ‎-16 עד ‎-23), ויורדת עוד בזמן דיבור
+            // (``sidechaincompress``). נמדד על שיעור עם קריינות ומוזיקה מדומה: בלי דיבור ‎-30, מתחת לדיבור עוד 9 דציבל למטה (ratio 3);
+            // ratio 10 הוריד 19 - המוזיקה נעלמה. מוזיקה קצרה מהסרט חוזרת מההתחלה (``-stream_loop -1``); הסוף - של הסרט.
+            MediaTool music = new MediaTool();
+            music.Group = Lang.T("קול");
+            music.Name = Lang.T("הוספת מוזיקת רקע");
+            music.Desc = Lang.T("מוזיקה בשקט מתחת לדיבור - ויורדת עוד כשמדברים");
+            music.Icon = Ico.Speaker;
+            music.ParamKind = 3;
+            music.ParamLabel = Lang.T("קובץ המוזיקה");
+            music.FileFilter = swap.FileFilter;
+            music.OutSuffix = Lang.T(" - עם מוזיקה");
+            music.KeepsVideo = true;
+            music.Hint = delegate (ToolCtx c)
+            {
+                return Lang.T("הדיבור נשאר כמו שהוא. מוזיקה קצרה מהסרט - חוזרת מההתחלה, והכול נגמר עם הסרט.");
+            };
+            music.Build = delegate (ToolCtx c)
+            {
+                int hz = 48000;
+                MediaStream a0 = null;
+                if (c.Mi != null) foreach (MediaStream st in c.Mi.Streams) if (st.Type == "audio") { a0 = st; break; }
+                if (a0 != null && a0.SampleRate >= 8000) hz = a0.SampleRate;
+                string m = "[1:a]loudnorm=I=-30:TP=-6:LRA=11,aresample=" + hz + "[m];";
+                string fc = c.Mi != null && c.Mi.HasAudio
+                    ? m + "[m][0:a]sidechaincompress=threshold=0.05:ratio=3:attack=15:release=500[duck];" +
+                      "[0:a][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95:level=0:latency=1[a]"
+                    : m + "[m]anull[a]";
+                bool video = c.Mi != null && c.Mi.HasVideo;
+                string pic = video ? "-map 0:v -c:v copy " : CoverArgs(c).StartsWith("-c:v copy") ? "-map 0:v " + CoverArgs(c) : "";
+                // בלי קול במקור אין ״הראשון שנגמר״ - האורך של הסרט במפורש (המוזיקה בלולאה אינסופית)
+                string len = c.Mi != null && !c.Mi.HasAudio && c.Mi.DurationSec > 0 ? "-t " + Tc.Ff(c.Mi.DurationMs) + " " : "";
+                return "-i " + Ff.Q(c.In) + " -stream_loop -1 -i " + Ff.Q(c.Extra) + " -filter_complex \"" + fc + "\" " +
+                       pic + "-map \"[a]\" " + Burn.AudioFor(c.Out, c.Mi) + " " + len + Ff.Q(c.Out);
+            };
+            t.Add(music);
+
             MediaTool conv = new MediaTool();
             conv.Group = Lang.T("וידאו");
             conv.Name = Lang.T("המרת פורמט");
@@ -854,11 +892,12 @@ namespace SubtitleStudio
 
             // יציב: ‏List.Sort לא שומר על הסדר של שווים, ועד 0.8.34 ההשוואה החזירה 0 לכל שני כלים מאותה קבוצה
             List<MediaTool> orig = new List<MediaTool>(t);
+            string[] order = Order();
             t.Sort(delegate (MediaTool a, MediaTool b)
             {
                 int ra = Rank(a.Group), rb = Rank(b.Group);
                 if (ra != rb) return ra.CompareTo(rb);
-                int oa = OrderOf(a), ob = OrderOf(b);
+                int oa = OrderOf(a, order), ob = OrderOf(b, order);
                 return oa != ob ? oa.CompareTo(ob) : orig.IndexOf(a).CompareTo(orig.IndexOf(b));
             });
             return t;
@@ -873,19 +912,23 @@ namespace SubtitleStudio
             return 2;
         }
 
-        private static readonly string[] Order =
+        // השמות כמו שהכלים מקבלים אותם (Lang.T עם טקסט כתוב - test-source דורשת)
+        private static string[] Order()
         {
-            "הכנה לשליחה בוואטסאפ", "התאמה לגודל קובץ מבוקש", "יצירת GIF מהקטע המסומן", "שמירת התמונה שעל המסך",
-            "דחיסה - הקטנת נפח הקובץ", "המרת פורמט", "שינוי רזולוציה", "סיבוב הווידאו", "שינוי מהירות", "דהייה בהתחלה ובסוף",
-            "חיבור שני סרטים", "היפוך לאחור (ריוורס)",
-            "חילוץ הפסקול לקובץ אודיו", "שינוי עוצמת השמע", "ניקוי רעש רקע מהקול", "איזון עוצמה אוטומטי", "החלפת הפסקול",
-            "בחירת ערוץ שמע", "הסרת הקול מהסרט"
-        };
+            return new string[]
+            {
+                Lang.T("הכנה לשליחה בוואטסאפ"), Lang.T("התאמה לגודל קובץ מבוקש"), Lang.T("יצירת GIF מהקטע המסומן"), Lang.T("שמירת התמונה שעל המסך"),
+                Lang.T("דחיסה - הקטנת נפח הקובץ"), Lang.T("המרת פורמט"), Lang.T("שינוי רזולוציה"), Lang.T("סיבוב הווידאו"), Lang.T("שינוי מהירות"),
+                Lang.T("דהייה בהתחלה ובסוף"), Lang.T("חיבור שני סרטים"), Lang.T("היפוך לאחור (ריוורס)"),
+                Lang.T("חילוץ הפסקול לקובץ אודיו"), Lang.T("שינוי עוצמת השמע"), Lang.T("ניקוי רעש רקע מהקול"), Lang.T("איזון עוצמה אוטומטי"),
+                Lang.T("הוספת מוזיקת רקע"), Lang.T("החלפת הפסקול"), Lang.T("בחירת ערוץ שמע"), Lang.T("הסרת הקול מהסרט")
+            };
+        }
 
-        private static int OrderOf(MediaTool m)
+        private static int OrderOf(MediaTool m, string[] order)
         {
-            for (int i = 0; i < Order.Length; i++) if (m.Name == Lang.T(Order[i])) return i;
-            return Order.Length;
+            for (int i = 0; i < order.Length; i++) if (m.Name == order[i]) return i;
+            return order.Length;
         }
     }
 
