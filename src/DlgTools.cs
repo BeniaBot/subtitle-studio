@@ -358,7 +358,7 @@ namespace SubtitleStudio
             MediaTool mute = new MediaTool();
             mute.Group = Lang.T("קול");
             mute.Name = Lang.T("הסרת הקול מהסרט");
-            mute.Desc = Lang.T("משאיר את הווידאו בלי פסקול, בלי לקודד מחדש");
+            mute.Desc = Lang.T("משאיר את הסרט בלי פסקול, בלי פגיעה באיכות");
             mute.Icon = Ico.SpeakerOff;
             mute.NeedsVideo = true;
             mute.NeedsAudio = true;
@@ -826,7 +826,7 @@ namespace SubtitleStudio
             fit.NeedsVideo = true;
             fit.OutExt = ".mp4";
             fit.OutSuffix = Lang.T(" - מוקטן");
-            fit.StepNames = new string[] { Lang.T("מעבר ראשון - ניתוח"), Lang.T("מעבר שני - קידוד") };
+            fit.StepNames = new string[] { Lang.T("בדיקת הסרט"), Lang.T("שמירה בגודל המבוקש") };
             fit.Hint = delegate (ToolCtx c) { return FitPlan(c).Describe(); };
             fit.Block = delegate (ToolCtx c) { FitInfo f = FitPlan(c); return f.AlreadySmall ? f.Describe() : null; };
             fit.BuildSteps = delegate (ToolCtx c)

@@ -430,7 +430,7 @@ namespace SubtitleStudio
 
             _modeSoft = new Btn();
             _modeSoft.Text = Lang.T("ערוץ כתוביות נפרד");
-            _modeSoft.Sub = Lang.T("אפשר לכבות/להחליף בנגן · הקידוד נשמר, מהיר מאוד");
+            _modeSoft.Sub = Lang.T("אפשר לכבות/להחליף בנגן · בלי פגיעה באיכות, מהיר מאוד");
             _modeSoft.Icon = Ico.Layers;
             _modeSoft.Kind = BtnKind.Subtle;
             _modeSoft.Radio = true;
@@ -525,8 +525,8 @@ namespace SubtitleStudio
         {
             if (_burn)
                 _note.Text = _quality.SelectedIndex == 0
-                    ? Lang.T("הווידאו יקודד מחדש באיכות מקסימלית - לוקח זמן, והתוצאה עובדת בכל מקום כולל וואטסאפ ויוטיוב.")
-                    : Lang.T("הווידאו יקודד מחדש - זה לוקח זמן (בערך כאורך הסרט), אבל התוצאה עובדת בכל מקום.");
+                    ? Lang.T("הסרט נשמר מחדש באיכות מקסימלית - זה לוקח זמן, והתוצאה עובדת בכל מקום, כולל וואטסאפ ויוטיוב.")
+                    : Lang.T("הסרט נשמר מחדש - זה לוקח זמן (בערך כאורך הסרט), אבל התוצאה עובדת בכל מקום.");
             else
                 _note.Text = Lang.T("מהיר מאוד (שניות): הקובץ נשאר באותה איכות והכתוביות נוספות כערוץ. שימו לב שלא כל נגן מציג ערוץ כתוביות.");
             _note.Invalidate();

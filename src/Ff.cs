@@ -117,7 +117,7 @@ namespace SubtitleStudio
         public string Summary()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append(Tc.Clock(DurationMs));
+            sb.Append(Tc.Length(DurationMs));
             if (Width > 0) sb.Append("  ·  ").Append(Width).Append("×").Append(Height);
             if (Fps > 0) sb.Append("  ·  ").Append(Fps.ToString("0.##")).Append(" fps");
             sb.Append("  ·  ").Append(FormatSize(SizeBytes));

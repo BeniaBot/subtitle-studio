@@ -3471,7 +3471,7 @@ namespace SubtitleStudio
             if (_mi == null) return;
             StringBuilder sb = new StringBuilder();
             sb.Append(Path.GetFileName(_mi.Path)).Append("\n");
-            sb.Append(Lang.T("אורך: ")).Append(Tc.Clock(_mi.DurationMs)).Append(Lang.T("     גודל: ")).Append(Theme.Ltr(MediaInfo.FormatSize(_mi.SizeBytes))).Append("\n\n");
+            sb.Append(Lang.T("אורך: ")).Append(Theme.Ltr(Tc.Length(_mi.DurationMs))).Append(Lang.T("     גודל: ")).Append(Theme.Ltr(MediaInfo.FormatSize(_mi.SizeBytes))).Append("\n\n");
             foreach (MediaStream s in _mi.Streams) sb.Append("· ").Append(s.Describe()).Append("\n");
             Ui.Msg(this, Lang.T("מה יש בקובץ"), sb.ToString(), Ico.Info, Lang.T("סגירה"));
         }
