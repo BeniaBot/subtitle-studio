@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.36",
+      "date": "2026-10-22",
+      "items": [
+        {
+          "t": "fix",
+          "s": "העוזר החכם זוכר עד סוף היום איזה דגם של גוגל ענה מהר - גם אחרי סגירה ופתיחה, בלי 8 שניות של המתנה",
+          "en": "The assistant remembers until the end of the day which Google model answered fast - even after closing and reopening, without the 8-second wait"
+        },
+        {
+          "t": "feature",
+          "s": "דגם נוסף של גוגל ברשימה (Gemini 3.6 Flash) - עוד מכסה יומית חינמית",
+          "en": "Another Google model in the list (Gemini 3.6 Flash) - more free daily quota"
+        }
+      ]
+    },
+    {
       "v": "0.8.35",
       "date": "2026-10-22",
       "items": [
