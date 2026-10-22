@@ -1236,7 +1236,7 @@ namespace SubtitleStudio
                 }
             }
             if (items.Count > 0) items.Add(MenuItem.Group(Lang.T("הכתובית")));
-            items.Add(MenuItem.Make(Lang.T("לחלק לשתי כתוביות"), Lang.T("מחלק במקום שבו נמצא הסמן"), Ico.Split,
+            items.Add(MenuItem.Make(Lang.T("לחלק לשתי כתוביות"), Lang.T("מחלק במקום שבו הנגן עומד"), Ico.Split,
                 delegate { SplitCue(); }));
             items.Add(MenuItem.Make(Lang.T("לחבר כתוביות לאחת"), Lang.T("מאחד את המסומנות"), Ico.Merge,
                 delegate { MergeCues(); }));
@@ -1366,7 +1366,7 @@ namespace SubtitleStudio
         private void ShowCueMenu(Control anchor)
         {
             List<MenuItem> items = new List<MenuItem>();
-            items.Add(MenuItem.Make(Lang.T("לחלק לשתי כתוביות"), Lang.T("מחלק את הכתובית במקום שבו נמצא הסמן"), Ico.Split,
+            items.Add(MenuItem.Make(Lang.T("לחלק לשתי כתוביות"), Lang.T("מחלק את הכתובית במקום שבו הנגן עומד"), Ico.Split,
                 delegate { SplitCue(); }));
             items.Add(MenuItem.Make(Lang.T("לחבר כתוביות לאחת"), Lang.T("מאחד את הכתוביות המסומנות"), Ico.Merge,
                 delegate { MergeCues(); }));

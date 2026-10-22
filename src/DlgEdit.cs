@@ -31,14 +31,14 @@ namespace SubtitleStudio
             {
                 Lang.F("כל הכתוביות ({0})", doc.Cues.Count),
                 Lang.F("המסומנות בלבד ({0})", sel),
-                Lang.F("מהסמן והלאה ({0})", Tc.Short(position)),
-                Lang.T("עד הסמן")
+                Lang.F("מהמקום של הנגן והלאה ({0})", Tc.Short(position)),
+                Lang.T("עד המקום של הנגן")
             });
             _scope.SelectedIndex = sel > 0 ? 1 : 0;
             _scope.SelectedIndexChanged += delegate { UpdatePreview(); };
             Row(_scope, 32, 14);
 
-            Section(Lang.T("בכמה להזיז?"));
+            Section(Lang.T("בכמה שניות להזיז?  (פלוס = מאוחר יותר, מינוס = מוקדם יותר)"));
             Panel chips = new Panel();
             chips.BackColor = Theme.Panel;
             chips.SetBounds(Pad, Y, ContentW, Theme.S(38));

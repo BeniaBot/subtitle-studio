@@ -596,7 +596,7 @@ namespace SubtitleStudio
             MediaTool snap = new MediaTool();
             snap.Group = Lang.T("לשיתוף");
             snap.Name = Lang.T("שמירת התמונה שעל המסך");
-            snap.Desc = Lang.T("לוכד את הפריים שבו נמצא הסמן כרגע כקובץ תמונה");
+            snap.Desc = Lang.T("שומר כתמונה את הפריים שבו הנגן עומד");
             snap.Icon = Ico.Image;
             snap.NeedsVideo = true;
             snap.OutExt = ".png";
