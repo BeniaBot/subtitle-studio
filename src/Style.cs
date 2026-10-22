@@ -38,9 +38,17 @@ namespace SubtitleStudio
         public int BlurPct = 60;
         public bool BlurOnlyWithCue = false;
 
+        /// <summary>**אזורי טשטוש וצנזורה לפי זמן** (0.8.34, WORKPLAN 2כט; בנימין: ״לטשטש קטע לפי בחירת אזור וזמן... למטרות צנזורה״).
+        /// נוספים על הטשטוש שלמעלה (שמגן על הכתוביות). כמו הוא - שייכים לסרט.</summary>
+        public System.Collections.Generic.List<BlurZone> Zones = new System.Collections.Generic.List<BlurZone>();
+
         public SubStyle Clone()
         {
-            return (SubStyle)MemberwiseClone();
+            SubStyle s = (SubStyle)MemberwiseClone();
+            // עותק אמיתי של הרשימה - אחרת עריכה בחלון שבוטלה הייתה משנה את המקור
+            s.Zones = new System.Collections.Generic.List<BlurZone>();
+            foreach (BlurZone z in Zones) s.Zones.Add(z.Clone());
+            return s;
         }
 
         /// <summary>עוצמת הטשטוש בפיקסלים של תמונה בגובה <paramref name="h"/>.</summary>
@@ -60,6 +68,19 @@ namespace SubtitleStudio
         /// כשאין. ״רק כשיש כתובית״ - ``enable`` עם ``between`` לכל רצף של כתוביות (<paramref name="cues"/> כבר בזמני הקובץ שיוצא). השרשרת
         /// נכתבת לקובץ (``-/vf``) - בסרט של אלפי כתוביות היא ארוכה משורת פקודה של ווינדוס. נבדק במנוע: האזור מטושטש רק בזמנים האלה.</summary>
         internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues)
+        {
+            return BlurGraph(w, h, cues, 0);
+        }
+
+        /// <summary>כמו למעלה, ועוד אזורי הצנזורה (`Zones`), כל אחד בזמנים שלו - מוזזים ב-<paramref name="shiftMs"/> כשנצרב רק קטע.</summary>
+        internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues, long shiftMs)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(SubtitleBlurGraph(w, h, cues));
+            for (int i = 0; i < Zones.Count; i++) sb.Append(Zones[i].Graph(w, h, shiftMs, "z" + i));
+            return sb.ToString();
+        }
+
+        private string SubtitleBlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues)
         {
             if (!BlurOn) return "";
             Rectangle px = BlurPixels(w, h);
@@ -449,6 +470,67 @@ namespace SubtitleStudio
         public string Describe()
         {
             return FontName + " · " + FontPct.ToString("0.#") + "%" + (Bold ? Lang.T(" · מודגש") : "") + (OpaqueBox ? Lang.T(" · רקע") : "");
+        }
+    }
+
+    /// <summary>**אזור טשטוש / צנזורה** (0.8.34, WORKPLAN 2כט): מלבן יחסי בתמונה, מ-עד (או כל הסרט), ומראה - טשטוש, פיקסלים, או כיסוי
+    /// שחור; מלבן או עיגול. הרעיונות מ-MooviMaker (``Models\BlurArea.cs``); הציור שלנו - ב-ffmpeg, בשרשרת של הצריבה.</summary>
+    internal class BlurZone
+    {
+        public const int Blur = 0, Pixels = 1, Black = 2;
+
+        public RectangleF Area = new RectangleF(0.35f, 0.3f, 0.3f, 0.3f);
+        /// <summary>מתי, בזמני הסרט. ‏-1 = מההתחלה / עד הסוף.</summary>
+        public long FromMs = -1, ToMs = -1;
+        public int Look = Blur;
+        /// <summary>עוצמה לטשטוש ולפיקסלים (5-100), כמו `SubStyle.BlurPct`.</summary>
+        public int Pct = 60;
+        public bool Ellipse;
+
+        public BlurZone Clone() { return (BlurZone)MemberwiseClone(); }
+
+        public bool ActiveAt(long ms) { return (FromMs < 0 || ms >= FromMs) && (ToMs < 0 || ms < ToMs); }
+
+        /// <summary>האזור בפיקסלים - זוגי ובתוך התמונה; ריק כשקטן מ-8 (כמו `SubStyle.BlurPixels`).</summary>
+        internal Rectangle Pixels_(int w, int h)
+        {
+            RectangleF a = Area;
+            int x = Math.Max(0, (int)Math.Round(a.X * w)) & ~1, y = Math.Max(0, (int)Math.Round(a.Y * h)) & ~1;
+            int r = Math.Min(w, (int)Math.Round((a.X + a.Width) * w)), b = Math.Min(h, (int)Math.Round((a.Y + a.Height) * h));
+            int ww = (r - x) & ~1, hh = (b - y) & ~1;
+            return ww < 8 || hh < 8 ? Rectangle.Empty : new Rectangle(x, y, ww, hh);
+        }
+
+        /// <summary>גודל משבצת הפיקסלים: בעוצמה 60 בסרט של 1080 - בערך 37 פיקסלים.</summary>
+        internal int Block(int h) { return Math.Max(4, (int)Math.Round(h * (0.01 + 0.04 * Pct / 100.0))); }
+
+        /// <summary>קטע בשרשרת: ``split`` ← ``crop`` ← המראה ← (עיגול: שקיפות מחוץ לאליפסה) ← ``overlay`` עם ``enable`` לפי הזמן. ריק כשהאזור
+        /// קטן מדי, או כשכולו לפני הקטע שנצרב (<paramref name="shiftMs"/>).</summary>
+        internal string Graph(int w, int h, long shiftMs, string tag)
+        {
+            Rectangle px = Pixels_(w, h);
+            if (px.IsEmpty) return "";
+            long a = FromMs < 0 ? -1 : FromMs - shiftMs, b = ToMs < 0 ? -1 : ToMs - shiftMs;
+            if (b >= 0 && b <= 0) return "";
+            if (a >= 0 && b >= 0 && b <= a) return "";
+            string look;
+            if (Look == Black) look = "drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill";
+            else if (Look == Pixels)
+            {
+                int k = Block(h);
+                int sw = Math.Max(1, px.Width / k), sh = Math.Max(1, px.Height / k);
+                look = string.Format(CultureInfo.InvariantCulture, "scale={0}:{1}:flags=area,scale={2}:{3}:flags=neighbor", sw, sh, px.Width, px.Height);
+            }
+            else look = "format=gbrp,gblur=sigma=" + Math.Max(0.5, Pct / 100.0 * h * 0.03).ToString("0.##", CultureInfo.InvariantCulture) + ":steps=2";
+            if (Ellipse)
+                look += ",format=gbrap,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(pow((X-W/2)/(W/2),2)+pow((Y-H/2)/(H/2),2),1),255,0)'";
+            string enable = "";
+            if (a > 0 || b >= 0)
+                enable = string.Format(CultureInfo.InvariantCulture, ":enable='between(t,{0:0.###},{1:0.###})'",
+                    Math.Max(0, a) / 1000.0, b >= 0 ? b / 1000.0 : 1e7);
+            return string.Format(CultureInfo.InvariantCulture,
+                "split[{6}_a][{6}_b];[{6}_b]crop={0}:{1}:{2}:{3},{4}[{6}_l];[{6}_a][{6}_l]overlay={2}:{3}{5},",
+                px.Width, px.Height, px.X, px.Y, look, enable, tag);
         }
     }
 }

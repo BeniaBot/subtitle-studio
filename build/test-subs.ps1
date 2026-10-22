@@ -227,6 +227,27 @@ $eOn = [SubsMad]::Mad($on, $bsrc, $inner); $eOff = [SubsMad]::Mad($off, $bsrc2, 
 Rep 'blur only with a subtitle: blurred at 1.5s (subtitle 1-2s), untouched at 2.6s' ($eOn -gt 8 -and $eOff -lt 2) ("{0:0.0} / {1:0.0}" -f $eOn, $eOff)
 foreach ($b in @($burnA, $prev, $on, $off, $bsrc, $bsrc2)) { $b.Dispose() }
 
+# ---- אזורי צנזורה לפי זמן (0.8.34, ‏2כט): כל אזור משנה את התמונה רק בזמן שלו, והעיגול לא נוגע בפינות של המלבן ----
+$zT = TY 'BlurZone'
+function Zone($x, $y, $w, $h, $from, $to, $look, $ell) { $z = [Activator]::CreateInstance($zT); $z.Area = New-Object Drawing.RectangleF $x, $y, $w, $h; $z.FromMs = [long]$from; $z.ToMs = [long]$to; $z.Look = $look; $z.Ellipse = $ell; return $z }
+$zs = [Activator]::CreateInstance((TY 'SubStyle'))
+$zs.Zones.Add((Zone 0.1 0.1 0.3 0.3 1000 2000 0 $false)); $zs.Zones.Add((Zone 0.6 0.55 0.3 0.4 -1 -1 2 $true)); $zs.Zones.Add((Zone 0.1 0.6 0.3 0.3 2500 -1 1 $false))
+$zAss = 'zones.ass'; [IO.File]::WriteAllText((Join-Path $dir $zAss), "[Script Info]`r`nScriptType: v4.00+`r`n", (New-Object Text.UTF8Encoding $true))
+$zArgs = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $zs.psobject.BaseObject, [int]640, [int]360, [int64]0, $zAss, [string]$dir, [string]''))
+function ZFrame($at, $name, [bool]$src) {
+    Push-Location $dir
+    $vf = if ($src) { '' } else { $zArgs }
+    $cmd = "-hide_banner -loglevel error -y -f lavfi -i testsrc2=s=640x360:d=4:r=10 " + $vf + "-ss $at -frames:v 1 $name.png"
+    $p = Start-Process $ffx -ArgumentList $cmd -NoNewWindow -Wait -PassThru; Pop-Location
+    $raw = [Drawing.Image]::FromFile((Join-Path $dir "$name.png")); $b = New-Object Drawing.Bitmap $raw; $raw.Dispose(); return $b
+}
+$s15 = ZFrame 1.5 'z-src15' $true; $b15 = ZFrame 1.5 'z-b15' $false; $s30 = ZFrame 3.0 'z-src30' $true; $b30 = ZFrame 3.0 'z-b30' $false
+$rA = New-Object Drawing.Rectangle 70, 42, 180, 100; $rC = New-Object Drawing.Rectangle 70, 222, 180, 100
+$bc = $b15.GetPixel(480, 270); $corner = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 386, 200, 10, 10))
+$zA15 = [SubsMad]::Mad($b15, $s15, $rA); $zA30 = [SubsMad]::Mad($b30, $s30, $rA); $zC15 = [SubsMad]::Mad($b15, $s15, $rC); $zC30 = [SubsMad]::Mad($b30, $s30, $rC)
+Rep 'censor zones: each only in its time (blur 1-2s, pixels from 2.5s), black circle covers the centre and leaves the corners' ($zA15 -gt 4 -and $zA30 -lt 2 -and $zC15 -lt 2 -and $zC30 -gt 8 -and ($bc.R + $bc.G + $bc.B) -lt 30 -and $corner -lt 2) ("blur {0:0.0}/{1:0.0}  pixels {2:0.0}/{3:0.0}  centre rgb {4} corner {5:0.0}" -f $zA15, $zA30, $zC15, $zC30, ($bc.R + $bc.G + $bc.B), $corner)
+foreach ($b in @($s15, $b15, $s30, $b30)) { $b.Dispose() }
+
 # גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו
 $hh = (TY 'Fonts').GetMethod('HasHebrew', $ST)
 $sdlg = [Activator]::CreateInstance((TY 'StyleDlg'), @([Activator]::CreateInstance((TY 'SubStyle')), $null, $true))

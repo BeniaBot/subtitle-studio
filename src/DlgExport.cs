@@ -108,7 +108,7 @@ namespace SubtitleStudio
         public static string VideoFilterArgs(List<Cue> cues, SubStyle st, int vw, int vh, long shiftMs, string assName, string dir, string after)
         {
             string tail = string.IsNullOrEmpty(after) ? "" : "," + after;
-            string blur = st != null ? st.BlurGraph(vw, vh, Shifted(cues, shiftMs)) : "";
+            string blur = st != null ? st.BlurGraph(vw, vh, Shifted(cues, shiftMs), shiftMs) : "";
             if (blur.Length == 0) return "-vf \"subtitles=" + assName + tail + "\" ";
             string vfName = Path.GetFileNameWithoutExtension(assName) + "_vf.txt";
             File.WriteAllText(Path.Combine(dir, vfName), blur + "subtitles=" + assName + tail, new UTF8Encoding(false));
