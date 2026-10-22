@@ -852,19 +852,40 @@ namespace SubtitleStudio
             };
             t.Add(gif);
 
+            // יציב: ‏List.Sort לא שומר על הסדר של שווים, ועד 0.8.34 ההשוואה החזירה 0 לכל שני כלים מאותה קבוצה
+            List<MediaTool> orig = new List<MediaTool>(t);
             t.Sort(delegate (MediaTool a, MediaTool b)
             {
                 int ra = Rank(a.Group), rb = Rank(b.Group);
-                return ra != rb ? ra.CompareTo(rb) : 0;
+                if (ra != rb) return ra.CompareTo(rb);
+                int oa = OrderOf(a), ob = OrderOf(b);
+                return oa != ob ? oa.CompareTo(ob) : orig.IndexOf(a).CompareTo(orig.IndexOf(b));
             });
             return t;
         }
 
+        /// <summary>**הסדר בחלון: מה שמחפשים קודם, ראשון** (0.8.34). עד אז ״קול״ ראשון ו״החלפת הפסקול״ בראש הרשימה, ו״וואטסאפ״ ו״דחיסה״
+        /// בתחתית, אחרי גלילה. לשיתוף ← וידאו (דחיסה והמרה קודם) ← קול (חילוץ הפסקול קודם).</summary>
         private static int Rank(string g)
         {
-            if (g == Lang.T("קול")) return 0;
+            if (g == Lang.T("לשיתוף")) return 0;
             if (g == Lang.T("וידאו")) return 1;
             return 2;
+        }
+
+        private static readonly string[] Order =
+        {
+            "הכנה לשליחה בוואטסאפ", "התאמה לגודל קובץ מבוקש", "יצירת GIF מהקטע המסומן", "שמירת התמונה שעל המסך",
+            "דחיסה - הקטנת נפח הקובץ", "המרת פורמט", "שינוי רזולוציה", "סיבוב הווידאו", "שינוי מהירות", "דהייה בהתחלה ובסוף",
+            "חיבור שני סרטים", "היפוך לאחור (ריוורס)",
+            "חילוץ הפסקול לקובץ אודיו", "שינוי עוצמת השמע", "ניקוי רעש רקע מהקול", "איזון עוצמה אוטומטי", "החלפת הפסקול",
+            "בחירת ערוץ שמע", "הסרת הקול מהסרט"
+        };
+
+        private static int OrderOf(MediaTool m)
+        {
+            for (int i = 0; i < Order.Length; i++) if (m.Name == Lang.T(Order[i])) return i;
+            return Order.Length;
         }
     }
 
