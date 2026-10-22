@@ -14,6 +14,16 @@
           "t": "feature",
           "s": "דגם נוסף של גוגל ברשימה (Gemini 3.6 Flash) - עוד מכסה יומית חינמית",
           "en": "Another Google model in the list (Gemini 3.6 Flash) - more free daily quota"
+        },
+        {
+          "t": "fix",
+          "s": "אזורי טשטוש כבר לא אובדים: ביציאה נשאל ״לשמור כפרויקט?״ גם בלי כתוביות, ו״שמירה״ שומרת אותם",
+          "en": "Blur areas are no longer lost: on exit you are asked to save a project even without subtitles, and Save keeps them"
+        },
+        {
+          "t": "feature",
+          "s": "״כל אזורי הפנים״ בקליק ימני: מראה אחד לכולם, או מחיקה של כולם",
+          "en": "'All face areas' on right-click: one look for all of them, or delete them all"
         }
       ]
     },
