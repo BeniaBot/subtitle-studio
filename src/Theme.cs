@@ -415,6 +415,14 @@ namespace SubtitleStudio
         public static void Num(Graphics g, string s, Font f, Color c, RectangleF r, StringAlignment align, int dimFrom, Color dim)
         {
             if (string.IsNullOrEmpty(s)) return;
+            // **יחידה בעברית** (0.8.34): ״1 שנ׳״ בפס של ״דהייה״ צויר אות-אות משמאל לימין - ״'נש 1״. טקסט עם אותיות עבריות
+            // נכתב כמו כל טקסט, מימין לשמאל, באותו צד (`align` הוא הצד על המסך)
+            if (HasRtl(s))
+            {
+                StringFormat sf = align == StringAlignment.Near ? _sfRtlEnd : align == StringAlignment.Far ? _sfRtl : _sfCenter;
+                Str(g, s, f, c, r, sf);
+                return;
+            }
             float dw = DigitWidth(f);
             float[] w = new float[s.Length];
             float total = 0;

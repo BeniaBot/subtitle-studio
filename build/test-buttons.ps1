@@ -255,6 +255,24 @@ Check 'כפתור המהירות: כל מהירות נכנסת' ($cut.Count -eq 
 $n = @($all | Where-Object Centered).Count
 Check 'רוב הכפתורים ממורכזים, והמיושרים לימין הם רשימות' ($n -ge 60) ("ממורכזים: $n, כרטיסים: " + @($all | Where-Object Card).Count + ", אייקון: " + @($all | Where-Object IconOnly).Count)
 
+# יחידה בעברית ליד מספר בפס (״1 שנ׳״ בדהייה) - עד 0.8.34 צויר אות-אות משמאל לימין: ״'נש 1״. מודדים איפה יוצאת האות
+$numM = (TY 'Theme').GetMethod('Num', $ST, $null, [Type[]]@([Drawing.Graphics], [string], [Drawing.Font], [Drawing.Color], [Drawing.RectangleF], [Drawing.StringAlignment]), $null)
+$bigF = New-Object Drawing.Font 'Arial', 40
+function InkCols([string]$s) {
+    $b = New-Object Drawing.Bitmap 400, 80; $g = [Drawing.Graphics]::FromImage($b); $g.Clear([Drawing.Color]::Black)
+    $a = New-Object object[] 6; $a[0] = $g; $a[1] = $s; $a[2] = $bigF.psobject.BaseObject; $a[3] = [Drawing.Color]::White
+    $a[4] = (New-Object Drawing.RectangleF 10, 5, 380, 70).psobject.BaseObject; $a[5] = [Drawing.StringAlignment]::Center
+    [void]$numM.Invoke($null, $a); $g.Dispose()
+    $xs = New-Object Collections.ArrayList
+    for ($x = 0; $x -lt 400; $x++) { for ($y = 0; $y -lt 80; $y++) { if ($b.GetPixel($x, $y).R -gt 100) { [void]$xs.Add($x); break } } }
+    $b.Dispose(); return ,$xs
+}
+$xsU = InkCols '1 א'; $xs1 = InkCols '1'; $xsA = InkCols 'א'
+$wOne = $xs1[$xs1.Count - 1] - $xs1[0]; $wAlef = $xsA[$xsA.Count - 1] - $xsA[0]
+$cutAt = 1; while ($cutAt -lt $xsU.Count -and $xsU[$cutAt] - $xsU[$cutAt - 1] -le 3) { $cutAt++ }
+$leftW = $xsU[$cutAt - 1] - $xsU[0]
+Check 'מספר עם יחידה בעברית (״1 שנ׳״) נקרא מימין לשמאל - האות משמאל למספר' ([Math]::Abs($leftW - $wAlef) -lt [Math]::Abs($leftW - $wOne)) ("left block $leftW, alef $wAlef, 1 $wOne")
+
 $main.Dispose()
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
