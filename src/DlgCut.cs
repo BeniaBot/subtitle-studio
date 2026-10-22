@@ -718,10 +718,10 @@ namespace SubtitleStudio
                 sy = _pic.Bottom + s8;
             }
             _split = SideToggle(Lang.T("כל קטע לקובץ נפרד"), sy, sideW); sy += Theme.S(30);
-            _fast = SideToggle(Lang.T("חיתוך מהיר, בלי קידוד מחדש"), sy, sideW); sy += Theme.S(30);
+            _fast = SideToggle(Lang.T("חיתוך מהיר, בלי פגיעה באיכות"), sy, sideW); sy += Theme.S(30);
             _fast.Checked = true;
             _fast.Visible = !_audio;
-            Ui.Tip.SetToolTip(_fast, Lang.T("מהיר ובלי פגיעה באיכות, אבל כל קטע מתחיל בפריים מפתח - לפעמים שנייה-שתיים לפני. לדיוק מלא - לכבות."));
+            Ui.Tip.SetToolTip(_fast, Lang.T("מהיר ובלי פגיעה באיכות, אבל קטע יכול להתחיל שנייה-שתיים לפני הסימון. לדיוק מלא - לכבות (לוקח יותר זמן)."));
             // **הכתוביות הולכות עם הקובץ.** עד 0.8.6 ״לעדכן גם את הכתוביות״ הזיז אותן לזמנים של הקובץ החתוך, אבל
             // העורך נשאר על המקורי - ושמירה כתבה ליד הסרט המקורי כתוביות שלא מתאימות לו.
             _hasCues = doc != null && doc.Cues.Count > 0;
@@ -742,7 +742,7 @@ namespace SubtitleStudio
             // לצידו: כמה מוקדם יתחיל קטע בחיתוך מהיר (פריים המפתח שלפניו, נמדד ברקע) - כמו בחלון הישן
             _kfNote = new Lbl(); _kfNote.Font = Theme.Small; _kfNote.Color = Theme.Warn; _kfNote.Align = StringAlignment.Far;
             _kfNote.SetBounds(Pad, bottom, W - sumW - s10, Theme.S(24));
-            Ui.Tip.SetToolTip(_kfNote, Lang.T("בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״."));
+            Ui.Tip.SetToolTip(_kfNote, Lang.T("חיתוך מהיר יכול להתחיל רק בנקודות מסוימות בסרט. לדיוק מלא - לכבות את ״חיתוך מהיר״."));
             Controls.Add(_kfNote);
             Y = _summary.Bottom + Theme.S(4);
             Buttons(Lang.T("לחתוך ולשמור"), Ico.Scissors, Lang.T("סגירה"));
@@ -777,7 +777,7 @@ namespace SubtitleStudio
             switch (CutPlan.AudioWay(mi))
             {
                 case CutPlan.AudioCut.Copy:
-                    return Lang.T("קובץ קול: נחתך בלי קידוד מחדש, בלי שום פגיעה באיכות, ונשמר באותו פורמט.");
+                    return Lang.T("קובץ קול: נחתך מהר, בלי שום פגיעה באיכות, ונשמר באותו פורמט.");
                 case CutPlan.AudioCut.Lossless:
                     CutPlan.AudioCodecArgs(mi, out ext);
                     return string.Equals(Path.GetExtension(mi.Path), ext, StringComparison.OrdinalIgnoreCase)
@@ -786,8 +786,8 @@ namespace SubtitleStudio
                 default:
                     CutPlan.AudioCodecArgs(mi, out ext);
                     return string.Equals(Path.GetExtension(mi.Path), ext, StringComparison.OrdinalIgnoreCase)
-                        ? Lang.F("קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש - באיכות גבוהה, באותו פורמט.", name)
-                        : Lang.F("קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.",
+                        ? Lang.F("קובץ {0}: כדי לחתוך את הפורמט הזה בדיוק, הקול נשמר מחדש - באיכות גבוהה, באותו פורמט.", name)
+                        : Lang.F("קובץ {0}: כדי לחתוך את הפורמט הזה בדיוק, הקול נשמר מחדש באיכות גבוהה, כ-{1}.",
                                  name, Theme.Ltr(ext.TrimStart('.').ToUpperInvariant()));
             }
         }
@@ -1359,9 +1359,9 @@ namespace SubtitleStudio
             if (DateTime.UtcNow > _flashUntil)
             {
                 List<long[]> kept = CutPlan.Kept(_secs, _mi.DurationMs);
-                string how = CutPlan.Copies(_mi, _fast.Checked) ? Lang.T("בלי קידוד מחדש")
+                string how = CutPlan.Copies(_mi, _fast.Checked) ? Lang.T("בלי פגיעה באיכות")
                     : _audio && CutPlan.AudioWay(_mi) == CutPlan.AudioCut.Lossless ? Lang.T("מדויק, בלי אובדן איכות")
-                    : Lang.T("עם קידוד מחדש - מדויק");
+                    : Lang.T("מדויק, לוקח יותר זמן");
                 _summary.Text = _secs.Count == 0 ? Lang.T("קודם מסמנים קטע.")
                     : split ? Lang.F("{0} קבצים  ·  {1}", Theme.Ltr(CutPlan.SplitItems(_secs).Count.ToString(CultureInfo.InvariantCulture)), how)
                     : Lang.F("אורך התוצאה: {0}  ·  {1}", Theme.Ltr(Precise(CutPlan.Total(kept))), how);

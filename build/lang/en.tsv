@@ -286,16 +286,16 @@ he	en
 אורך	Length
 אין קטעים. גוררים על פס הקול, או ״להוסיף קטע״.	No sections. Drag on the waveform, or “Add a section”.
 להוסיף קטע	Add a section
-קובץ קול: נחתך בלי קידוד מחדש, בלי שום פגיעה באיכות, ונשמר באותו פורמט.	Audio file: cut without re-encoding, with no loss of quality, and saved in the same format.
+קובץ קול: נחתך מהר, בלי שום פגיעה באיכות, ונשמר באותו פורמט.	Audio file: cut quickly, with no loss of quality, and saved in the same format.
 כל קטע לקובץ נפרד	Each section to its own file
-חיתוך מהיר, בלי קידוד מחדש	Fast cut, no re-encoding
-מהיר ובלי פגיעה באיכות, אבל כל קטע מתחיל בפריים מפתח - לפעמים שנייה-שתיים לפני. לדיוק מלא - לכבות.	Fast and lossless, but each section starts at a key frame - sometimes a second or two earlier. For full accuracy, turn it off.
+חיתוך מהיר, בלי פגיעה באיכות	Fast cut, no quality loss
+מהיר ובלי פגיעה באיכות, אבל קטע יכול להתחיל שנייה-שתיים לפני הסימון. לדיוק מלא - לכבות (לוקח יותר זמן).	Fast and lossless, but a section may start a second or two before your mark. For full accuracy, turn it off (takes longer).
 לחתוך ולשמור	Cut and save
 הזמן ארוך מהקובץ - נקבע לסוף.	That's past the end of the file - set to the end.
 יישמר	Keep
 יוסר	Remove
-בלי קידוד מחדש	no re-encoding
-עם קידוד מחדש - מדויק	re-encoded - exact
+בלי פגיעה באיכות	no quality loss
+מדויק, לוקח יותר זמן	exact, takes longer
 קודם מסמנים קטע.	Mark a section first.
 {0} קבצים  ·  {1}	{0} files  ·  {1}
 אורך התוצאה: {0}  ·  {1}	Result length: {0}  ·  {1}
@@ -314,10 +314,10 @@ he	en
 {0}\nכבר קיים. להחליף אותו?	{0}\nalready exists. Replace it?
 קובץ {0}: נחתך בדיוק, בלי שום אובדן איכות, ונשמר באותו פורמט.	{0} file: cut exactly, with no loss of quality, and saved in the same format.
 קובץ {0}: נחתך בדיוק, בלי שום אובדן איכות, ונשמר כ-FLAC.	{0} file: cut exactly, with no loss of quality, and saved as FLAC.
-קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש - באיכות גבוהה, באותו פורמט.	{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded - in high quality, in the same format.
-קובץ {0}: בפורמט הזה חיתוך בלי קידוד לא יוצא מדויק, אז הוא מקודד מחדש באיכות גבוהה, ונשמר כ-{1}.	{0} file: cutting this format without re-encoding isn't exact, so it's re-encoded in high quality and saved as {1}.
+קובץ {0}: כדי לחתוך את הפורמט הזה בדיוק, הקול נשמר מחדש - באיכות גבוהה, באותו פורמט.	{0} file: to cut this format exactly, the audio is saved anew - in high quality, in the same format.
+קובץ {0}: כדי לחתוך את הפורמט הזה בדיוק, הקול נשמר מחדש באיכות גבוהה, כ-{1}.	{0} file: to cut this format exactly, the audio is saved anew in high quality, as {1}.
 מדויק, בלי אובדן איכות	exact, no loss of quality
-בלי קידוד מחדש אפשר להתחיל רק מפריים מפתח. לדיוק מלא - לכבות את ״חיתוך מהיר״.	Without re-encoding a cut can only start at a key frame. For full accuracy, turn off “Fast cut”.
+חיתוך מהיר יכול להתחיל רק בנקודות מסוימות בסרט. לדיוק מלא - לכבות את ״חיתוך מהיר״.	A fast cut can only start at certain points in the video. For full accuracy, turn off “Fast cut”.
 חיתוך מהיר: קטע יתחיל עד {0} שניות לפני הסימון	Fast cut: a section will start up to {0} seconds before the mark
 ההתחלה = איפה שהנגן עומד עכשיו (הקו האדום)	Start = where the player is now (the red line)
 הסוף = איפה שהנגן עומד עכשיו (הקו האדום)	End = where the player is now (the red line)
