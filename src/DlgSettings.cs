@@ -36,7 +36,7 @@ namespace SubtitleStudio
         private Combo _lang;
         /// <summary>המשתמש בחר שפה אחרת וביקש להפעיל מחדש. ‏MainForm מפעיל מחדש אחרי שהחלון נסגר.</summary>
         public bool RestartWanted;
-        private Btn _google, _perms, _groq, _getDict, _delEngine, _delDict;
+        private Btn _google, _perms, _groq, _getDict, _delEngine, _delDict, _dict;
         private Lbl _spellLine, _engineLine, _dictLine;
 
         public SettingsDlg(MainForm main) : base(Lang.T("הגדרות"), Ico.Gear, 580)
@@ -111,6 +111,20 @@ namespace SubtitleStudio
             _spellOn.Checked = Spell.Enabled;
             _spellOn.CheckedChanged += delegate { SpellSwitch(); };
             Row(_spellOn, 30, 4);
+
+            // **״המילון שלי״ (0.8.34)** בשורת המתג, כמו ״בדיקה עכשיו״ ליד העדכונים - החלון כבר 685 מתוך 693, ושורה משלו לא נכנסת.
+            // רוחב קבוע (לפי ארבע ספרות), כדי שהמתג לא יזוז כשהמספר משתנה
+            _dict = Small(Lang.F("המילון שלי · {0}", Theme.Ltr("8888")), Ico.List);
+            int dw = Math.Max(Theme.S(150), _dict.NeedWidth());
+            _dict.SetBounds(Pad, _spellOn.Top, dw, Theme.S(30));
+            _spellOn.SetBounds(Pad + dw + Theme.S(12), _spellOn.Top, ContentW - dw - Theme.S(12), _spellOn.Height);
+            _dict.Click += delegate
+            {
+                if (_main != null) _main.OpenDictionary(this);
+                else { DictDlg d = new DictDlg(); d.ShowDialog(this); d.Dispose(); }
+                Refresh2();
+            };
+            Controls.Add(_dict);
 
             _spellLine = Hint("");
             Row(_spellLine, 22, 6);
@@ -246,6 +260,9 @@ namespace SubtitleStudio
             _spellLine.Color = has ? Theme.TextFaint : Theme.Warn;
             _spellLine.Invalidate();
             _getDict.Visible = !has;
+            int mine = Spell.UserWords().Count;
+            _dict.Text = mine == 0 ? Lang.T("המילון שלי") : Lang.F("המילון שלי · {0}", Theme.Ltr(mine.ToString()));
+            _dict.Invalidate();
 
             _engineLine.Text = EngineLine();
             _delEngine.Visible = Ff.IsOwnEngine;

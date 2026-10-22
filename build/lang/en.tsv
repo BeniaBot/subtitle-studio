@@ -1737,3 +1737,43 @@ blur_area: ארבעה מספרים באחוזים - x,y,רוחב,גובה	blur_a
 אפשר לתקן רק את הכתוביות שמתחילות בתוכו, או את כולן.	You can fix only the subtitles that start inside it, or all of them.
 בקטע המסומן אין כתוביות	There are no subtitles in the marked section
 להקטין ל-1080p - מהיר פי 3 בערך, וקובץ קטן בהרבה	Shrink to 1080p - about 3× faster, and a much smaller file
+״{0}״ כבר במילון האישי	"{0}" is already in the personal dictionary
+״{0}״ לא במילון האישי	"{0}" is not in the personal dictionary
+״{0}״ הוצאה מהמילון האישי, ותסומן שוב אם היא לא במילון הרגיל	"{0}" was removed from the personal dictionary, and will be flagged again unless the main dictionary knows it
+המילון שלי	My dictionary
+חיפוש, או מילה חדשה להוספה	Search, or a new word to add
+הוספה	Add
+ייבוא…	Import…
+ייצוא…	Export…
+המילון של בדיקת האיות עוד לא הורד. המילים כאן נשמרות, ויפעלו כשהבדיקה תעבוד.	The spell check dictionary is not downloaded yet. The words here are kept, and will apply once spell check works.
+בדיקת האיות כבויה. המילים כאן נשמרות, ויפעלו כשתדליקו אותה.	Spell check is off. The words here are kept, and will apply once you turn it on.
+מילים שבדיקת האיות תקבל כנכונות	Words the spell check will accept as correct
+מילה אחת שבדיקת האיות מקבלת כנכונה	One word the spell check accepts as correct
+{0} מילים שבדיקת האיות מקבלת כנכונות	{0} words the spell check accepts as correct
+עוד אין כאן מילים.\nמקלידים מילה למעלה ולוחצים Enter - או בקליק ימני על מילה מסומנת ברשימת הכתוביות, ״להוסיף למילון״.	No words here yet.\nType a word above and press Enter - or right-click a flagged word in the subtitle list, "Add to dictionary".
+״{0}״ לא במילון.\nEnter מוסיף אותה.	"{0}" is not in the dictionary.\nEnter adds it.
+מקלידים מילה בשדה ולוחצים Enter.	Type a word in the box and press Enter.
+רק מילים בעברית נבדקות באיות - ״{0}״ לא צריכה להיכנס למילון.	Only Hebrew words are spell-checked - "{0}" does not need to be in the dictionary.
+״{0}״ כבר במילון.	"{0}" is already in the dictionary.
+כל המילים האלה כבר במילון.	All these words are already in the dictionary.
+״{0}״ נוספה. מעכשיו היא לא תסומן כשגיאה.	"{0}" was added. From now on it will not be flagged.
+נוספו {0} מילים.	{0} words were added.
+לא הצלחתי להוציא את ״{0}״ - הקובץ לא נשמר.	Could not remove "{0}" - the file was not saved.
+״{0}״ הוצאה מהמילון.	"{0}" was removed from the dictionary.
+״{0}״ חזרה למילון.	"{0}" is back in the dictionary.
+קובצי טקסט|*.txt|כל הקבצים|*.*	Text files|*.txt|All files|*.*
+ייבוא מילים למילון	Import words into the dictionary
+לא נמצאו בקובץ מילים בעברית.	No Hebrew words were found in the file.
+כל המילים שבקובץ כבר במילון.	All the words in the file are already in the dictionary.
+נוספו {0} מילים ({1} כבר היו).	{0} words were added ({1} were already there).
+הייבוא נכשל	Import failed
+אין עדיין מילים לייצא.	There are no words to export yet.
+ייצוא המילון	Export the dictionary
+נשמר: {0} · {1}	Saved: {0} · {1}
+מילה אחת	one word
+{0} מילים	{0} words
+הייצוא נכשל	Export failed
+המילון שלי · {0}	My dictionary · {0}
+המילים שבדיקת האיות מקבלת - חיפוש, הוספה והוצאה	Words the spell check accepts - search, add and remove
+לא הצלחתי לשמור את המילון	Could not save the dictionary
+להחזיר למילון	Put it back

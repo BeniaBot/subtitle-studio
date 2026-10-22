@@ -261,13 +261,14 @@ namespace SubtitleStudio
             return sb.ToString();
         }
 
-        /// <summary>מוסיף למילון האישי, בזיכרון ובקובץ.</summary>
-        public static void AddWord(string word)
+        /// <summary>מוסיף למילון האישי, בזיכרון ובקובץ. ‏false - ריקה, או כבר שם (עד 0.8.34 כל הוספה נכתבה שוב לקובץ).</summary>
+        public static bool AddWord(string word)
         {
             string w = SpellEngine.Normalize((word ?? "").Trim());
-            if (w.Length == 0) return;
+            if (w.Length == 0) return false;
             SpellEngine e = _engine;
             if (e != null) e.AddUserWord(w);
+            if (UserWords().Contains(w)) return false;
             try
             {
                 string dir = Path.GetDirectoryName(UserFile);
@@ -276,6 +277,97 @@ namespace SubtitleStudio
             }
             catch (Exception ex) { Ai.Log("שמירת מילה למילון האישי נכשלה: " + ex.Message); }
             Interlocked.Increment(ref _generation);
+            return true;
+        }
+
+        // ---------- ״המילון שלי״ (0.8.34) ----------
+
+        /// <summary>המילים שהמשתמש הוסיף: מנורמלות, בלי כפילויות, לפי הא״ב. מהקובץ - גם כשהמילון הגדול לא מותקן או כבוי.</summary>
+        public static List<string> UserWords()
+        {
+            List<string> r = new List<string>();
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string l in ReadUserWords())
+            {
+                string w = SpellEngine.Normalize(l);
+                if (w.Length > 0 && seen.Add(w)) r.Add(w);
+            }
+            r.Sort(StringComparer.Ordinal);
+            return r;
+        }
+
+        /// <summary>מוציא מהמילון האישי: מהקובץ (נכתב מחדש) ומהזיכרון. ‏false - לא הייתה שם, או שהקובץ לא נכתב.</summary>
+        public static bool RemoveWord(string word)
+        {
+            string w = SpellEngine.Normalize((word ?? "").Trim());
+            List<string> all = UserWords();
+            if (!all.Remove(w)) return false;
+            if (!WriteUserWords(all)) return false;
+            SpellEngine e = _engine;
+            if (e != null) e.RemoveUserWord(w);
+            Interlocked.Increment(ref _generation);
+            return true;
+        }
+
+        /// <summary>המילים בעברית שבטקסט - מה שבדיקת האיות בודקת. ״Hello״ ו-״2024״ לא נבדקים, ואין טעם להוסיף אותם.</summary>
+        public static List<string> HebrewWords(string text)
+        {
+            List<string> r = new List<string>();
+            foreach (SpellEngine.Token t in SpellEngine.Words(text ?? ""))
+            {
+                string w = SpellEngine.Normalize(t.Text);
+                if (w.Length > 0 && !r.Contains(w)) r.Add(w);
+            }
+            return r;
+        }
+
+        /// <summary>ייבוא מקובץ טקסט (מילה בשורה, או סתם טקסט - נלקחות המילים בעברית). מחזיר כמה נוספו; ‏<paramref name="already"/> - כמה כבר היו.</summary>
+        public static int ImportWords(string path, out int already)
+        {
+            already = 0;
+            string enc;
+            string text = Formats.ReadTextSmart(path, out enc);
+            List<string> mine = UserWords();
+            HashSet<string> have = new HashSet<string>(mine, StringComparer.Ordinal);
+            int added = 0;
+            foreach (string w in HebrewWords(text))
+            {
+                if (have.Contains(w)) { already++; continue; }
+                have.Add(w);
+                mine.Add(w);
+                added++;
+            }
+            if (added == 0) return 0;
+            mine.Sort(StringComparer.Ordinal);
+            if (!WriteUserWords(mine)) throw new IOException(Lang.T("לא הצלחתי לשמור את המילון"));
+            SpellEngine e = _engine;
+            if (e != null) foreach (string w in mine) e.AddUserWord(w);
+            Interlocked.Increment(ref _generation);
+            return added;
+        }
+
+        /// <summary>ייצוא - מילה בשורה, לפי הא״ב (UTF-8 עם BOM, שגם פנקס רשימות ישן יקרא).</summary>
+        public static int ExportWords(string path)
+        {
+            List<string> all = UserWords();
+            StringBuilder sb = new StringBuilder();
+            foreach (string w in all) sb.Append(w).Append("\r\n");
+            SafeFile.Write(path, Formats.Concat(new UTF8Encoding(true).GetPreamble(), new UTF8Encoding(false).GetBytes(sb.ToString())));
+            return all.Count;
+        }
+
+        private static bool WriteUserWords(List<string> words)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(UserFile);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                StringBuilder sb = new StringBuilder();
+                foreach (string w in words) sb.Append(w).Append(Environment.NewLine);
+                SafeFile.Write(UserFile, new UTF8Encoding(false).GetBytes(sb.ToString()));
+                return true;
+            }
+            catch (Exception ex) { Ai.Log("שמירת המילון האישי נכשלה: " + ex.Message); return false; }
         }
 
         // ---------- הורדה ----------

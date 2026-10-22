@@ -248,6 +248,7 @@ $dialogs = @(
     @{ n = 'Find';       needsMedia = $false; make = { NewOf 'FindDlg' @([string]'שלום', [int]3) } },
     @{ n = 'Style';      needsMedia = $false; make = { NewOf 'StyleDlg' @($style, $null) } },
     @{ n = 'Settings';   needsMedia = $false; make = { NewOf 'SettingsDlg' @($mainForDlg) } },
+    @{ n = 'Dictionary'; needsMedia = $false; make = { NewOf 'DictDlg' @() } },
     @{ n = 'AiPerms';    needsMedia = $false; make = { NewOf 'AiPermsDlg' @() } },
     @{ n = 'GroqSetup';  needsMedia = $false; make = { NewOf 'GroqSetupDlg' @() } },
     @{ n = 'SpellSetup'; needsMedia = $false; make = { NewOf 'SpellSetupDlg' @() } },

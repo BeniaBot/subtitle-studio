@@ -184,6 +184,15 @@ if ($sd) {
     $sd.Dispose()
 }
 
+# ---------- 9א. ״המילון שלי״ (0.8.34): להוסיף, להציג, להוציא - גם כשהמילון הגדול לא טעון ----------
+$spT2 = TY 'Spell'; $dw = Join-Path $env:TEMP ('ss-asst-words-' + [guid]::NewGuid().ToString('N').Substring(0, 6) + '.txt')
+$spT2.GetField('UserFileOverride', $ST).SetValue($null, [string]$dw)
+$r1 = Call 'add_word_to_dictionary' @{ word = 'קרקפוזיל' }; $r1b = Call 'add_word_to_dictionary' @{ word = 'Hello' }
+$r2 = Call 'list_dictionary_words' @{ contains = 'קרק' }
+$r3 = Call 'remove_word_from_dictionary' @{ word = 'קרקפוזיל' }; $r4 = Call 'remove_word_from_dictionary' @{ word = 'קרקפוזיל' }
+Check 'העוזר: מוסיף מילה (ולועזית - לא), מציג אותה, מוציא, ופעם שנייה - ״לא במילון״' (('' + $r1['done']).Contains('נוספה') -and $r1b['error'] -ne $null -and [int]$r2['total'] -eq 1 -and @($r2['words']).Count -eq 1 -and ('' + $r3['done']).Contains('הוצאה') -and $r4['error'] -ne $null) ("$($r1['done']) | $($r1b['error']) | $($r2['total']) | $($r3['done']) | $($r4['error'])")
+$spT2.GetField('UserFileOverride', $ST).SetValue($null, $null); Remove-Item $dw -ErrorAction SilentlyContinue
+
 # ---------- 10. ״לבטל את מה שעשיתי״ ----------
 $snap = $mfT.GetMethod('AiSnapshot').Invoke($mf, @())
 Check 'בלי שינוי - אין כפתור ביטול' (-not $mfT.GetMethod('AiChangedSince').Invoke($mf, @($snap))) ''

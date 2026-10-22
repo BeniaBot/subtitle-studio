@@ -1243,7 +1243,24 @@ namespace SubtitleStudio
                 items.Add(MenuItem.Make(Lang.T("לשאול את העוזר"), Lang.T("על הכתובית הזו - לתקן, לקצר, להקשיב, לתרגם..."), Ico.Sparkles,
                     delegate { AskAssistant(Lang.F("כתובית {0}: ", n2), false); }));
             }
+            // **״המילון שלי״ (0.8.34)** - בנימין: ״ובלחיצה ימנית על כתובית יהיה גם מעבר למילון״
+            items.Add(MenuItem.Make(Lang.T("המילון שלי"), Lang.T("המילים שבדיקת האיות מקבלת - חיפוש, הוספה והוצאה"), Ico.List,
+                delegate { OpenDictionary(null); }));
             return items;
+        }
+
+        /// <summary>חלון ״המילון שלי״ - מהקליק הימני ומההגדרות. אחרי שינוי - בדיקת השגיאות והקו האדום מתעדכנים.</summary>
+        internal void OpenDictionary(IWin32Window owner)
+        {
+            DictDlg d = new DictDlg();
+            d.ShowDialog(owner ?? this);
+            bool changed = d.Changed;
+            d.Dispose();
+            if (changed)
+            {
+                RefreshQa(true);
+                _list.Invalidate();
+            }
         }
 
         /// <summary>פותח את העוזר עם בקשה מוכנה - לשליחה מיד, או להשלמה במקלדת.</summary>

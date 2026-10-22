@@ -1345,7 +1345,8 @@ namespace SubtitleStudio
             sb.Append("מה ש-fix_timings לא תיקן (למשל כתובית ארוכה מכדי להיכנס בשתי שורות) - הסבר בקצרה מה צריך לעשות בה ביד\n");
             sb.Append("· חיפוש והחלפה, פיצול, איחוד, סידור שורות - replace_text / split_cue / merge_cues / wrap_lines\n");
             sb.Append("· ״יש שגיאות כתיב?״ - check_spelling. **לא לתקן לבד:** הצג את המילים החשודות עם ההצעות, ותקן ");
-            sb.Append("עם fix_spelling רק מה שהמשתמש אישר. מילה שהוא אומר שהיא תקינה (שם, מונח) - add_word_to_dictionary\n");
+            sb.Append("עם fix_spelling רק מה שהמשתמש אישר. מילה שהוא אומר שהיא תקינה (שם, מונח) - add_word_to_dictionary; ");
+            sb.Append("״מה יש במילון שלי?״ - list_dictionary_words; ״תוציא את X מהמילון״ - remove_word_from_dictionary\n");
             sb.Append("· לפתוח קובץ, לשמור, לצרוב את הכתוביות בסרט - open_file / save_subtitles / export_video\n");
             sb.Append("· **לחתוך / ״תכין סרטון רק עם...״ / ״תוריד את...״** - קודם הזמנים (מהכתוביות: find_text; בלי כתוביות: watch_video), ואז ");
             sb.Append("trim_video עם sections (״4:00-5:00 keep; 8:00-9:00 keep״) - בלי mark_range. ״רק עם״ / ״תכין מ...״ = keep; ״בלי״ / ״תוריד״ = remove - ");

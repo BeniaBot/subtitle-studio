@@ -73,6 +73,7 @@ $dialogs = @(
     @{ n = 'Help';        make = { NewOf 'HelpDlg' @() } },
     @{ n = 'About';       make = { NewOf 'AboutDlg' @() } },
     @{ n = 'Settings';    make = { NewOf 'SettingsDlg' @($main) } },
+    @{ n = 'Dictionary';  make = { NewOf 'DictDlg' @() } },
     @{ n = 'AiPerms';     make = { NewOf 'AiPermsDlg' @() } },
     @{ n = 'AiSetup';     make = { NewOf 'AiSetupDlg' @() } },
     @{ n = 'GroqSetup';   make = { NewOf 'GroqSetupDlg' @() } },

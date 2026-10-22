@@ -166,6 +166,10 @@ namespace SubtitleStudio
                 .Req("replacement", "string", "המילה הנכונה"));
             t.Add(new AiTool("add_word_to_dictionary", "מוסיף מילה למילון האישי. מעכשיו היא תיחשב נכונה בכל הכתוביות. **רק כשהמשתמש אומר שהמילה תקינה**")
                 .Req("word", "string", "המילה"));
+            t.Add(new AiTool("list_dictionary_words", "המילים שהמשתמש הוסיף למילון האישי (״המילון שלי״) - לבדוק אם מילה שם, או להראות לו")
+                .P("contains", "string", "רק מילים שמכילות את זה"));
+            t.Add(new AiTool("remove_word_from_dictionary", "מוציא מילה מהמילון האישי - מעכשיו בדיקת האיות תסמן אותה שוב. **רק כשהמשתמש ביקש**")
+                .Req("word", "string", "המילה"));
 
             t.Add(new AiTool("translate_subtitles", "מתרגם את הכתוביות ומחליף אותן במקום - את כולן, או רק קטע (״רק את הדקה הראשונה״, ״מכתובית 10 עד 30״)")
                 .Req("target_language", "string", "שם השפה בעברית, למשל: אנגלית")
@@ -430,6 +434,8 @@ namespace SubtitleStudio
                     case "check_spelling": return AiCheckSpelling();
                     case "fix_spelling": return AiFixSpelling(call);
                     case "add_word_to_dictionary": return AiAddWord(call);
+                    case "list_dictionary_words": return AiListWords(call);
+                    case "remove_word_from_dictionary": return AiRemoveWord(call);
                     case "translate_subtitles": return AiDoTranslate(call, out refused);
                     case "set_style": return AiSetStyle(call);
                     case "seek": return AiSeek(call);
@@ -695,10 +701,41 @@ namespace SubtitleStudio
             Dictionary<string, object> r = new Dictionary<string, object>();
             string word = c.Str("word", "").Trim();
             if (word.Length == 0) { r["error"] = Lang.T("לא צוינה מילה"); return r; }
-            if (!Spell.Ready) { r["error"] = Lang.T("המילון לא טעון"); return r; }
-            Spell.AddWord(word);
+            // המילון האישי בקובץ משלו - נשמר גם כשהמילון הגדול לא טעון (0.8.34)
+            if (Spell.HebrewWords(word).Count == 0) { r["error"] = "רק מילים בעברית נבדקות באיות - אין מה להוסיף"; return r; }
+            bool added = Spell.AddWord(word);
             AiRefresh();
-            r["done"] = Lang.F("״{0}״ נוספה למילון האישי, ולא תסומן יותר", word);
+            r["done"] = added ? Lang.F("״{0}״ נוספה למילון האישי, ולא תסומן יותר", word) : Lang.F("״{0}״ כבר במילון האישי", word);
+            if (!Spell.Ready) r["note"] = "בדיקת האיות לא פעילה עכשיו - המילה תיחשב נכונה כשהיא תעבוד";
+            return r;
+        }
+
+        private Dictionary<string, object> AiListWords(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string q = SpellEngine.Normalize(c.Str("contains", "").Trim());
+            List<string> all = Spell.UserWords();
+            List<object> shown = new List<object>();
+            foreach (string w in all)
+                if (q.Length == 0 || w.IndexOf(q, StringComparison.Ordinal) >= 0)
+                {
+                    if (shown.Count >= 300) { r["more"] = "יש עוד - צמצם עם contains"; break; }
+                    shown.Add(w);
+                }
+            r["total"] = all.Count;
+            r["words"] = shown;
+            r["window"] = "המשתמש מנהל אותן בעצמו ב״המילון שלי״ - בהגדרות, או בקליק ימני על כתובית";
+            return r;
+        }
+
+        private Dictionary<string, object> AiRemoveWord(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string word = c.Str("word", "").Trim();
+            if (word.Length == 0) { r["error"] = Lang.T("לא צוינה מילה"); return r; }
+            if (!Spell.RemoveWord(word)) { r["error"] = Lang.F("״{0}״ לא במילון האישי", word); return r; }
+            AiRefresh();
+            r["done"] = Lang.F("״{0}״ הוצאה מהמילון האישי, ותסומן שוב אם היא לא במילון הרגיל", word);
             return r;
         }
 

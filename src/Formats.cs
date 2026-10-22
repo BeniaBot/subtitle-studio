@@ -1027,7 +1027,7 @@ namespace SubtitleStudio
             return cp >= 1250 && cp <= 1258 ? cp : 0;
         }
 
-        private static byte[] Concat(byte[] a, byte[] b)
+        internal static byte[] Concat(byte[] a, byte[] b)
         {
             byte[] r = new byte[a.Length + b.Length];
             Buffer.BlockCopy(a, 0, r, 0, a.Length);

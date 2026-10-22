@@ -441,6 +441,47 @@ Check 'והמילון האישי של המשתמש נשאר' ((Test-Path $words)
 $spT.GetField('UserFileOverride', $SF).SetValue($null, $null)
 $spT.GetField('FolderOverride', $SF).SetValue($null, [string]$dict)
 
+# ---- ״המילון שלי״ (0.8.34): הוספה בלי כפילות, הוצאה, ייבוא וייצוא; ובחלון - שדה אחד שמחפש ומוסיף, פח, ״להחזיר״ ----
+$mine = Join-Path $work 'mine.txt'
+[IO.File]::WriteAllText($mine, "גבגבון`r`nאלפאלפון`r`nגבגבון`r`n", (New-Object Text.UTF8Encoding $false))   # כפילות מגרסה קודמת
+$spT.GetField('UserFileOverride', $SF).SetValue($null, [string]$mine)
+[void]$spT.GetMethod('LoadNow', $SF).Invoke($null, @())
+function MyWords { return ,@($spT.GetMethod('UserWords', $SF).Invoke($null, @())) }
+$misM = $spT.GetMethod('Misspelled', $SF, $null, [Type[]]@([string]), $null)
+function Flagged1($w) { return @($misM.Invoke($null, @([string]$w))).Count -gt 0 }
+$addM = $spT.GetMethod('AddWord', $SF); $remM = $spT.GetMethod('RemoveWord', $SF)
+$a1 = [bool]$addM.Invoke($null, @([string]'קרקפוזיל')); $a2 = [bool]$addM.Invoke($null, @([string]'קרקפוזיל'))
+$once = @([IO.File]::ReadAllLines($mine) | Where-Object { $_ -eq 'קרקפוזיל' }).Count
+Check 'המילון שלי: בלי כפילויות ולפי הא״ב; מילה שנוספה פעמיים נכתבת פעם אחת, והבדיקה מקבלת אותה' ((((MyWords) -join ',') -eq 'אלפאלפון,גבגבון,קרקפוזיל') -and $a1 -and -not $a2 -and $once -eq 1 -and -not (Flagged1 'קרקפוזיל')) ((MyWords) -join ',')
+$r1 = [bool]$remM.Invoke($null, @([string]'קרקפוזיל')); $r2 = [bool]$remM.Invoke($null, @([string]'קרקפוזיל'))
+Check 'הוצאה: יוצאת מהקובץ ומהזיכרון (מסומנת שוב), ופעם שנייה - ״לא הייתה שם״' ($r1 -and -not $r2 -and -not ([IO.File]::ReadAllText($mine)).Contains('קרקפוזיל') -and (Flagged1 'קרקפוזיל')) ''
+$imp = Join-Path $work 'import.txt'
+[IO.File]::WriteAllText($imp, "שורה עם קרקפוזיל`r`nHello 2024 גבגבון", (New-Object Text.UTF8Encoding $false))
+$ia = New-Object object[] 2; $ia[0] = [string]$imp
+$added = [int]$spT.GetMethod('ImportWords', $SF).Invoke($null, $ia)
+Check 'ייבוא: רק המילים בעברית, ומה שכבר היה נספר בנפרד' ($added -eq 3 -and [int]$ia[1] -eq 1 -and ((MyWords) -contains 'קרקפוזיל') -and -not ((MyWords) -contains 'Hello')) ("added=$added already=" + $ia[1])
+$exp = Join-Path $work 'export.txt'
+$en = [int]$spT.GetMethod('ExportWords', $SF).Invoke($null, @([string]$exp))
+$eb = [IO.File]::ReadAllBytes($exp); $el = @([IO.File]::ReadAllLines($exp, [Text.Encoding]::UTF8) | Where-Object { $_ })
+Check 'ייצוא: מילה בשורה, לפי הא״ב, עם BOM (פנקס רשימות ישן)' ($en -eq (MyWords).Count -and $eb[0] -eq 0xEF -and (($el -join ',') -eq ((MyWords) -join ','))) ("${en}: " + ($el -join ','))
+# החלון
+$dT = T 'DictDlg'
+$dd = [Activator]::CreateInstance($dT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @(), $null)
+[void]$dd.Handle
+$fld = $dT.GetProperty('SearchField', $IF).GetValue($dd, $null)
+function Vis { return ,@($dT.GetProperty('VisibleWords', $IF).GetValue($dd, $null)) }
+$fld.Text = 'גבגב'; $f1 = (Vis) -join ','
+$fld.Text = 'צפצפון'; [void]$dT.GetMethod('AddTyped', $IF).Invoke($dd, @())
+$afterAdd = (MyWords) -contains 'צפצפון'; $st1 = [string]$dT.GetProperty('StatusText', $IF).GetValue($dd, $null); $cleared = $fld.Text -eq ''
+$fld.Text = 'Hello'; [void]$dT.GetMethod('AddTyped', $IF).Invoke($dd, @()); $st2 = [string]$dT.GetProperty('StatusText', $IF).GetValue($dd, $null)
+Check 'החלון: מקלידים - הרשימה מסתננת; Enter מוסיף ומנקה את השדה; מילה לועזית - הסבר, ולא נכנסת' ($f1 -eq 'גבגבון' -and $afterAdd -and $cleared -and $st1.Contains('נוספה') -and $st2.Contains('רק מילים בעברית') -and -not ((MyWords) -contains 'Hello')) ("$f1 | $st1 | $st2")
+[void]$dT.GetMethod('RemoveWord', $IF).Invoke($dd, @([string]'צפצפון'))
+$gone = -not ((MyWords) -contains 'צפצפון'); $undoBtn = $dT.GetField('_undo', $IF).GetValue($dd); $undoShown = [bool]$undoBtn.GetType().GetMethod('GetState', $IF, $null, [Type[]]@([int]), $null).Invoke($undoBtn, @([int]2))
+[void]$dT.GetMethod('Undo', $IF).Invoke($dd, @())
+Check 'פח מוציא, ״להחזיר״ מחזיר - והחלון מסמן שמשהו השתנה' ($gone -and $undoShown -and ((MyWords) -contains 'צפצפון') -and [bool]$dT.GetField('Changed', $IF).GetValue($dd)) ''
+$dd.Dispose()
+$spT.GetField('UserFileOverride', $SF).SetValue($null, $null)
+
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
