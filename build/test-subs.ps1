@@ -372,6 +372,37 @@ SyCall $sy 'Seek' @([long]104000); SyCall $sy 'MarkNow' @(); SyCall $sy 'ApplySt
 $c2 = SyncCues $sd2
 Rep 'sync window: a second point near the end stretches the whole timing (10s->12s, 100s->104s)' ($ref2 -eq 100000 -and -not $back -and $c2[0].Start -eq 12000 -and $c2[2].Start -eq 104000 -and [Math]::Abs($c2[1].Start - 42667) -lt 5 -and -not $st2.HasA) ("second ref {0}; now {1}/{2}/{3}" -f $ref2, $c2[0].Start, $c2[1].Start, $c2[2].Start)
 $sy.Dispose()
+# ---- אזור שזז (0.8.35): נצרב במקום שלו בכל רגע; והרבה אזורים - דרך מסכה, ורק בפנים ----
+$zkT = TY 'ZoneKey'
+function ZK([long]$ms, [float]$x, [float]$y, [float]$w, [float]$h) { $ka = New-Object object[] 2; $ka[0] = $ms; $ka[1] = [Drawing.RectangleF]::new($x, $y, $w, $h); return [Activator]::CreateInstance($zkT, $ka) }
+function NewPath() { return ,([Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($zkT))) }
+function Dark($bmp, $x, $y) { $c = $bmp.GetPixel($x, $y); return ($c.R + $c.G + $c.B) -lt 40 }
+$mz = [Activator]::CreateInstance((TY 'SubStyle'))
+$mv = Zone 0 0 0.2 0.3 -1 -1 2 $false; $pp = NewPath; $pp.Add((ZK 1000 0.05 0.35 0.2 0.3)); $pp.Add((ZK 3000 0.75 0.35 0.2 0.3)); $mv.Path = $pp; $mz.Zones.Add($mv)
+$zArgs = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $mz.psobject.BaseObject, [int]640, [int]360, [int64]0, $zAss, [string]$dir, [string]''))
+$f05 = ZFrame 0.5 'mv05' $false; $f20 = ZFrame 2.0 'mv20' $false; $f35 = ZFrame 3.5 'mv35' $false
+$okMove = (Dark $f05 96 180) -and -not (Dark $f05 544 180) -and (Dark $f20 320 180) -and -not (Dark $f20 96 180) -and (Dark $f35 544 180) -and -not (Dark $f35 96 180)
+Rep 'moving zone: burned where it is at each moment (left, middle, right)' $okMove ("0.5s left {0} right {1}; 2s mid {2}; 3.5s right {3}" -f (Dark $f05 96 180), (Dark $f05 544 180), (Dark $f20 320 180), (Dark $f35 544 180))
+foreach ($bm in @($f05, $f20, $f35)) { $bm.Dispose() }
+# 12 אזורי טשטוש (מעל ChainMax) - מסכה: טשטוש אחד ומלבנים לבנים בזמן שלהם
+$many = [Activator]::CreateInstance((TY 'SubStyle'))
+for ($q = 0; $q -lt 11; $q++) { $many.Zones.Add((Zone (0.02 + 0.08 * $q) 0.05 0.06 0.1 3000 3500 0 $false)) }
+$many.Zones.Add((Zone 0.1 0.1 0.3 0.3 1000 2000 0 $false))
+$zArgs = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $many.psobject.BaseObject, [int]640, [int]360, [int64]0, $zAss, [string]$dir, [string]''))
+$vfm = [regex]::Match($zArgs, '-/\w+\s+"?([^"\s]+)'); $vfText = if ($vfm.Success) { $vf1 = $vfm.Groups[1].Value; if (-not [IO.Path]::IsPathRooted($vf1)) { $vf1 = Join-Path $dir $vf1 }; [IO.File]::ReadAllText($vf1) } else { $zArgs }
+$s15 = ZFrame 1.5 'mk-src15' $true; $b15 = ZFrame 1.5 'mk-b15' $false; $s25 = ZFrame 2.5 'mk-src25' $true; $b25 = ZFrame 2.5 'mk-b25' $false
+$in15 = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 80, 50, 150, 90)); $out15 = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 400, 200, 150, 100)); $in25 = [SubsMad]::Mad($b25, $s25, (New-Object Drawing.Rectangle 80, 50, 150, 90))
+Rep 'many zones: one mask, blurred only inside and only in its time' ($in15 -gt 4 -and $out15 -lt 1 -and $in25 -lt 1 -and $vfText.Contains('alphamerge') -and ([regex]::Matches($vfText, 'split\[z')).Count -eq 0) ("inside {0:0.0} outside {1:0.0} after {2:0.0}" -f $in15, $out15, $in25)
+foreach ($bm in @($s15, $b15, $s25, $b25)) { $bm.Dispose() }
+# פנים לאורך זמן: אותן פנים שזזות - אזור אחד; פנים אחרות - אזור משלהן; קפיצה חדה בגודל - פנים אחרות
+$hT = TY 'Faces+Hit'; $hits = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($hT))
+function HitAt([long]$ms, [float]$x, [float]$y, [float]$w, [float]$h) { $ha = New-Object object[] 2; $ha[0] = $ms; $ha[1] = [Drawing.RectangleF]::new($x, $y, $w, $h); [void]$hits.Add([Activator]::CreateInstance($hT, $ha)) }
+for ($k = 0; $k -le 8; $k++) { HitAt (250 * $k) (0.1 + 0.025 * $k) 0.3 0.1 0.15 }
+for ($k = 4; $k -le 8; $k++) { HitAt (250 * $k) 0.7 0.3 0.1 0.15 }
+HitAt 2250 0.3 0.25 0.35 0.5
+$fz = (TY 'Faces').GetMethod('ToZones', $ST).Invoke($null, @($hits, [long]60000))
+$fa = $fz[0]
+Rep 'faces: one moving area per face (padded, a quarter second either side), a jump in size = another face' ($fz.Count -eq 3 -and $fa.Kind -eq 'face' -and $fa.Moving -and $fa.Path.Count -eq 2 -and $fa.FromMs -eq 0 -and $fa.ToMs -eq 2500 -and -not $fz[2].Moving -and $fa.Path[0].Area.Width -gt 0.13) ("{0} areas; first {1}..{2} keys {3} w {4:0.00}" -f $fz.Count, $fa.FromMs, $fa.ToMs, $(if ($fa.Path) { $fa.Path.Count } else { 0 }), $fa.Path[0].Area.Width)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }

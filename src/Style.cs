@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
@@ -76,9 +77,31 @@ namespace SubtitleStudio
         internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues, long shiftMs)
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder(SubtitleBlurGraph(w, h, cues));
-            for (int i = 0; i < Zones.Count; i++) sb.Append(Zones[i].Graph(w, h, shiftMs, "z" + i));
+            // **הרבה אזורים - מסכה, לא שרשרת** (0.8.35). שרשרת של split←crop←overlay לכל אזור מאטה את ffmpeg מעריכית: נמדד על clip.mp4
+            // (10 שניות): ‏12 אזורים 1.3 שניות, ‏16 - 12.6, ‏24 - לא נגמר (גם באזורים פשוטים). חיפוש פנים מוסיף עשרות. מעל `ChainMax` - לכל
+            // מראה ועוצמה: המראה על כל התמונה פעם אחת, מסכה אפורה שבה כל אזור מלבן לבן בזמן שלו (drawbox עם enable - נח מחוץ לזמן),
+            // ושכבה אחת דרך המסכה. עיגולים נשארים בשרשרת (המסכה מלבנים בלבד).
+            if (Zones.Count <= ChainMax)
+            {
+                for (int i = 0; i < Zones.Count; i++) sb.Append(Zones[i].Graph(w, h, shiftMs, "z" + i));
+                return sb.ToString();
+            }
+            Dictionary<string, List<BlurZone>> groups = new Dictionary<string, List<BlurZone>>();
+            List<string> order = new List<string>();
+            for (int i = 0; i < Zones.Count; i++)
+            {
+                BlurZone z = Zones[i];
+                if (z.Ellipse) { sb.Append(z.Graph(w, h, shiftMs, "z" + i)); continue; }
+                string key = z.Look == BlurZone.Black ? "black" : z.Look + ":" + z.Pct;
+                if (!groups.ContainsKey(key)) { groups[key] = new List<BlurZone>(); order.Add(key); }
+                groups[key].Add(z);
+            }
+            for (int g = 0; g < order.Count; g++) sb.Append(BlurZone.MaskGraph(groups[order[g]], w, h, shiftMs, "m" + g));
             return sb.ToString();
         }
+
+        /// <summary>מעל כמה אזורים עוברים למסכה (`BlurZone.MaskGraph`).</summary>
+        internal static int ChainMax = 8;
 
         private string SubtitleBlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues)
         {
@@ -149,7 +172,7 @@ namespace SubtitleStudio
             foreach (BlurZone z in Zones)
             {
                 if (!z.ActiveAt(posMs)) continue;
-                Rectangle src = z.Pixels_(frame.Width, frame.Height);
+                Rectangle src = z.PixelsAt(posMs, frame.Width, frame.Height);
                 if (src.IsEmpty) continue;
                 float kx = video.Width / frame.Width, ky = video.Height / frame.Height;
                 RectangleF dest = new RectangleF(video.X + src.X * kx, video.Y + src.Y * ky, src.Width * kx, src.Height * ky);
@@ -535,15 +558,61 @@ namespace SubtitleStudio
         /// <summary>עוצמה לטשטוש ולפיקסלים (5-100), כמו `SubStyle.BlurPct`.</summary>
         public int Pct = 60;
         public bool Ellipse;
+        /// <summary>**אזור שזז** (0.8.35): נקודות זמן ← מלבן (פנים שנמצאו, מעקב). null - עומד במקום (`Area`). בכל רגע המלבן בגודל הגדול
+        /// במסלול, ומרכזו נע בקו ישר בין הנקודות - אותו חישוב בתצוגה (`AreaAt`) ובצריבה (`Graph`: ביטוי של t ב-crop וב-overlay).</summary>
+        public List<ZoneKey> Path;
+        /// <summary>מאיפה הוא בא: ״face״ (חיפוש פנים), ״track״ (מעקב), או null - סומן ביד.</summary>
+        public string Kind;
 
-        public BlurZone Clone() { return (BlurZone)MemberwiseClone(); }
+        public bool Moving { get { return Path != null && Path.Count > 1; } }
+
+        public BlurZone Clone()
+        {
+            BlurZone z = (BlurZone)MemberwiseClone();
+            if (Path != null) z.Path = new List<ZoneKey>(Path);
+            return z;
+        }
 
         public bool ActiveAt(long ms) { return (FromMs < 0 || ms >= FromMs) && (ToMs < 0 || ms < ToMs); }
 
-        /// <summary>האזור בפיקסלים - זוגי ובתוך התמונה; ריק כשקטן מ-8 (כמו `SubStyle.BlurPixels`).</summary>
-        internal Rectangle Pixels_(int w, int h)
+        /// <summary>הגודל של המלבן הזז - הגדול במסלול (יחסי).</summary>
+        internal SizeF MaxSize()
         {
-            RectangleF a = Area;
+            float w = 0, h = 0;
+            foreach (ZoneKey k in Path) { w = Math.Max(w, k.Area.Width); h = Math.Max(h, k.Area.Height); }
+            return new SizeF(Math.Min(1, w), Math.Min(1, h));
+        }
+
+        private static PointF Center(RectangleF r) { return new PointF(r.X + r.Width / 2, r.Y + r.Height / 2); }
+
+        /// <summary>איפה האזור ברגע הזה (יחסי). עומד - `Area`; זז - הגודל הגדול, סביב מרכז שנע בקו ישר בין הנקודות, בתוך התמונה.</summary>
+        public RectangleF AreaAt(long ms)
+        {
+            if (!Moving) return Area;
+            SizeF s = MaxSize();
+            PointF c;
+            if (ms <= Path[0].Ms) c = Center(Path[0].Area);
+            else if (ms >= Path[Path.Count - 1].Ms) c = Center(Path[Path.Count - 1].Area);
+            else
+            {
+                int i = 0;
+                while (i < Path.Count - 2 && Path[i + 1].Ms <= ms) i++;
+                PointF a = Center(Path[i].Area), b = Center(Path[i + 1].Area);
+                double f = (ms - Path[i].Ms) / (double)Math.Max(1, Path[i + 1].Ms - Path[i].Ms);
+                c = new PointF((float)(a.X + (b.X - a.X) * f), (float)(a.Y + (b.Y - a.Y) * f));
+            }
+            float x = Math.Max(0, Math.Min(1 - s.Width, c.X - s.Width / 2)), y = Math.Max(0, Math.Min(1 - s.Height, c.Y - s.Height / 2));
+            return new RectangleF(x, y, s.Width, s.Height);
+        }
+
+        /// <summary>האזור בפיקסלים ברגע מסוים (לתצוגה).</summary>
+        internal Rectangle PixelsAt(long ms, int w, int h) { return PixelsOf(AreaAt(ms), w, h); }
+
+        /// <summary>האזור בפיקסלים - זוגי ובתוך התמונה; ריק כשקטן מ-8 (כמו `SubStyle.BlurPixels`).</summary>
+        internal Rectangle Pixels_(int w, int h) { return PixelsOf(Area, w, h); }
+
+        private static Rectangle PixelsOf(RectangleF a, int w, int h)
+        {
             int x = Math.Max(0, (int)Math.Round(a.X * w)) & ~1, y = Math.Max(0, (int)Math.Round(a.Y * h)) & ~1;
             int r = Math.Min(w, (int)Math.Round((a.X + a.Width) * w)), b = Math.Min(h, (int)Math.Round((a.Y + a.Height) * h));
             int ww = (r - x) & ~1, hh = (b - y) & ~1;
@@ -558,28 +627,143 @@ namespace SubtitleStudio
         internal string Graph(int w, int h, long shiftMs, string tag)
         {
             Rectangle px = Pixels_(w, h);
+            string posX = null, posY = null;
+            if (Moving)
+            {
+                // הגודל קבוע (הגדול במסלול) והמקום ביטוי של t - crop ו-overlay מחשבים אותו בכל פריים
+                SizeF s = MaxSize();
+                int bw = Math.Min(w, (int)Math.Round(s.Width * w)) & ~1, bh = Math.Min(h, (int)Math.Round(s.Height * h)) & ~1;
+                if (bw < 8 || bh < 8) return "";
+                px = new Rectangle(0, 0, bw, bh);
+                List<double> ts = new List<double>(), xs = new List<double>(), ys = new List<double>();
+                foreach (ZoneKey k in Path)
+                {
+                    ts.Add((k.Ms - shiftMs) / 1000.0);
+                    xs.Add((k.Area.X + k.Area.Width / 2) * w - bw / 2.0);
+                    ys.Add((k.Area.Y + k.Area.Height / 2) * h - bh / 2.0);
+                }
+                posX = PathExpr(ts, xs, 0, w - bw);
+                posY = PathExpr(ts, ys, 0, h - bh);
+            }
             if (px.IsEmpty) return "";
             long a = FromMs < 0 ? -1 : FromMs - shiftMs, b = ToMs < 0 ? -1 : ToMs - shiftMs;
             if (b >= 0 && b <= 0) return "";
             if (a >= 0 && b >= 0 && b <= a) return "";
+            string enable = "";
+            if (a > 0 || b >= 0)
+                enable = string.Format(CultureInfo.InvariantCulture, ":enable='between(t,{0:0.###},{1:0.###})'",
+                    Math.Max(0, a) / 1000.0, b >= 0 ? b / 1000.0 : 1e7);
+            // **הזמן גם למסננים הכבדים** (gblur, ‏geq, ‏drawbox): מחוץ לזמן שלהם הם מעבירים את הפריים כמו שהוא. בלי זה כל אזור עיגול
+            // הריץ geq על כל פריים בסרט - 98 אזורי פנים ב-clip.mp4 לא סיימו 20 שניות של צריבה בעשר דקות
             string look;
-            if (Look == Black) look = "drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill";
+            if (Look == Black) look = "drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill" + enable;
             else if (Look == Pixels)
             {
                 int k = Block(h);
                 int sw = Math.Max(1, px.Width / k), sh = Math.Max(1, px.Height / k);
                 look = string.Format(CultureInfo.InvariantCulture, "scale={0}:{1}:flags=area,scale={2}:{3}:flags=neighbor", sw, sh, px.Width, px.Height);
             }
-            else look = "format=gbrp,gblur=sigma=" + Math.Max(0.5, Pct / 100.0 * h * 0.03).ToString("0.##", CultureInfo.InvariantCulture) + ":steps=2";
+            else look = "format=gbrp,gblur=sigma=" + Math.Max(0.5, Pct / 100.0 * h * 0.03).ToString("0.##", CultureInfo.InvariantCulture) + ":steps=2" + enable;
             if (Ellipse)
-                look += ",format=gbrap,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(pow((X-W/2)/(W/2),2)+pow((Y-H/2)/(H/2),2),1),255,0)'";
-            string enable = "";
-            if (a > 0 || b >= 0)
-                enable = string.Format(CultureInfo.InvariantCulture, ":enable='between(t,{0:0.###},{1:0.###})'",
-                    Math.Max(0, a) / 1000.0, b >= 0 ? b / 1000.0 : 1e7);
+                look += ",format=gbrap,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(pow((X-W/2)/(W/2),2)+pow((Y-H/2)/(H/2),2),1),255,0)'" + enable;
+            string at = posX != null ? "x='" + posX + "':y='" + posY + "'"
+                                     : px.X.ToString(CultureInfo.InvariantCulture) + ":" + px.Y.ToString(CultureInfo.InvariantCulture);
             return string.Format(CultureInfo.InvariantCulture,
-                "split[{6}_a][{6}_b];[{6}_b]crop={0}:{1}:{2}:{3},{4}[{6}_l];[{6}_a][{6}_l]overlay={2}:{3}{5},",
-                px.Width, px.Height, px.X, px.Y, look, enable, tag);
+                "split[{4}_a][{4}_b];[{4}_b]crop={0}:{1}:{5},{2}[{4}_l];[{4}_a][{4}_l]overlay={5}{3},",
+                px.Width, px.Height, look, enable, tag, at);
         }
+
+        /// <summary>חלקי זמן (בזמני הסרט) עם מלבן קבוע לכל אחד - למסכה. עומד: חלק אחד. זז: לפני הנקודה הראשונה ואחרי האחרונה - במקום, ובאמצע
+        /// חלק לכל חצי שנייה לכל היותר, והמלבן מכסה את המקום בתחילתו ובסופו (מכסה קצת יותר בתנועה מהירה - בצנזורה עדיף).</summary>
+        internal List<ZoneSeg> Segments()
+        {
+            List<ZoneSeg> r = new List<ZoneSeg>();
+            long a = FromMs < 0 ? 0 : FromMs, b = ToMs < 0 ? 10000000000L : ToMs;
+            if (b <= a) return r;
+            if (!Moving) { r.Add(new ZoneSeg(Area, a, b)); return r; }
+            long k0 = Path[0].Ms, k1 = Path[Path.Count - 1].Ms;
+            if (a < k0) r.Add(new ZoneSeg(AreaAt(k0), a, Math.Min(b, k0)));
+            long s = Math.Max(a, k0), e = Math.Min(b, k1);
+            for (long t = s; t < e; )
+            {
+                long t2 = Math.Min(e, t + 500);
+                r.Add(new ZoneSeg(RectangleF.Union(AreaAt(t), AreaAt(t2)), t, t2));
+                t = t2;
+            }
+            if (b > k1) r.Add(new ZoneSeg(AreaAt(k1), Math.Max(a, k1), b));
+            return r;
+        }
+
+        /// <summary>**הרבה אזורים באותו מראה ועוצמה - מסכה** (ראו `SubStyle.BlurGraph`): שחור - מלבנים ישר על התמונה; טשטוש/פיקסלים - המראה
+        /// על כל התמונה פעם אחת (הטשטוש נח מחוץ לזמנים של כולם), מסכה אפורה מאותו פריים - שחורה, ומלבן לבן לכל חלק בזמן שלו - ושכבה אחת
+        /// דרכה (alphamerge ← overlay). העומק קבוע - לא תלוי במספר האזורים.</summary>
+        internal static string MaskGraph(List<BlurZone> zones, int w, int h, long shiftMs, string tag)
+        {
+            CultureInfo ic = CultureInfo.InvariantCulture;
+            System.Text.StringBuilder boxes = new System.Text.StringBuilder();
+            List<string> when = new List<string>();
+            bool black = zones[0].Look == Black;
+            foreach (BlurZone z in zones)
+                foreach (ZoneSeg sg in z.Segments())
+                {
+                    double from = Math.Max(0, (sg.From - shiftMs) / 1000.0), to = Math.Min(1e7, (sg.To - shiftMs) / 1000.0);
+                    if (to <= from) continue;
+                    Rectangle px = PixelsOf(sg.Area, w, h);
+                    if (px.IsEmpty) continue;
+                    string en = string.Format(ic, "between(t,{0:0.###},{1:0.###})", from, to);
+                    boxes.AppendFormat(ic, "drawbox=x={0}:y={1}:w={2}:h={3}:color={4}:t=fill:enable='{5}',", px.X, px.Y, px.Width, px.Height, black ? "black" : "white", en);
+                    when.Add(en);
+                }
+            if (boxes.Length == 0) return "";
+            if (black) return boxes.ToString();
+            BlurZone z0 = zones[0];
+            string look;
+            if (z0.Look == Pixels)
+            {
+                int k = z0.Block(h);
+                look = string.Format(ic, "scale={0}:{1}:flags=area,scale={2}:{3}:flags=neighbor", Math.Max(1, w / k), Math.Max(1, h / k), w, h);
+            }
+            else
+                look = "format=gbrp,gblur=sigma=" + Math.Max(0.5, z0.Pct / 100.0 * h * 0.03).ToString("0.##", ic) + ":steps=2" +
+                       (when.Count <= 300 ? ":enable='" + string.Join("+", when.ToArray()) + "'" : "");
+            string masks = boxes.ToString().TrimEnd(',');
+            return string.Format(ic,
+                "split[{0}_a][{0}_b];[{0}_b]{1}[{0}_l];[{0}_a]split[{0}_o][{0}_m];[{0}_m]format=gray,drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill,{2}[{0}_k];" +
+                "[{0}_l][{0}_k]alphamerge[{0}_la];[{0}_o][{0}_la]overlay,",
+                tag, look, masks);
+        }
+
+        /// <summary>ערך שנע בקו ישר בין נקודות, כביטוי של ffmpeg ב-t (שניות): ``if(lt(t,t1), v0+(v1-v0)*(clip(t,t0,t1)-t0)/(t1-t0), ...)``,
+        /// ובסוף ``clip`` לגבולות. לפני הנקודה הראשונה - הערך הראשון; אחרי האחרונה - האחרון.</summary>
+        internal static string PathExpr(List<double> ts, List<double> vs, double lo, double hi)
+        {
+            CultureInfo ic = CultureInfo.InvariantCulture;
+            int n = ts.Count;
+            string e = vs[n - 1].ToString("0.##", ic);
+            for (int i = n - 2; i >= 0; i--)
+            {
+                double dt = ts[i + 1] - ts[i];
+                string seg = dt < 1e-6 ? vs[i].ToString("0.##", ic)
+                    : string.Format(ic, "{0:0.##}+({1:0.###})*(clip(t,{2:0.###},{3:0.###})-{2:0.###})/{4:0.###}", vs[i], vs[i + 1] - vs[i], ts[i], ts[i + 1], dt);
+                e = string.Format(ic, "if(lt(t,{0:0.###}),{1},{2})", ts[i + 1], seg, e);
+            }
+            return string.Format(ic, "clip({0},{1:0},{2:0})", e, lo, hi);
+        }
+    }
+
+    /// <summary>חלק זמן עם מלבן קבוע (`BlurZone.Segments`, למסכה).</summary>
+    internal struct ZoneSeg
+    {
+        public RectangleF Area;
+        public long From, To;
+        public ZoneSeg(RectangleF area, long from, long to) { Area = area; From = from; To = to; }
+    }
+
+    /// <summary>נקודה במסלול של אזור שזז: זמן (בזמני הסרט) ומלבן יחסי.</summary>
+    internal struct ZoneKey
+    {
+        public long Ms;
+        public RectangleF Area;
+        public ZoneKey(long ms, RectangleF area) { Ms = ms; Area = area; }
     }
 }

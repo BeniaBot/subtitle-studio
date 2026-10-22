@@ -78,6 +78,11 @@ $sty.MarginVPct = 9; $sty.MarginHPct = 2.5; $sty.LineSpacing = 1.3
 $sty.BlurOn = $true; $sty.BlurPct = 45; $sty.BlurOnlyWithCue = $true; $sty.BlurArea = New-Object Drawing.RectangleF 0.125, 0.5, 0.75, 0.25
 $bz = [Activator]::CreateInstance($asm.GetType('SubtitleStudio.BlurZone')); $bz.Area = New-Object Drawing.RectangleF 0.25, 0.125, 0.5, 0.375; $bz.FromMs = 1500; $bz.ToMs = 4250; $bz.Look = 1; $bz.Pct = 80; $bz.Ellipse = $true; $sty.Zones.Add($bz)
 $bz2 = [Activator]::CreateInstance($asm.GetType('SubtitleStudio.BlurZone')); $bz2.Look = 2; $sty.Zones.Add($bz2)
+# אזור שזז (0.8.35): פנים שנמצאו - מסלול של נקודות זמן ומלבן
+$zkT = $asm.GetType('SubtitleStudio.ZoneKey'); $zpath = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($zkT))
+function ZK([long]$ms, [float]$x, [float]$y, [float]$w, [float]$h) { $ka = New-Object object[] 2; $ka[0] = $ms; $ka[1] = [Drawing.RectangleF]::new($x, $y, $w, $h); return [Activator]::CreateInstance($zkT, $ka) }
+$zpath.Add((ZK 2000 0.1 0.1 0.2 0.3)); $zpath.Add((ZK 4500 0.4 0.15 0.2 0.3))
+$bz3 = [Activator]::CreateInstance($asm.GetType('SubtitleStudio.BlurZone')); $bz3.Kind = 'face'; $bz3.FromMs = 1750; $bz3.ToMs = 4750; $bz3.Path = $zpath; $sty.Zones.Add($bz3)
 $d.Style = $sty
 $cutsL = [Activator]::CreateInstance([Collections.Generic.List[long]])
 foreach ($x in @(5333, 9733, 16700)) { $cutsL.Add($x) }
@@ -102,7 +107,9 @@ $es = $e.Style
 Check 'עיצוב: גופן, גודל, מודגש, נטוי' ($es.FontName -eq 'Frank Ruhl Libre' -and $es.FontPct -eq 7.25 -and -not $es.Bold -and $es.Italic) ''
 Check 'עיצוב: ארבעה צבעים כולל שקיפות' ($es.Primary.ToArgb() -eq $sty.Primary.ToArgb() -and $es.Outline.ToArgb() -eq $sty.Outline.ToArgb() -and $es.Shadow.ToArgb() -eq $sty.Shadow.ToArgb() -and $es.BoxColor.ToArgb() -eq $sty.BoxColor.ToArgb()) ''
 Check 'טשטוש אזור (0.8.31): דלוק, אזור, עוצמה, ורק כשיש כתובית' ($es.BlurOn -and $es.BlurPct -eq 45 -and $es.BlurOnlyWithCue -and [Math]::Abs($es.BlurArea.X - 0.125) -lt 1e-6 -and [Math]::Abs($es.BlurArea.Height - 0.25) -lt 1e-6) ('' + $es.BlurArea)
-Check 'אזורי צנזורה (0.8.34): שניים, עם הזמנים, המראה, העוצמה והעיגול' ($es.Zones.Count -eq 2 -and $es.Zones[0].FromMs -eq 1500 -and $es.Zones[0].ToMs -eq 4250 -and $es.Zones[0].Look -eq 1 -and $es.Zones[0].Pct -eq 80 -and $es.Zones[0].Ellipse -and [Math]::Abs($es.Zones[0].Area.Y - 0.125) -lt 1e-6 -and $es.Zones[1].FromMs -eq -1 -and $es.Zones[1].Look -eq 2 -and -not $es.Zones[1].Ellipse) ("" + $es.Zones.Count)
+Check 'אזורי צנזורה (0.8.34): עם הזמנים, המראה, העוצמה והעיגול' ($es.Zones.Count -eq 3 -and $es.Zones[0].FromMs -eq 1500 -and $es.Zones[0].ToMs -eq 4250 -and $es.Zones[0].Look -eq 1 -and $es.Zones[0].Pct -eq 80 -and $es.Zones[0].Ellipse -and [Math]::Abs($es.Zones[0].Area.Y - 0.125) -lt 1e-6 -and $es.Zones[1].FromMs -eq -1 -and $es.Zones[1].Look -eq 2 -and -not $es.Zones[1].Ellipse) ("" + $es.Zones.Count)
+$ez3 = $es.Zones[2]
+Check 'אזור שזז (0.8.35): המסלול (זמן ומלבן לכל נקודה) ומאיפה הוא בא - נשמרים' ($ez3.Kind -eq 'face' -and $ez3.Moving -and $ez3.Path.Count -eq 2 -and $ez3.Path[1].Ms -eq 4500 -and [Math]::Abs($ez3.Path[1].Area.X - 0.4) -lt 1e-6 -and [Math]::Abs($ez3.Path[0].Area.Height - 0.3) -lt 1e-6 -and $ez3.FromMs -eq 1750) ("" + $ez3.Kind + ' ' + $ez3.Path.Count)
 Check 'עיצוב: קו, צל, רקע, יישור, שוליים, ריווח' ($es.OutlineWidth -eq 3.5 -and $es.ShadowDepth -eq 1.25 -and $es.OpaqueBox -and $es.Alignment -eq 8 -and $es.MarginVPct -eq 9 -and $es.MarginHPct -eq 2.5 -and $es.LineSpacing -eq 1.3) ''
 Check 'חיתוכי סצנה' ((@($e.SceneCuts) -join ',') -eq '5333,9733,16700') (@($e.SceneCuts) -join ',')
 Check 'עברית נכתבת כעברית, לא כקודים' ($json.Contains('שיעור #3') -and -not $json.Contains('\u05')) ''

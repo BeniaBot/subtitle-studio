@@ -959,6 +959,8 @@ namespace SubtitleStudio
                 d["to_sec"] = z.ToMs < 0 ? (object)"end" : z.ToMs / 1000.0;
                 d["look"] = ZoneLooks[Math.Max(0, Math.Min(2, z.Look))];
                 d["circle"] = z.Ellipse;
+                if (z.Moving) d["moving"] = true;                       // זז עם הפנים / המעקב - area הוא המקום בהתחלה
+                if (z.Kind != null) d["source"] = z.Kind == "face" ? "faces" : "tracking";
                 list.Add(d);
             }
             return list;

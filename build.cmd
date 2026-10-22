@@ -56,6 +56,8 @@ echo Compiling...
   /reference:"%WINMD%\Windows.Foundation.winmd" ^
   /reference:"%WINMD%\Windows.Media.winmd" ^
   /reference:"%WINMD%\Windows.Storage.winmd" ^
+  /reference:"%WINMD%\Windows.Graphics.winmd" ^
+  /reference:"%WINMD%\Windows.Security.winmd" ^
   /reference:"%FW%System.Runtime.dll" ^
   src\*.cs
 if errorlevel 1 (

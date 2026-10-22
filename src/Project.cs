@@ -133,7 +133,22 @@ namespace SubtitleStudio
                     zs.Append("{\"area\": [").Append(Num(z.Area.X)).Append(", ").Append(Num(z.Area.Y)).Append(", ").Append(Num(z.Area.Width)).Append(", ").Append(Num(z.Area.Height))
                       .Append("], \"from\": ").Append(z.FromMs.ToString(CultureInfo.InvariantCulture)).Append(", \"to\": ").Append(z.ToMs.ToString(CultureInfo.InvariantCulture))
                       .Append(", \"look\": ").Append(z.Look.ToString(CultureInfo.InvariantCulture)).Append(", \"strength\": ").Append(z.Pct.ToString(CultureInfo.InvariantCulture))
-                      .Append(", \"circle\": ").Append(z.Ellipse ? "true" : "false").Append("}");
+                      .Append(", \"circle\": ").Append(z.Ellipse ? "true" : "false");
+                    if (z.Kind != null) zs.Append(", \"kind\": \"").Append(z.Kind == "face" ? "face" : "track").Append("\"");
+                    // אזור שזז (0.8.35): [זמן, x, y, רוחב, גובה] לכל נקודה
+                    if (z.Moving)
+                    {
+                        zs.Append(", \"path\": [");
+                        for (int k = 0; k < z.Path.Count; k++)
+                        {
+                            ZoneKey p = z.Path[k];
+                            if (k > 0) zs.Append(", ");
+                            zs.Append("[").Append(p.Ms.ToString(CultureInfo.InvariantCulture)).Append(", ").Append(Num(p.Area.X)).Append(", ").Append(Num(p.Area.Y))
+                              .Append(", ").Append(Num(p.Area.Width)).Append(", ").Append(Num(p.Area.Height)).Append("]");
+                        }
+                        zs.Append("]");
+                    }
+                    zs.Append("}");
                 }
                 Prop(sb, 2, "blurZones", zs.Append("]").ToString(), false);
                 sb.Append("  },\n");
@@ -336,6 +351,25 @@ namespace SubtitleStudio
                         z.Look = (int)Clamp(L(zd, "look", 0), 0, 2);
                         z.Pct = (int)Clamp(L(zd, "strength", 60), 5, 100);
                         z.Ellipse = B(zd, "circle", false);
+                        object kind;
+                        if (zd.TryGetValue("kind", out kind) && kind is string) z.Kind = (string)kind == "face" ? "face" : "track";
+                        object[] path = Arr(zd, "path");
+                        if (path != null)
+                        {
+                            List<ZoneKey> keys = new List<ZoneKey>();
+                            foreach (object po in path)
+                            {
+                                object[] pa = po as object[];
+                                if (pa == null && po is ArrayList) pa = ((ArrayList)po).ToArray();
+                                if (pa == null || pa.Length != 5) continue;
+                                double px = Clamp(ToDbl(pa[1], 0), 0, 1), py = Clamp(ToDbl(pa[2], 0), 0, 1);
+                                double pw = Clamp(ToDbl(pa[3], 0), 0, 1 - px), ph = Clamp(ToDbl(pa[4], 0), 0, 1 - py);
+                                if (pw < 0.005 || ph < 0.005) continue;
+                                keys.Add(new ZoneKey((long)ToDbl(pa[0], 0), new System.Drawing.RectangleF((float)px, (float)py, (float)pw, (float)ph)));
+                            }
+                            keys.Sort(delegate (ZoneKey x, ZoneKey y) { return x.Ms.CompareTo(y.Ms); });
+                            if (keys.Count > 1) z.Path = keys;
+                        }
                         s.Zones.Add(z);
                     }
                 d.Style = s;

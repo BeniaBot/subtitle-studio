@@ -1868,3 +1868,18 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 המשפט שמחכים לו · כתובית {0} מתוך {1} · עכשיו ב-{2}	Waiting for · subtitle {0} of {1} · now at {2}
 נקודה ראשונה שמורה ({0}). עכשיו מחכים למשפט הזה, ולוחצים ״עכשיו״.	First point saved ({0}). Now wait for this sentence, and press "Now".
 כשהמשפט מתחיל - ״עכשיו״ (או Enter). כבר עצרתם בדיוק במקום? פשוט לוחצים. החצים מזיזים את הנגן בעשירית שנייה.	When the sentence starts - "Now" (or Enter). Already stopped at the exact spot? Just press it. The arrow keys move the player by a tenth of a second.
+פנים	Face
+עוקב	Tracking
+למצוא פנים	Find faces
+מחפש את כל הפנים בסרט ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס	Finds all the faces in the video and adds an area that moves with each one - offline, with the detector built into Windows
+אין גלאי פנים	No face detector
+בווינדוס הזה אין גלאי פנים מובנה (הוא קיים מווינדוס 10). את הפנים מסמנים ביד - גוררים על התמונה.	This Windows has no built-in face detector (it exists from Windows 10). Mark the faces by hand - drag on the picture.
+לעצור	Stop
+מחפש פנים בסרט...	Looking for faces in the video...
+מחפש פנים בסרט... {0}%	Looking for faces in the video... {0}%
+חיפוש הפנים נכשל	Face search failed
+לא נמצאו פנים	No faces found
+הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד.	The detector found no faces in the video. It may miss very small faces, faces in profile or in the dark - mark those by hand.
+נמצאו פנים	Faces found
+החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.	The search was stopped midway - only the faces found up to there were added.
+נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.	Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.

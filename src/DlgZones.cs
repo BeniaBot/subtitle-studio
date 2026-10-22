@@ -31,6 +31,10 @@ namespace SubtitleStudio
         private DateTime _flashUntil = DateTime.MinValue;
         // מה שנבחר לאחרונה - לאזור הבא
         private int _lastLook = BlurZone.Blur, _lastPct = 60;
+        private Btn _faceBtn;
+        private volatile bool _faceStop;
+        private bool _scanning;
+        private DateTime _lastProg = DateTime.MinValue;
         private bool _lastEllipse;
 
         /// <summary>אחרי ״שמירה״: האזורים (עותק חדש).</summary>
@@ -140,6 +144,9 @@ namespace SubtitleStudio
 
             Y = y + Theme.S(172);
             Buttons(Lang.T("שמירה"), Ico.Check, Lang.T("ביטול"));
+            // **פנים אוטומטית** (2כט ה): הגלאי של ווינדוס, בלי אינטרנט ובלי הורדה - אזור שזז לכל פנים
+            _faceBtn = BottomButton(Lang.T("למצוא פנים"), Ico.Sparkles, delegate { FindFaces(); });
+            Ui.Tip.SetToolTip(_faceBtn, Lang.T("מחפש את כל הפנים בסרט ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס"));
 
             _pos = main != null ? main.PlayerPosition : 0;
             // הפריים שעל המסך; אין (הנגן עוד לא צייר, או בבדיקה בלי נגן) - צילום אחד מהקובץ, כדי שיהיה על מה לסמן
@@ -199,7 +206,8 @@ namespace SubtitleStudio
         /// <summary>שורה ברשימה: ״טשטוש · מ-0:12.4 עד הסוף״.</summary>
         private static string Describe(BlurZone z)
         {
-            return LookName(z.Look) + (z.Ellipse ? Lang.T(" (עיגול)") : "") + "  ·  " + WhenWords(z);
+            string who = z.Kind == "face" ? Lang.T("פנים") + "  ·  " : z.Kind == "track" ? Lang.T("עוקב") + "  ·  " : "";
+            return who + LookName(z.Look) + (z.Ellipse ? Lang.T(" (עיגול)") : "") + "  ·  " + WhenWords(z);
         }
 
         private BlurZone Cur { get { int i = _canvas.Selected; return i >= 0 && i < _work.Zones.Count ? _work.Zones[i] : null; } }
@@ -421,6 +429,65 @@ namespace SubtitleStudio
             if (_play.Icon != (playing ? Ico.Pause : Ico.Play)) { _play.Icon = playing ? Ico.Pause : Ico.Play; _play.Invalidate(); }
         }
 
+        // ---------- פנים ----------
+
+        private void FindFaces()
+        {
+            if (_scanning) { _faceStop = true; return; }
+            if (_mi == null || !_mi.HasVideo) return;
+            if (!Faces.Available)
+            {
+                Ui.Info(this, Lang.T("אין גלאי פנים"), Lang.T("בווינדוס הזה אין גלאי פנים מובנה (הוא קיים מווינדוס 10). את הפנים מסמנים ביד - גוררים על התמונה."));
+                return;
+            }
+            _scanning = true; _faceStop = false;
+            _faceBtn.Text = Lang.T("לעצור"); _faceBtn.Icon = Ico.Stop; _faceBtn.Invalidate();
+            _canvas.Status = Lang.T("מחפש פנים בסרט..."); _canvas.Invalidate();
+            string path = _mi.Path; MediaInfo mi = _mi;
+            System.Threading.Thread th = new System.Threading.Thread(delegate ()
+            {
+                List<Faces.Hit> hits = null; Exception err = null;
+                try { hits = Faces.Scan(path, mi, 0, mi.DurationMs, FaceProgress, delegate { return _faceStop; }); }
+                catch (Exception ex) { err = ex; }
+                try { BeginInvoke((Action)delegate { FacesDone(hits, err); }); } catch { }
+            });
+            th.IsBackground = true;
+            th.Start();
+        }
+
+        private void FaceProgress(double f)
+        {
+            if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
+            _lastProg = DateTime.UtcNow;
+            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בסרט... {0}%", Theme.Ltr(((int)(f * 100)).ToString())); _canvas.Invalidate(); } }); }
+            catch { }
+        }
+
+        /// <summary>סוף החיפוש: האזורים נוספים (צעד ביטול אחד), הנגן עובר לפנים הראשונות, ו**ההודעה אומרת לעבור על הסרט** - גלאי מפספס לפעמים.</summary>
+        private void FacesDone(List<Faces.Hit> hits, Exception err)
+        {
+            bool stopped = _faceStop;
+            _scanning = false;
+            if (IsDisposed) return;
+            _faceBtn.Text = Lang.T("למצוא פנים"); _faceBtn.Icon = Ico.Sparkles; _faceBtn.Invalidate();
+            _canvas.Status = null; _canvas.Invalidate();
+            if (err != null) { Ui.Error(this, Lang.T("חיפוש הפנים נכשל"), ErrorText.Of(err)); return; }
+            List<BlurZone> found = Faces.ToZones(hits ?? new List<Faces.Hit>(), _mi.DurationMs);
+            if (found.Count == 0)
+            {
+                if (!stopped) Ui.Info(this, Lang.T("לא נמצאו פנים"), Lang.T("הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד."));
+                return;
+            }
+            Push("faces");
+            int first = _work.Zones.Count;
+            _work.Zones.AddRange(found);
+            _changed = true;
+            Select(first);
+            Seek(found[0].FromMs + 300);
+            Ui.Info(this, Lang.T("נמצאו פנים"), (stopped ? Lang.T("החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.") + "\n" : "") +
+                Lang.F("נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", Theme.Ltr(found.Count.ToString())));
+        }
+
         private void OnClosing(object sender, FormClosingEventArgs e)
         {
             // בבדיקות (``SUBSTUDIO_TEST``) לא שואלים: חלון שנסגר מחוץ למסך עם שאלה פתוחה - הבדיקה נתקעת עליה (test-screens, 22.10)
@@ -430,6 +497,7 @@ namespace SubtitleStudio
                 e.Cancel = true;
                 return;
             }
+            _faceStop = true;
             _timer.Stop();
             if (_main != null) { _main.FrameShown -= OnFrame; if (_main.PlayerIsPlaying) _main.PausePlayer(); }
         }
@@ -481,6 +549,8 @@ namespace SubtitleStudio
     {
         public List<BlurZone> Zones = new List<BlurZone>();
         public int Selected = -1;
+        /// <summary>שורה על התמונה בזמן עבודה (חיפוש פנים); null - בלי.</summary>
+        public string Status;
         public event Action<RectangleF> CreateZone;
         public event Action EditStarting, Edited, SelectionChanged;
         public event Action<int, Point> MenuFor;
@@ -493,6 +563,26 @@ namespace SubtitleStudio
         private int _corner;
         private Point _down, _now;
         private RectangleF _startArea;
+        private List<ZoneKey> _startPath;
+
+        private void Begin(int i) { _startArea = Zones[i].AreaAt(PosMs); _startPath = Zones[i].Moving ? new List<ZoneKey>(Zones[i].Path) : null; }
+
+        /// <summary>המלבן החדש (ברגע הזה). אזור שזז - כל המסלול זז ומשנה גודל באותה מידה: ההפרש במרכז, והיחס ברוחב ובגובה.</summary>
+        private void Apply(RectangleF r)
+        {
+            BlurZone z = Zones[Selected];
+            if (_startPath == null) { z.Area = r; return; }
+            float sx = r.Width / Math.Max(0.001f, _startArea.Width), sy = r.Height / Math.Max(0.001f, _startArea.Height);
+            float dx = (r.X + r.Width / 2) - (_startArea.X + _startArea.Width / 2), dy = (r.Y + r.Height / 2) - (_startArea.Y + _startArea.Height / 2);
+            List<ZoneKey> moved = new List<ZoneKey>();
+            foreach (ZoneKey k in _startPath)
+            {
+                float w = Math.Min(1, Math.Max(MinRel, k.Area.Width * sx)), h = Math.Min(1, Math.Max(MinRel, k.Area.Height * sy));
+                float cx = k.Area.X + k.Area.Width / 2 + dx, cy = k.Area.Y + k.Area.Height / 2 + dy;
+                moved.Add(new ZoneKey(k.Ms, new RectangleF(Math.Max(0, Math.Min(1 - w, cx - w / 2)), Math.Max(0, Math.Min(1 - h, cy - h / 2)), w, h)));
+            }
+            z.Path = moved;
+        }
         private bool _moved;
 
         public ZoneCanvas()
@@ -525,7 +615,7 @@ namespace SubtitleStudio
         private int CornerAt(Point p)
         {
             if (!Shown_(Selected)) return -1;
-            PointF[] cs = Corners(ToScreen(Zones[Selected].Area));
+            PointF[] cs = Corners(ToScreen(Zones[Selected].AreaAt(PosMs)));
             int hit = Theme.S(9);
             for (int i = 0; i < 4; i++)
                 if (Math.Abs(p.X - cs[i].X) <= hit && Math.Abs(p.Y - cs[i].Y) <= hit) return i;
@@ -535,9 +625,9 @@ namespace SubtitleStudio
         /// <summary>האזור שמתחת לעכבר - העליון (האחרון) קודם, ומה שנבחר לפני כולם.</summary>
         private int ZoneAt(Point p)
         {
-            if (Shown_(Selected) && ToScreen(Zones[Selected].Area).Contains(p)) return Selected;
+            if (Shown_(Selected) && ToScreen(Zones[Selected].AreaAt(PosMs)).Contains(p)) return Selected;
             for (int i = Zones.Count - 1; i >= 0; i--)
-                if (Shown_(i) && ToScreen(Zones[i].Area).Contains(p)) return i;
+                if (Shown_(i) && ToScreen(Zones[i].AreaAt(PosMs)).Contains(p)) return i;
             return -1;
         }
 
@@ -561,9 +651,9 @@ namespace SubtitleStudio
             }
             if (e.Button != MouseButtons.Left) return;
             int c = CornerAt(e.Location);
-            if (c >= 0) { _mode = Mode.Resize; _corner = c; _startArea = Zones[Selected].Area; return; }
+            if (c >= 0) { _mode = Mode.Resize; _corner = c; Begin(Selected); return; }
             int hit = ZoneAt(e.Location);
-            if (hit >= 0) { SetSelected(hit); _mode = Mode.Move; _startArea = Zones[hit].Area; return; }
+            if (hit >= 0) { SetSelected(hit); _mode = Mode.Move; Begin(hit); return; }
             _mode = VideoRect().Contains(e.Location) ? Mode.New : Mode.None;
             base.OnMouseDown(e);
         }
@@ -588,7 +678,7 @@ namespace SubtitleStudio
                 RectangleF a = _startArea;
                 a.X = Math.Max(0, Math.Min(1 - a.Width, a.X + dx));
                 a.Y = Math.Max(0, Math.Min(1 - a.Height, a.Y + dy));
-                Zones[Selected].Area = a;
+                Apply(a);
             }
             else if (_mode == Mode.Resize && Selected >= 0)
             {
@@ -596,7 +686,7 @@ namespace SubtitleStudio
                 float l = _startArea.Left, t = _startArea.Top, r = _startArea.Right, b = _startArea.Bottom;
                 if (_corner == 0 || _corner == 3) l = Math.Min(p.X, r - MinRel); else r = Math.Max(p.X, l + MinRel);
                 if (_corner == 0 || _corner == 1) t = Math.Min(p.Y, b - MinRel); else b = Math.Max(p.Y, t + MinRel);
-                Zones[Selected].Area = RectangleF.FromLTRB(l, t, r, b);
+                Apply(RectangleF.FromLTRB(l, t, r, b));
             }
             Invalidate();
         }
@@ -639,14 +729,15 @@ namespace SubtitleStudio
                 RectangleF r = ToScreen(NewRect());
                 using (Pen p = new Pen(Color.White, 1.5f)) { p.DashStyle = DashStyle.Dash; g.DrawRectangle(p, r.X, r.Y, r.Width, r.Height); }
             }
-            else if (Zones.Count == 0)
+            else if (Zones.Count == 0 && Status == null)
                 Pill(g, Lang.T("גוררים על התמונה כדי לסמן אזור להסתרה"), Height - Theme.S(40));
+            if (Status != null) Pill(g, Status, Theme.S(12));
         }
 
         private void DrawZone(Graphics g, int i, bool sel)
         {
             BlurZone z = Zones[i];
-            RectangleF r = ToScreen(z.Area);
+            RectangleF r = ToScreen(z.AreaAt(PosMs));
             bool live = z.ActiveAt(PosMs);
             Color c = ZonesDlg.ColorOf(i);
             using (Pen p = new Pen(live ? c : Color.FromArgb(170, c), sel ? 2.2f : 1.4f))
