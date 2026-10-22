@@ -234,6 +234,12 @@ $ffx = (TY 'Ff').GetProperty('Exe', $ST).GetValue($null)
 $cues = (TY 'Doc').GetField('Cues', $IN).GetValue($mfT.GetField('_doc', $IN).GetValue($mf))
 if ($cues.Count -eq 0) { foreach ($c in @(@(1000, 2500, 'ברוכים הבאים'), @(3000, 5000, 'היום נלמד'))) { $cues.Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2]))) } }
 function RunWork($res) { $fn = $res['_work']; if (-not $fn) { return $null }; return $fn.Invoke() }
+# אזורי צנזורה מהעוזר (0.8.34, 2כט): להוסיף, להציג, למחוק; שגיאה ברורה על אזור לא תקין
+$z1 = Call 'add_blur_zone' @{ area = '10,70,80,20'; from_sec = 1; to_sec = 3; look = 'pixels'; circle = $true }
+$z2 = Call 'add_blur_zone' @{ area = '5,5,20'; }
+$zl = Call 'list_blur_zones' @{}
+$zz = @($zl['zones']); $zr = Call 'remove_blur_zone' @{ number = 1 }; $zr2 = Call 'remove_blur_zone' @{ number = 1 }
+Check 'העוזר: אזור צנזורה - נוסף עם הזמן והמראה, אזור שבור - הסבר, נמחק, ופעם שנייה - ״אין אזור״' (('' + $z1['done']).Length -gt 0 -and $z2['error'] -ne $null -and $zz.Count -eq 1 -and $zz[0]['look'] -eq 'pixels' -and [double]$zz[0]['from_sec'] -eq 1 -and [double]$zz[0]['to_sec'] -eq 3 -and $zz[0]['circle'] -and ('' + $zr['done']).Length -gt 0 -and $zr2['error'] -ne $null) ("$($z1['done']) | $($z2['error']) | " + $zz.Count + " | $($zr2['error'])")
 $res = Call 'listen' @{ index = 1 }
 $w = RunWork $res
 Check 'listen: קטע הקול של הכתובית יוצא (MP3)' ($w -ne $null -and $w['_audio'] -ne $null -and $w['_audio'].Length -gt 1000) ($(if ($w) { '' + $w['clip'] + ' ' + $(if ($w['_audio']) { $w['_audio'].Length } else { $w['error'] }) }))

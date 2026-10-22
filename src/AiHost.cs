@@ -179,6 +179,17 @@ namespace SubtitleStudio
                 .P("from_sec", "number", "או: רק כתוביות שמתחילות מהזמן הזה")
                 .P("to_sec", "number", "עד הזמן הזה"));
 
+            // אזורי צנזורה לפי זמן (0.8.34, WORKPLAN 2כט)
+            t.Add(new AiTool("add_blur_zone", "מוסיף אזור טשטוש או צנזורה בסרט: מקום (באחוזים מהתמונה), זמן (או כל הסרט) ומראה. נראה בנגן ונצרב ביצירת הסרט - גם בלי כתוביות")
+                .Req("area", "string", "x,y,רוחב,גובה - באחוזים מהתמונה, למשל 10,70,80,20")
+                .P("from_sec", "number", "מאיזה זמן בסרט (בלי - מההתחלה)")
+                .P("to_sec", "number", "עד איזה זמן (בלי - עד הסוף)")
+                .P("look", "string", "blur (טשטוש), pixels (פיקסלים) או black (כיסוי שחור)")
+                .P("circle", "boolean", "עיגול במקום מלבן")
+                .P("strength", "number", "עוצמה 5-100, לטשטוש ולפיקסלים"));
+            t.Add(new AiTool("list_blur_zones", "אזורי הטשטוש והצנזורה שבסרט, עם המספר של כל אחד"));
+            t.Add(new AiTool("remove_blur_zone", "מוחק אזור טשטוש או צנזורה לפי המספר שלו")
+                .Req("number", "integer", "המספר מ-list_blur_zones (מ-1)"));
             t.Add(new AiTool("set_style", "משנה את עיצוב הכתוביות בסרט המיוצא")
                 .P("size_percent", "number", "גודל הגופן באחוזים מגובה התמונה, בערך 3 עד 12")
                 .P("position", "string", "top / middle / bottom")
@@ -438,6 +449,9 @@ namespace SubtitleStudio
                     case "remove_word_from_dictionary": return AiRemoveWord(call);
                     case "translate_subtitles": return AiDoTranslate(call, out refused);
                     case "set_style": return AiSetStyle(call);
+                    case "add_blur_zone": return AiAddZone(call);
+                    case "list_blur_zones": return AiListZones();
+                    case "remove_blur_zone": return AiRemoveZone(call);
                     case "seek": return AiSeek(call);
                     case "save_subtitles": return AiSave();
                     case "mark_range": return AiMarkRange(call);
@@ -899,7 +913,76 @@ namespace SubtitleStudio
             return r;
         }
 
-        /// <summary>צבע לפי שם (עברית או אנגלית) או ‎#RRGGBB. ריק - לא שונה.</summary>
+        private static readonly string[] ZoneLooks = { "blur", "pixels", "black" };
+
+        private Dictionary<string, object> AiAddZone(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין סרט פתוח"; return r; }
+            string[] p = c.Str("area", "").Split(',');
+            double[] v = new double[4];
+            bool ok = p.Length == 4;
+            for (int i = 0; ok && i < 4; i++)
+                ok = double.TryParse(p[i].Trim().TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out v[i]);
+            if (!ok) { r["error"] = "area: ארבעה מספרים באחוזים - x,y,רוחב,גובה"; return r; }
+            double x = Math.Max(0, Math.Min(100, v[0])), y = Math.Max(0, Math.Min(100, v[1]));
+            double w = Math.Max(0, Math.Min(100 - x, v[2])), h = Math.Max(0, Math.Min(100 - y, v[3]));
+            if (w < 1 || h < 1) { r["error"] = "האזור קטן מדי"; return r; }
+            BlurZone z = new BlurZone();
+            z.Area = new System.Drawing.RectangleF((float)(x / 100), (float)(y / 100), (float)(w / 100), (float)(h / 100));
+            double from = c.Num("from_sec", -1), to = c.Num("to_sec", -1);
+            z.FromMs = from > 0 ? (long)Math.Round(from * 1000) : -1;
+            z.ToMs = to > 0 ? (long)Math.Round(to * 1000) : -1;
+            if (z.FromMs >= 0 && z.ToMs >= 0 && z.ToMs <= z.FromMs) { r["error"] = "to_sec חייב להיות אחרי from_sec"; return r; }
+            z.Look = Math.Max(0, Array.IndexOf(ZoneLooks, c.Str("look", "blur").Trim().ToLowerInvariant()));
+            z.Ellipse = c.Bool("circle", false);
+            z.Pct = (int)Math.Max(5, Math.Min(100, c.Num("strength", 60)));
+            _style.Zones.Add(z);
+            _video.Invalidate();
+            r["done"] = Lang.F("נוסף אזור {0}", _style.Zones.Count);
+            r["zones"] = ZonesList();
+            r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב ב״יצירת סרט עם כתוביות״";
+            return r;
+        }
+
+        private List<object> ZonesList()
+        {
+            List<object> list = new List<object>();
+            for (int i = 0; i < _style.Zones.Count; i++)
+            {
+                BlurZone z = _style.Zones[i];
+                Dictionary<string, object> d = new Dictionary<string, object>();
+                d["number"] = i + 1;
+                d["area"] = string.Format(CultureInfo.InvariantCulture, "{0:0},{1:0},{2:0},{3:0}", z.Area.X * 100, z.Area.Y * 100, z.Area.Width * 100, z.Area.Height * 100);
+                d["from_sec"] = z.FromMs < 0 ? (object)"start" : z.FromMs / 1000.0;
+                d["to_sec"] = z.ToMs < 0 ? (object)"end" : z.ToMs / 1000.0;
+                d["look"] = ZoneLooks[Math.Max(0, Math.Min(2, z.Look))];
+                d["circle"] = z.Ellipse;
+                list.Add(d);
+            }
+            return list;
+        }
+
+        private Dictionary<string, object> AiListZones()
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            r["zones"] = ZonesList();
+            if (_style.Zones.Count == 0) r["note"] = "אין אזורים. מוסיפים עם add_blur_zone";
+            return r;
+        }
+
+        private Dictionary<string, object> AiRemoveZone(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            int n = (int)c.Num("number", 0);
+            if (n < 1 || n > _style.Zones.Count) { r["error"] = Lang.F("אין אזור {0} - יש {1}", n, _style.Zones.Count); return r; }
+            _style.Zones.RemoveAt(n - 1);
+            _video.Invalidate();
+            r["done"] = Lang.F("אזור {0} נמחק", n);
+            r["zones"] = ZonesList();
+            return r;
+        }
+
         private static System.Drawing.Color ColorOf(string s)
         {
             s = (s ?? "").Trim().ToLowerInvariant();
