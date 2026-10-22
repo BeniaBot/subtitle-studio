@@ -208,6 +208,18 @@ namespace SubtitleStudio
         /// התחדשה - ובדגמי הגיבוי הזמנים של התמלול סטו בשנייה (נמדד, 6.10.2026). עכשיו נשמר
         /// רק מעבר בגלל שם דגם שלא קיים בחשבון.</summary>
         public static string Preferred = "gemini-flash-latest";
+        /// <summary>**הדגם שניצח במרוץ בשיחה - עד סוף היום** (0.8.35, בנימין: ״תוסיף זיכרון עד סוף היום״). היום = לפי שעון האוקיינוס השקט,
+        /// כמו איפוס המכסות של גוגל. נשמר בהגדרות (``aifast``), כדי שגם אחרי סגירה ופתיחה השאלה הראשונה לא תחכה 8 שניות לדגם האיטי.</summary>
+        public static string ChatFast = "", ChatFastDay = "";
+        internal static string ChatFastToday { get { return ChatFast.Length > 0 && ChatFastDay == PtDay(DateTime.UtcNow) ? ChatFast : null; } }
+        internal static void SetChatFast(string model) { ChatFast = model ?? ""; ChatFastDay = PtDay(DateTime.UtcNow); }
+
+        /// <summary>התאריך בשעון האוקיינוס השקט (״2026-10-22״) - היום של המכסות של גוגל.</summary>
+        internal static string PtDay(DateTime utc)
+        {
+            try { return TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById("Pacific Standard Time")).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture); }
+            catch { return utc.AddHours(-8).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture); }
+        }
         /// <summary>הדגם שענה בבקשה האחרונה שהצליחה.</summary>
         public static string LastModelUsed = "";
         public static string Key = "";
@@ -235,6 +247,8 @@ namespace SubtitleStudio
         {
             "gemini-flash-latest",
             "gemini-2.5-flash",
+            // ‏3.6 (יציב מיולי 2026, בחינם - ai.google.dev, 22.10): מכסה נוספת משלו. ‏3.5-flash כבר לא ברשימות של גוגל - שם שלא קיים מדולג ונזכר
+            "gemini-3.6-flash",
             "gemini-3.5-flash",
             "gemini-3-flash-preview",
             "gemini-flash-lite-latest",

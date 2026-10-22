@@ -166,6 +166,7 @@ namespace SubtitleStudio
                 // מפתח שהתהליך הזה לא הכיר ולא נגע בו - נשאר כמו שהוא בקובץ
                 sb.AppendLine("aikey=" + (string.IsNullOrEmpty(Ai.Key) && !AiKeyTouched ? OnDisk("aikey") : Ai.Protect(Ai.Key)));
                 sb.AppendLine("aimodel=" + Ai.Preferred);
+                if (Ai.ChatFastToday != null) sb.AppendLine("aifast=" + Ai.ChatFast + "|" + Ai.ChatFastDay);
                 sb.AppendLine("groqkey=" + (string.IsNullOrEmpty(Stt.GroqKey) && !GroqKeyTouched ? OnDisk("groqkey") : Ai.Protect(Stt.GroqKey)));
                 sb.AppendLine("stt=" + Stt.ProviderId);
                 sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
@@ -260,6 +261,12 @@ namespace SubtitleStudio
                         case "aimodel":
                             if (v.Length > 0 && Array.IndexOf(Ai.Models, v) < 2) { Ai.Model = v; Ai.Preferred = v; }
                             break;
+                        case "aifast":
+                            {
+                                int bar = v.IndexOf('|');
+                                if (bar > 0) { Ai.ChatFast = v.Substring(0, bar); Ai.ChatFastDay = v.Substring(bar + 1); }
+                                break;
+                            }
                         case "groqkey": Stt.GroqKey = Ai.Unprotect(v) ?? ""; break;
                         case "stt": Stt.ProviderId = v; break;
                         case "spell": Spell.Enabled = v != "0"; break;

@@ -819,7 +819,9 @@ namespace SubtitleStudio
             // **דגם שהפסיד במרוץ - לסוף התור עד סוף ההפעלה** (0.8.35). בנימין: ״בכל פעם שאני שולח שאלה לעוזר... בודק איזה 7 שניות,
             // ואז כותב המודל של גוגל איטי כרגע, ועובר למודל אחר״ - הדגם הראשון (gemini-flash-latest) איטי בעקביות, וכל שאלה חיכתה לו
             // 8 שניות מחדש. עכשיו רק הפעם הראשונה; אחרי זה מתחילים מזה שענה (ובשאלה הבאה הוא שוב במרוץ, אם גם הוא יאט)
-            if (after0 == null && _chatFast != null) after0 = Ai.Before(_chatFast);
+            // ומה שניצח היום בשיחה קודמת (גם אחרי סגירה ופתיחה - `Ai.ChatFastToday`)
+            string fast = _chatFast ?? Ai.ChatFastToday;
+            if (after0 == null && fast != null) after0 = Ai.Before(fast);
             Thread t = new Thread(delegate ()
             {
                 StopToken.Attach(stop);
@@ -848,6 +850,7 @@ namespace SubtitleStudio
                     if (hedged && reply != null && reply.Ok && !string.IsNullOrEmpty(slow) && Ai.LastModelUsed != slow)
                     {
                         _chatFast = Ai.LastModelUsed;
+                        Ai.SetChatFast(_chatFast);
                         Ai.Log("בשיחה: " + slow + " הפסיד במרוץ ל-" + Ai.LastModelUsed + " - השאלות הבאות מתחילות ממנו");
                     }
                 }

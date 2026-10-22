@@ -304,7 +304,14 @@ $srv = StartServerC @((Reply (Txt 'תשובה מיד.')))
 Say 'שאלה שנייה' 20
 $m2 = ModelOf (ReqLine $srv 0)
 Check 'דגם שהפסיד במרוץ - השאלה הבאה מתחילה מזה שענה, בלי עוד המתנה' ($m2 -eq $m1 -and (LastModelText) -eq 'תשובה מיד.') ("$m0 הפסיד ל-$m1; השאלה הבאה: $m2")
+# **ועד סוף היום** - גם חלון חדש (בלי הזיכרון של החלון) מתחיל מהדגם שניצח היום (`Ai.ChatFastToday`, נשמר בהגדרות כ-aifast)
 $chat.GetType().GetField('_chatFast', $IN).SetValue($chat, $null)
+$srv = StartServerC @((Reply (Txt 'תשובה מהזיכרון של היום.')))
+Say 'שאלה בחלון ״חדש״' 20
+$m3 = ModelOf (ReqLine $srv 0)
+$cfT = (TY 'Ai')
+Check 'עד סוף היום: גם בלי הזיכרון של החלון - מהדגם שניצח היום' ($m3 -eq $m1 -and [string]$cfT.GetField('ChatFast', $ST).GetValue($null) -eq $m1) ("$m3 / " + $cfT.GetField('ChatFast', $ST).GetValue($null))
+$cfT.GetField('ChatFast', $ST).SetValue($null, ''); $chat.GetType().GetField('_chatFast', $IN).SetValue($chat, $null)
 $chT.GetField('HedgeMs', $ST).SetValue($null, $hedge0)
 
 # ---------- 10. הודעה קולית: קודם המילים (דגם קל), הן בבועה, ורק אז הבקשה - בטקסט (0.8.14) ----------
