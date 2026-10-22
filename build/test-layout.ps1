@@ -235,6 +235,8 @@ $dialogs = @(
     @{ n = 'AiSetup';    needsMedia = $false; make = { NewOf 'AiSetupDlg' @() } },
     @{ n = 'AiTranslate';needsMedia = $false; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Trim';       needsMedia = $true;  make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
+    @{ n = 'Zones';      needsMedia = $true;  make = { NewOf 'ZonesDlg' @($null, $mi, $null) } },
+    @{ n = 'Zones2';     needsMedia = $true;  make = { $z = NewOf 'ZonesDlg' @($null, $mi, $null); $am = $z.GetType().GetMethod('AddZone', $IN); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.1, 0.1, 0.3, 0.3))); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.55, 0.5, 0.3, 0.35))); $z } },
     @{ n = 'Extract';    needsMedia = $true;  make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Tools';      needsMedia = $true;  make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';     needsMedia = $true;  make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },

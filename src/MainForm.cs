@@ -453,6 +453,11 @@ namespace SubtitleStudio
             MenuItem cutItem = MenuItem.Make(Lang.T("חיתוך קטעים"), Lang.T("לשמור או להסיר קטעים - כמה שרוצים, ישר על פס הקול"), Ico.Scissors,
                 delegate { TrimMedia(); }).Cat(AiPerms.Media);
             items.Add(cutItem);
+            // **טשטוש וצנזורה** (0.8.35): אזורים שמוסתרים רק בזמן שלהם - חלון משלו (WORKPLAN 2כט ב)
+            MenuItem zonesItem = MenuItem.Make(Lang.T("טשטוש וצנזורה"), Lang.T("להסתיר פנים, שלט או כיתוב - באזור ובזמן שבוחרים"), Ico.Eye,
+                delegate { EditZones(); }).Cat(AiPerms.Edit);
+            zonesItem.Enabled = _mi != null && _mi.HasVideo;
+            items.Add(zonesItem);
 
             items.Add(MenuItem.Group(Lang.T("המרה ועיבוד")));
             MenuItem fitItem = MenuItem.Make(Lang.T("הקטנה לגודל מבוקש"),
@@ -3414,6 +3419,23 @@ namespace SubtitleStudio
             d.Dispose();
             if (next != null) SwitchToCut(next);
             SyncAfterDocChange();
+        }
+
+        /// <summary>חלון ״טשטוש וצנזורה״ (`ZonesDlg`): עובד על עותק של האזורים, ו״שמירה״ מחליף. האזורים שייכים לסרט ונשמרים בפרויקט -
+        /// לכן שינוי מסמן את העבודה כלא-שמורה.</summary>
+        private void EditZones()
+        {
+            if (_mi == null || !_mi.HasVideo) { Ui.Info(this, Lang.T("אין סרט פתוח"), Lang.T("טשטוש וצנזורה עובדים על סרט. קודם פותחים סרט.")); return; }
+            ZonesDlg d = new ZonesDlg(this, _mi, _style.Zones);
+            d.ShowDialog(this);
+            if (d.Ok && d.Result != null)
+            {
+                _style.Zones.Clear();
+                _style.Zones.AddRange(d.Result);
+                _video.Invalidate();
+                if (d.Changed) _doc.Dirty = true;
+            }
+            d.Dispose();
         }
 
         /// <summary>אחרי חיתוך עם ״לעבור לקובץ החתוך״: העורך פותח את הקובץ החדש, והכתוביות (שכבר הוזזו) הולכות

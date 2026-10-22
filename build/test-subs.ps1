@@ -313,6 +313,40 @@ $mi4 = ProbeIt $src4
 $r4 = Burn4k $mi4 $true 'big-down.mp4'; $r4b = Burn4k $mi4 $false 'big-full.mp4'
 $small = Burn4k (ProbeIt (Join-Path $dir 'with-track.mkv')) $true 'small-down.mp4'
 Rep '4K: "shrink to 1080p" is offered, burns 1920x1080 (with blur), and off keeps 3840x2160; not offered for a small video' ($r4[0] -and $r4[1] -eq 1920 -and $r4[2] -eq 1080 -and $r4b[1] -eq 3840 -and -not $small[0] -and $small[2] -eq 240) ("on {0}x{1}, off {2}x{3}, small offered={4} {5}x{6}" -f $r4[1], $r4[2], $r4b[1], $r4b[2], $small[0], $small[1], $small[2])
+
+# ---- החלון ״טשטוש וצנזורה״ (0.8.35, ‏2כט ב): מה שמשתמש עושה - גרירה על התמונה, הזזה, פינה, ״התחלה כאן״ / ״סוף כאן״, ביטול, שמירה ----
+$zmi = ProbeIt (Join-Path $dir 'with-track.mkv')
+$orig = [Activator]::CreateInstance((TY 'SubStyle')); $orig.Zones.Add((Zone 0.05 0.05 0.1 0.1 -1 -1 2 $false))
+$zargv = New-Object object[] 3; $zargv[1] = $zmi; $zargv[2] = $orig.Zones
+$zd = [Activator]::CreateInstance((TY 'ZonesDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $zargv, $null)
+$cv = $zd.GetType().GetField('_canvas', $IN).GetValue($zd)
+$cT = $cv.GetType()
+function Mouse($m, $rx, $ry) { $vr = $cv.VideoRect(); $e = [Windows.Forms.MouseEventArgs]::new([Windows.Forms.MouseButtons]::Left, 1, [int]($vr.X + $rx * $vr.Width), [int]($vr.Y + $ry * $vr.Height), 0); [void]$cT.GetMethod($m, $IN).Invoke($cv, @($e)) }
+function Drag($x1, $y1, $x2, $y2) { Mouse 'OnMouseDown' $x1 $y1; Mouse 'OnMouseMove' (($x1 + $x2) / 2) (($y1 + $y2) / 2); Mouse 'OnMouseMove' $x2 $y2; Mouse 'OnMouseUp' $x2 $y2 }
+function Near($a, $b) { return [Math]::Abs($a - $b) -lt 0.02 }
+$zdT = $zd.GetType()
+function ZP($n) { $v = $zdT.GetProperty($n, $IN).GetValue($zd); return ,$v }
+$zl = ZP 'Zones'
+Drag 0.2 0.2 0.6 0.7
+$nz = if ($zl.Count -eq 2) { $zl[1] } else { $null }
+Rep 'zones window: dragging on the picture makes an area just there, from the start = the whole video' ($nz -ne $null -and (Near $nz.Area.X 0.2) -and (Near $nz.Area.Y 0.2) -and (Near $nz.Area.Width 0.4) -and (Near $nz.Area.Height 0.5) -and $nz.FromMs -eq -1 -and $nz.ToMs -eq -1 -and (ZP 'Selected') -eq 1) ("{0} areas, {1}" -f $zl.Count, $(if ($nz) { "{0:0.00},{1:0.00} {2:0.00}x{3:0.00} {4}..{5}" -f $nz.Area.X, $nz.Area.Y, $nz.Area.Width, $nz.Area.Height, $nz.FromMs, $nz.ToMs }))
+Drag 0.4 0.45 0.5 0.45
+$movedX = $nz.Area.X
+Drag 0.7 0.7 0.9 0.95
+Rep 'zones window: dragging an area moves it, its corner resizes it' ((Near $movedX 0.3) -and (Near $nz.Area.Right 0.9) -and (Near $nz.Area.Bottom 0.95) -and (Near $nz.Area.X 0.3)) ("moved x {0:0.00}; now {1:0.00},{2:0.00} to {3:0.00},{4:0.00}" -f $movedX, $nz.Area.X, $nz.Area.Y, $nz.Area.Right, $nz.Area.Bottom)
+function ZCall($m, $a) { [void]$zdT.GetMethod($m, $IN).Invoke($zd, $a) }
+ZCall 'Seek' @([long]1000); ZCall 'MarkHere' @($true); ZCall 'Seek' @([long]2500); ZCall 'MarkHere' @($false)
+$w1 = (ZP 'WhenText'); $t1 = "{0}..{1}" -f $nz.FromMs, $nz.ToMs
+ZCall 'Seek' @([long]500); ZCall 'MarkHere' @($false)
+$refused = $nz.ToMs -eq 2500 -and (ZP 'WhenText') -ne $w1
+ZCall 'Undo' @()
+$nz2 = (ZP 'Zones')[1]
+Rep 'zones window: "start here" / "end here" follow the player; an end before the start is refused with a note; Ctrl+Z undoes' ($t1 -eq '1000..2500' -and $w1 -match '00:01\.0' -and $w1 -match '00:02\.5' -and $refused -and $nz2.FromMs -eq 1000 -and $nz2.ToMs -eq -1) ("{0}  [{1}]  refused={2}  after undo {3}..{4}" -f $t1, $w1, $refused, $nz2.FromMs, $nz2.ToMs)
+ZCall 'SetLook' @([int]1); ZCall 'RemoveZone' @([int]0)
+[void]$zdT.GetMethod('OnOk', $IN).Invoke($zd, @())
+$res = $zd.Result
+Rep 'zones window: Save returns a copy; the zones it came with are untouched until then' ($res.Count -eq 1 -and $res[0].Look -eq 1 -and $res[0].FromMs -eq 1000 -and $orig.Zones.Count -eq 1 -and $orig.Zones[0].Look -eq 2 -and -not [object]::ReferenceEquals($res[0], (ZP 'Zones')[0]) -and (ZP 'Changed')) ("result {0} (look {1}), original {2} (look {3})" -f $res.Count, $res[0].Look, $orig.Zones.Count, $orig.Zones[0].Look)
+$zd.Dispose()
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }

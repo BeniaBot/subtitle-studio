@@ -115,6 +115,8 @@ $forms = @(
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'FitSize';     make = { NewOf 'ToolRunDlg' @($null, (ToolNamed 'התאמה לגודל קובץ מבוקש'), $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Trim';        make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
+    @{ n = 'Zones';       make = { NewOf 'ZonesDlg' @($null, $mi, $null) } },
+    @{ n = 'Zones2';      make = { $z = NewOf 'ZonesDlg' @($null, $mi, $null); $am = $z.GetType().GetMethod('AddZone', $IN); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.1, 0.1, 0.3, 0.3))); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.55, 0.5, 0.3, 0.35))); $z } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },
     @{ n = 'Style';       make = { NewOf 'StyleDlg' @($style, $null) } },

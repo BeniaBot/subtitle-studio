@@ -939,6 +939,7 @@ namespace SubtitleStudio
             z.Pct = (int)Math.Max(5, Math.Min(100, c.Num("strength", 60)));
             _style.Zones.Add(z);
             _video.Invalidate();
+            _doc.Dirty = true;
             r["done"] = Lang.F("נוסף אזור {0}", _style.Zones.Count);
             r["zones"] = ZonesList();
             r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב ב״יצירת סרט עם כתוביות״";
@@ -978,6 +979,7 @@ namespace SubtitleStudio
             if (n < 1 || n > _style.Zones.Count) { r["error"] = Lang.F("אין אזור {0} - יש {1}", n, _style.Zones.Count); return r; }
             _style.Zones.RemoveAt(n - 1);
             _video.Invalidate();
+            _doc.Dirty = true;
             r["done"] = Lang.F("אזור {0} נמחק", n);
             r["zones"] = ZonesList();
             return r;

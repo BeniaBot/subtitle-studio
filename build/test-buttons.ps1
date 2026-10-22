@@ -114,6 +114,8 @@ $forms = @(
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },
     @{ n = 'Trim';        make = { NewOf 'CutDlg' @($null, $mi, $doc, $null, $null) } },
+    @{ n = 'Zones';       make = { NewOf 'ZonesDlg' @($null, $mi, $null) } },
+    @{ n = 'Zones2';      make = { $z = NewOf 'ZonesDlg' @($null, $mi, $null); $am = $z.GetType().GetMethod('AddZone', $IN); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.1, 0.1, 0.3, 0.3))); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.55, 0.5, 0.3, 0.35))); $z } },
     @{ n = 'Extract';     make = { NewOf 'ExtractSubsDlg' @($null, $mi) } },
     @{ n = 'Tools';       make = { NewOf 'ToolsDlg' @($null, $mi, [int64]-1, [int64]-1, [int64]0) } },
     @{ n = 'Export';      make = { NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [int64]-1, [int64]-1) } },
