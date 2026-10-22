@@ -1804,7 +1804,7 @@ namespace SubtitleStudio
             "פנים", "Face",
             "עוקב", "Tracking",
             "למצוא פנים", "Find faces",
-            "מחפש את כל הפנים בסרט ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס", "Finds all the faces in the video and adds an area that moves with each one - offline, with the detector built into Windows",
+            "מחפש את כל הפנים בסרט (או רק בקטע שסימנתם על הציר) ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס", "Finds all the faces in the video (or only in the part you marked on the timeline) and adds an area that moves with each one - offline, with the detector built into Windows",
             "אין גלאי פנים", "No face detector",
             "בווינדוס הזה אין גלאי פנים מובנה (הוא קיים מווינדוס 10). את הפנים מסמנים ביד - גוררים על התמונה.", "This Windows has no built-in face detector (it exists from Windows 10). Mark the faces by hand - drag on the picture.",
             "לעצור", "Stop",
@@ -1833,6 +1833,7 @@ namespace SubtitleStudio
             "כל אזורי הפנים ({0})", "All face areas ({0})",
             "{0} - לכולם", "{0} - for all",
             "למחוק את כולם", "Delete them all",
+            "מחפש פנים בקטע המסומן...", "Looking for faces in the marked part...",
         };
 
         public static void Fill(Dictionary<string, string> d)

@@ -22,8 +22,8 @@
         },
         {
           "t": "feature",
-          "s": "״כל אזורי הפנים״ בקליק ימני: מראה אחד לכולם, או מחיקה של כולם",
-          "en": "'All face areas' on right-click: one look for all of them, or delete them all"
+          "s": "״כל אזורי הפנים״ בקליק ימני: מראה אחד לכולם, או מחיקה של כולם; ״למצוא פנים״ רק בקטע שסומן על הציר, כשיש",
+          "en": "'All face areas' on right-click: one look for all of them, or delete them all; 'Find faces' searches only the part marked on the timeline, if any"
         }
       ]
     },

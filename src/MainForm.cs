@@ -2288,6 +2288,9 @@ namespace SubtitleStudio
 
         /// <summary>הקטע שמסומן על הציר (״תחילת קטע״ / ״סוף קטע״), אם יש: סימון של התחלה בלבד - עד סוף
         /// הסרט, של סוף בלבד - מתחילתו. קטע של פחות משנייה לא נחשב.</summary>
+        /// <summary>לחלון ״טשטוש וצנזורה״: הקטע המסומן על הציר (חיפוש פנים רק בו).</summary>
+        internal bool MarkedRangeFor(out long a, out long b) { return MarkedRange(out a, out b); }
+
         private bool MarkedRange(out long a, out long b)
         {
             a = 0; b = 0;

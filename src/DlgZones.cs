@@ -154,7 +154,7 @@ namespace SubtitleStudio
             Buttons(Lang.T("שמירה"), Ico.Check, Lang.T("ביטול"));
             // **פנים אוטומטית** (2כט ה): הגלאי של ווינדוס, בלי אינטרנט ובלי הורדה - אזור שזז לכל פנים
             _faceBtn = BottomButton(Lang.T("למצוא פנים"), Ico.Sparkles, delegate { FindFaces(); });
-            Ui.Tip.SetToolTip(_faceBtn, Lang.T("מחפש את כל הפנים בסרט ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס"));
+            Ui.Tip.SetToolTip(_faceBtn, Lang.T("מחפש את כל הפנים בסרט (או רק בקטע שסימנתם על הציר) ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס"));
 
             _pos = main != null ? main.PlayerPosition : 0;
             // הפריים שעל המסך; אין (הנגן עוד לא צייר, או בבדיקה בלי נגן) - צילום אחד מהקובץ, כדי שיהיה על מה לסמן
@@ -485,12 +485,16 @@ namespace SubtitleStudio
             }
             _scanning = true; _faceStop = false;
             _faceBtn.Text = Lang.T("לעצור"); _faceBtn.Icon = Ico.Stop; _faceBtn.Invalidate();
-            _canvas.Status = Lang.T("מחפש פנים בסרט..."); _canvas.Invalidate();
+            // **רק בקטע המסומן על הציר, כשיש** (כמו תמלול ותרגום) - בסרט ארוך חיפוש בכולו לוקח דקות
+            long from = 0, to = _mi.DurationMs, ma, mb;
+            bool part = _main != null && _main.MarkedRangeFor(out ma, out mb) && (from = ma) >= 0 && (to = mb) > from;
+            if (!part) { from = 0; to = _mi.DurationMs; }
+            _canvas.Status = part ? Lang.T("מחפש פנים בקטע המסומן...") : Lang.T("מחפש פנים בסרט..."); _canvas.Invalidate();
             string path = _mi.Path; MediaInfo mi = _mi;
             System.Threading.Thread th = new System.Threading.Thread(delegate ()
             {
                 List<Faces.Hit> hits = null; Exception err = null;
-                try { hits = Faces.Scan(path, mi, 0, mi.DurationMs, FaceProgress, delegate { return _faceStop; }); }
+                try { hits = Faces.Scan(path, mi, from, to, FaceProgress, delegate { return _faceStop; }); }
                 catch (Exception ex) { err = ex; }
                 try { BeginInvoke((Action)delegate { FacesDone(hits, err); }); } catch { }
             });

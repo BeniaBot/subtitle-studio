@@ -17,6 +17,8 @@ namespace SubtitleStudio
     internal static class Faces
     {
         internal const int Fps = 4;
+        /// <summary>הרוחב שהגלאי רואה (מקטינים אליו סרט רחב יותר).</summary>
+        internal static int ScanWidth = 960;
 
         internal class Hit
         {
@@ -40,7 +42,7 @@ namespace SubtitleStudio
             if (fromMs < 0) fromMs = 0;
             long span = Math.Max(1, toMs - fromMs);
             // עד 960 רוחב: פנים של 65 פיקסלים ב-1280 עדיין נמצאות (נבדק), ומהר יותר מהמקור
-            int w = Math.Min(960, mi.Width) & ~1;
+            int w = Math.Min(ScanWidth, mi.Width) & ~1;
             int h = (int)Math.Round(w * (double)mi.Height / mi.Width) & ~1;
             if (w < 64 || h < 64) return hits;
             object det = WinFaces.Create();
