@@ -343,18 +343,21 @@ namespace SubtitleStudio
             b.Icon = icon;
             b.Kind = BtnKind.Ghost;
             b.Click += click;
+            // **אם החלון כבר שוקף לאנגלית** (נוצר לפני הכפתור הזה), המיקומים של הכפתורים הקיימים הפוכים - מחשבים בעברית
+            // ומשקפים את החדש. עד 0.8.34 ``CreateGraphics`` כאן עצמו יצר את החלון באמצע הבנייה: השיקוף רץ על מה שהיה, והכפתור
+            // השני והשלישי נשארו בצד הלא נכון (״Export…״ של ״המילון שלי״ יצא מחוץ לחלון)
+            bool mir = _mirrored && !Lang.Rtl;
             int left = Pad;
-            foreach (Control c in _bottom) left = Math.Max(left, c.Right + Theme.S(10));
-            int w;
+            foreach (Control c in _bottom) left = Math.Max(left, (mir ? _baseW - c.Left : c.Right) + Theme.S(10));
             // **באותו מנוע שמצייר** (TextRenderer). ‏GDI+ בולע רווחים בעברית ומחזיר
-            // מדידה קטנה מדי: ״איפוס הגדרות״ יצא 86 במקום 103, והטקסט נחתך ב-״...״.
-            using (Graphics g = CreateGraphics())
-                w = TextRenderer.MeasureText(g, text, Theme.Ui, new Size(int.MaxValue, int.MaxValue),
+            // מדידה קטנה מדי: ״איפוס הגדרות״ יצא 86 במקום 103, והטקסט נחתך ב-״...״. בלי Graphics - לא ליצור את החלון
+            int w = TextRenderer.MeasureText(text, Theme.Ui, new Size(int.MaxValue, int.MaxValue),
                                              TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width +
                     b.IconSize + Theme.S(42);
             int room = _baseW - Pad - left;
             if (w > room) w = Math.Max(Theme.S(90), room);
             b.SetBounds(left, _bottom.Count > 0 ? _bottom[0].Top : Y, w, Theme.S(42));
+            if (mir) b.Left = _baseW - b.Right;
             Controls.Add(b);
             _bottom.Add(b);
             return b;
