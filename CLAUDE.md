@@ -152,6 +152,7 @@ build.cmd
 | `DlgExport.cs` | הטמעה בסרט (צריבה/ערוץ) |
 | `CutPlan.cs` | כלי החיתוך בלי ממשק: קטעים לטווחים (`Kept`, ‏`SplitItems`), ‏`SetEdge`, הזזת כתוביות (`MapCues`), ואיך נחתך כל פורמט (`AudioWay`, ‏`Steps`, ‏`BuildJob`) |
 | `DlgZones.cs` | חלון ״טשטוש וצנזורה״ (0.8.35): `ZonesDlg` (עותק של האזורים, ״שמירה״ מחזיר `Result`; יציאה בלי שמירה שואלת - לא בבדיקות), `ZoneCanvas` (גרירה = אזור, הזזה, פינות, קליק ימני), `ZoneTimeBar`, `ZoneList` | `CutView` (פס הקול עם הקטעים), ‏`CutMap`, ‏`CutRow`, ‏`CutDlg` |
+| `Faces.cs` | **פנים בסרט** (0.8.35): `Faces.Scan` (פריימים אפורים מ-ffmpeg, 4 לשנייה, עד 960 רוחב ← הגלאי של ווינדוס `WinFaces`, דרך WinRT - ``build.cmd`` מפנה גם ל-``Windows.Graphics/Security.winmd``), ‏`ToZones` (קישור לאורך זמן, ריפוד, `Simplify`, עד 10 שניות לאזור). נמדד על clip.mp4: ‏94 שניות נסרקו ב-8-14, ‏134 אזורים נצרבו ב-32 שניות (בלי - 5) |
 | `DlgTools.cs` | `MediaTool`/`MediaTools` (19 כלים), `ToolsDlg`, `ToolRunDlg`, `FitPlan`. **כל כלי חייב לעבוד על כל מיכל**: `Burn.AudioFor` (קודק הקול לפי המיכל), `ToolRunDlg.Ext` (‏MP4 כשהמקור לא מקבל H.264), `Burn.ScaleShort` (הצלע הקצרה, בלי הגדלה) |
 | `DlgEdit.cs` | הזזת תזמון, סנכרון, יבוא טקסט, שליפת כתוביות, עיצוב |
 | `Qa.cs` | בדיקת שגיאות: הכללים, ההסברים, והתיקון האוטומטי |
