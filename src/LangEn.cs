@@ -1834,6 +1834,7 @@ namespace SubtitleStudio
             "{0} - לכולם", "{0} - for all",
             "למחוק את כולם", "Delete them all",
             "מחפש פנים בקטע המסומן...", "Looking for faces in the marked part...",
+            "גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״הסרט ▾ ← טשטוש וצנזורה״", "Drag on the picture above. Several areas at different times: Video ▾ → Blur and censor",
         };
 
         public static void Fill(Dictionary<string, string> d)

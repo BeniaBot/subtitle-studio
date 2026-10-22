@@ -663,7 +663,8 @@ namespace SubtitleStudio
             Controls.Add(_blurPct);
             Y += Theme.S(38);
 
-            Lbl how = Label(Lang.T("את האזור מסמנים בגרירה על התמונה למעלה"), false, Theme.TextDim);
+            // ההפניה לחלון האזורים (0.8.36): מי שמגיע לכאן לא יודע שיש מקום לכמה אזורים בזמנים שונים
+            Lbl how = Label(Lang.T("גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״הסרט ▾ ← טשטוש וצנזורה״"), false, Theme.TextDim);
             how.Font = Theme.Small;
             how.SetBounds(Pad, Y, ContentW, Theme.S(20));
             Controls.Add(how);
