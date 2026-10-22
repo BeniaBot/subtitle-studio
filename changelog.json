@@ -2,6 +2,42 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.34",
+      "date": "2026-10-22",
+      "items": [
+        {
+          "t": "major",
+          "s": "״המילון שלי״ - כל המילים שהוספת למילון במקום אחד: חיפוש, הוספה, הסרה, ייבוא וייצוא (בהגדרות, ובקליק ימני על כתובית)",
+          "en": "'My dictionary' - all the words you added in one place: search, add, remove, import and export (in Settings, and on right-click on a subtitle)"
+        },
+        {
+          "t": "feature",
+          "s": "כלי חדש: הוספת מוזיקת רקע - שקטה מתחת לדיבור, ויורדת עוד כשמדברים",
+          "en": "New tool: add background music - quiet under the speech, and lower still while someone talks"
+        },
+        {
+          "t": "feature",
+          "s": "טשטוש או כיסוי של אזור בסרט רק בזמן מסוים (פנים, שלט) - בינתיים דרך העוזר החכם; נצרב גם בלי כתוביות",
+          "en": "Blur or cover an area of the video only at certain times (a face, a sign) - for now through the assistant; burns even without subtitles"
+        },
+        {
+          "t": "feature",
+          "s": "החלפת שפה בכפתור אחד בהגדרות: ״to English״ / ״לעברית״",
+          "en": "Switch language with one button in Settings: 'to English' / 'לעברית'"
+        },
+        {
+          "t": "fix",
+          "s": "הגברת עוצמה כבר לא מעוותת את הקול",
+          "en": "Turning the volume up no longer distorts the sound"
+        },
+        {
+          "t": "fix",
+          "s": "כלים במילים פשוטות: דחיסה בשלוש רמות עם הגודל הצפוי, GIF בגודל לבחירה (ולא על כל הסרט), חיתוך בלי מונחים טכניים",
+          "en": "Tools in plain words: compression in three levels with the expected size, GIF with a size choice (and not over the whole video), cutting without technical terms"
+        }
+      ]
+    },
+    {
       "v": "0.8.33",
       "date": "2026-10-22",
       "items": [
