@@ -2,6 +2,42 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.35",
+      "date": "2026-10-22",
+      "items": [
+        {
+          "t": "major",
+          "s": "״טשטוש וצנזורה״ (בתפריט הסרט): מסמנים אזור בגרירה על התמונה, ולכל אזור זמן ומראה - טשטוש, פיקסלים או כיסוי שחור",
+          "en": "'Blur and censor' (in the Video menu): drag on the picture to mark an area, and give each area a time and a look - blur, pixelate or a black box"
+        },
+        {
+          "t": "major",
+          "s": "״למצוא פנים״: כל הפנים בסרט מטושטשות אוטומטית וזזות איתן - בלי אינטרנט ובלי הורדה",
+          "en": "'Find faces': every face in the video is blurred automatically and followed as it moves - offline, nothing to download"
+        },
+        {
+          "t": "feature",
+          "s": "״מעקב״: אזור שהולך אחרי לוגו, שלט או אדם שזזים",
+          "en": "'Track': an area that follows a moving logo, sign or person"
+        },
+        {
+          "t": "feature",
+          "s": "סנכרון לפי הסרט - הכול בחלון אחד: מנגנים, וכשהמשפט נשמע לוחצים ״עכשיו״",
+          "en": "Sync to the video - all in one window: play, and press 'Now' when the sentence is heard"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר החכם כבר לא מחכה 8 שניות לפני כל תשובה",
+          "en": "The assistant no longer waits 8 seconds before every answer"
+        },
+        {
+          "t": "fix",
+          "s": "ניסוחים פשוטים בהזזת תזמון, בחיתוך ובהטמעה; הרבה אזורי טשטוש נצרבים מהר",
+          "en": "Plainer wording in shift timing, cutting and embedding; many blur areas burn quickly"
+        }
+      ]
+    },
+    {
       "v": "0.8.34",
       "date": "2026-10-22",
       "items": [
