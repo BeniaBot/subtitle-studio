@@ -816,10 +816,15 @@ namespace SubtitleStudio
             // אחרי תשובה ריקה - מהדגם שאחרי זה שהחזיר אותה
             string after0 = _startAfter;
             _startAfter = null;
+            // **דגם שהפסיד במרוץ - לסוף התור עד סוף ההפעלה** (0.8.35). בנימין: ״בכל פעם שאני שולח שאלה לעוזר... בודק איזה 7 שניות,
+            // ואז כותב המודל של גוגל איטי כרגע, ועובר למודל אחר״ - הדגם הראשון (gemini-flash-latest) איטי בעקביות, וכל שאלה חיכתה לו
+            // 8 שניות מחדש. עכשיו רק הפעם הראשונה; אחרי זה מתחילים מזה שענה (ובשאלה הבאה הוא שוב במרוץ, אם גם הוא יאט)
+            if (after0 == null && _chatFast != null) after0 = Ai.Before(_chatFast);
             Thread t = new Thread(delegate ()
             {
                 StopToken.Attach(stop);
                 string slow = after0;
+                bool hedged = false;
                 // **גוגל איטי - גם דגם אחר, במקביל** (`Ai.Race`, 0.8.14): אותה בקשה לוקחת פעם 3 שניות ופעם 33
                 try
                 {
@@ -834,11 +839,17 @@ namespace SubtitleStudio
                         delegate (AiReply x) { return x.Ok; },
                         delegate (int i)
                         {
+                            hedged = true;
                             slow = Ai.Trying;
                             Ai.Log("הדגם " + slow + " לא ענה תוך " + (HedgeMs / 1000) + " שניות - שואלים גם את הבא, במקביל");
                             try { BeginInvoke((MethodInvoker)delegate { if (gen == _gen) _view.Status = Lang.T("גוגל איטי כרגע - שואל גם דגם נוסף"); }); }
                             catch { }
                         });
+                    if (hedged && reply != null && reply.Ok && !string.IsNullOrEmpty(slow) && Ai.LastModelUsed != slow)
+                    {
+                        _chatFast = Ai.LastModelUsed;
+                        Ai.Log("בשיחה: " + slow + " הפסיד במרוץ ל-" + Ai.LastModelUsed + " - השאלות הבאות מתחילות ממנו");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -857,6 +868,8 @@ namespace SubtitleStudio
 
         /// <summary>אחרי כמה זמן בלי תשובה - אותה בקשה גם לדגם הבא (`Ai.Race`). תשובה רגילה בשיחה - 3-7 שניות (נמדד 12.10).</summary>
         internal static int HedgeMs = 8000;
+        /// <summary>הדגם שניצח במרוץ האחרון בשיחה - השאלה הבאה מתחילה ממנו (עד שהחלון נסגר; null - מהרגיל).</summary>
+        private string _chatFast;
 
         // ---------- עצירה (0.8.12) ----------
         /// <summary>מספר הבקשה: עצירה מקדמת אותו, ותשובה או המשך שמגיעים אחריה - של בקשה ישנה - נזרקים.</summary>

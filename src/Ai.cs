@@ -684,6 +684,14 @@ namespace SubtitleStudio
 
         /// <summary>הסדר של הדגמים לבקשה: הפעיל קודם, ואז השאר. בבקשה המקבילה (`StartAfter`) - מהדגם שאחרי זה שעוד לא ענה,
         /// בסיבוב, והוא עצמו אחרון.</summary>
+        /// <summary>הדגם שלפני <paramref name="model"/> בסדר הרגיל - ``StartAfter`` שלו מתחיל בדיוק מ-<paramref name="model"/> (null - לא ברשימה).</summary>
+        internal static string Before(string model)
+        {
+            List<string> order = ModelOrder(Model, null);
+            int i = order.IndexOf(model);
+            return i < 0 ? null : order[(i - 1 + order.Count) % order.Count];
+        }
+
         internal static List<string> ModelOrder(string active, string startAfter)
         {
             List<string> order = new List<string>();

@@ -299,6 +299,12 @@ $took = $sw.Elapsed.TotalSeconds
 $m0 = ModelOf (ReqLine $srv 0); $m1 = ModelOf (ReqLine $srv 1)
 Check 'גוגל איטי: אחרי שנייה וחצי גם דגם אחר - והתשובה שלו מגיעה, לא אחרי 25 שניות' ((LastModelText) -eq 'תשובה מהדגם השני.' -and $took -lt 10) ("" + [Math]::Round($took, 1) + " שניות")
 Check 'הבקשה המקבילה הלכה לדגם אחר' ($m0 -ne '' -and $m1 -ne '' -and $m0 -ne $m1) ("$m0 / $m1")
+# **ובשאלה הבאה - מזה שענה** (0.8.35). בנימין: ״בכל פעם שאני שולח שאלה... בודק איזה 7 שניות, ואז... עובר למודל אחר״
+$srv = StartServerC @((Reply (Txt 'תשובה מיד.')))
+Say 'שאלה שנייה' 20
+$m2 = ModelOf (ReqLine $srv 0)
+Check 'דגם שהפסיד במרוץ - השאלה הבאה מתחילה מזה שענה, בלי עוד המתנה' ($m2 -eq $m1 -and (LastModelText) -eq 'תשובה מיד.') ("$m0 הפסיד ל-$m1; השאלה הבאה: $m2")
+$chat.GetType().GetField('_chatFast', $IN).SetValue($chat, $null)
 $chT.GetField('HedgeMs', $ST).SetValue($null, $hedge0)
 
 # ---------- 10. הודעה קולית: קודם המילים (דגם קל), הן בבועה, ורק אז הבקשה - בטקסט (0.8.14) ----------
