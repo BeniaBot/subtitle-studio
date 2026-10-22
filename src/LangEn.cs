@@ -1830,6 +1830,9 @@ namespace SubtitleStudio
             "המעקב הסתיים: {0} שניות.", "Tracking done: {0} seconds.",
             "במה שסימנתם אין מספיק פרטים למעקב (צבע אחד). מסמנים משהו עם פרטים - לוגו, כיתוב, פנים.", "There is not enough detail in what you marked to track it (one colour). Mark something with detail - a logo, text, a face.",
             "יש אזורי טשטוש שלא נשמרו. קובץ כתוביות לא שומר אותם - העבודה תישמר כפרויקט.", "There are blur areas that were not saved. A subtitle file does not keep them - the work will be saved as a project.",
+            "כל אזורי הפנים ({0})", "All face areas ({0})",
+            "{0} - לכולם", "{0} - for all",
+            "למחוק את כולם", "Delete them all",
         };
 
         public static void Fill(Dictionary<string, string> d)

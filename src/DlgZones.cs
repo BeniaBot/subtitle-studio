@@ -377,6 +377,25 @@ namespace SubtitleStudio
             _canvas.Invalidate();
         }
 
+        /// <summary>מראה אחד לכל האזורים מסוג מסוים (״face״) - צעד ביטול אחד.</summary>
+        internal void SetLookAll(string kind, int look)
+        {
+            Push("lookall");
+            foreach (BlurZone z in _work.Zones) if (z.Kind == kind) z.Look = look;
+            _lastLook = look;
+            _changed = true;
+            RefreshAll();
+        }
+
+        /// <summary>מוחק את כל האזורים מסוג מסוים - צעד ביטול אחד.</summary>
+        internal void RemoveAll(string kind)
+        {
+            Push("removeall");
+            _work.Zones.RemoveAll(delegate (BlurZone z) { return z.Kind == kind; });
+            _changed = true;
+            Select(_work.Zones.Count > 0 ? 0 : -1);
+        }
+
         private void ShowMenu(int i, Point screen)
         {
             if (i < 0 || i >= _work.Zones.Count) return;
@@ -396,6 +415,19 @@ namespace SubtitleStudio
             items.Add(MenuItem.Make(Lang.T("מעקב מכאן"), "", Ico.Target, delegate { Track(); }));
             items.Add(MenuItem.Sep());
             items.Add(MenuItem.Make(Lang.T("מחיקת האזור"), "", Ico.Trash, delegate { RemoveZone(i); }));
+            // **כל אזורי הפנים בבת אחת** (0.8.36): ״למצוא פנים״ מוסיף עשרות - לשנות כל אחד לבד לא מעשי
+            int faces = 0;
+            foreach (BlurZone f in _work.Zones) if (f.Kind == "face") faces++;
+            if (z.Kind == "face" && faces > 1)
+            {
+                items.Add(MenuItem.Group(Lang.F("כל אזורי הפנים ({0})", Theme.Ltr(faces.ToString()))));
+                for (int k = 0; k < 3; k++)
+                {
+                    int look = k;
+                    items.Add(MenuItem.Make(Lang.F("{0} - לכולם", LookName(k)), "", Ico.None, delegate { SetLookAll("face", look); }));
+                }
+                items.Add(MenuItem.Make(Lang.T("למחוק את כולם"), "", Ico.Trash, delegate { RemoveAll("face"); }));
+            }
             new PopupMenu(items, 220).ShowAt(screen);
         }
 

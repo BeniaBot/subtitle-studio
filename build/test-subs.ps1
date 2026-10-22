@@ -419,6 +419,16 @@ $trk2 = Join-Path $dir 'track-flat.mp4'
 $ta[0] = [string]$trk2; $ta[1] = (ProbeIt $trk2).psobject.BaseObject; $ta[7] = 0; $ta[8] = 0
 $tkeys2 = (TY 'ObjectTrack').GetMethod('Follow', $ST).Invoke($null, $ta)
 Rep 'tracking: a one-colour square is refused (not followed to a wrong place)' ($ta[8] -eq -1 -and $tkeys2.Count -eq 1) ("frames {0}, keys {1}" -f $ta[8], $tkeys2.Count)
+# כל אזורי הפנים בבת אחת (0.8.36): מראה לכולם, מחיקה של כולם - ואזור שסומן ביד לא נוגעים בו; Ctrl+Z מחזיר
+$fd = [Activator]::CreateInstance((TY 'ZonesDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $zargv, $null)
+$fdT = $fd.GetType(); $fzl = $fdT.GetProperty('Zones', $IN).GetValue($fd)
+for ($q = 0; $q -lt 3; $q++) { [void]$fdT.GetMethod('AddZone', $IN).Invoke($fd, @([Drawing.RectangleF]::new(0.1 + 0.25 * $q, 0.3, 0.2, 0.2))); $fzl[$fzl.Count - 1].Kind = 'face' }
+[void]$fdT.GetMethod('SetLookAll', $IN).Invoke($fd, @([string]'face', [int]1))
+$looks = (@($fzl | ForEach-Object { '' + $_.Look + $(if ($_.Kind) { 'f' } else { 'm' }) })) -join ','
+[void]$fdT.GetMethod('RemoveAll', $IN).Invoke($fd, @([string]'face')); $left = $fzl.Count
+[void]$fdT.GetMethod('Undo', $IN).Invoke($fd, @()); $back = $fdT.GetProperty('Zones', $IN).GetValue($fd).Count
+Rep 'face areas all at once: one look for all, delete all - the hand-marked one untouched; Ctrl+Z brings them back' ($looks -eq '2m,1f,1f,1f' -and $left -eq 1 -and $back -eq 4) ("looks {0}; after delete {1}; after undo {2}" -f $looks, $left, $back)
+$fd.Dispose()
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }
