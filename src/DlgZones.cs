@@ -31,7 +31,9 @@ namespace SubtitleStudio
         private DateTime _flashUntil = DateTime.MinValue;
         // מה שנבחר לאחרונה - לאזור הבא
         private int _lastLook = BlurZone.Blur, _lastPct = 60;
-        private Btn _faceBtn;
+        private Btn _faceBtn, _trackBtn;
+        private volatile bool _trackStop;
+        private bool _tracking;
         private volatile bool _faceStop;
         private bool _scanning;
         private DateTime _lastProg = DateTime.MinValue;
@@ -114,17 +116,23 @@ namespace SubtitleStudio
             _markOut.Click += delegate { MarkHere(false); };
             _whole.Click += delegate { WholeVideo(); };
 
-            int half = (colW - s10) / 2, ry = y + Theme.S(90);
+            int third = (colW - 2 * s10) / 3, ry = y + Theme.S(90);
             _look = new Combo();
             _look.Items.AddRange(new object[] { Lang.T("טשטוש"), Lang.T("פיקסלים"), Lang.T("כיסוי שחור") });
-            _look.SetBounds(Pad + colW - half, ry, half, Theme.S(32));
+            _look.SetBounds(Pad + colW - third, ry, third, Theme.S(32));
             _look.SelectedIndexChanged += delegate { if (!_syncing) SetLook(_look.SelectedIndex); };
             Controls.Add(_look);
             _shape = new Combo();
             _shape.Items.AddRange(new object[] { Lang.T("מלבן"), Lang.T("עיגול") });
-            _shape.SetBounds(Pad, ry, half, Theme.S(32));
+            _shape.SetBounds(Pad + third + s10, ry, third, Theme.S(32));
             _shape.SelectedIndexChanged += delegate { if (!_syncing) SetShape(_shape.SelectedIndex == 1); };
             Controls.Add(_shape);
+            // **מעקב** (2כט ד): האזור הולך אחרי מה שבתוכו, מהרגע של הנגן ועד סוף האזור
+            _trackBtn = new Btn(); _trackBtn.Text = Lang.T("מעקב"); _trackBtn.Icon = Ico.Target; _trackBtn.Kind = BtnKind.Subtle; _trackBtn.Font = Theme.Small;
+            _trackBtn.SetBounds(Pad, ry, third, Theme.S(32));
+            _trackBtn.Click += delegate { Track(); };
+            Ui.Tip.SetToolTip(_trackBtn, Lang.T("האזור הולך אחרי מה שבתוכו (לוגו, שלט, אדם) - מהרגע של הנגן ועד סוף האזור"));
+            Controls.Add(_trackBtn);
             int py = ry + Theme.S(40);
             _pctCap = Label(Lang.T("עוצמה"), true, Theme.TextDim); _pctCap.Font = Theme.SmallBold;
             int capW = Math.Max(Theme.S(60), TextRenderer.MeasureText(_pctCap.Text, _pctCap.Font).Width + Theme.S(6));
@@ -224,7 +232,7 @@ namespace SubtitleStudio
         {
             BlurZone z = Cur;
             bool has = z != null;
-            foreach (Control c in new Control[] { _zoneTitle, _when, _markIn, _markOut, _whole, _look, _shape, _pctCap, _pct }) c.Visible = has;
+            foreach (Control c in new Control[] { _zoneTitle, _when, _markIn, _markOut, _whole, _look, _shape, _trackBtn, _pctCap, _pct }) c.Visible = has;
             _none.Visible = !has;
             if (has)
             {
@@ -246,10 +254,12 @@ namespace SubtitleStudio
         }
 
         /// <summary>הודעה קצרה במקום שורת ה״מתי״ - כשלחיצה לא יכולה לעשות את מה שביקשו.</summary>
-        private void Flash(string text)
+        private void Flash(string text) { Flash(text, Theme.Warn); }
+
+        private void Flash(string text, Color color)
         {
             _when.Text = text;
-            _when.Color = Theme.Warn;
+            _when.Color = color;
             _when.Invalidate();
             _flashUntil = DateTime.UtcNow.AddSeconds(3);
         }
@@ -383,6 +393,7 @@ namespace SubtitleStudio
             items.Add(MenuItem.Make(z.Ellipse ? Lang.T("לשנות למלבן") : Lang.T("לשנות לעיגול"), "", Ico.None, delegate { SetShape(!z.Ellipse); }));
             items.Add(MenuItem.Make(Lang.T("התחלה כאן"), "", Ico.None, delegate { MarkHere(true); }));
             items.Add(MenuItem.Make(Lang.T("סוף כאן"), "", Ico.None, delegate { MarkHere(false); }));
+            items.Add(MenuItem.Make(Lang.T("מעקב מכאן"), "", Ico.Target, delegate { Track(); }));
             items.Add(MenuItem.Sep());
             items.Add(MenuItem.Make(Lang.T("מחיקת האזור"), "", Ico.Trash, delegate { RemoveZone(i); }));
             new PopupMenu(items, 220).ShowAt(screen);
@@ -488,6 +499,63 @@ namespace SubtitleStudio
                 Lang.F("נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", Theme.Ltr(found.Count.ToString())));
         }
 
+        // ---------- מעקב ----------
+
+        /// <summary>״מעקב״: מה שבאזור ברגע של הנגן - עד סוף האזור (`ObjectTrack`), ברקע; לחיצה שנייה עוצרת (מה שנמצא עד שם נשאר).</summary>
+        internal void Track()
+        {
+            if (_tracking) { _trackStop = true; return; }
+            BlurZone z = Cur;
+            if (_scanning || z == null || _mi == null || !_mi.HasVideo) return;
+            if (!z.ActiveAt(_pos)) { Flash(Lang.T("האזור לא מוסתר ברגע הזה - מזיזים את הנגן לזמן שלו, ואז ״מעקב״.")); return; }
+            long until = z.ToMs >= 0 ? z.ToMs : _mi.DurationMs;
+            if (until - _pos < 300) { Flash(Lang.T("אין לאן לעקוב - האזור נגמר כאן.")); return; }
+            _tracking = true; _trackStop = false;
+            _trackBtn.Text = Lang.T("לעצור"); _trackBtn.Icon = Ico.Stop; _trackBtn.Invalidate();
+            _canvas.Status = Lang.T("עוקב אחרי מה שבאזור..."); _canvas.Invalidate();
+            RectangleF area = z.AreaAt(_pos); long from = _pos; string path = _mi.Path; MediaInfo mi = _mi; BlurZone target = z;
+            System.Threading.Thread th = new System.Threading.Thread(delegate ()
+            {
+                List<ZoneKey> keys = null; Exception err = null; int lost = 0, frames = 0;
+                try { keys = ObjectTrack.Follow(path, mi, area, from, until, TrackProgress, delegate { return _trackStop; }, out lost, out frames); }
+                catch (Exception ex) { err = ex; }
+                try { BeginInvoke((Action)delegate { TrackDone(target, from, keys, lost, frames, err); }); } catch { }
+            });
+            th.IsBackground = true;
+            th.Start();
+        }
+
+        private void TrackProgress(double f)
+        {
+            if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
+            _lastProg = DateTime.UtcNow;
+            try { BeginInvoke((Action)delegate { if (_tracking) { _canvas.Status = Lang.F("עוקב אחרי מה שבאזור... {0}%", Theme.Ltr(((int)(f * 100)).ToString())); _canvas.Invalidate(); } }); }
+            catch { }
+        }
+
+        /// <summary>סוף המעקב: המסלול מהרגע של הנגן (לפניו - מה שהיה), צעד ביטול אחד; ואם הדבר אבד ביותר מחמישית מהזמן - אומרים לבדוק.</summary>
+        private void TrackDone(BlurZone target, long from, List<ZoneKey> keys, int lost, int frames, Exception err)
+        {
+            _tracking = false;
+            if (IsDisposed) return;
+            _trackBtn.Text = Lang.T("מעקב"); _trackBtn.Icon = Ico.Target; _trackBtn.Invalidate();
+            _canvas.Status = null; _canvas.Invalidate();
+            if (err != null) { Ui.Error(this, Lang.T("המעקב נכשל"), ErrorText.Of(err)); return; }
+            if (frames < 0) { Flash(Lang.T("במה שסימנתם אין מספיק פרטים למעקב (צבע אחד). מסמנים משהו עם פרטים - לוגו, כיתוב, פנים.")); return; }
+            if (keys == null || keys.Count < 2 || !_work.Zones.Contains(target)) return;
+            Push("track");
+            List<ZoneKey> path = new List<ZoneKey>();
+            if (target.Moving) foreach (ZoneKey k in target.Path) if (k.Ms < from) path.Add(k);
+            path.AddRange(keys);
+            target.Path = path; target.Area = path[0].Area; target.Kind = "track";
+            _changed = true;
+            RefreshAll();
+            double secs = (keys[keys.Count - 1].Ms - from) / 1000.0;
+            if (frames > 0 && lost * 5 > frames)
+                Flash(Lang.F("המעקב איבד את מה שבאזור ב-{0}% מהזמן - כדאי לעבור ולבדוק.", Theme.Ltr((lost * 100 / frames).ToString())));
+            else Flash(Lang.F("המעקב הסתיים: {0} שניות.", Theme.Ltr(secs.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))), Theme.Good);
+        }
+
         private void OnClosing(object sender, FormClosingEventArgs e)
         {
             // בבדיקות (``SUBSTUDIO_TEST``) לא שואלים: חלון שנסגר מחוץ למסך עם שאלה פתוחה - הבדיקה נתקעת עליה (test-screens, 22.10)
@@ -497,7 +565,7 @@ namespace SubtitleStudio
                 e.Cancel = true;
                 return;
             }
-            _faceStop = true;
+            _faceStop = true; _trackStop = true;
             _timer.Stop();
             if (_main != null) { _main.FrameShown -= OnFrame; if (_main.PlayerIsPlaying) _main.PausePlayer(); }
         }

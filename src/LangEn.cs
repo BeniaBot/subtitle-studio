@@ -1816,6 +1816,19 @@ namespace SubtitleStudio
             "נמצאו פנים", "Faces found",
             "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
             "נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",
+            "מעקב", "Track",
+        };
+        private static readonly string[] P6 = new string[] {
+            "האזור הולך אחרי מה שבתוכו (לוגו, שלט, אדם) - מהרגע של הנגן ועד סוף האזור", "The area follows what is inside it (a logo, a sign, a person) - from where the player is to the end of the area",
+            "מעקב מכאן", "Track from here",
+            "האזור לא מוסתר ברגע הזה - מזיזים את הנגן לזמן שלו, ואז ״מעקב״.", "The area is not hidden at this moment - move the player into its time, then \"Track\".",
+            "אין לאן לעקוב - האזור נגמר כאן.", "Nothing to track - the area ends here.",
+            "עוקב אחרי מה שבאזור...", "Tracking what is in the area...",
+            "עוקב אחרי מה שבאזור... {0}%", "Tracking what is in the area... {0}%",
+            "המעקב נכשל", "Tracking failed",
+            "המעקב איבד את מה שבאזור ב-{0}% מהזמן - כדאי לעבור ולבדוק.", "Tracking lost what is in the area {0}% of the time - go over it and check.",
+            "המעקב הסתיים: {0} שניות.", "Tracking done: {0} seconds.",
+            "במה שסימנתם אין מספיק פרטים למעקב (צבע אחד). מסמנים משהו עם פרטים - לוגו, כיתוב, פנים.", "There is not enough detail in what you marked to track it (one colour). Mark something with detail - a logo, text, a face.",
         };
 
         public static void Fill(Dictionary<string, string> d)
@@ -1826,6 +1839,7 @@ namespace SubtitleStudio
             Add(d, P3);
             Add(d, P4);
             Add(d, P5);
+            Add(d, P6);
         }
 
         private static void Add(Dictionary<string, string> d, string[] a)

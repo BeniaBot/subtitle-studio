@@ -403,6 +403,22 @@ HitAt 2250 0.3 0.25 0.35 0.5
 $fz = (TY 'Faces').GetMethod('ToZones', $ST).Invoke($null, @($hits, [long]60000))
 $fa = $fz[0]
 Rep 'faces: one moving area per face (padded, a quarter second either side), a jump in size = another face' ($fz.Count -eq 3 -and $fa.Kind -eq 'face' -and $fa.Moving -and $fa.Path.Count -eq 2 -and $fa.FromMs -eq 0 -and $fa.ToMs -eq 2500 -and -not $fz[2].Moving -and $fa.Path[0].Area.Width -gt 0.13) ("{0} areas; first {1}..{2} keys {3} w {4:0.00}" -f $fz.Count, $fa.FromMs, $fa.ToMs, $(if ($fa.Path) { $fa.Path.Count } else { 0 }), $fa.Path[0].Area.Width)
+# מעקב (2כט ד): ריבוע עם פסי צבע (כמו לוגו - בצבע אחד אין במה להיאחז) שזז על רקע עמוס - המסלול מוצא אותו במקום הנכון
+$trk = Join-Path $dir 'track.mp4'
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=s=320x240:r=25:d=3' -f lavfi -i 'smptebars=s=40x40:r=25:d=3' -filter_complex "[0][1]overlay=x='20+t*60':y=100" -c:v libx264 -preset ultrafast -pix_fmt yuv420p $trk
+$tmi = ProbeIt $trk
+$ta = New-Object object[] 9; $ta[0] = [string]$trk; $ta[1] = $tmi.psobject.BaseObject; $ta[2] = [Drawing.RectangleF]::new(20 / 320.0, 100 / 240.0, 40 / 320.0, 40 / 240.0); $ta[3] = [long]0; $ta[4] = [long]3000
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$tkeys = (TY 'ObjectTrack').GetMethod('Follow', $ST).Invoke($null, $ta)
+$tz = [Activator]::CreateInstance($zT); $tz.Path = $tkeys
+$at2 = $tz.AreaAt(2000)
+Rep 'tracking: follows a moving logo across a busy picture (2s: x 0.44)' ([Math]::Abs($at2.X - 0.4375) -lt 0.03 -and [Math]::Abs($at2.Y - 100 / 240.0) -lt 0.03 -and $ta[7] -lt 5 -and $ta[8] -gt 50) ("x {0:0.000} y {1:0.000}; {2} keys, lost {3} of {4}, {5:0.0}s" -f $at2.X, $at2.Y, $tkeys.Count, $ta[7], $ta[8], $sw.Elapsed.TotalSeconds)
+# וחפץ בצבע אחד (ריבוע אדום מלא): אין במה להיאחז - לא עוקבים (והחלון אומר למה)
+$trk2 = Join-Path $dir 'track-flat.mp4'
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=s=320x240:r=25:d=3' -f lavfi -i 'color=c=red:s=40x40:r=25:d=3' -filter_complex "[0][1]overlay=x='20+t*60':y=100" -c:v libx264 -preset ultrafast -pix_fmt yuv420p $trk2
+$ta[0] = [string]$trk2; $ta[1] = (ProbeIt $trk2).psobject.BaseObject; $ta[7] = 0; $ta[8] = 0
+$tkeys2 = (TY 'ObjectTrack').GetMethod('Follow', $ST).Invoke($null, $ta)
+Rep 'tracking: a one-colour square is refused (not followed to a wrong place)' ($ta[8] -eq -1 -and $tkeys2.Count -eq 1) ("frames {0}, keys {1}" -f $ta[8], $tkeys2.Count)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }
