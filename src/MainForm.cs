@@ -3529,7 +3529,7 @@ namespace SubtitleStudio
         private void SyncTiming()
         {
             if (_doc.Cues.Count == 0) { Ui.Info(this, Lang.T("אין כתוביות"), Lang.T("אין מה לסנכרן.")); return; }
-            SyncDlg d = new SyncDlg(_doc, _engine.Position, _syncState);
+            SyncDlg d = new SyncDlg(this, _mi, _doc, _engine.Position, _syncState);
             d.ShowDialog(this);
             d.Dispose();
             SyncAfterDocChange();

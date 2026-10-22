@@ -1852,3 +1852,19 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 גוררים על התמונה כדי לסמן אזור להסתרה	Drag on the picture to mark an area to hide
 האזור שנבחר לא מוסתר בזמן הזה	The selected area is not hidden at this time
 עוד אין אזורים.	No areas yet.
+מנגנים, וכשהמשפט נשמע לוחצים ״עכשיו״ - והתזמון מתוקן לפיו	Play, and when the sentence is heard press "Now" - the timing is fixed by it
+המשפט הבא - אם קל יותר לזהות אותו	The next sentence - if it is easier to recognize
+המשפט הקודם	The previous sentence
+5 שניות קדימה	5 seconds forward
+5 שניות אחורה	5 seconds back
+לחיצה או גרירה - הנגן עובר לשם. הסימן הסגול - איפה המשפט עכשיו בכתוביות	Click or drag - the player moves there. The purple mark - where the sentence is now in the subtitles
+עכשיו - המשפט מתחיל כאן	Now - the sentence starts here
+לסמן מחדש	Mark again
+חזרה לנגן - לסמן שוב את הרגע	Back to the player - mark the moment again
+עוד נקודה בסוף הסרט	Another point near the end
+כשהכתוביות מדויקות בהתחלה ובורחות בהמשך: מסמנים עוד משפט בסוף, והתזמון כולו נמתח לפי שתי הנקודות	When the subtitles are right at the start and drift later: mark another sentence near the end, and the whole timing is stretched by the two points
+קצב פריימים…	Frame rate…
+מתקן את כל הסרט, גם כשהפער גדל עם הזמן · הנקודה הראשונה: {0}	Fixes the whole video, even when the gap grows over time · first point: {0}
+המשפט שמחכים לו · כתובית {0} מתוך {1} · עכשיו ב-{2}	Waiting for · subtitle {0} of {1} · now at {2}
+נקודה ראשונה שמורה ({0}). עכשיו מחכים למשפט הזה, ולוחצים ״עכשיו״.	First point saved ({0}). Now wait for this sentence, and press "Now".
+כשהמשפט מתחיל - ״עכשיו״ (או Enter). כבר עצרתם בדיוק במקום? פשוט לוחצים. החצים מזיזים את הנגן בעשירית שנייה.	When the sentence starts - "Now" (or Enter). Already stopped at the exact spot? Just press it. The arrow keys move the player by a tenth of a second.

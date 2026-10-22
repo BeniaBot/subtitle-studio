@@ -690,6 +690,8 @@ namespace SubtitleStudio
         public List<BlurZone> Zones = new List<BlurZone>();
         public long Duration = 1, Position;
         public int Selected = -1;
+        /// <summary>סימן סגול אחד על הפס (חלון הסנכרון: איפה המשפט עכשיו בכתוביות); ‎-1‎ - בלי.</summary>
+        public long Mark = -1;
         public event Action<long> SeekTo;
         private bool _drag;
 
@@ -727,6 +729,12 @@ namespace SubtitleStudio
                 float y = top + (i % 3) * (lane + Theme.S(3));
                 Color c = ZonesDlg.ColorOf(i);
                 Theme.FillRound(g, new RectangleF(x1, y, Math.Max(Theme.S(3), x2 - x1), lane), lane / 2f, i == Selected ? c : Color.FromArgb(150, c));
+            }
+            if (Mark >= 0)
+            {
+                float mx = X(Mark);
+                using (SolidBrush b = new SolidBrush(Theme.Purple))
+                    g.FillPolygon(b, new PointF[] { new PointF(mx - Theme.S(5), Theme.S(3)), new PointF(mx + Theme.S(5), Theme.S(3)), new PointF(mx, Theme.S(10)) });
             }
             float px = X(Position);
             using (Pen p = new Pen(Theme.Text, 2f)) g.DrawLine(p, px, Theme.S(4), px, Height - Theme.S(4));

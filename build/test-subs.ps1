@@ -347,6 +347,31 @@ ZCall 'SetLook' @([int]1); ZCall 'RemoveZone' @([int]0)
 $res = $zd.Result
 Rep 'zones window: Save returns a copy; the zones it came with are untouched until then' ($res.Count -eq 1 -and $res[0].Look -eq 1 -and $res[0].FromMs -eq 1000 -and $orig.Zones.Count -eq 1 -and $orig.Zones[0].Look -eq 2 -and -not [object]::ReferenceEquals($res[0], (ZP 'Zones')[0]) -and (ZP 'Changed')) ("result {0} (look {1}), original {2} (look {3})" -f $res.Count, $res[0].Look, $orig.Zones.Count, $orig.Zones[0].Look)
 $zd.Dispose()
+
+# ---- החלון ״סנכרון לפי הסרט״ (0.8.35): הכול בתוכו - המשפט שמחכים לו, ״עכשיו״, הפער והפעולה; ומתיחה לפי נקודה שנייה בסוף ----
+function SyncDoc() { $sdoc = [Activator]::CreateInstance((TY 'Doc')); $sc = (TY 'Doc').GetField('Cues', $IN).GetValue($sdoc); foreach ($s in 10000, 40000, 100000) { $sc.Add([Activator]::CreateInstance($cueT, @([int64]$s, [int64]($s + 2000), [string]('משפט ' + $s)))) }; return ,$sdoc }
+function SyncCues($sdoc) { return ,((TY 'Doc').GetField('Cues', $IN).GetValue($sdoc)) }
+function NewSync($sdoc, [long]$pos, $state) { $a = New-Object object[] 3; $a[0] = $sdoc; $a[1] = $pos; $a[2] = $state; return [Activator]::CreateInstance((TY 'SyncDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $a, $null) }
+function SyProp($o, $n) { return $o.GetType().GetProperty($n, $IN).GetValue($o) }
+function SyCall($o, $n, $a) { [void]$o.GetType().GetMethod($n, $IN).Invoke($o, $a) }
+$sd1 = SyncDoc; $st1 = [Activator]::CreateInstance((TY 'SyncState'))
+$sy = NewSync $sd1 38000 $st1
+$ref = (SyProp $sy 'RefCue').Start; $p1 = SyProp $sy 'Phase2'
+SyCall $sy 'MarkNow' @()
+$p2 = SyProp $sy 'Phase2'
+$la = New-Object object[] 1; $la[0] = (SyncCues $sd1); SyCall $sy 'ApplyShift' $la
+$c1 = SyncCues $sd1
+Rep 'sync window: waits for the next sentence after the player, "Now" shows the gap, "move all" moves all by it' ($ref -eq 40000 -and -not $p1 -and $p2 -and $c1[0].Start -eq 8000 -and $c1[2].Start -eq 98000 -and $sy.Ok) ("ref {0}, phase {1}->{2}, now {3}/{4}/{5}" -f $ref, $p1, $p2, $c1[0].Start, $c1[1].Start, $c1[2].Start)
+$sy.Dispose()
+$sd2 = SyncDoc; $st2 = [Activator]::CreateInstance((TY 'SyncState'))
+(SyncCues $sd2)[0].Selected = $true
+$sy = NewSync $sd2 12000 $st2
+SyCall $sy 'MarkNow' @(); SyCall $sy 'SecondPoint' @()
+$ref2 = (SyProp $sy 'RefCue').Start; $back = SyProp $sy 'Phase2'
+SyCall $sy 'Seek' @([long]104000); SyCall $sy 'MarkNow' @(); SyCall $sy 'ApplyStretch' @()
+$c2 = SyncCues $sd2
+Rep 'sync window: a second point near the end stretches the whole timing (10s->12s, 100s->104s)' ($ref2 -eq 100000 -and -not $back -and $c2[0].Start -eq 12000 -and $c2[2].Start -eq 104000 -and [Math]::Abs($c2[1].Start - 42667) -lt 5 -and -not $st2.HasA) ("second ref {0}; now {1}/{2}/{3}" -f $ref2, $c2[0].Start, $c2[1].Start, $c2[2].Start)
+$sy.Dispose()
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $ok, $bad)
 if ($bad -gt 0) { exit 1 }
