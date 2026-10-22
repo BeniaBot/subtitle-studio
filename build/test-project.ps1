@@ -362,6 +362,11 @@ $docM.Dirty = $false
 Check 'ביציאה: הכול שמור -> לא שואלים' ((Call $m 'ExitSaveKind' @()) -eq 'none') ''
 $docM.Cues[0].Untimed = $false; $formT.GetField('_projectPath', $NP).SetValue($m, $null); $docM.Dirty = $true
 Check 'ביציאה: כתוביות רגילות -> לשמור כתוביות' ((Call $m 'ExitSaveKind' @()) -eq 'subtitles') ''
+# אזורי טשטוש (0.8.37): נשמרים רק בפרויקט - גם עם כתוביות, וגם בלי (עד כאן בלי כתוביות לא נשאל כלום, והם אבדו)
+$stM = $formT.GetField('_style', $NP).GetValue($m); $stM.Zones.Add([Activator]::CreateInstance($asm.GetType('SubtitleStudio.BlurZone')))
+Check 'ביציאה: יש אזורי טשטוש -> לשמור כפרויקט' ((Call $m 'ExitSaveKind' @()) -eq 'project-zones') (Call $m 'ExitSaveKind' @())
+$docM.Cues.Clear()
+Check 'ביציאה: רק אזורי טשטוש, בלי כתוביות -> גם שואלים' ((Call $m 'ExitSaveKind' @()) -eq 'project-zones') (Call $m 'ExitSaveKind' @())
 $m.Close(); $m.Dispose()
 Check 'הגיבוי האמיתי של המשתמש לא נגעו בו' ($realBefore -eq (DirStamp $realAutoDir)) ''
 

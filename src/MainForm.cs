@@ -143,15 +143,17 @@ namespace SubtitleStudio
                 if (kind != "none")
                 {
                     string body = kind == "project" ? Lang.T("לשמור את השינויים בפרויקט לפני היציאה?")
+                        : kind == "project-zones"
+                            ? Lang.T("יש אזורי טשטוש שלא נשמרו. קובץ כתוביות לא שומר אותם - העבודה תישמר כפרויקט.")
                         : kind == "project-new"
                             ? Lang.F("יש {0} שורות שעוד לא תוזמנו. כדי שאפשר יהיה להמשיך לתזמן אותן אחר כך, העבודה תישמר כפרויקט.", UntimedCount())
                             : Lang.T("לשמור את קובץ הכתוביות לפני היציאה?");
                     int r = Ui.Msg(this, Lang.T("יש שינויים שלא נשמרו"), body, Ico.Question,
-                        kind == "project-new" ? Lang.T("לשמור כפרויקט") : Lang.T("לשמור"), Lang.T("לצאת בלי לשמור"), Lang.T("ביטול"));
+                        kind.StartsWith("project-") ? Lang.T("לשמור כפרויקט") : Lang.T("לשמור"), Lang.T("לצאת בלי לשמור"), Lang.T("ביטול"));
                     if (r == 2 || r < 0) { e.Cancel = true; return; }
                     if (r == 0)
                     {
-                        bool ok = kind == "project-new" ? SaveProject(true) : SaveSubtitles(false);
+                        bool ok = kind.StartsWith("project-") ? SaveProject(true) : SaveSubtitles(false);
                         if (!ok) { e.Cancel = true; return; }
                     }
                 }
@@ -969,7 +971,7 @@ namespace SubtitleStudio
         /// על מסמך ריק היא רעש.</summary>
         private bool ConfirmDiscard(string title, string body)
         {
-            if (_doc == null || !_doc.Dirty || _doc.Cues.Count == 0) return true;
+            if (_doc == null || !_doc.Dirty || (_doc.Cues.Count == 0 && !HasZones)) return true;
             return Ui.Confirm(this, title, body, Lang.T("להמשיך"), Lang.T("ביטול"));
         }
 
@@ -3230,6 +3232,8 @@ namespace SubtitleStudio
                     subsOk = WriteSubtitles(_doc.FilePath);
                 return SaveProject(false) && subsOk;
             }
+            // אזורי טשטוש בלי פרויקט: ״שמירה״ שומרת פרויקט (קובץ כתוביות היה מאבד אותם). ״שמירה בשם״ - מה שביקשו
+            if (!asNew && HasZones) return SaveProject(true);
             if (_doc.Cues.Count == 0)
             {
                 Ui.Info(this, Lang.T("אין מה לשמור"), Lang.T("עוד לא נוצרו כתוביות."));
@@ -3984,7 +3988,7 @@ namespace SubtitleStudio
             try
             {
                 if (!_doc.Dirty) return;
-                if (_doc.Cues.Count == 0 && _projectPath == null) return;
+                if (_doc.Cues.Count == 0 && !HasZones && _projectPath == null) return;
                 ProjectData d = CaptureProject(null);
                 d.Origin = _projectPath;
                 HoldSessionLock();
@@ -4124,12 +4128,18 @@ namespace SubtitleStudio
         /// <summary>מה לשאול ביציאה: "none", "project" (יש פרויקט פתוח),
         /// "project-new" (אין פרויקט, ויש שורות בלי תזמון - SRT היה מאבד את
         /// זה), או "subtitles".</summary>
+        /// <summary>יש אזורי טשטוש/צנזורה - הם נשמרים רק בפרויקט.</summary>
+        private bool HasZones { get { return _style != null && _style.Zones.Count > 0; } }
+
         internal string ExitSaveKind()
         {
             if (!_doc.Dirty) return "none";
             if (_projectPath != null) return "project";
-            if (_doc.Cues.Count == 0) return "none";
+            if (_doc.Cues.Count == 0 && !HasZones) return "none";
             if (UntimedCount() > 0) return "project-new";
+            // **אזורי טשטוש** (0.8.37): קובץ כתוביות לא מחזיק אותם - רק פרויקט. עד כאן בלי כתוביות לא נשאל כלום, ועם כתוביות נשמר SRT
+            // והאזורים אבדו בשקט
+            if (HasZones) return "project-zones";
             return "subtitles";
         }
 
