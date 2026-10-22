@@ -534,7 +534,9 @@ namespace SubtitleStudio
 
         protected override bool OnOk()
         {
-            if (_doc.Cues.Count == 0) { Ui.Error(this, Lang.T("אין כתוביות"), Lang.T("אין מה להטמיע - הרשימה ריקה.")); return false; }
+            // **צנזורה בלי כתוביות** (0.8.34, 2כט): סרט שרק מטשטשים בו אזורים - צורבים גם כשהרשימה ריקה
+            bool zonesOnly = _burn && _style != null && _style.Zones.Count > 0;
+            if (_doc.Cues.Count == 0 && !zonesOnly) { Ui.Error(this, Lang.T("אין כתוביות"), Lang.T("אין מה להטמיע - הרשימה ריקה.")); return false; }
             if (_out.Text.Trim().Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור את הקובץ.")); return false; }
             string outPath = FinalPath(_out.Text.Trim());
             try

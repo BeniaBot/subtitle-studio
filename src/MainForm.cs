@@ -3378,7 +3378,8 @@ namespace SubtitleStudio
         private void ExportVideo()
         {
             if (_mi == null) { Ui.Info(this, Lang.T("אין סרט פתוח"), Lang.T("פתחו קודם קובץ וידאו.")); return; }
-            if (_doc.Cues.Count == 0) { Ui.Info(this, Lang.T("אין כתוביות"), Lang.T("צריך לפחות כתובית אחת כדי להטמיע.")); return; }
+            // אזורי צנזורה בלי כתוביות (0.8.34) - אפשר לצרוב רק אותם
+            if (_doc.Cues.Count == 0 && (_style == null || _style.Zones.Count == 0)) { Ui.Info(this, Lang.T("אין כתוביות"), Lang.T("צריך לפחות כתובית אחת כדי להטמיע.")); return; }
             if (!OfferTidyBeforeBurn()) return;
             ExportVideoDlg d = new ExportVideoDlg(this, _doc, _mi, _style, _tl.InPoint, _tl.OutPoint);
             d.ShowDialog(this);
