@@ -123,6 +123,10 @@ namespace SubtitleStudio
 
     internal static class MediaTools
     {
+        /// <summary>״דחיסה״ (0.8.34): קצת / בינוני / הרבה - ‏crf, ותקרה ביחס לקצב התמונה במקור (״בינוני״ = מה שהיה: 24 ו-0.7).</summary>
+        internal static readonly int[] CompCrf = { 21, 24, 28 };
+        internal static readonly double[] CompK = { 0.85, 0.7, 0.4 };
+
         /// <summary>הגובה (הצלע הקצרה) של כל אפשרות ב״שינוי רזולוציה״.</summary>
         internal static int ResHeight(int opt) { return opt == 0 ? 1080 : opt == 1 ? 720 : opt == 2 ? 480 : 360; }
 
@@ -241,7 +245,7 @@ namespace SubtitleStudio
             {
                 if (s.Type != "subtitle" || (mp4 && !s.IsTextSubtitle)) continue;
                 string c = s.Codec.ToLowerInvariant();
-                // לכל ערוץ במפורש: ב״MP4 - תאימות מרבית״ אין ‏-c copy כללי, ו-mov_text בלי קודק נפל ב-״Encoder not found״
+                // לכל ערוץ במפורש: ב״MP4 - נפתח בכל מכשיר״ אין ‏-c copy כללי, ו-mov_text בלי קודק נפל ב-״Encoder not found״
                 if (mp4) sb.Append("-c:s:").Append(k).Append(c == "mov_text" ? " copy " : " mov_text ");
                 else if (c == "mov_text") sb.Append("-c:s:").Append(k).Append(" srt ");
                 k++;
@@ -292,9 +296,23 @@ namespace SubtitleStudio
             vol.OutSuffix = Lang.T(" - עוצמה");
             vol.KeepsVideo = true;
             vol.NeedsAudio = true;
+            // **הסבר במילים** (0.8.34): ״6 dB״ לא אומר כלום למי שלא עובד בסאונד
+            vol.Hint = delegate (ToolCtx c)
+            {
+                if (Math.Abs(c.Val) < 0.01) return Lang.T("בלי שינוי בעוצמה.");
+                double r = Math.Pow(10, c.Val / 20.0);
+                if (c.Val > 0)
+                    return Lang.F("חזק יותר - בערך פי {0}. החלקים החזקים לא יתעוותו: התוכנה מגבילה אותם.",
+                                  Theme.Ltr(r.ToString(r < 10 ? "0.#" : "0", CultureInfo.InvariantCulture)));
+                return Lang.F("שקט יותר - בערך {0} מהעוצמה המקורית.", Theme.Ltr(Math.Round(r * 100).ToString(CultureInfo.InvariantCulture) + "%"));
+            };
             vol.Build = delegate (ToolCtx c)
             {
-                return "-i " + Ff.Q(c.In) + " -af volume=" + c.Val.ToString("0.##", CultureInfo.InvariantCulture) + "dB " +
+                // **מגביל בהגברה** (0.8.34): ‏``volume`` לבד חותך כל מה שעובר את התקרה. נמדד על צליל בשיא של ‎-6 ועוד 12: ״Flat factor״ 30
+                // ו-117,280 דגימות על התקרה (עיוות של גל מרובע); עם ``alimiter`` - אפס חיתוך, ובאותו אורך בדיוק (``latency=1``)
+                string af = "volume=" + c.Val.ToString("0.##", CultureInfo.InvariantCulture) + "dB" +
+                            (c.Val > 0 ? ",alimiter=limit=0.95:level=0:latency=1" : "");
+                return "-i " + Ff.Q(c.In) + " -af " + af + " " +
                        (c.Mi != null && c.Mi.HasVideo ? "-c:v copy " : CoverArgs(c)) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
             };
             t.Add(vol);
@@ -376,14 +394,14 @@ namespace SubtitleStudio
             MediaTool conv = new MediaTool();
             conv.Group = Lang.T("וידאו");
             conv.Name = Lang.T("המרת פורמט");
-            conv.Desc = Lang.T("MP4 לתאימות מרבית, או MKV מהיר בלי קידוד מחדש");
+            conv.Desc = Lang.T("לשנות את סוג הקובץ - למשל ל-MP4, שנפתח בכל טלפון ומחשב");
             conv.Icon = Ico.Refresh;
             conv.ParamKind = 2;
             conv.Options = new string[]
             {
-                Lang.T("MP4 - תאימות מרבית, איכות מקסימלית"),
-                Lang.T("MKV - מהיר, בלי קידוד מחדש כלל"),
-                Lang.T("MP4 מהיר - העתקת זרם בלי קידוד")
+                Lang.T("MP4 - נפתח בכל מכשיר (לוקח זמן)"),
+                Lang.T("MKV - מהיר, בלי לגעת באיכות"),
+                Lang.T("MP4 מהיר - בלי לגעת באיכות")
             };
             conv.ParamLabel = Lang.T("פורמט היעד");
             conv.ExtFor = delegate (int i) { return i == 1 ? ".mkv" : ".mp4"; };
@@ -395,10 +413,10 @@ namespace SubtitleStudio
                 if (c.Mi == null || !c.Mi.HasVideo) return null;
                 // ״MP4 מהיר״ על WMV, ‏WEBM של VP8, ‏OGV - ‏ffmpeg נכשל בשגיאה סתומה
                 if (c.Opt == 2 && !Mp4Copyable(c.Mi))
-                    return Lang.T("התמונה או הקול בקובץ הזה בקידוד ש-MP4 לא מקבל כמו שהוא. ״MP4 - תאימות מרבית״ ימיר אותם.");
+                    return Lang.T("התמונה או הקול בקובץ הזה בצורה ש-MP4 לא מקבל כמו שהיא. ״MP4 - נפתח בכל מכשיר״ ימיר אותם.");
                 MediaStream v = c.Mi.FirstVideo();
                 if (c.Opt == 1 && v != null && v.Codec.ToLowerInvariant().StartsWith("rv"))
-                    return Lang.T("MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - תאימות מרבית״ ימיר אותה.");
+                    return Lang.T("MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפתח בכל מכשיר״ ימיר אותה.");
                 return null;
             };
             conv.Hint = delegate (ToolCtx c)
@@ -406,9 +424,9 @@ namespace SubtitleStudio
                 if (c.Mi == null || !c.Mi.HasVideo) return "";
                 if (c.Opt == 0)
                     return Mp4Ready(c.Mi)
-                        ? Lang.T("הקובץ כבר MP4 שנפתח בכל מקום - קידוד מחדש לא ישפר אותו, רק ייקח זמן. לעותק מהיר - ״MP4 מהיר״.")
-                        : Lang.T("התמונה והקול מקודדים מחדש לצורה שנפתחת בכל מקום. לוקח זמן, באיכות מקסימלית.");
-                if (c.Opt == 1) return Lang.T("תוך שניות, בלי שום שינוי באיכות. MKV מקבל כל קידוד - אבל לא כל טלפון פותח אותו.");
+                        ? Lang.T("הקובץ כבר MP4 שנפתח בכל מקום - המרה מלאה לא תשפר אותו, רק תיקח זמן. לעותק מהיר - ״MP4 מהיר״.")
+                        : Lang.T("התמונה והקול מומרים לצורה שנפתחת בכל מקום. לוקח זמן, ובאיכות הכי גבוהה.");
+                if (c.Opt == 1) return Lang.T("תוך שניות, בלי שום שינוי באיכות. אבל לא כל טלפון פותח MKV.");
                 return Lang.T("תוך שניות, בלי שום שינוי באיכות: התמונה והקול מועתקים כמו שהם.");
             };
             conv.Build = delegate (ToolCtx c)
@@ -460,18 +478,31 @@ namespace SubtitleStudio
             MediaTool comp = new MediaTool();
             comp.Group = Lang.T("וידאו");
             comp.Name = Lang.T("דחיסה - הקטנת נפח הקובץ");
-            comp.Desc = Lang.T("ערך גבוה = קובץ קטן יותר ואיכות נמוכה יותר");
+            comp.Desc = Lang.T("קובץ קטן יותר לשליחה ולשמירה - התמונה נשארת באותו גודל");
             comp.Icon = Ico.Download;
-            comp.ParamKind = 1; comp.Min = 18; comp.Max = 32; comp.Def = 24; comp.Step = 1;
-            comp.ParamLabel = Lang.T("רמת דחיסה");
+            // **שלוש רמות במילים** (0.8.34) במקום ״רמת דחיסה 18-32״ - מספר שרק מי שמכיר crf מבין. כל רמה: crf ותקרה ביחס למקור
+            // (״בינוני״ = מה שהיה ברירת המחדל: crf 24 ולא יותר מ-0.7)
+            comp.ParamKind = 2;
+            comp.ParamLabel = Lang.T("כמה לדחוס");
+            comp.Options = new string[] { Lang.T("קצת - האיכות כמעט לא משתנה"), Lang.T("בינוני - מומלץ"), Lang.T("הרבה - קובץ קטן מאוד, האיכות יורדת") };
+            comp.DefOption = 1;
             comp.NeedsVideo = true;
             comp.OutSuffix = Lang.T(" - דחוס");
+            comp.Hint = delegate (ToolCtx c)
+            {
+                if (c.Mi == null || c.Mi.SizeBytes <= 0) return Lang.T("לגודל מדויק - ״התאמה לגודל קובץ מבוקש״.");
+                // התקרה היא של התמונה; הקול והמעטפת מוסיפים - נמדד על שלושה סרטונים: 0.90/0.75/0.46 מול תקרות 0.85/0.7/0.4
+                long est = (long)(c.Mi.SizeBytes * CompK[Math.Max(0, Math.Min(2, c.Opt))] * 1.1);
+                return Lang.F("ייצא בערך {0} (עכשיו {1}). לגודל מדויק - ״התאמה לגודל קובץ מבוקש״.",
+                              Theme.Ltr(MediaInfo.FormatSize(est)), Theme.Ltr(MediaInfo.FormatSize(c.Mi.SizeBytes)));
+            };
             comp.Build = delegate (ToolCtx c)
             {
-                // **לא יותר מ-0.7 מהמקור.** עד 0.8.8 רק crf, ו״הקטנת נפח״ של סרטון רגיל מהרשת יצאה **גדולה** ממנו
+                // **לא יותר מ-0.7 מהמקור** (״בינוני״). עד 0.8.8 רק crf, ו״הקטנת נפח״ של סרטון רגיל מהרשת יצאה **גדולה** ממנו
                 // (נמדד 8.10: פי 1.21-1.24; עם התקרה פי 0.74-0.75, דמיון למקור 0.986-0.991)
-                string cap = Burn.CapFor(c.Mi, 0.7, 0.015, 0);
-                return "-i " + Ff.Q(c.In) + " -c:v libx264 -crf " + ((int)c.Val) + " -preset medium -pix_fmt yuv420p " +
+                int o = Math.Max(0, Math.Min(2, c.Opt));
+                string cap = Burn.CapFor(c.Mi, CompK[o], 0.015, 0);
+                return "-i " + Ff.Q(c.In) + " -c:v libx264 -crf " + CompCrf[o] + " -preset medium -pix_fmt yuv420p " +
                        (cap.Length > 0 ? cap + " " : "") +
                        (c.Mi != null && c.Mi.HasAudio ? Burn.SmallAudio(c.Mi, 128) + Burn.LayoutArgs(c.Mi) + " " : "-an ") + Ff.Q(c.Out);
             };
@@ -485,6 +516,13 @@ namespace SubtitleStudio
             speed.ParamKind = 1; speed.Min = 0.5; speed.Max = 2.0; speed.Def = 1.25; speed.Step = 0.05; speed.Suffix = "×";
             speed.ParamLabel = Lang.T("מהירות");
             speed.OutSuffix = Lang.T(" - מהירות");
+            // מה יוצא (0.8.34): ״1.25×״ לבד לא אומר כמה זמן ייקח לראות
+            speed.Hint = delegate (ToolCtx c)
+            {
+                if (c.Mi == null || c.Mi.DurationSec <= 0 || c.Val <= 0) return "";
+                if (Math.Abs(c.Val - 1) < 0.001) return Lang.T("בלי שינוי במהירות.");
+                return Lang.F("הסרט יימשך {0} במקום {1}.", Tc.Short((long)(c.Mi.DurationSec * 1000 / c.Val)), Tc.Short(c.Mi.DurationMs));
+            };
             speed.Build = delegate (ToolCtx c)
             {
                 double v = c.Val < 0.5 ? 0.5 : (c.Val > 2 ? 2 : c.Val);
@@ -525,6 +563,10 @@ namespace SubtitleStudio
             snap.NeedsVideo = true;
             snap.OutExt = ".png";
             snap.OutSuffix = Lang.T(" - תמונה");
+            snap.Hint = delegate (ToolCtx c)
+            {
+                return Lang.F("התמונה מהרגע {0} בסרט - איפה שהנגן עומד. לרגע אחר: סוגרים, מזיזים את הנגן, ופותחים שוב.", Tc.Short(c.Pos));
+            };
             snap.Build = delegate (ToolCtx c)
             {
                 return "-ss " + Tc.Ff(c.Pos) + " -i " + Ff.Q(c.In) + " -frames:v 1 " + Ff.Q(c.Out);
@@ -669,6 +711,14 @@ namespace SubtitleStudio
             denoise.Icon = Ico.Mic;
             denoise.ParamKind = 1; denoise.Min = 6; denoise.Max = 30; denoise.Def = 12; denoise.Step = 1;
             denoise.ParamLabel = Lang.T("עוצמת הניקוי");
+            // מה המספר אומר (0.8.34) - ״12״ לבד לא אומר אם זה הרבה או מעט
+            denoise.Hint = delegate (ToolCtx c)
+            {
+                if (c.Val <= 9) return Lang.T("עדין - מוריד מעט רחש, והדיבור נשאר טבעי לגמרי.");
+                if (c.Val <= 18) return Lang.T("רגיל - מתאים לרוב ההקלטות מהטלפון.");
+                if (c.Val <= 24) return Lang.T("חזק - לרחש בולט (מזגן, מאוורר). כדאי לשמוע את התוצאה.");
+                return Lang.T("חזק מאוד - עלול לעשות את הדיבור ״מתכתי״. רק לרעש קשה.");
+            };
             denoise.OutSuffix = Lang.T(" - נקי");
             denoise.KeepsVideo = true;
             denoise.NeedsAudio = true;
@@ -766,15 +816,35 @@ namespace SubtitleStudio
             gif.UseRange = true;
             gif.OutExt = ".gif";
             gif.OutSuffix = "";
+            // **גודל לבחירה** (0.8.34; עד אז 640 ו-15 פריימים בשנייה, תמיד)
+            gif.ParamKind = 2;
+            gif.ParamLabel = Lang.T("גודל");
+            gif.Options = new string[] { Lang.T("קטן - לצ׳אט (320)"), Lang.T("בינוני - מומלץ (480)"), Lang.T("גדול (640)") };
+            gif.DefOption = 1;
+            // **בלי קטע מסומן - כל הסרט** (0.8.34): GIF של עשר דקות הוא מאות מגה ורבע שעה של המתנה, בלי שום אזהרה
+            gif.Block = delegate (ToolCtx c)
+            {
+                double sec = c.HasRange ? (c.B - c.A) / 1000.0 : (c.Mi != null ? c.Mi.DurationSec : 0);
+                if (sec <= 60) return null;
+                return c.HasRange
+                    ? Lang.T("הקטע המסומן ארוך מדקה - GIF כזה יוצא ענק. סמנו קטע קצר יותר (עד חצי דקה).")
+                    : Lang.T("לא סומן קטע, והסרט ארוך מדקה - GIF של כל הסרט יוצא ענק. סמנו על הציר קטע קצר (I ו-O), עד חצי דקה.");
+            };
+            gif.Hint = delegate (ToolCtx c)
+            {
+                double sec = c.HasRange ? (c.B - c.A) / 1000.0 : (c.Mi != null ? c.Mi.DurationSec : 0);
+                return sec > 15 ? Lang.F("{0} שניות - GIF ארוך יוצא כבד. לשיתוף, עדיף עד 10-15 שניות.", Theme.Ltr(Math.Round(sec).ToString(CultureInfo.InvariantCulture))) : "";
+            };
             gif.Build = delegate (ToolCtx c)
             {
                 // האורך נחתך **בתוך** שרשרת הפילטרים: עם ‎-t אחרי הקלט, GIF מקובץ TS יצא ריק
                 // (נמדד); ‎trim+setpts עובד בכל הצורות
                 string cut = c.HasRange ? "trim=duration=" + Tc.Ff(c.B - c.A) + ",setpts=PTS-STARTPTS," : "";
+                int box = c.Opt == 0 ? 320 : c.Opt == 2 ? 640 : 480, fps = c.Opt == 0 ? 10 : c.Opt == 2 ? 15 : 12;
                 return c.RangeIn() + "-i " + Ff.Q(c.In) + " " +
-                       // בתוך ריבוע של 640, בלי להגדיל: עד 0.8.1 הרוחב היה 640 תמיד, וסרטון עומד
+                       // בתוך ריבוע (הגודל שנבחר), בלי להגדיל: עד 0.8.1 הרוחב היה 640 תמיד, וסרטון עומד
                        // יצא GIF של 640×1403 ושל 37 מגה לשש שניות
-                       "-filter_complex \"" + cut + "fps=15,scale='min(640,iw)':'min(640,ih)':force_original_aspect_ratio=decrease:flags=lanczos,split[s0][s1];" +
+                       "-filter_complex \"" + cut + "fps=" + fps + ",scale='min(" + box + ",iw)':'min(" + box + ",ih)':force_original_aspect_ratio=decrease:flags=lanczos,split[s0][s1];" +
                        // פלטה ממה שזז, דיתור בתבנית קבועה, ועדכון רק של מה שהשתנה בין פריימים. עד 0.8.8 sierra2_4a: ״רעש״
                        // על כל הפריים, ש-GIF דוחס רע. נמדד 8.10 על חמישה סרטונים אמיתיים (טלפון, רחפן, מצלמה, רשת): קטן ב-8-25%,
                        // וגם קרוב יותר למקור בכולם; בעין - שמיים ופנים חלקים במקום מגורענים
@@ -1015,6 +1085,9 @@ namespace SubtitleStudio
             _hintLbl.Text = block ?? (_tool.Hint != null ? _tool.Hint(c) : "");
             _hintLbl.Color = block != null ? Theme.Warn : Theme.TextFaint;
             _hintLbl.Invalidate();
+            // בלי מה להגיד - בלי שורה ריקה באמצע החלון (0.8.34: ב-GIF של קטע קצר נשאר חור של 48 פיקסלים)
+            bool show = _hintLbl.Text.Length > 0;
+            if (_hintLbl.Visible != show) { _hintLbl.Visible = show; Restack(); }
             if (_ok != null) _ok.Enabled = block == null;
         }
 

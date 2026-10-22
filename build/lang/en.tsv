@@ -1777,3 +1777,36 @@ blur_area: ארבעה מספרים באחוזים - x,y,רוחב,גובה	blur_a
 המילים שבדיקת האיות מקבלת - חיפוש, הוספה והוצאה	Words the spell check accepts - search, add and remove
 לא הצלחתי לשמור את המילון	Could not save the dictionary
 להחזיר למילון	Put it back
+בלי שינוי בעוצמה.	No change in volume.
+חזק יותר - בערך פי {0}. החלקים החזקים לא יתעוותו: התוכנה מגבילה אותם.	Louder - about {0} times. The loud parts will not distort: the program limits them.
+שקט יותר - בערך {0} מהעוצמה המקורית.	Quieter - about {0} of the original volume.
+קובץ קטן יותר לשליחה ולשמירה - התמונה נשארת באותו גודל	A smaller file to send and keep - the picture stays the same size
+כמה לדחוס	How much to compress
+קצת - האיכות כמעט לא משתנה	A little - the quality barely changes
+בינוני - מומלץ	Medium - recommended
+הרבה - קובץ קטן מאוד, האיכות יורדת	A lot - a much smaller file, lower quality
+לגודל מדויק - ״התאמה לגודל קובץ מבוקש״.	For an exact size - "Fit a file size".
+ייצא בערך {0} (עכשיו {1}). לגודל מדויק - ״התאמה לגודל קובץ מבוקש״.	Comes out at about {0} (now {1}). For an exact size - "Fit a file size".
+בלי שינוי במהירות.	No change in speed.
+הסרט יימשך {0} במקום {1}.	The video will last {0} instead of {1}.
+התמונה מהרגע {0} בסרט - איפה שהנגן עומד. לרגע אחר: סוגרים, מזיזים את הנגן, ופותחים שוב.	The picture at {0} - where the player is. For another moment: close, move the player, and open again.
+עדין - מוריד מעט רחש, והדיבור נשאר טבעי לגמרי.	Gentle - removes a little hiss, and the speech stays completely natural.
+רגיל - מתאים לרוב ההקלטות מהטלפון.	Normal - right for most phone recordings.
+חזק - לרחש בולט (מזגן, מאוורר). כדאי לשמוע את התוצאה.	Strong - for obvious noise (air conditioner, fan). Worth listening to the result.
+חזק מאוד - עלול לעשות את הדיבור ״מתכתי״. רק לרעש קשה.	Very strong - may make speech sound "metallic". Only for heavy noise.
+לשנות את סוג הקובץ - למשל ל-MP4, שנפתח בכל טלפון ומחשב	Change the file type - e.g. to MP4, which opens everywhere
+MP4 - נפתח בכל מכשיר (לוקח זמן)	MP4 - opens on every device (takes a while)
+MKV - מהיר, בלי לגעת באיכות	MKV - fast, the quality is untouched
+MP4 מהיר - בלי לגעת באיכות	Fast MP4 - the quality is untouched
+התמונה או הקול בקובץ הזה בצורה ש-MP4 לא מקבל כמו שהיא. ״MP4 - נפתח בכל מכשיר״ ימיר אותם.	The picture or sound in this file is in a form MP4 does not take as it is. "MP4 - opens on every device" will convert it.
+MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפתח בכל מכשיר״ ימיר אותה.	MKV does not take the RealMedia picture as it is. "MP4 - opens on every device" will convert it.
+הקובץ כבר MP4 שנפתח בכל מקום - המרה מלאה לא תשפר אותו, רק תיקח זמן. לעותק מהיר - ״MP4 מהיר״.	The file is already an MP4 that opens everywhere - a full conversion will not improve it, only take time. For a quick copy - "Fast MP4".
+התמונה והקול מומרים לצורה שנפתחת בכל מקום. לוקח זמן, ובאיכות הכי גבוהה.	The picture and sound are converted to a form that opens everywhere. Takes a while, at the highest quality.
+תוך שניות, בלי שום שינוי באיכות. אבל לא כל טלפון פותח MKV.	In seconds, with no change in quality. But not every phone opens MKV.
+גודל	Size
+קטן - לצ׳אט (320)	Small - for chat (320)
+בינוני - מומלץ (480)	Medium - recommended (480)
+גדול (640)	Large (640)
+הקטע המסומן ארוך מדקה - GIF כזה יוצא ענק. סמנו קטע קצר יותר (עד חצי דקה).	The marked section is longer than a minute - such a GIF comes out huge. Mark a shorter one (up to half a minute).
+לא סומן קטע, והסרט ארוך מדקה - GIF של כל הסרט יוצא ענק. סמנו על הציר קטע קצר (I ו-O), עד חצי דקה.	No section is marked, and the video is longer than a minute - a GIF of all of it comes out huge. Mark a short section on the timeline (I and O), up to half a minute.
+{0} שניות - GIF ארוך יוצא כבד. לשיתוף, עדיף עד 10-15 שניות.	{0} seconds - a long GIF comes out heavy. For sharing, 10-15 seconds is better.
