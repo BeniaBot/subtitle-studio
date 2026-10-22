@@ -182,7 +182,7 @@ namespace SubtitleStudio
                 if (hasText)
                 {
                     RectangleF tr2 = Theme.Mir(r, new RectangleF(pad, 0, Width - pad * 2 - sw - Theme.S(8), Height));
-                    Theme.Str(g, Text, Font, fg, tr2, Theme.SfUi);
+                    Theme.Str(g, Text, Font, fg, tr2, Theme.SfUiFor(Text));
                 }
                 return;
             }
@@ -249,11 +249,11 @@ namespace SubtitleStudio
                 RectangleF tr = new RectangleF(left, 0, textRight - left, Height);
                 if (Sub != null)
                 {
-                    Theme.Str(g, Text, Theme.UiBold, fg, Theme.Mir(r, new RectangleF(tr.X, subTop, tr.Width, Theme.S(19))), Theme.SfUi);
+                    Theme.Str(g, Text, Theme.UiBold, fg, Theme.Mir(r, new RectangleF(tr.X, subTop, tr.Width, Theme.S(19))), Theme.SfUiFor(Text));
                     Theme.Str(g, Sub, Theme.Small, Theme.Mix(fg, Theme.Bg, 0.35f),
                         Theme.Mir(r, new RectangleF(tr.X, subTop + Theme.S(19), tr.Width, Theme.S(17))), Theme.SfUi);
                 }
-                else Theme.Str(g, Text, Font, fg, Theme.Mir(r, tr), Theme.SfUi);
+                else Theme.Str(g, Text, Font, fg, Theme.Mir(r, tr), Theme.SfUiFor(Text));
             }
 
             // מי שמגיע במקלדת רואה איפה הוא. בלחיצת עכבר ווינדוס מסתיר את זה בעצמו.

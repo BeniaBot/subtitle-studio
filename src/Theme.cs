@@ -297,6 +297,10 @@ namespace SubtitleStudio
         /// <summary>כמו `SfText`, עם גלישת שורות.</summary>
         public static StringFormat SfTextWrap(string s) { return Lang.Rtl || RtlText(s) ? _sfRtlWrap : _sfWrap; }
 
+        /// <summary>**טקסט בפקד שממקם אותו בעצמו** (כפתור): באותו צד כמו `SfUi`, אבל הכיוון לפי הטקסט - ״לעברית״ בממשק אנגלי (0.8.34,
+        /// כפתור השפה בהגדרות) נקרא מימין לשמאל וצמוד לאייקון כמו כל כפתור. בממשק עברי - `SfUi` כמו תמיד.</summary>
+        public static StringFormat SfUiFor(string s) { return !Lang.Rtl && RtlText(s) ? _sfRtlEnd : SfUi; }
+
         /// <summary>האות החזקה הראשונה עברית או ערבית.</summary>
         public static bool RtlText(string s)
         {

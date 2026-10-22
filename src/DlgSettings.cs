@@ -33,7 +33,14 @@ namespace SubtitleStudio
     {
         private readonly MainForm _main;
         private Toggle _dark, _auto, _spellOn;
-        private Combo _lang;
+        private Btn _langBtn;
+
+        // כל אחד בשפה שלו, ולא דרך Lang.T - מי שלא קורא את השפה הנוכחית צריך לזהות את שלו
+        private const string ToEnglish = "to English";
+        private const string ToHebrew = "לעברית";
+
+        /// <summary>השפה שהכפתור מציע: ההפך מזו שתהיה בהפעלה הבאה (בחירה שעוד לא נכנסה לתוקף - נחשבת).</summary>
+        private static string LangTarget() { return (Settings.LangChoice ?? Lang.Code) == Lang.En ? Lang.He : Lang.En; }
         /// <summary>המשתמש בחר שפה אחרת וביקש להפעיל מחדש. ‏MainForm מפעיל מחדש אחרי שהחלון נסגר.</summary>
         public bool RestartWanted;
         private Btn _google, _perms, _groq, _getDict, _delEngine, _delDict, _dict;
@@ -57,19 +64,22 @@ namespace SubtitleStudio
             };
             Row(_dark, 30, 16);
 
-            // **שפת הממשק**, באותה שורה עם מצב כהה (הגובה חייב להישאר מתחת ל-693). כל שם
-            // בשפה שלו: מי שלא קורא את השפה הנוכחית צריך למצוא את שלו. הקואורדינטות כאן
-            // בעברית - המתג מימין והבורר משמאל - והחלון משקף אותן באנגלית. עד 0.8.1 לא היה
-            // בורר בכלל: מי שקיבל אנגלית (ווינדוס באנגלית) נשאר בה.
-            int lw = Theme.S(140);
-            _lang = new Combo();
-            _lang.Items.Add("עברית");
-            _lang.Items.Add("English");
-            _lang.SelectedIndex = (Settings.LangChoice ?? Lang.Code) == Lang.En ? 1 : 0;
-            _lang.SetBounds(Pad, _dark.Top - Theme.S(2), lw, Theme.S(34));
-            Controls.Add(_lang);
+            // **שפת הממשק**, באותה שורה עם מצב כהה (הגובה חייב להישאר מתחת ל-693). הקואורדינטות כאן בעברית - המתג מימין
+            // והכפתור משמאל - והחלון משקף אותן באנגלית. עד 0.8.1 לא היה בורר בכלל.
+            // **כפתור ולא רשימה (0.8.34)**, כתוב **בשפה שאליה עוברים**: ״to English״ / ״לעברית״. בנימין: ״משתמש אנגלי שאינו דובר
+            // עברית יפתח את ההגדרות (יזהה לפי גלגל השיניים) ויראה מיד כפתור באנגלית... וכן להיפך״. רוחב קבוע לשתי השפות.
+            _langBtn = new Btn();
+            _langBtn.Kind = BtnKind.Subtle;
+            _langBtn.Icon = Ico.Translate;
+            _langBtn.Text = ToEnglish;
+            int lw = Math.Max(Theme.S(140), _langBtn.NeedWidth());
+            _langBtn.Text = ToHebrew;
+            lw = Math.Max(lw, _langBtn.NeedWidth());
+            _langBtn.Text = LangTarget() == Lang.En ? ToEnglish : ToHebrew;
+            _langBtn.SetBounds(Pad, _dark.Top - Theme.S(2), lw, Theme.S(34));
+            Controls.Add(_langBtn);
             _dark.SetBounds(Pad + lw + Theme.S(16), _dark.Top, ContentW - lw - Theme.S(16), _dark.Height);
-            _lang.SelectedIndexChanged += delegate { ChooseLang(_lang.SelectedIndex == 1 ? Lang.En : Lang.He); };
+            _langBtn.Click += delegate { ChooseLang(LangTarget()); };
 
             // ---------- שירותים באינטרנט ----------
             Section(Lang.T("שירותים באינטרנט"));
@@ -174,7 +184,6 @@ namespace SubtitleStudio
             _delDict.Click += delegate { RemoveDict(); };
 
             Buttons(Lang.T("סגירה"), Ico.Check, null);
-            _lang.BringToFront();
             BottomButton(Lang.T("איפוס הגדרות"), Ico.Refresh, delegate { ResetAll(); });
             Refresh2();
         }
@@ -317,10 +326,19 @@ namespace SubtitleStudio
         {
             Settings.LangChoice = code == Lang.Code ? null : code;
             Settings.SaveAll();
+            _langBtn.Text = LangTarget() == Lang.En ? ToEnglish : ToHebrew;
+            _langBtn.Invalidate();
             if (code == Lang.Code) return;
-            if (Ui.Confirm(this, Lang.T("שפת הממשק"),
-                    Lang.T("שפת הממשק תתחלף בפעם הבאה שהתוכנה תיפתח. להפעיל אותה מחדש עכשיו?"),
-                    Lang.T("להפעיל מחדש"), Lang.T("אחר כך")))
+            // **בשתי השפות** (0.8.34): מי שעובר לשפה אחרת אולי לא קורא את הנוכחית - ״להפעיל מחדש עכשיו?״ בעברית
+            // לא אומר כלום למי שלחץ ״to English״. השפה שאליה עוברים - ראשונה
+            // כל שפה בשורה אחת שנכנסת בלי גלישה: שורה עברית שגלשה בממשק אנגלי (או להפך) שברה את הכיוון - ״?Restart it now״
+            bool toEn = code == Lang.En;
+            string he = "השפה תתחלף בהפעלה הבאה. להפעיל מחדש עכשיו?";
+            string en = "The language changes on the next start. Restart now?";
+            if (Ui.Confirm(this, toEn ? "Interface language · שפת הממשק" : "שפת הממשק · Interface language",
+                    toEn ? en + "\n\n" + he : he + "\n\n" + en,
+                    toEn ? "Restart now · להפעיל מחדש" : "להפעיל מחדש · Restart now",
+                    toEn ? "Later · אחר כך" : "אחר כך · Later"))
             {
                 RestartWanted = true;
                 Close();
