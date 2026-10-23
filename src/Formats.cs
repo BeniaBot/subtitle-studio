@@ -1556,6 +1556,8 @@ namespace SubtitleStudio
 
             int lines = (int)Math.Ceiling(s.Length / (double)maxChars);
             if (lines > 3) lines = 3;
+            // לא יותר שורות ממילים: שתי מילים ארוכות (כתובת אתר) ביקשו שלוש שורות, אף פיצול לא נמצא, והטקסט חזר בשורה אחת (23.10)
+            if (lines > words.Length) lines = words.Length;
 
             // **הפיצול שבו השורה הארוכה הכי קצרה** (0.8.27). עד כאן - חמדני עד ״אורך היעד״ (חצי הטקסט) עם השוואה חדה: כשהמילה שחוצה את
             // האמצע ארוכה, השבירה הייתה מוקדמת והשורה השנייה עברה את המקסימום - ״Besides that, he was constantly / wandering set...״ (31/47)

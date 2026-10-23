@@ -142,6 +142,9 @@ $wEn = 'Besides that, he was constantly wandering set looking for ways to prank 
 Check 'שבירה: ״Besides that...״ - ‏41/37 ולא 31/47' ((WrapLens $wEn) -eq '41/37') (WrapLens $wEn)
 $wHe = 'כאן אנחנו יכולים לראות את מתיו ובהתרגשותם הגדולה הם יוצאים אל המגרש הירוק.'
 Check 'שבירה בעברית: שתי השורות עד 42' ((WrapLens $wHe) -eq '41/32') (WrapLens $wHe)
+# שתי מילים ארוכות מאוד (יותר מפי שניים מהמקסימום) - שתי שורות, לא שורה אחת (עד 23.10 ביקשו שלוש שורות ולא נמצא פיצול)
+$wTwo = ('a' * 50) + ' ' + ('b' * 50)
+Check 'שבירה: שתי מילים ארוכות - שורה לכל אחת' ((WrapLens $wTwo) -eq '50/50') (WrapLens $wTwo)
 $dw = NewDoc @(,@(0, 5000, $wEn))
 [void]$mFix.Invoke($null, (Pack $dw))
 Check '״לתקן הכול״ מסדר אותה בשתי שורות' (-not (Has $dw 0 'LongLine') -and ($dw.Cues[0].Text -replace "`n", ' ') -eq $wEn) ($dw.Cues[0].Text -replace "`n", ' / ')
