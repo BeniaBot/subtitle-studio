@@ -198,6 +198,54 @@ namespace SubtitleStudio
             return outp;
         }
 
+        /// <summary>**אזורי הטשטוש עוברים לקובץ החתוך** (23.10), כמו הכתוביות (`MapCues`): לכל קטע שנשאר - החלק של האזור שבתוכו, בזמנים
+        /// של הקובץ החדש; ומסלול של אזור שזז - הנקודות שבקטע, ובקצוות נקודה במקום שבו הוא היה שם. אזור של ״כל הסרט״ נשאר ״כל הסרט״.
+        /// עד כאן ״לעבור לקובץ החתוך״ פתח אותו כסרט אחר - והאזורים נמחקו בשקט.</summary>
+        internal static List<BlurZone> MapZones(List<BlurZone> zones, List<long[]> kept)
+        {
+            List<BlurZone> outp = new List<BlurZone>();
+            foreach (BlurZone z in zones)
+            {
+                if (z.FromMs < 0 && z.ToMs < 0) { outp.Add(z.Clone()); continue; }
+                long a = z.FromMs < 0 ? 0 : z.FromMs, b = z.ToMs < 0 ? long.MaxValue : z.ToMs;
+                long offset = 0;
+                foreach (long[] r in kept)
+                {
+                    long s = Math.Max(a, r[0]), e = Math.Min(b, r[1]);
+                    if (e - s >= 60)
+                    {
+                        BlurZone n = z.Clone();
+                        n.FromMs = s - r[0] + offset;
+                        n.ToMs = z.ToMs < 0 && e == r[1] && r == kept[kept.Count - 1] ? -1 : e - r[0] + offset;
+                        if (z.Moving)
+                        {
+                            List<ZoneKey> keys = new List<ZoneKey>();
+                            keys.Add(new ZoneKey(n.FromMs, KeyAt(z.Path, s)));
+                            foreach (ZoneKey k in z.Path) if (k.Ms > s && k.Ms < e) keys.Add(new ZoneKey(k.Ms - r[0] + offset, k.Area));
+                            keys.Add(new ZoneKey(e - r[0] + offset, KeyAt(z.Path, e)));
+                            n.Path = keys;
+                            n.Area = keys[0].Area;
+                        }
+                        outp.Add(n);
+                    }
+                    offset += r[1] - r[0];
+                }
+            }
+            return outp;
+        }
+
+        /// <summary>המלבן של מסלול ברגע מסוים - מרכז וגודל בקו ישר בין שתי הנקודות שמשני הצדדים (לפני הראשונה / אחרי האחרונה - שלהן).</summary>
+        private static System.Drawing.RectangleF KeyAt(List<ZoneKey> path, long ms)
+        {
+            if (ms <= path[0].Ms) return path[0].Area;
+            if (ms >= path[path.Count - 1].Ms) return path[path.Count - 1].Area;
+            int i = 0;
+            while (i < path.Count - 2 && path[i + 1].Ms <= ms) i++;
+            System.Drawing.RectangleF p = path[i].Area, q = path[i + 1].Area;
+            float f = (float)((ms - path[i].Ms) / (double)Math.Max(1, path[i + 1].Ms - path[i].Ms));
+            return new System.Drawing.RectangleF(p.X + (q.X - p.X) * f, p.Y + (q.Y - p.Y) * f, p.Width + (q.Width - p.Width) * f, p.Height + (q.Height - p.Height) * f);
+        }
+
         // ---------- המנוע ----------
 
         /// <summary>קובץ קול (בלי תמונה של ממש - תמונת עטיפה לא נחשבת).</summary>

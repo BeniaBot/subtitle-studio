@@ -76,6 +76,20 @@ $mc = (M 'MapCues').Invoke($null, (Pack $cl $k))
 $got = (@($mc) | ForEach-Object { $_.Text + '@' + $_.Start + '-' + $_.End }) -join ' | '
 Check 'כתוביות אחרי חיתוך: זזות, נחתכות בגבול, ונעלמות מחלק שהוסר' ($got -eq 'נחתכת בגבול@1000-2000 | שלמה@3000-5000 | בקטע השני@9000-11000') $got
 
+# אזורי טשטוש עוברים לקובץ החתוך כמו הכתוביות (עד 23.10 נמחקו בשקט): נשארים 0-4 ו-6-10 שניות
+$zT = T 'BlurZone'; $zkT = T 'ZoneKey'
+function NZ([long]$a, [long]$b) { $z = [Activator]::CreateInstance($zT); $z.FromMs = $a; $z.ToMs = $b; return $z }
+function ZKey([long]$ms, [float]$x) { $ka = New-Object object[] 2; $ka[0] = $ms; $ka[1] = [Drawing.RectangleF]::new($x, 0.2, 0.2, 0.2); return [Activator]::CreateInstance($zkT, $ka) }
+$zl = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($zT))
+$zl.Add((NZ -1 -1)); $zl.Add((NZ 2000 8000))
+$mvz = NZ 3000 9000; $zp = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($zkT)); $zp.Add((ZKey 3000 0.1)); $zp.Add((ZKey 9000 0.7)); $mvz.Path = $zp; $zl.Add($mvz)
+$kz = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType([long[]])); $kz.Add([long[]]@(0, 4000)); $kz.Add([long[]]@(6000, 10000))
+$mz = @((M 'MapZones').Invoke($null, (Pack $zl $kz)))
+$zgot = ($mz | ForEach-Object { '' + $_.FromMs + '..' + $_.ToMs }) -join ' '
+$last = $mz[$mz.Count - 1]
+$pathOk = $last.Path.Count -eq 2 -and [Math]::Abs($last.Path[0].Area.X - 0.4) -lt 0.01 -and [Math]::Abs($last.Path[1].Area.X - 0.7) -lt 0.01 -and $last.Path[0].Ms -eq 4000
+Check 'אזורי טשטוש אחרי חיתוך: כל הסרט נשאר, אזור שנחתך - שני חלקים, ואזור שזז ממשיך מהמקום שבו היה' ($zgot -eq '-1..-1 2000..4000 4000..6000 3000..4000 4000..7000' -and $pathOk) ($zgot + '  path ' + (($last.Path | ForEach-Object { '' + $_.Ms + ':' + $_.Area.X.ToString('0.00') }) -join ','))
+
 # ================= המנוע, על קבצים אמיתיים =================
 Write-Host 'קבצים אמיתיים'
 [void](T 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
@@ -374,12 +388,17 @@ $sw = [Diagnostics.Stopwatch]::StartNew(); while ((Playing) -and $sw.Elapsed.Tot
 $pp = PosP
 Check '▶ בשורה: מנגן מתחילת הקטע ועוצר בסופו בדיוק' (-not (Playing) -and $pp -eq 41000 -and $sw.Elapsed.TotalSeconds -gt 0.6) ('pos=' + $pp + ' after ' + [Math]::Round($sw.Elapsed.TotalSeconds, 2) + 's')
 
-$after = Fld $dlg 'OpenAfter'
+$after = Fld $dlg 'OpenAfter'; $keptAfter = $dlg.GetType().GetField('KeptAfter', $IN).GetValue($dlg)
 $dlg.Close(); $dlg.Dispose()
-[void]$mf.GetMethod('SwitchToCut', $IN).Invoke($mainF, @([string]$after))
+# אזור טשטוש 15-45 שניות במקור: עובר לקובץ החתוך (נשארו 10-12, ‏14-20, ‏40-50) - 3-8 ו-8-13
+$stF = $mf.GetField('_style', $IN).GetValue($mainF); $stF.Zones.Clear(); $stF.Zones.Add((NZ 15000 45000)); $stF.BlurOn = $true
+$adoptArgs = New-Object object[] 2; $adoptArgs[0] = [string]$after; $adoptArgs[1] = $keptAfter
+[void]$mf.GetMethod('AdoptCut', $IN).Invoke($mainF, $adoptArgs)
 $mp = $mf.GetField('_mediaPath', $IN).GetValue($mainF)
 $mi2 = $mf.GetField('_mi', $IN).GetValue($mainF)
 Check 'אחרי החיתוך העורך עובר לקובץ החתוך, עם הכתוביות; השמירה הבאה תשאל לאן (לא דורסת את של המקור)' ($mp -eq $after -and [Math]::Abs($mi2.DurationSec - 18) -lt 0.2 -and $doc.Cues.Count -eq 3 -and $doc.FilePath -eq $null -and $doc.Dirty) ("media=" + [IO.Path]::GetFileName($mp) + " cues=" + $doc.Cues.Count)
+$zAfter = (@($stF.Zones) | ForEach-Object { '' + $_.FromMs + '..' + $_.ToMs }) -join ' '
+Check 'ואזורי הטשטוש עוברים איתן לזמנים של הקובץ החתוך, והטשטוש מתחת לכתוביות נשאר' ($zAfter -eq '3000..8000 8000..13000' -and $stF.BlurOn) ($zAfter + ' blur=' + $stF.BlurOn)
 $mainF.Close(); $mainF.Dispose()
 
 Write-Host ''

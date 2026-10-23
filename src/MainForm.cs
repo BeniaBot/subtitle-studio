@@ -3432,9 +3432,21 @@ namespace SubtitleStudio
             CutDlg d = new CutDlg(this, _mi, _doc, _wave, _cutSections);
             d.ShowDialog(this);
             string next = d.OpenAfter;
+            List<long[]> kept = d.KeptAfter;
             d.Dispose();
-            if (next != null) SwitchToCut(next);
+            if (next != null) AdoptCut(next, kept);
             SyncAfterDocChange();
+        }
+
+        /// <summary>מעבר לקובץ החתוך, **והטשטוש ואזורי הצנזורה הולכים איתו** כמו הכתוביות (`CutPlan.MapZones`; פתיחה של סרט אחר מנקה אותם).
+        /// <paramref name="kept"/> - הקטעים שנשארו, בזמני המקור.</summary>
+        internal void AdoptCut(string next, List<long[]> kept)
+        {
+            List<BlurZone> zones = kept != null && HasZones ? CutPlan.MapZones(_style.Zones, kept) : null;
+            bool blur = _style.BlurOn;
+            if (!SwitchToCut(next)) return;
+            _style.BlurOn = blur;
+            if (zones != null && zones.Count > 0) { _style.Zones.AddRange(zones); _doc.Dirty = true; _video.Invalidate(); }
         }
 
         /// <summary>חלון ״טשטוש וצנזורה״ (`ZonesDlg`): עובד על עותק של האזורים, ו״שמירה״ מחליף. האזורים שייכים לסרט ונשמרים בפרויקט -
@@ -3457,14 +3469,15 @@ namespace SubtitleStudio
         /// <summary>אחרי חיתוך עם ״לעבור לקובץ החתוך״: העורך פותח את הקובץ החדש, והכתוביות (שכבר הוזזו) הולכות
         /// איתו. קובץ הכתוביות והפרויקט שייכים לסרט המקורי - השמירה הבאה שואלת לאן, ולא כותבת עליהם זמנים של
         /// קובץ אחר.</summary>
-        private void SwitchToCut(string path)
+        private bool SwitchToCut(string path)
         {
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path)) return false;
             OpenMedia(path);
-            if (!string.Equals(_mediaPath, path, StringComparison.OrdinalIgnoreCase)) return;
+            if (!string.Equals(_mediaPath, path, StringComparison.OrdinalIgnoreCase)) return false;
             _doc.FilePath = null;
             _projectPath = null;
             if (_doc.Cues.Count > 0) _doc.Dirty = true;
+            return true;
         }
 
         /// <summary>קיצור ישיר לכלי הנפוץ ביותר - הקטנה לגודל מבוקש.</summary>

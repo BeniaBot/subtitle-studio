@@ -1491,7 +1491,11 @@ namespace SubtitleStudio
                 _doc.RaiseChanged();
             }
             OpenAfter = run.Outs[0];
+            KeptAfter = run.Kept;
         }
+
+        /// <summary>עם `OpenAfter`: הקטעים שנשארו (בזמני המקור) - אזורי הטשטוש עוברים לפיהם (`CutPlan.MapZones`).</summary>
+        internal List<long[]> KeptAfter;
 
         protected override bool OnOk()
         {
