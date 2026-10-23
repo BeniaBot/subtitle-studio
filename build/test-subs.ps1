@@ -254,6 +254,12 @@ $pIn = PreviewAt 500; $pOut = PreviewAt 1500
 $cIn = $pIn.GetPixel(160, 90); $cornerIn = $pIn.GetPixel(84, 48); $cOut = $pOut.GetPixel(160, 90)
 Rep 'censor zones in the preview: black circle only in its time, corners outside the circle untouched' (($cIn.R + $cIn.G + $cIn.B) -lt 30 -and $cornerIn.R -gt 150 -and $cOut.R -gt 150) ("in {0}/{1}/{2}, corner R {3}, after R {4}" -f $cIn.R, $cIn.G, $cIn.B, $cornerIn.R, $cOut.R)
 $pIn.Dispose(); $pOut.Dispose()
+# צריבה של קטע (מ-10 שניות): אזור שנגמר לפני הקטע לא נכנס, ואזור שנמשך לתוכו - מההתחלה של הקטע ועד הזמן שלו בקטע.
+# עד 23.10 אזור של 1-5 שניות טשטש את כל הקטע: הסוף שלו יצא שלילי ונקרא ״עד הסוף״
+$zG = $zT.GetMethod('Graph', $IN)
+$gBefore = [string]$zG.Invoke((Zone 0.1 0.1 0.3 0.3 1000 5000 0 $false), @(640, 360, [long]10000, 'z0'))
+$gInto = [string]$zG.Invoke((Zone 0.1 0.1 0.3 0.3 8000 12000 0 $false), @(640, 360, [long]10000, 'z0'))
+Rep 'part burn: a zone that ended before the part is left out, one that runs into it ends on time' ($gBefore -eq '' -and $gInto -match "between\(t,0,2\)") ("before [{0}]  into: {1}" -f $gBefore, $(if ($gInto -match "enable='([^']+)'") { $Matches[1] } else { 'no enable' }))
 
 # גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו
 $hh = (TY 'Fonts').GetMethod('HasHebrew', $ST)

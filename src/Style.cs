@@ -647,7 +647,8 @@ namespace SubtitleStudio
             }
             if (px.IsEmpty) return "";
             long a = FromMs < 0 ? -1 : FromMs - shiftMs, b = ToMs < 0 ? -1 : ToMs - shiftMs;
-            if (b >= 0 && b <= 0) return "";
+            // נגמר לפני הקטע שנצרב (או בתחילתו) - לא נכנס. בלי זה ``b`` שלילי נקרא ״עד הסוף״, והאזור טשטש את כל הקטע (23.10)
+            if (ToMs >= 0 && b <= 0) return "";
             if (a >= 0 && b >= 0 && b <= a) return "";
             string enable = "";
             if (a > 0 || b >= 0)
