@@ -153,7 +153,8 @@ namespace SubtitleStudio
                     if (r == 2 || r < 0) { e.Cancel = true; return; }
                     if (r == 0)
                     {
-                        bool ok = kind.StartsWith("project-") ? SaveProject(true) : SaveSubtitles(false);
+                        // ״project-zones״ דרך `SaveSubtitles` - פרויקט, וגם קובץ הכתוביות שפתוח
+                        bool ok = kind == "project-new" ? SaveProject(true) : SaveSubtitles(false);
                         if (!ok) { e.Cancel = true; return; }
                     }
                 }
@@ -3235,8 +3236,13 @@ namespace SubtitleStudio
                     subsOk = WriteSubtitles(_doc.FilePath);
                 return SaveProject(false) && subsOk;
             }
-            // אזורי טשטוש בלי פרויקט: ״שמירה״ שומרת פרויקט (קובץ כתוביות היה מאבד אותם). ״שמירה בשם״ - מה שביקשו
-            if (!asNew && HasZones) return SaveProject(true);
+            // אזורי טשטוש בלי פרויקט: ״שמירה״ שומרת פרויקט (קובץ כתוביות היה מאבד אותם). ״שמירה בשם״ - מה שביקשו.
+            // **וגם את קובץ הכתוביות שפתוח** (23.10), כמו כשיש פרויקט: עד כאן נשמר רק הפרויקט, וה-SRT שערכו בו נשאר ישן בשקט
+            if (!asNew && HasZones)
+            {
+                if (!SaveProject(true)) return false;
+                return _doc.Cues.Count == 0 || !Formats.CanSaveInPlace(_doc.FilePath) || WriteSubtitles(_doc.FilePath);
+            }
             if (_doc.Cues.Count == 0)
             {
                 Ui.Info(this, Lang.T("אין מה לשמור"), Lang.T("עוד לא נוצרו כתוביות."));
@@ -4202,21 +4208,30 @@ namespace SubtitleStudio
             string path = _projectPath;
             if (asNew || path == null)
             {
-                SaveFileDialog dlg = new SaveFileDialog();
-                dlg.Filter = Lang.F("פרויקט של Subtext|*{0}", Project.Extension);
-                dlg.Title = Lang.T("שמירת הפרויקט");
-                try
+                string basis = _mediaPath ?? _doc.FilePath;
+                // **העוזר שומר** (23.10, כמו בכתוביות ב-0.8.15): בלי ״שמירה בשם״ של ווינדוס - הוא לא רואה אותו. אזורי טשטוש הפכו
+                // ״תשמור״ לשמירת פרויקט, והחלון נפתח באמצע השיחה. ליד הסרט, בשם פנוי
+                if (_aiNotices != null && !string.IsNullOrEmpty(basis))
+                    path = CutDlg.FreeName(Path.Combine(Path.GetDirectoryName(basis), Path.GetFileNameWithoutExtension(basis) + Project.Extension));
+                else
                 {
-                    string basis = _mediaPath ?? _doc.FilePath;
-                    if (basis != null)
+                    SaveFileDialog dlg = new SaveFileDialog();
+                    dlg.Filter = Lang.F("פרויקט של Subtext|*{0}", Project.Extension);
+                    dlg.Title = Lang.T("שמירת הפרויקט");
+                    try
                     {
-                        dlg.InitialDirectory = Path.GetDirectoryName(basis);
-                        dlg.FileName = Path.GetFileNameWithoutExtension(basis) + Project.Extension;
+                        if (basis != null)
+                        {
+                            dlg.InitialDirectory = Path.GetDirectoryName(basis);
+                            dlg.FileName = Path.GetFileNameWithoutExtension(basis) + Project.Extension;
+                        }
                     }
+                    catch { }
+                    if (SavePathPicker != null) path = SavePathPicker(dlg.Title, dlg.FileName);
+                    else path = dlg.ShowDialog(this) == DialogResult.OK ? dlg.FileName : null;
+                    dlg.Dispose();
+                    if (string.IsNullOrEmpty(path)) return false;
                 }
-                catch { }
-                if (dlg.ShowDialog(this) != DialogResult.OK) return false;
-                path = dlg.FileName;
                 if (!path.EndsWith(Project.Extension, StringComparison.OrdinalIgnoreCase)) path += Project.Extension;
             }
             try

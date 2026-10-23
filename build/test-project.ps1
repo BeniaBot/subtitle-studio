@@ -415,6 +415,18 @@ $formT.GetField('_projectPath', $NP).SetValue($sv, [string](Join-Path $work 'ע�
 $ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
 Check 'פרויקט פתוח מול ‎.sub‎: הפרויקט נשמר, וה-‎.sub‎ לא נגעו בו' ($ok -and [IO.File]::ReadAllText($src) -eq $before -and (Test-Path (Join-Path $work 'עם-sub.subtext'))) ''
 $sv.Close(); $sv.Dispose(); Pump 50
+# SRT עם אזורי טשטוש, בלי פרויקט: ״שמירה״ שומרת פרויקט - **וגם את ה-SRT שערכו** (עד 23.10 רק הפרויקט, וה-SRT נשאר ישן בשקט)
+$zsrt = Join-Path $work 'עם-אזורים.srt'
+[IO.File]::WriteAllText($zsrt, $srtBody, (New-Object Text.UTF8Encoding $true))
+$script:zproj = [string](Join-Path $work 'עם-אזורים.subtext')
+$picker.SetValue($null, [Func[string, string, string]] { param($title, $name) return $script:zproj })
+$sv = NewForm
+$formT.GetMethod('ImportSubs', $NP).Invoke($sv, (Pack ([string]$zsrt))) | Out-Null
+(Fld $sv '_style').Zones.Add([Activator]::CreateInstance($asm.GetType('SubtitleStudio.BlurZone')))
+(Fld $sv '_doc').Cues[0].Text = 'שלום לכולם, ערוך'; (Fld $sv '_doc').Dirty = $true
+$ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
+Check 'SRT עם אזורי טשטוש: ״שמירה״ שומרת פרויקט, וגם את ה-SRT שנערך' ($ok -and (Test-Path $script:zproj) -and ([IO.File]::ReadAllText($zsrt)).Contains('ערוך') -and (Fld $sv '_projectPath') -eq $script:zproj) ([string](Fld $sv '_projectPath'))
+$sv.Close(); $sv.Dispose(); Pump 50
 $picker.SetValue($null, $null)
 
 # כתיבה בטוחה: אם אי אפשר לכתוב את הקובץ הזמני, הקובץ הקיים נשאר שלם

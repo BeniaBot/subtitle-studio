@@ -1058,7 +1058,10 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             bool ok = SaveSubtitles(false);
-            if (ok) r["done"] = Lang.T("הכתוביות נשמרו") + (_doc.FilePath != null ? ": " + Path.GetFileName(_doc.FilePath) : "");
+            if (ok && _doc.Cues.Count > 0) r["done"] = Lang.T("הכתוביות נשמרו") + (_doc.FilePath != null ? ": " + Path.GetFileName(_doc.FilePath) : "");
+            // אזורי טשטוש - ״שמירה״ שומרת גם פרויקט (`SaveSubtitles`); העוזר צריך לדעת איפה, ובלי כתוביות זה כל מה שנשמר
+            if (ok && HasZones && _projectPath != null)
+                r[r.ContainsKey("done") ? "project" : "done"] = Lang.F("אזורי הטשטוש נשמרו בפרויקט: {0} (קובץ כתוביות לא מחזיק אותם)", Path.GetFileName(_projectPath));
             // בלי סרט פתוח נפתח חלון השמירה של ווינדוס - ומי שסגר אותו בלי לבחור מקום, ביטל. לא ״אולי הקובץ פתוח בתוכנה אחרת״
             else r["error"] = _doc.Cues.Count == 0 ? "אין כתוביות לשמור"
                 : "השמירה לא בוצעה - המשתמש סגר את חלון השמירה בלי לבחור מקום, או שהכתיבה נכשלה (אז הוצגה לו הודעה)";
