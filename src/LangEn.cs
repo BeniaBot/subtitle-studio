@@ -1795,7 +1795,8 @@ namespace SubtitleStudio
             "לסמן מחדש", "Mark again",
             "חזרה לנגן - לסמן שוב את הרגע", "Back to the player - mark the moment again",
             "עוד נקודה בסוף הסרט", "Another point near the end",
-            "כשהכתוביות מדויקות בהתחלה ובורחות בהמשך: מסמנים עוד משפט בסוף, והתזמון כולו נמתח לפי שתי הנקודות", "When the subtitles are right at the start and drift later: mark another sentence near the end, and the whole timing is stretched by the two points",
+            "עוד נקודה בתחילת הסרט", "Another point near the start",
+            "כשהפער גדל עם הזמן: מסמנים עוד משפט בצד השני של הסרט, והתזמון כולו נמתח לפי שתי הנקודות", "When the gap grows over time: mark another sentence at the other end of the video, and the whole timing is stretched by the two points",
             "קצב פריימים…", "Frame rate…",
             "מתקן את כל הסרט, גם כשהפער גדל עם הזמן · הנקודה הראשונה: {0}", "Fixes the whole video, even when the gap grows over time · first point: {0}",
             "המשפט שמחכים לו · כתובית {0} מתוך {1} · עכשיו ב-{2}", "Waiting for · subtitle {0} of {1} · now at {2}",
@@ -1816,9 +1817,9 @@ namespace SubtitleStudio
             "נמצאו פנים", "Faces found",
             "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
             "נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",
-            "מעקב", "Track",
         };
         private static readonly string[] P6 = new string[] {
+            "מעקב", "Track",
             "האזור הולך אחרי מה שבתוכו (לוגו, שלט, אדם) - מהרגע של הנגן ועד סוף האזור", "The area follows what is inside it (a logo, a sign, a person) - from where the player is to the end of the area",
             "מעקב מכאן", "Track from here",
             "האזור לא מוסתר ברגע הזה - מזיזים את הנגן לזמן שלו, ואז ״מעקב״.", "The area is not hidden at this moment - move the player into its time, then \"Track\".",
