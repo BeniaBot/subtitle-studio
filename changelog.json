@@ -2,6 +2,17 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.37",
+      "date": "2026-10-23",
+      "items": [
+        {
+          "t": "feature",
+          "s": "העוזר החכם מטשטש את כל הפנים בסרט בעצמו - ״תטשטש את כל הפנים״, בלי לפתוח חלון",
+          "en": "The assistant blurs every face in the video by itself - 'blur all the faces', without opening a window"
+        }
+      ]
+    },
+    {
       "v": "0.8.36",
       "date": "2026-10-22",
       "items": [
