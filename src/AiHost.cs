@@ -971,7 +971,8 @@ namespace SubtitleStudio
                 foreach (BlurZone z in zones) z.Look = look;
                 w["face_areas_added"] = zones.Count;
                 if (zones.Count == 0) { w["note"] = "לא נמצאו פנים. פנים קטנות מאוד, מהצד או בחושך הגלאי עלול לפספס - אותן מסמנים ביד"; return w; }
-                w["_apply"] = (MethodInvoker)delegate { _style.Zones.AddRange(zones); _video.Invalidate(); _doc.Dirty = true; };
+                // נפתח בינתיים סרט אחר - הפנים של הסרט הקודם לא נכנסות אליו
+                w["_apply"] = (MethodInvoker)delegate { if (_mi != mi) return; _style.Zones.AddRange(zones); _video.Invalidate(); _doc.Dirty = true; };
                 w["note"] = "נוספו אזורים שזזים עם הפנים, ונראים בנגן. להגיד למשתמש לעבור על הסרט ולוודא שלא פוספסו פנים. לשנות לכולם יחד: חלון ״טשטוש וצנזורה״, קליק ימני על אזור פנים - ״כל אזורי הפנים״";
                 return w;
             };
@@ -1095,7 +1096,9 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
-            if (_doc.Cues.Count == 0) { r["error"] = Lang.T("אין כתוביות"); return r; }
+            // אזורי טשטוש בלי כתוביות - נצרבים לבד, כמו בתפריט (`ExportVideo`). עד 23.10 העוזר ענה ״אין כתוביות״
+            if (_doc.Cues.Count == 0 && !HasZones) { r["error"] = Lang.T("אין כתוביות"); return r; }
+            if (HasZones || _style.BlurOn) r["note"] = "הטשטוש ואזורי הצנזורה נכנסים לסרט רק ב״צריבה בתמונה״ - לא ב״ערוץ כתוביות נפרד״";
             // **נפתח בתור ההודעות (0.8.12)**, כמו run_command: עד כאן ShowDialog עצר את השיחה עד שהחלון נסגר, והעוזר
             // לא יכול היה לבחור בו כלום - ובניסוי ״תצרוב את הכתוביות בסרט״ נתקע. עכשיו הוא ממלא ולוחץ, לפי ההרשאות
             _aiLastWinCat = AiPerms.Media;

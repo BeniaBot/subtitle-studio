@@ -296,6 +296,15 @@ foreach ($ext in '.mkv', '.mp4') {
     $good = $subs.Count -eq 2 -and $mine.Language -eq 'heb' -and ($ext -ne '.mkv' -or $mine.Title -eq 'עברית') -and $mine.Default -and -not $subs[0].Default -and $subs[0].Language -eq 'eng'
     Rep ('soft track beside an old one ' + $ext) $good (($subs | ForEach-Object { '{0}:{1}:{2}:{3}' -f $_.Codec, $_.Language, $_.Title, $(if ($_.Default) { 'default' } else { '-' }) }) -join '  ')
 }
+# ערוץ נפרד עם אזורי טשטוש: אזהרה שהם נכנסים רק בצריבה (עד 23.10 הערוץ הנפרד יצא בשקט בלי הטשטוש)
+$zst = [Activator]::CreateInstance((TY 'SubStyle')); $zst.Zones.Add([Activator]::CreateInstance((TY 'BlurZone')))
+$zdlg = [Activator]::CreateInstance((TY 'ExportVideoDlg'), @($null, $doc, $mi, $zst, [long]-1, [long]-1))
+$noteF = $zdlg.GetType().GetField('_note', $IN)
+$burnNote = [string]$noteF.GetValue($zdlg).Text
+[void]$zdlg.GetType().GetMethod('SetMode', $IN).Invoke($zdlg, @($false))
+$softNote = $noteF.GetValue($zdlg)
+Rep 'separate track with blur areas: the window warns they go in only when burning' ($softNote.Text -match 'צריבה' -and $softNote.Color -eq (TY 'Theme').GetProperty('Warn', $ST).GetValue($null, $null) -and $burnNote -notmatch 'הצנזורה') $softNote.Text
+$zdlg.Dispose()
 
 # ---- 4K: ״להקטין ל-1080p״ (0.8.33) - רק כשהמקור גדול מ-1080p; הכתוביות והטשטוש במידות המקור, ואז הקטנה ----
 $src4 = Join-Path $dir 'big-4k.mp4'

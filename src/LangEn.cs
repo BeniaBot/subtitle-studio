@@ -1837,6 +1837,7 @@ namespace SubtitleStudio
             "מחפש פנים בקטע המסומן...", "Looking for faces in the marked part...",
             "גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״הסרט ▾ ← טשטוש וצנזורה״", "Drag on the picture above. Several areas at different times: Video ▾ → Blur and censor",
             "אזורי הטשטוש נשמרו בפרויקט: {0} (קובץ כתוביות לא מחזיק אותם)", "The blur areas were saved in the project: {0} (a subtitle file can't hold them)",
+            "שימו לב: הטשטוש ואזורי הצנזורה לא נכנסים לערוץ נפרד - רק לצריבה. כדי שיוסתרו בסרט, בוחרים ״צריבה בתמונה״.", "Note: the blur and the censor areas don't go into a separate track - only into burning. To hide them in the video, choose \"Burn into the picture\".",
         };
 
         public static void Fill(Dictionary<string, string> d)
