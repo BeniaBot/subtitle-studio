@@ -187,6 +187,10 @@ namespace SubtitleStudio
                 .P("look", "string", "blur (טשטוש), pixels (פיקסלים) או black (כיסוי שחור)")
                 .P("circle", "boolean", "עיגול במקום מלבן")
                 .P("strength", "number", "עוצמה 5-100, לטשטוש ולפיקסלים"));
+            t.Add(new AiTool("find_faces", "מוצא את כל הפנים בסרט (הגלאי של ווינדוס, בלי אינטרנט) ומוסיף לכל פנים אזור טשטוש שזז איתן. אחרי - להגיד למשתמש לעבור על הסרט: גלאי מפספס לפעמים פנים קטנות, מהצד או בחושך")
+                .P("from_sec", "number", "רק מאיזה זמן (בלי - מההתחלה)")
+                .P("to_sec", "number", "רק עד איזה זמן (בלי - עד הסוף)")
+                .P("look", "string", "blur (טשטוש, ברירת המחדל), pixels (פיקסלים) או black (כיסוי שחור)"));
             t.Add(new AiTool("list_blur_zones", "אזורי הטשטוש והצנזורה שבסרט, עם המספר של כל אחד"));
             t.Add(new AiTool("remove_blur_zone", "מוחק אזור טשטוש או צנזורה לפי המספר שלו")
                 .Req("number", "integer", "המספר מ-list_blur_zones (מ-1)"));
@@ -450,6 +454,7 @@ namespace SubtitleStudio
                     case "translate_subtitles": return AiDoTranslate(call, out refused);
                     case "set_style": return AiSetStyle(call);
                     case "add_blur_zone": return AiAddZone(call);
+                    case "find_faces": return AiFindFaces(call);
                     case "list_blur_zones": return AiListZones();
                     case "remove_blur_zone": return AiRemoveZone(call);
                     case "seek": return AiSeek(call);
@@ -943,6 +948,33 @@ namespace SubtitleStudio
             r["done"] = Lang.F("נוסף אזור {0}", _style.Zones.Count);
             r["zones"] = ZonesList();
             r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב ב״יצירת סרט עם כתוביות״";
+            return r;
+        }
+
+        /// <summary>״תטשטש את כל הפנים״ (0.8.37): ``Faces.Scan`` + ``ToZones`` ברקע (עבודה כבדה - ``_work``), והאזורים נוספים בחוט הממשק (``_apply``).</summary>
+        private Dictionary<string, object> AiFindFaces(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין סרט פתוח"; return r; }
+            if (!Faces.Available) { r["error"] = "בווינדוס הזה אין גלאי פנים מובנה - מסמנים ביד: ״הסרט ▾ ← טשטוש וצנזורה״ או add_blur_zone"; return r; }
+            double fs = c.Num("from_sec", -1), ts = c.Num("to_sec", -1);
+            long from = fs > 0 ? (long)Math.Round(fs * 1000) : 0, to = ts > 0 ? Math.Min(_mi.DurationMs, (long)Math.Round(ts * 1000)) : _mi.DurationMs;
+            if (to <= from) { r["error"] = "to_sec חייב להיות אחרי from_sec"; return r; }
+            int look = Math.Max(0, Array.IndexOf(ZoneLooks, c.Str("look", "blur").Trim().ToLowerInvariant()));
+            string path = _mediaPath; MediaInfo mi = _mi; long dur = _mi.DurationMs;
+            r["done"] = "מחפש פנים בסרט (בלי אינטרנט)";
+            r["_work"] = (Func<Dictionary<string, object>>)delegate
+            {
+                Dictionary<string, object> w = new Dictionary<string, object>();
+                List<Faces.Hit> hits = Faces.Scan(path, mi, from, to, null, delegate { return StopToken.Here; });
+                List<BlurZone> zones = Faces.ToZones(hits, dur);
+                foreach (BlurZone z in zones) z.Look = look;
+                w["face_areas_added"] = zones.Count;
+                if (zones.Count == 0) { w["note"] = "לא נמצאו פנים. פנים קטנות מאוד, מהצד או בחושך הגלאי עלול לפספס - אותן מסמנים ביד"; return w; }
+                w["_apply"] = (MethodInvoker)delegate { _style.Zones.AddRange(zones); _video.Invalidate(); _doc.Dirty = true; };
+                w["note"] = "נוספו אזורים שזזים עם הפנים, ונראים בנגן. להגיד למשתמש לעבור על הסרט ולוודא שלא פוספסו פנים. לשנות לכולם יחד: חלון ״טשטוש וצנזורה״, קליק ימני על אזור פנים - ״כל אזורי הפנים״";
+                return w;
+            };
             return r;
         }
 

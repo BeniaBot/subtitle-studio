@@ -357,6 +357,13 @@ $wres = $res['_work'].Invoke()
 Check 'וכשהחיפוש לפי המשמעות נכשל - אומר מה עוד אפשר (מילה נרדפת, צפייה)' (('' + $wres['note']).Contains('watch_video')) ('' + $wres['note'])
 $state = $mfT.GetMethod('AiStateFull', $IN).Invoke($mf, @())
 Check 'במצב, עם יותר מ-30 כתוביות: ״רק חלק״, ואיך מחפשים בכולן' ($state.Contains('רק חלק') -and $state.Contains('find_text')) ''$mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
+# find_faces (0.8.37): רץ ברקע על הקטע שביקשו; בסרט בלי פנים - 0 ואומר למה; טווח הפוך - שגיאה. **בסוף הקובץ:** באמצע הוא קיבל
+# (או גרם ש-listen יקבל) תשובה של קריאה קודמת - ״אין פקודה בשם הזה״ - ולא הובן (WORKPLAN)
+$perms.GetMethod('Parse', $ST).Invoke($null, @('0,0,0,0,0'))
+$ff1 = Call 'find_faces' @{ from_sec = 1; to_sec = 4 }
+$fw = RunWork $ff1
+$ff2 = Call 'find_faces' @{ from_sec = 4; to_sec = 2 }
+Check 'העוזר: find_faces - עבודה ברקע על הקטע (בלי פנים: 0, ולמה), טווח הפוך - שגיאה' ($ff1['_work'] -ne $null -and $fw -ne $null -and $fw['face_areas_added'] -eq 0 -and ('' + $fw['note']).Contains('לא נמצאו') -and $ff2['error'] -ne $null) ($(if ($fw) { '' + $fw['face_areas_added'] + ' ' + $fw['note'] } else { 'ff1: ' + (($ff1.Keys | % { $_ + '=' + $ff1[$_] }) -join ' | ') }))
 $perms.GetMethod('ResetDefaults', $ST).Invoke($null, @())
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
