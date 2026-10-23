@@ -9,6 +9,41 @@
           "t": "feature",
           "s": "העוזר החכם מטשטש את כל הפנים בסרט בעצמו - ״תטשטש את כל הפנים״, בלי לפתוח חלון",
           "en": "The assistant blurs every face in the video by itself - 'blur all the faces', without opening a window"
+        },
+        {
+          "t": "fix",
+          "s": "טשטוש וצנזורה בערוץ כתוביות נפרד: החלון מזהיר שהם נכנסים לסרט רק בצריבה (עד עכשיו הערוץ הנפרד יצא בלי הטשטוש, בלי לומר)",
+          "en": "Blur and censor with a separate subtitle track: the window warns they go into the video only when burning (until now the separate track came out without the blur, silently)"
+        },
+        {
+          "t": "fix",
+          "s": "צריבה של קטע מסומן: אזור טשטוש שנגמר לפני הקטע כבר לא מטשטש את כל הקטע",
+          "en": "Burning a marked part: a blur area that ended before the part no longer blurs the whole part"
+        },
+        {
+          "t": "fix",
+          "s": "שמירה כשיש אזורי טשטוש: נשמר הפרויקט וגם קובץ הכתוביות שפתוח (עד עכשיו רק הפרויקט, וקובץ הכתוביות נשאר ישן)",
+          "en": "Saving with blur areas: the project is saved and also the open subtitle file (until now only the project, and the subtitle file stayed old)"
+        },
+        {
+          "t": "fix",
+          "s": "״פרויקט חדש״ סוגר גם את הטשטוש ואת אזורי הטשטוש של הסרט הקודם",
+          "en": "\"New project\" also closes the blur and the blur areas of the previous video"
+        },
+        {
+          "t": "fix",
+          "s": "סנכרון לפי הסרט: נקודה ראשונה שנשמרה לא עוברת לקובץ אחר או אחרי הזזה, והנקודה השנייה בצד הרחוק של הסרט - גם כשהראשונה קרובה לסוף",
+          "en": "Sync to the video: a saved first point no longer carries over to another file or past a shift, and the second point is at the far end of the video - also when the first is near the end"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר החכם צורב סרט עם אזורי טשטוש גם בלי כתוביות, ושומר פרויקט בלי לפתוח חלון שמירה שהוא לא רואה",
+          "en": "The assistant burns a video with blur areas even without subtitles, and saves a project without opening a save window it can't see"
+        },
+        {
+          "t": "fix",
+          "s": "שבירת שורות: שתי מילים ארוכות מאוד (כמו כתובת אתר) נשברות לשתי שורות",
+          "en": "Line wrap: two very long words (like a web address) are split into two lines"
         }
       ]
     },
@@ -145,7 +180,8 @@
           "en": "Spelling: common spellings with a double yod, everyday loanwords and commandment numbers are no longer flagged; and the style window shows a real subtitle from the video"
         }
       ]
-    },    {
+    },
+    {
       "v": "0.8.32",
       "date": "2026-10-22",
       "items": [
@@ -480,7 +516,8 @@
           "en": "A long job of the assistant says in the chat what it is doing, and 'Stop' stops it too"
         }
       ]
-    },    {
+    },
+    {
       "v": "0.8.16",
       "date": "2026-10-12",
       "items": [
@@ -505,7 +542,8 @@
           "en": "The assistant: 'shifted 5 subtitles: 0.5 seconds earlier' instead of 'by -0.5 seconds', and no follow-up question after a small action"
         }
       ]
-    },    {
+    },
+    {
       "v": "0.8.15",
       "date": "2026-10-12",
       "items": [
@@ -535,7 +573,8 @@
           "en": "The assistant: 'play from a minute and a half' also plays, it finds the right tool the first time, and an empty reply from Google - it retries by itself"
         }
       ]
-    },    {
+    },
+    {
       "v": "0.8.14",
       "date": "2026-10-12",
       "items": [
@@ -565,7 +604,8 @@
           "en": "A cleaner assistant window: calmer bubbles, an arrow to send, and a centered text box"
         }
       ]
-    },    {
+    },
+    {
       "v": "0.8.13",
       "date": "2026-10-12",
       "items": [
