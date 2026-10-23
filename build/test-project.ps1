@@ -367,6 +367,10 @@ $stM = $formT.GetField('_style', $NP).GetValue($m); $stM.Zones.Add([Activator]::
 Check 'ביציאה: יש אזורי טשטוש -> לשמור כפרויקט' ((Call $m 'ExitSaveKind' @()) -eq 'project-zones') (Call $m 'ExitSaveKind' @())
 $docM.Cues.Clear()
 Check 'ביציאה: רק אזורי טשטוש, בלי כתוביות -> גם שואלים' ((Call $m 'ExitSaveKind' @()) -eq 'project-zones') (Call $m 'ExitSaveKind' @())
+# ״פרויקט חדש״ סוגר את הסרט - והטשטוש והאזורים שלו נסגרים איתו (עד 23.10 נשארו, ו-SRT שנפתח אחר כך ״נשמר״ כפרויקט עם האזורים)
+$stM.BlurOn = $true
+Call $m 'CloseEverything' @() | Out-Null
+Check 'סגירה (פרויקט חדש): הטשטוש ואזורי הטשטוש של הסרט נסגרים איתו' ($stM.Zones.Count -eq 0 -and -not $stM.BlurOn -and (Call $m 'ExitSaveKind' @()) -eq 'none') ("zones {0}, blur {1}, exit {2}" -f $stM.Zones.Count, $stM.BlurOn, (Call $m 'ExitSaveKind' @()))
 $m.Close(); $m.Dispose()
 Check 'הגיבוי האמיתי של המשתמש לא נגעו בו' ($realBefore -eq (DirStamp $realAutoDir)) ''
 

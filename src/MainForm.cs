@@ -1981,6 +1981,9 @@ namespace SubtitleStudio
             _doc.FilePath = null;
             _doc.Dirty = false;
             _doc.ClearHistory();
+            // **הטשטוש ואזורי הצנזורה שייכים לסרט שנסגר** (23.10): עד כאן נשארו אחרי ״פרויקט חדש״ - ו-SRT שנפתח אחר כך בלי סרט
+            // ״נשמר״ כפרויקט עם האזורים של הסרט הקודם (`HasZones`). פרויקט שנפתח מחזיר את שלו (`ApplyProject`)
+            if (_style != null) { _style.BlurOn = false; _style.Zones.Clear(); }
             foreach (Btn b in _needMedia) { b.Enabled = false; b.Invalidate(); }
             SyncAfterDocChange();
             if (_hero != null) { _hero.Recent = Settings.Recent; _hero.Invalidate(); }
