@@ -17,6 +17,11 @@
         },
         {
           "t": "fix",
+          "s": "חיתוך עם ״לעבור לקובץ החתוך״: אזורי הטשטוש עוברים לזמנים של הקובץ החדש, כמו הכתוביות (עד עכשיו הם נמחקו בשקט)",
+          "en": "Cutting with \"switch to the cut file\": the blur areas move to the new file's times, like the subtitles (until now they were silently deleted)"
+        },
+        {
+          "t": "fix",
           "s": "צריבה של קטע מסומן: אזור טשטוש שנגמר לפני הקטע כבר לא מטשטש את כל הקטע",
           "en": "Burning a marked part: a blur area that ended before the part no longer blurs the whole part"
         },
