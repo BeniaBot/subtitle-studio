@@ -22,6 +22,11 @@ if not exist "build\app.ico" (
   powershell -NoProfile -ExecutionPolicy Bypass -File "build\make-icon.ps1"
 )
 
+rem  English table: src\LangEn.cs from build\lang\en.tsv on every build (23.10) - by hand it was forgotten,
+rem  and a new string came out in Hebrew in the English UI while test-source (which reads the .tsv) passed.
+powershell -NoProfile -ExecutionPolicy Bypass -File "build\make-lang.ps1" -Quiet
+if errorlevel 1 exit /b 1
+
 echo Preparing embedded engine...
 powershell -NoProfile -ExecutionPolicy Bypass -File "build\make-payload.ps1"
 if errorlevel 1 exit /b 1
