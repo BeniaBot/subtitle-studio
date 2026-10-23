@@ -378,6 +378,19 @@ SyCall $sy 'Seek' @([long]104000); SyCall $sy 'MarkNow' @(); SyCall $sy 'ApplySt
 $c2 = SyncCues $sd2
 Rep 'sync window: a second point near the end stretches the whole timing (10s->12s, 100s->104s)' ($ref2 -eq 100000 -and -not $back -and $c2[0].Start -eq 12000 -and $c2[2].Start -eq 104000 -and [Math]::Abs($c2[1].Start - 42667) -lt 5 -and -not $st2.HasA) ("second ref {0}; now {1}/{2}/{3}" -f $ref2, $c2[0].Start, $c2[1].Start, $c2[2].Start)
 $sy.Dispose()
+# נקודה ראשונה קרוב לסוף - השנייה בהתחלה (עד 23.10 תמיד האחרונה: שתי נקודות צמודות). ונקודה ששמורה לא עוברת לקובץ אחר או לכתובית שזזה
+$sd3 = SyncDoc; $st3 = [Activator]::CreateInstance((TY 'SyncState'))
+(SyncCues $sd3)[2].Selected = $true
+$sy = NewSync $sd3 101000 $st3
+SyCall $sy 'MarkNow' @(); SyCall $sy 'SecondPoint' @()
+$ref3 = (SyProp $sy 'RefCue').Start; $sy.Dispose()
+$kept = $st3.HasA
+$sy = NewSync $sd3 0 $st3; $sameDoc = $st3.HasA; $sy.Dispose()
+$sy = NewSync (SyncDoc) 0 $st3; $otherDoc = $st3.HasA; $sy.Dispose()
+$sy = NewSync $sd3 101000 $st3; SyCall $sy 'MarkNow' @(); SyCall $sy 'SecondPoint' @(); $sy.Dispose()
+(SyncCues $sd3)[2].Start = 103000
+$sy = NewSync $sd3 0 $st3; $moved = $st3.HasA; $sy.Dispose()
+Rep 'sync window: a first point near the end - the second at the start; a kept point dropped for another file or a moved subtitle' ($ref3 -eq 10000 -and $kept -and $sameDoc -and -not $otherDoc -and -not $moved) ("second ref {0}; kept {1}, same file {2}, other file {3}, moved {4}" -f $ref3, $kept, $sameDoc, $otherDoc, $moved)
 # ---- אזור שזז (0.8.35): נצרב במקום שלו בכל רגע; והרבה אזורים - דרך מסכה, ורק בפנים ----
 $zkT = TY 'ZoneKey'
 function ZK([long]$ms, [float]$x, [float]$y, [float]$w, [float]$h) { $ka = New-Object object[] 2; $ka[0] = $ms; $ka[1] = [Drawing.RectangleF]::new($x, $y, $w, $h); return [Activator]::CreateInstance($zkT, $ka) }

@@ -1862,7 +1862,8 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 לסמן מחדש	Mark again
 חזרה לנגן - לסמן שוב את הרגע	Back to the player - mark the moment again
 עוד נקודה בסוף הסרט	Another point near the end
-כשהכתוביות מדויקות בהתחלה ובורחות בהמשך: מסמנים עוד משפט בסוף, והתזמון כולו נמתח לפי שתי הנקודות	When the subtitles are right at the start and drift later: mark another sentence near the end, and the whole timing is stretched by the two points
+עוד נקודה בתחילת הסרט	Another point near the start
+כשהפער גדל עם הזמן: מסמנים עוד משפט בצד השני של הסרט, והתזמון כולו נמתח לפי שתי הנקודות	When the gap grows over time: mark another sentence at the other end of the video, and the whole timing is stretched by the two points
 קצב פריימים…	Frame rate…
 מתקן את כל הסרט, גם כשהפער גדל עם הזמן · הנקודה הראשונה: {0}	Fixes the whole video, even when the gap grows over time · first point: {0}
 המשפט שמחכים לו · כתובית {0} מתוך {1} · עכשיו ב-{2}	Waiting for · subtitle {0} of {1} · now at {2}

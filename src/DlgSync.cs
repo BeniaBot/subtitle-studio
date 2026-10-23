@@ -11,8 +11,17 @@ namespace SubtitleStudio
     {
         public long OldA = -1, NewA = -1;
         public string LabelA = "";
+        /// <summary>הכתובית של הנקודה הראשונה - כדי לדעת שהנקודה עוד נכונה (`Valid`).</summary>
+        public Cue CueA;
         public bool HasA { get { return OldA >= 0 && NewA >= 0; } }
-        public void Clear() { OldA = NewA = -1; LabelA = ""; }
+        public void Clear() { OldA = NewA = -1; LabelA = ""; CueA = null; }
+
+        /// <summary>**נקודה ישנה לא נשארת** (23.10): קובץ כתוביות אחר, ביטול, או הזזה של הכתובית - והנקודה כבר לא מתארת את מה שעל המסך.
+        /// עד כאן היא נשמרה לכל חיי התוכנה, והחלון המליץ על ״מתיחה״ לפי נקודה מקובץ אחר.</summary>
+        public void DropIfStale(Doc doc)
+        {
+            if (HasA && (CueA == null || !doc.Cues.Contains(CueA) || CueA.Start != OldA)) Clear();
+        }
     }
 
     /// <summary>
@@ -51,6 +60,7 @@ namespace SubtitleStudio
         public SyncDlg(MainForm main, MediaInfo mi, Doc doc, long position, SyncState state) : base(Lang.T("סנכרון לפי הסרט"), Ico.Sync, 600)
         {
             _main = main; _mi = mi; _doc = doc; _state = state ?? new SyncState();
+            _state.DropIfStale(doc);
             _pos = position;
             Subtitle = Lang.T("מנגנים, וכשהמשפט נשמע לוחצים ״עכשיו״ - והתזמון מתוקן לפיו");
             int W = ContentW, s6 = Theme.S(6), s8 = Theme.S(8);
@@ -132,7 +142,8 @@ namespace SubtitleStudio
             // שורה קטנה: לסמן שוב · עוד נקודה בסוף · קצב פריימים (המידות בעברית - מימין)
             int sx = Pad + W, sh = Theme.S(30);
             _again = SmallBtn(Lang.T("לסמן מחדש"), Ico.Undo, Lang.T("חזרה לנגן - לסמן שוב את הרגע"), ref sx, sh);
-            _second = SmallBtn(Lang.T("עוד נקודה בסוף הסרט"), Ico.Plus, Lang.T("כשהכתוביות מדויקות בהתחלה ובורחות בהמשך: מסמנים עוד משפט בסוף, והתזמון כולו נמתח לפי שתי הנקודות"), ref sx, sh);
+            // הרוחב לפי הטקסט הארוך מהשניים (״בתחילת״ / ״בסוף״ - נקבע ב-`LayoutPhase2`)
+            _second = SmallBtn(Lang.T("עוד נקודה בתחילת הסרט"), Ico.Plus, Lang.T("כשהפער גדל עם הזמן: מסמנים עוד משפט בצד השני של הסרט, והתזמון כולו נמתח לפי שתי הנקודות"), ref sx, sh);
             _fps = SmallBtn(Lang.T("קצב פריימים…"), Ico.Film, Lang.T("המרת קצב פריימים (למי שיודע מה זה)"), ref sx, sh);
             _again.Click += delegate { ShowPhase(false); };
             _second.Click += delegate { SecondPoint(); };
@@ -234,6 +245,8 @@ namespace SubtitleStudio
             _stretch.Kind = BtnKind.Primary;
             _all.Kind = canStretch ? BtnKind.Subtle : BtnKind.Primary;
             _all.Sub = Lang.F("{0} · מתאים כשכל הקובץ מוסט באותה מידה", DeltaText(delta));
+            _second.Text = FarCue() == _doc.Cues[0] ? Lang.T("עוד נקודה בתחילת הסרט") : Lang.T("עוד נקודה בסוף הסרט");
+            _second.Invalidate();
             int y = _gap.Bottom + Theme.S(12);
             _whatCap.SetBounds(Pad, y, ContentW, Theme.S(18)); y += Theme.S(24);
             foreach (Btn b in new Btn[] { _stretch, _all, _fromHere, _one })
@@ -294,12 +307,21 @@ namespace SubtitleStudio
             _state.OldA = _cue.Start;
             _state.NewA = _now;
             _state.LabelA = Tc.Short(_cue.Start) + " ← " + Tc.Short(_now);
-            // משפט בסוף הסרט - הכי רחוק שיש, כדי שהמתיחה תהיה מדויקת
-            Cue last = _doc.Cues[_doc.Cues.Count - 1];
-            _cue = last;
+            _state.CueA = _cue;
+            // המשפט הכי רחוק מהנקודה הראשונה - כדי שהמתיחה תהיה מדויקת
+            Cue far = FarCue();
+            _cue = far;
             _now = -1;
             ShowPhase(false);
-            Seek(Math.Max(0, last.Start + (_state.NewA - _state.OldA) - 3000));
+            Seek(Math.Max(0, far.Start + (_state.NewA - _state.OldA) - 3000));
+        }
+
+        /// <summary>הקצה הרחוק מהמשפט הנוכחי: מהחצי הראשון - האחרונה, מהחצי השני - הראשונה. עד 23.10 תמיד האחרונה - ומי שסימן
+        /// משפט קרוב לסוף קיבל שתי נקודות צמודות, ומתיחה שמנפחת כל טעות קטנה לאורך כל הסרט.</summary>
+        private Cue FarCue()
+        {
+            Cue first = _doc.Cues[0], last = _doc.Cues[_doc.Cues.Count - 1];
+            return _cue != null && _cue.Start - first.Start > last.Start - _cue.Start ? first : last;
         }
 
         private string DeltaText(long delta)
