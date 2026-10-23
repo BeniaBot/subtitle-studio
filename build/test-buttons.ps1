@@ -98,6 +98,7 @@ $forms = @(
     @{ n = 'ImportText';  make = { NewOf 'ImportTextDlg' @([int64]0, $true) } },
     @{ n = 'Transcribe';  make = { NewOf 'TranscribeDlg' @($mi, [int]3) } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
+    @{ n = 'Sync2';       make = { $s = NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())); [void]$s.GetType().GetMethod('MarkNow', [Reflection.BindingFlags]'NonPublic,Public,Instance').Invoke($s, @()); $s } },
     @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },
     @{ n = 'Replace';     make = { NewOf 'ReplaceDlg' @($doc) } },

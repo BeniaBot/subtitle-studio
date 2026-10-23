@@ -251,7 +251,8 @@ namespace SubtitleStudio
             _whatCap.SetBounds(Pad, y, ContentW, Theme.S(18)); y += Theme.S(24);
             foreach (Btn b in new Btn[] { _stretch, _all, _fromHere, _one })
             {
-                if (!b.Visible) continue;
+                // לא לפי ``b.Visible``: לפני שהחלון מוצג הוא תמיד false, וכל הכפתורים נשארו זה על זה למעלה (צילום של שלב 2, 23.10)
+                if (b == _stretch && !canStretch) continue;
                 b.Top = y; y += Theme.S(62);
                 b.Invalidate();
             }

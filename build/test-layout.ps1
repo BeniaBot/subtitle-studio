@@ -230,6 +230,7 @@ $dialogs = @(
     @{ n = 'ImportText'; needsMedia = $false; make = { NewOf 'ImportTextDlg' @([int64]0) } },
     @{ n = 'Transcribe'; needsMedia = $true;  make = { NewOf 'TranscribeDlg' @($mi, [int]3) } },
     @{ n = 'Sync';       needsMedia = $false; make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
+    @{ n = 'Sync2';      needsMedia = $false; make = { $s = NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())); [void]$s.GetType().GetMethod('MarkNow', [Reflection.BindingFlags]'NonPublic,Public,Instance').Invoke($s, @()); $s } },
     @{ n = 'Help';       needsMedia = $false; make = { NewOf 'HelpDlg' @() } },
     @{ n = 'About';      needsMedia = $false; make = { NewOf 'AboutDlg' @() } },
     @{ n = 'AiSetup';    needsMedia = $false; make = { NewOf 'AiSetupDlg' @() } },

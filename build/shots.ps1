@@ -118,6 +118,7 @@ $forms = @(
     @{ n = 'Zones';       make = { NewOf 'ZonesDlg' @($null, $mi, $null) } },
     @{ n = 'Zones2';      make = { $z = NewOf 'ZonesDlg' @($null, $mi, $null); $am = $z.GetType().GetMethod('AddZone', $IN); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.1, 0.1, 0.3, 0.3))); [void]$am.Invoke($z, @([Drawing.RectangleF]::new(0.55, 0.5, 0.3, 0.35))); $z } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
+    @{ n = 'Sync2';       make = { $s = NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())); [void]$s.GetType().GetMethod('MarkNow', $IN).Invoke($s, @()); $s } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },
     @{ n = 'Style';       make = { NewOf 'StyleDlg' @($style, $null) } },
     @{ n = 'Find';        make = { NewOf 'FindDlg' @([string]'שלום', [int]3) } },
