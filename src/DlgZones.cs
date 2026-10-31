@@ -496,7 +496,7 @@ namespace SubtitleStudio
                 List<Faces.Hit> hits = null; Exception err = null;
                 try { hits = Faces.Scan(path, mi, from, to, FaceProgress, delegate { return _faceStop; }); }
                 catch (Exception ex) { err = ex; }
-                try { BeginInvoke((Action)delegate { FacesDone(hits, err); }); } catch { }
+                try { BeginInvoke((Action)delegate { FacesDone(hits, err, from, to); }); } catch { }
             });
             th.IsBackground = true;
             th.Start();
@@ -511,7 +511,7 @@ namespace SubtitleStudio
         }
 
         /// <summary>סוף החיפוש: האזורים נוספים (צעד ביטול אחד), הנגן עובר לפנים הראשונות, ו**ההודעה אומרת לעבור על הסרט** - גלאי מפספס לפעמים.</summary>
-        private void FacesDone(List<Faces.Hit> hits, Exception err)
+        private void FacesDone(List<Faces.Hit> hits, Exception err, long from, long to)
         {
             bool stopped = _faceStop;
             _scanning = false;
@@ -526,13 +526,18 @@ namespace SubtitleStudio
                 return;
             }
             Push("faces");
+            // **חיפוש חוזר מחליף את הקודם בקטע** (1.11): עד כאן נוספה עוד שכבה, וכל פנים טושטשו פעמיים (וצריבה כפולה). נעצר באמצע - רק עד שם
+            long upTo = to;
+            if (stopped) { upTo = 0; foreach (BlurZone f in found) upTo = Math.Max(upTo, f.ToMs); }
+            int replaced = Faces.DropInside(_work.Zones, from, upTo);
             int first = _work.Zones.Count;
             _work.Zones.AddRange(found);
             _changed = true;
             Select(first);
             Seek(found[0].FromMs + 300);
             Ui.Info(this, Lang.T("נמצאו פנים"), (stopped ? Lang.T("החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.") + "\n" : "") +
-                Lang.F("נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", Theme.Ltr(found.Count.ToString())));
+                Lang.F("נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", Theme.Ltr(found.Count.ToString())) +
+                (replaced > 0 ? "\n" + Lang.F("הם במקום {0} אזורי הפנים מהחיפוש הקודם בקטע הזה (Ctrl+Z מחזיר).", Theme.Ltr(replaced.ToString())) : ""));
         }
 
         // ---------- מעקב ----------
@@ -910,6 +915,12 @@ namespace SubtitleStudio
         protected override void OnMouseMove(MouseEventArgs e) { if (_drag && SeekTo != null) SeekTo(T(e.X)); }
         protected override void OnMouseUp(MouseEventArgs e) { _drag = false; }
 
+        private void DrawLane(Graphics g, int i, float x1, float x2, float y, float lane)
+        {
+            Color c = ZonesDlg.ColorOf(i);
+            Theme.FillRound(g, new RectangleF(x1, y, x2 - x1, lane), lane / 2f, i == Selected ? c : Color.FromArgb(150, c));
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -917,13 +928,31 @@ namespace SubtitleStudio
             using (SolidBrush b = new SolidBrush(Theme.Panel)) g.FillRectangle(b, ClientRectangle);
             Surface.Inset(g, new RectangleF(0, 0, Width, Height), Theme.S(8), Theme.PanelAlt, false, 0f);
             float lane = Theme.S(5), top = Theme.S(9);
+            // **הרבה אזורים (חיפוש פנים בסרט ארוך) - פס אחד לכל רצף** (1.11): 3,000 פסים מעוגלים לקחו 8.7 אלפיות לציור, 30 פעם בשנייה
+            // בזמן ניגון. מעל 200 - פסים שנוגעים זה בזה באותו נתיב מצוירים כאחד (בצבע של הראשון), והנבחר מעל כולם
+            bool merge = Zones.Count > 200;
+            float[] runA = { -1, -1, -1 }, runB = new float[3];
+            int[] runI = new int[3];
             for (int i = 0; i < Zones.Count; i++)
             {
                 BlurZone z = Zones[i];
-                float x1 = X(z.FromMs < 0 ? 0 : z.FromMs), x2 = X(z.ToMs < 0 ? Duration : z.ToMs);
-                float y = top + (i % 3) * (lane + Theme.S(3));
-                Color c = ZonesDlg.ColorOf(i);
-                Theme.FillRound(g, new RectangleF(x1, y, Math.Max(Theme.S(3), x2 - x1), lane), lane / 2f, i == Selected ? c : Color.FromArgb(150, c));
+                float x1 = X(z.FromMs < 0 ? 0 : z.FromMs), x2 = Math.Max(X(z.FromMs < 0 ? 0 : z.FromMs) + Theme.S(3), X(z.ToMs < 0 ? Duration : z.ToMs));
+                int ln = i % 3;
+                if (!merge) { DrawLane(g, i, x1, x2, top + ln * (lane + Theme.S(3)), lane); continue; }
+                if (i == Selected) continue;
+                if (runA[ln] >= 0 && x1 <= runB[ln] + 1) { runB[ln] = Math.Max(runB[ln], x2); continue; }
+                if (runA[ln] >= 0) DrawLane(g, runI[ln], runA[ln], runB[ln], top + ln * (lane + Theme.S(3)), lane);
+                runA[ln] = x1; runB[ln] = x2; runI[ln] = i;
+            }
+            if (merge)
+            {
+                for (int ln = 0; ln < 3; ln++) if (runA[ln] >= 0) DrawLane(g, runI[ln], runA[ln], runB[ln], top + ln * (lane + Theme.S(3)), lane);
+                if (Selected >= 0 && Selected < Zones.Count)
+                {
+                    BlurZone z = Zones[Selected];
+                    float x1 = X(z.FromMs < 0 ? 0 : z.FromMs);
+                    DrawLane(g, Selected, x1, Math.Max(x1 + Theme.S(3), X(z.ToMs < 0 ? Duration : z.ToMs)), top + (Selected % 3) * (lane + Theme.S(3)), lane);
+                }
             }
             if (Mark >= 0)
             {
