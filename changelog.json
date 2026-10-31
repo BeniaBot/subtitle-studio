@@ -2,6 +2,22 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.39",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "t": "fix",
+          "s": "״למצוא פנים״ מהיר פי 4.5: כמה פריימים בבת אחת על כמה ליבות. סרט של שעתיים - כ-4 דקות במקום כ-18, ואותן פנים בדיוק",
+          "en": "\"Find faces\" is 4.5 times faster: several frames at once on several cores. A two-hour video - about 4 minutes instead of about 18, and exactly the same faces"
+        },
+        {
+          "t": "feature",
+          "s": "צריבה, חיתוך וכלים אומרים כמה זמן נשאר (״עוד כ-3 דקות״) במקום ״מהירות ×1.5״",
+          "en": "Burning, cutting and tools say how long is left (\"about 3 minutes left\") instead of \"speed ×1.5\""
+        }
+      ]
+    },
+    {
       "v": "0.8.38",
       "date": "2026-11-01",
       "items": [
