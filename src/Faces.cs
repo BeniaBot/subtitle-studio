@@ -17,6 +17,8 @@ namespace SubtitleStudio
     internal static class Faces
     {
         internal const int Fps = 4;
+        /// <summary>עד כמה חוטים של גלאי במקביל, וכמה פריימים במנה.</summary>
+        internal static int MaxWorkers = 6, Batch = 24;
         /// <summary>הרוחב שהגלאי רואה (מקטינים אליו סרט רחב יותר).</summary>
         internal static int ScanWidth = 960;
 
@@ -45,7 +47,10 @@ namespace SubtitleStudio
             int w = Math.Min(ScanWidth, mi.Width) & ~1;
             int h = (int)Math.Round(w * (double)mi.Height / mi.Width) & ~1;
             if (w < 64 || h < 64) return hits;
-            object det = WinFaces.Create();
+            // **כמה פריימים במקביל** (1.11): הגלאי לוקח כ-20-35 אלפיות לפריים על ליבה אחת, וזה רוב הזמן - נמדד על clip.mp4: ‏14 שניות לדקה וחצי,
+            // כלומר כ-18 דקות לסרט של שעתיים. גלאי לכל חוט (``ThreadLocal``), מנות של ``Batch`` פריימים, והתוצאות בסדר שלהן
+            int workers = Math.Max(1, Math.Min(MaxWorkers, Environment.ProcessorCount - 1));
+            System.Threading.ThreadLocal<object> dets = new System.Threading.ThreadLocal<object>(delegate { return WinFaces.Create(); });
             CultureInfo ic = CultureInfo.InvariantCulture;
             string args = "-hide_banner -nostdin -v quiet " + (fromMs > 0 ? "-ss " + (fromMs / 1000.0).ToString("0.###", ic) + " " : "") +
                 "-i \"" + path + "\" -t " + (span / 1000.0).ToString("0.###", ic) +
@@ -62,27 +67,47 @@ namespace SubtitleStudio
                 try
                 {
                     Stream s = p.StandardOutput.BaseStream;
-                    byte[] frame = new byte[w * h];
-                    for (int n = 0; ; n++)
+                    int batch = workers > 1 ? Batch : 1;
+                    byte[][] frames = new byte[batch][];
+                    for (int k = 0; k < batch; k++) frames[k] = new byte[w * h];
+                    List<Rectangle>[] found = new List<Rectangle>[batch];
+                    bool end = false;
+                    for (int n = 0; !end; )
                     {
                         if (cancel != null && cancel()) break;
-                        int got = 0;
-                        while (got < frame.Length)
+                        int have = 0;
+                        while (have < batch)
                         {
-                            int r = s.Read(frame, got, frame.Length - got);
-                            if (r <= 0) break;
-                            got += r;
+                            byte[] frame = frames[have];
+                            int got = 0;
+                            while (got < frame.Length)
+                            {
+                                int r = s.Read(frame, got, frame.Length - got);
+                                if (r <= 0) break;
+                                got += r;
+                            }
+                            if (got < frame.Length) { end = true; break; }
+                            have++;
                         }
-                        if (got < frame.Length) break;
-                        long ms = fromMs + n * 1000L / Fps;
-                        foreach (Rectangle b in WinFaces.Detect(det, frame, w, h))
-                            hits.Add(new Hit(ms, new RectangleF(b.X / (float)w, b.Y / (float)h, b.Width / (float)w, b.Height / (float)h)));
-                        if (progress != null) progress(Math.Min(1, (ms - fromMs) / (double)span));
+                        if (have == 0) break;
+                        if (have == 1 || workers == 1)
+                            for (int k = 0; k < have; k++) found[k] = WinFaces.Detect(dets.Value, frames[k], w, h);
+                        else
+                            System.Threading.Tasks.Parallel.For(0, have, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = workers },
+                                delegate (int k) { found[k] = WinFaces.Detect(dets.Value, frames[k], w, h); });
+                        for (int k = 0; k < have; k++, n++)
+                        {
+                            long ms = fromMs + n * 1000L / Fps;
+                            foreach (Rectangle b in found[k])
+                                hits.Add(new Hit(ms, new RectangleF(b.X / (float)w, b.Y / (float)h, b.Width / (float)w, b.Height / (float)h)));
+                        }
+                        if (progress != null) progress(Math.Min(1, (n * 1000L / Fps) / (double)span));
                     }
                 }
                 finally
                 {
                     try { if (!p.HasExited) p.Kill(); } catch { }
+                    dets.Dispose();
                 }
             }
             return hits;
