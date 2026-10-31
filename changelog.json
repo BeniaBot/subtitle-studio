@@ -12,6 +12,26 @@
         },
         {
           "t": "fix",
+          "s": "העוזר החכם אחרי ״למצוא פנים״ בסרט ארוך: רשימת האזורים שהוא מקבל מקוצרת (עד עכשיו אלפי שורות בכל פעולה)",
+          "en": "The assistant after \"find faces\" in a long video: the list of areas it gets is brief (until now thousands of lines with every action)"
+        },
+        {
+          "t": "fix",
+          "s": "חלון הטשטוש עם אלפי אזורים: פס הזמן מצויר פי 12 מהר יותר, וצעדי הביטול לא ממלאים את הזיכרון",
+          "en": "The blur window with thousands of areas: the time bar draws 12 times faster, and undo steps don't fill the memory"
+        },
+        {
+          "t": "feature",
+          "s": "חיפוש פנים ומעקב אומרים כמה זמן נשאר (״12% · עוד כ-8 דקות״)",
+          "en": "Face search and tracking say how long is left (\"12% · about 8 minutes left\")"
+        },
+        {
+          "t": "fix",
+          "s": "״למצוא פנים״ שוב באותו קטע מחליף את אזורי הפנים הקודמים בו (עד עכשיו כל פנים טושטשו פעמיים); Ctrl+Z מחזיר",
+          "en": "\"Find faces\" again in the same part replaces the earlier face areas there (until now each face was blurred twice); Ctrl+Z brings them back"
+        },
+        {
+          "t": "fix",
           "s": "ההקראה הקולית: זמנים בתשובה באנגלית מוקראים באנגלית",
           "en": "Voice: times in an English answer are read in English"
         },
