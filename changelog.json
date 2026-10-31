@@ -2,6 +2,32 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.38",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "t": "fix",
+          "s": "טשטוש של הרבה פנים בסרט ארוך נצרב מהר: סרט של 10 דקות עם 300 אזורי פנים - פחות מדקה (עד עכשיו לא הסתיים גם אחרי 7 דקות, והזמן גדל בריבוע של אורך הסרט)",
+          "en": "Blurring many faces in a long video burns fast: a 10-minute video with 300 face areas - under a minute (until now it did not finish even after 7 minutes, and the time grew with the square of the video length)"
+        },
+        {
+          "t": "fix",
+          "s": "ההקראה הקולית: זמנים בתשובה באנגלית מוקראים באנגלית",
+          "en": "Voice: times in an English answer are read in English"
+        },
+        {
+          "t": "fix",
+          "s": "תרגום בממשק האנגלי: פס ההתקדמות מתמלא משמאל לימין",
+          "en": "Translation in the English interface: the progress bar fills from left to right"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר החכם יודע שטשטוש לא נכנס ל״ערוץ כתוביות נפרד״, ולא ימליץ עליו כשיש אזורי טשטוש",
+          "en": "The assistant knows blur does not go into a \"separate subtitle track\", and won't suggest it when there are blur areas"
+        }
+      ]
+    },
+    {
       "v": "0.8.37",
       "date": "2026-10-23",
       "items": [
