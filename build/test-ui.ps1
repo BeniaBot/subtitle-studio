@@ -375,6 +375,9 @@ function BarSide([string]$lang) {
     $near = { param($c) [Math]::Abs($c.R - $acc.R) + [Math]::Abs($c.G - $acc.G) + [Math]::Abs($c.B - $acc.B) -lt 30 }
     if ((& $near $l) -and -not (& $near $r)) { return 'left' } elseif ((& $near $r) -and -not (& $near $l)) { return 'right' } else { return '?' }
 }
+$mixM = $asm.GetType('SubtitleStudio.Theme').GetMethod('MixSuspect', $ST2)
+$wrapped = 'מחפש פנים ' + [char]0x202A + '45' + [char]0x202C + '%'
+Check 'הגלאי של טקסט הפוך: מספר עטוף ואחריו ״%״ - חשוד, ״45%״ רגיל - לא' ($mixM.Invoke($null, @([string]$wrapped)) -and -not $mixM.Invoke($null, @([string]'מחפש פנים 45%'))) ''
 $sideEn = BarSide 'en'; $sideHe = BarSide 'he'
 Check 'פס התקדמות התרגום: מימין בעברית, משמאל באנגלית' ($sideHe -eq 'right' -and $sideEn -eq 'left') "he=$sideHe en=$sideEn"
 

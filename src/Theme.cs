@@ -566,6 +566,8 @@ namespace SubtitleStudio
         internal static bool MixSuspect(string s)
         {
             if (string.IsNullOrEmpty(s) || !HasRtl(s)) return false;
+            // מספר עטוף (`Ltr`) ומיד אחריו ״%״ - מוצג ״%12״ (נבדק בציור, 1.11). ״12%״ רגיל, או ``Ltr`` סביב ״12%״ כולו - תקין
+            if (System.Text.RegularExpressions.Regex.IsMatch(s, "[‬⁩]%")) return true;
             System.Text.RegularExpressions.RegexOptions o = System.Text.RegularExpressions.RegexOptions.None;
             foreach (string seg in System.Text.RegularExpressions.Regex.Split(s, "[\u202A\u202D\u2066][^\u202C\u2069]*[\u202C\u2069]"))
             {
