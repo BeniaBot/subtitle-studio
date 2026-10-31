@@ -202,6 +202,17 @@ foreach ($f in $cs) {
 }
 Check 'לכל Lang.T/Lang.F בעברית יש תרגום ב-en.tsv' ($bad.Count -eq 0) (Lines $bad)
 
+# ---- 9. מספר עטוף ב-Theme.Ltr ומיד אחריו ״%״ ----
+# בציור מימין לשמאל ״‪12‬%״ יוצא ״%12״ (נבדק בציור, 1.11; ״12%״ רגיל, או Ltr סביב ״12%״ כולו - תקין). כך יצאו ״מחפש פנים... 45%״ בחלון הטשטוש
+$bad = @()
+foreach ($f in $cs) {
+    $n = 0
+    foreach ($line in [IO.File]::ReadAllLines($f.FullName, [Text.Encoding]::UTF8)) {
+        $n++
+        if ($line -match 'Lang\.F\("[^"]*\{\d\}%[^"]*",.*Theme\.Ltr\(' -or $line -match 'Theme\.Ltr\([^)]*\)\s*\+\s*"%') { $bad += ('{0}:{1}' -f $f.Name, $n) }
+    }
+}
+Check 'אין מספר עטוף ב-Ltr עם ״%״ אחריו (מוצג הפוך, ״%12״)' ($bad.Count -eq 0) (Lines $bad)
 Write-Host ''
 Write-Host ('{0} passed, {1} failed' -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

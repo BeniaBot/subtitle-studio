@@ -515,7 +515,7 @@ namespace SubtitleStudio
             if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
             _lastProg = DateTime.UtcNow;
             string eta = Eta(f);
-            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בסרט... {0}%", Theme.Ltr(((int)(f * 100)).ToString())) + eta; _canvas.Invalidate(); } }); }
+            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בסרט... {0}%", ((int)(f * 100)).ToString()) + eta; _canvas.Invalidate(); } }); }
             catch { }
         }
 
@@ -592,7 +592,7 @@ namespace SubtitleStudio
             if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
             _lastProg = DateTime.UtcNow;
             string eta = Eta(f);
-            try { BeginInvoke((Action)delegate { if (_tracking) { _canvas.Status = Lang.F("עוקב אחרי מה שבאזור... {0}%", Theme.Ltr(((int)(f * 100)).ToString())) + eta; _canvas.Invalidate(); } }); }
+            try { BeginInvoke((Action)delegate { if (_tracking) { _canvas.Status = Lang.F("עוקב אחרי מה שבאזור... {0}%", ((int)(f * 100)).ToString()) + eta; _canvas.Invalidate(); } }); }
             catch { }
         }
 
@@ -615,7 +615,7 @@ namespace SubtitleStudio
             RefreshAll();
             double secs = (keys[keys.Count - 1].Ms - from) / 1000.0;
             if (frames > 0 && lost * 5 > frames)
-                Flash(Lang.F("המעקב איבד את מה שבאזור ב-{0}% מהזמן - כדאי לעבור ולבדוק.", Theme.Ltr((lost * 100 / frames).ToString())));
+                Flash(Lang.F("המעקב איבד את מה שבאזור ב-{0}% מהזמן - כדאי לעבור ולבדוק.", (lost * 100 / frames).ToString()));
             else Flash(Lang.F("המעקב הסתיים: {0} שניות.", Theme.Ltr(secs.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))), Theme.Good);
         }
 
