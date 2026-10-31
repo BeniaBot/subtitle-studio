@@ -276,7 +276,15 @@ namespace SubtitleStudio
             foreach (BlurZone z in _work.Zones) snap.Add(z.Clone());
             _undo.Add(snap);
             if (_undo.Count > 100) _undo.RemoveAt(0);
+            // **בזיכרון - לפי כמה אזורים, לא רק כמה צעדים** (1.11): כל צעד הוא עותק של כולם, ואחרי ״למצוא פנים״ בסרט ארוך (אלפי אזורים עם
+            // מסלולים) מאה צעדים היו מאות מגה. עד `UndoZones` אזורים בכל הצעדים יחד, ולפחות שלושה צעדים
+            int total = 0;
+            foreach (List<BlurZone> s in _undo) total += s.Count;
+            while (_undo.Count > 3 && total > UndoZones) { total -= _undo[0].Count; _undo.RemoveAt(0); }
         }
+
+        internal const int UndoZones = 60000;
+        internal int UndoSteps { get { return _undo.Count; } }
 
         internal void Undo()
         {

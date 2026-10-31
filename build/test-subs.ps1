@@ -362,6 +362,13 @@ ZCall 'SetLook' @([int]1); ZCall 'RemoveZone' @([int]0)
 $res = $zd.Result
 Rep 'zones window: Save returns a copy; the zones it came with are untouched until then' ($res.Count -eq 1 -and $res[0].Look -eq 1 -and $res[0].FromMs -eq 1000 -and $orig.Zones.Count -eq 1 -and $orig.Zones[0].Look -eq 2 -and -not [object]::ReferenceEquals($res[0], (ZP 'Zones')[0]) -and (ZP 'Changed')) ("result {0} (look {1}), original {2} (look {3})" -f $res.Count, $res[0].Look, $orig.Zones.Count, $orig.Zones[0].Look)
 $zd.Dispose()
+# 3,000 אזורי פנים: צעדי הביטול מוגבלים לפי כמות האזורים (עד 1.11 - מאה עותקים של כולם בזיכרון), וביטול עדיין עובד
+$big = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($zT)); for ($q = 0; $q -lt 3000; $q++) { $fz = Zone 0.1 0.1 0.1 0.1 ($q * 1000) ($q * 1000 + 900) 0 $false; $fz.Kind = 'face'; $big.Add($fz) }
+$bargv = New-Object object[] 3; $bargv[1] = $zmi; $bargv[2] = $big; $zd = [Activator]::CreateInstance((TY 'ZonesDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $bargv, $null); $zdT = $zd.GetType()
+for ($q = 0; $q -lt 40; $q++) { ZCall 'SetLookAll' @([string]'face', [int]($q % 3)) }
+$steps = $zdT.GetProperty('UndoSteps', $IN).GetValue($zd); ZCall 'Undo' @(); $lookAfter = (ZP 'Zones')[0].Look
+Rep 'zones window with 3,000 face areas: undo steps capped by how many areas, and undo still works' ($steps -ge 3 -and $steps -le 20 -and $lookAfter -eq (38 % 3)) ("steps {0}, look after undo {1}" -f $steps, $lookAfter)
+$zd.Dispose()
 
 # ---- החלון ״סנכרון לפי הסרט״ (0.8.35): הכול בתוכו - המשפט שמחכים לו, ״עכשיו״, הפער והפעולה; ומתיחה לפי נקודה שנייה בסוף ----
 function SyncDoc() { $sdoc = [Activator]::CreateInstance((TY 'Doc')); $sc = (TY 'Doc').GetField('Cues', $IN).GetValue($sdoc); foreach ($s in 10000, 40000, 100000) { $sc.Add([Activator]::CreateInstance($cueT, @([int64]$s, [int64]($s + 2000), [string]('משפט ' + $s)))) }; return ,$sdoc }
