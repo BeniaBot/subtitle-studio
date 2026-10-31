@@ -972,7 +972,8 @@ namespace SubtitleStudio
                 w["face_areas_added"] = zones.Count;
                 if (zones.Count == 0) { w["note"] = "לא נמצאו פנים. פנים קטנות מאוד, מהצד או בחושך הגלאי עלול לפספס - אותן מסמנים ביד"; return w; }
                 // נפתח בינתיים סרט אחר - הפנים של הסרט הקודם לא נכנסות אליו
-                w["_apply"] = (MethodInvoker)delegate { if (_mi != mi) return; _style.Zones.AddRange(zones); _video.Invalidate(); _doc.Dirty = true; };
+                // חיפוש חוזר באותו קטע מחליף את אזורי הפנים הקודמים שבו (בלי זה - כל פנים פעמיים)
+                w["_apply"] = (MethodInvoker)delegate { if (_mi != mi) return; Faces.DropInside(_style.Zones, from, to); _style.Zones.AddRange(zones); _video.Invalidate(); _doc.Dirty = true; };
                 w["note"] = "נוספו אזורים שזזים עם הפנים, ונראים בנגן. להגיד למשתמש לעבור על הסרט ולוודא שלא פוספסו פנים. לשנות לכולם יחד: חלון ״טשטוש וצנזורה״, קליק ימני על אזור פנים - ״כל אזורי הפנים״";
                 return w;
             };

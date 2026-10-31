@@ -193,6 +193,18 @@ namespace SubtitleStudio
             return zones;
         }
 
+        /// <summary>מוציא את אזורי הפנים (``Kind == "face"``) שכולם בתוך <paramref name="fromMs"/>-<paramref name="toMs"/> (עם הריפוד של רבע
+        /// שנייה) - לפני שמוסיפים את התוצאה של חיפוש חוזר באותו קטע. אזור שבולט מהקטע נשאר. מחזיר כמה יצאו.</summary>
+        internal static int DropInside(List<BlurZone> zones, long fromMs, long toMs)
+        {
+            return zones.RemoveAll(delegate (BlurZone z)
+            {
+                if (z.Kind != "face") return false;
+                long a = z.FromMs < 0 ? 0 : z.FromMs, b = z.ToMs < 0 ? long.MaxValue : z.ToMs;
+                return a >= fromMs - 300 && b <= toMs + 300;
+            });
+        }
+
         /// <summary>פחות נקודות במסלול: נקודה נשארת רק כשבלעדיה הקו הישר בין שכנותיה סוטה ממנה (מרכז או גודל) ביותר מ-<paramref name="tol"/>.</summary>
         internal static List<ZoneKey> Simplify(List<ZoneKey> keys, float tol)
         {

@@ -444,6 +444,11 @@ HitAt 2250 0.3 0.25 0.35 0.5
 $fz = (TY 'Faces').GetMethod('ToZones', $ST).Invoke($null, @($hits, [long]60000))
 $fa = $fz[0]
 Rep 'faces: one moving area per face (padded, a quarter second either side), a jump in size = another face' ($fz.Count -eq 3 -and $fa.Kind -eq 'face' -and $fa.Moving -and $fa.Path.Count -eq 2 -and $fa.FromMs -eq 0 -and $fa.ToMs -eq 2500 -and -not $fz[2].Moving -and $fa.Path[0].Area.Width -gt 0.13) ("{0} areas; first {1}..{2} keys {3} w {4:0.00}" -f $fz.Count, $fa.FromMs, $fa.ToMs, $(if ($fa.Path) { $fa.Path.Count } else { 0 }), $fa.Path[0].Area.Width)
+# חיפוש פנים חוזר באותו קטע מחליף את הקודם (עד 1.11 - כל פנים פעמיים): בתוך 0-10 שניות יוצא, בולט מהקטע / סומן ביד - נשאר
+$dz = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($zT))
+foreach ($spec in @(@(1000, 4000, 'face'), @(9800, 10200, 'face'), @(8000, 12000, 'face'), @(2000, 3000, $null))) { $q = Zone 0.1 0.1 0.2 0.2 $spec[0] $spec[1] 0 $false; $q.Kind = $spec[2]; $dz.Add($q) }
+$dropped = (TY 'Faces').GetMethod('DropInside', $ST).Invoke($null, @($dz, [long]0, [long]10000))
+Rep 'faces again in the same part: the old face areas inside it go, one that sticks out and a hand-marked one stay' ($dropped -eq 2 -and $dz.Count -eq 2 -and $dz[0].FromMs -eq 8000 -and $dz[1].Kind -ne 'face') ("dropped {0}, left {1}" -f $dropped, (($dz | ForEach-Object { '' + $_.FromMs + '-' + $_.ToMs }) -join ' '))
 # מעקב (2כט ד): ריבוע עם פסי צבע (כמו לוגו - בצבע אחד אין במה להיאחז) שזז על רקע עמוס - המסלול מוצא אותו במקום הנכון
 $trk = Join-Path $dir 'track.mp4'
 & $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=s=320x240:r=25:d=3' -f lavfi -i 'smptebars=s=40x40:r=25:d=3' -filter_complex "[0][1]overlay=x='20+t*60':y=100" -c:v libx264 -preset ultrafast -pix_fmt yuv420p $trk
