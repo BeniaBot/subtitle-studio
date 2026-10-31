@@ -246,10 +246,21 @@ namespace SubtitleStudio
         /// מספרים הדגם קורא נכון; ״09:30.5״ (זמן של כתובית) - בלי העשיריות.</summary>
         internal static string SpokenTimes(string s)
         {
+            // תשובה בלי עברית (הממשק האנגלי) - הזמן במילים באנגלית. עד 1.11 ״4:01״ בתשובה אנגלית הוקרא ״4 דקות ו-1 שניות״
+            bool he = HasHebrew(s);
             return System.Text.RegularExpressions.Regex.Replace(s ?? "", @"\b(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:\.\d)?\b", delegate (System.Text.RegularExpressions.Match m)
             {
                 int h = m.Groups[1].Success ? int.Parse(m.Groups[1].Value) : 0;
                 int mi = int.Parse(m.Groups[2].Value), se = int.Parse(m.Groups[3].Value);
+                if (!he)
+                {
+                    List<string> en = new List<string>();
+                    if (h > 0) en.Add(h + (h == 1 ? " hour" : " hours"));
+                    if (mi > 0) en.Add(mi + (mi == 1 ? " minute" : " minutes"));
+                    if (se > 0) en.Add(se + (se == 1 ? " second" : " seconds"));
+                    if (en.Count == 0) return "zero";
+                    return en.Count == 1 ? en[0] : string.Join(", ", en.GetRange(0, en.Count - 1).ToArray()) + " and " + en[en.Count - 1];
+                }
                 StringBuilder b = new StringBuilder();
                 if (h > 0) b.Append(h == 1 ? "שעה" : h + " שעות").Append(mi > 0 || se > 0 ? ", " : "");
                 if (mi > 0) b.Append(mi == 1 ? "דקה" : mi + " דקות");
