@@ -528,9 +528,7 @@ namespace SubtitleStudio
         {
             double el = (DateTime.UtcNow - _workStart).TotalSeconds;
             if (f < 0.03 || f >= 1 || el < 5) return "";
-            double left = el / f * (1 - f);
-            return left >= 90 ? Lang.F(" · עוד כ-{0} דקות", Theme.Ltr(Math.Ceiling(left / 60).ToString(System.Globalization.CultureInfo.InvariantCulture)))
-                              : Lang.F(" · עוד כ-{0} שניות", Theme.Ltr((Math.Max(5, (int)Math.Ceiling(left / 5) * 5)).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            return Tc.Left(el / f * (1 - f));
         }
 
         /// <summary>סוף החיפוש: האזורים נוספים (צעד ביטול אחד), הנגן עובר לפנים הראשונות, ו**ההודעה אומרת לעבור על הסרט** - גלאי מפספס לפעמים.</summary>

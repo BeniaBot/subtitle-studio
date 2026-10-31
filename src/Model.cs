@@ -84,6 +84,15 @@ namespace SubtitleStudio
 
     internal static class Tc
     {
+        /// <summary>**כמה זמן נשאר, במילים** (1.11): ״ · עוד כ-8 דקות״ (מ-90 שניות, מעוגל למעלה), ״ · עוד כ-40 שניות״ (בקפיצות של 5); ריק מתחת ל-1.</summary>
+        public static string Left(double seconds)
+        {
+            if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds < 1) return "";
+            System.Globalization.CultureInfo ic = System.Globalization.CultureInfo.InvariantCulture;
+            return seconds >= 90 ? Lang.F(" · עוד כ-{0} דקות", Theme.Ltr(Math.Ceiling(seconds / 60).ToString(ic)))
+                                 : Lang.F(" · עוד כ-{0} שניות", Theme.Ltr(Math.Max(5, (int)Math.Ceiling(seconds / 5) * 5).ToString(ic)));
+        }
+
         /// <summary>00:00:00,000 (SRT)</summary>
         public static string Srt(long ms)
         {

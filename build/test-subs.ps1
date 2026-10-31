@@ -371,6 +371,8 @@ Rep 'zones window with 3,000 face areas: undo steps capped by how many areas, an
 $wsF = $zdT.GetField('_workStart', $IN); $etaM = $zdT.GetMethod('Eta', $IN)
 $wsF.SetValue($zd, [DateTime]::UtcNow.AddSeconds(-60)); $e50 = [string]$etaM.Invoke($zd, @([double]0.5)); $e10 = [string]$etaM.Invoke($zd, @([double]0.1)); $e01 = [string]$etaM.Invoke($zd, @([double]0.01))
 Rep 'face search: how long is left, by the pace so far (seconds, minutes, nothing at the very start)' ($e50 -match '6[05]' -and $e50 -match 'שניות' -and $e10 -match '\b(9|10)\b' -and $e10 -match 'דקות' -and $e01 -eq '') ($e50 + ' |' + $e10 + ' |' + $e01)
+$leftM = (TY 'Tc').GetMethod('Left', $ST); $l300 = [string]$leftM.Invoke($null, @([double]300)); $l42 = [string]$leftM.Invoke($null, @([double]42)); $l0 = [string]$leftM.Invoke($null, @([double]0.5))
+Rep 'burn and other long jobs: how long is left in words instead of "speed x1.5"' ($l300 -match '\b5\b' -and $l300 -match 'דקות' -and $l42 -match '45' -and $l42 -match 'שניות' -and $l0 -eq '') ($l300 + ' |' + $l42 + ' |' + $l0)
 $zd.Dispose()
 
 # ---- החלון ״סנכרון לפי הסרט״ (0.8.35): הכול בתוכו - המשפט שמחכים לו, ״עכשיו״, הפער והפעולה; ומתיחה לפי נקודה שנייה בסוף ----

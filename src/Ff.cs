@@ -578,8 +578,13 @@ namespace SubtitleStudio
                                         long ms = Tc.Parse(m.Groups[1].Value);
                                         double prog = job.TotalMs > 0 ? Math.Min(0.999, ms / (double)job.TotalMs) : 0;
                                         string status = Tc.Short(ms) + (job.TotalMs > 0 ? Lang.F(" מתוך {0}", Tc.Short(job.TotalMs)) : "");
+                                        // **כמה זמן נשאר** (1.11) במקום ״(מהירות ×1.5)״ - מספר שרק מי שמכיר ffmpeg מבין: מה שנשאר מהסרט
+                                        // חלקי המהירות. בלי אורך ידוע - המהירות כמו קודם
                                         Match sp = Regex.Match(line, @"speed=\s*([\d.]+)x");
-                                        if (sp.Success) status += Lang.F("   (מהירות ×{0})", sp.Groups[1].Value);
+                                        double spd;
+                                        if (sp.Success && job.TotalMs > 0 && double.TryParse(sp.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out spd) && spd > 0.01)
+                                            status += Tc.Left((job.TotalMs - ms) / 1000.0 / spd);
+                                        else if (sp.Success) status += Lang.F("   (מהירות ×{0})", sp.Groups[1].Value);
                                         onProgress(prog, status);
                                     }
                                 }
