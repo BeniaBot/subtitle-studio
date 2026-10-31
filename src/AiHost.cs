@@ -980,12 +980,20 @@ namespace SubtitleStudio
             return r;
         }
 
+        /// <summary>**הרשימה לעוזר - מקוצרת כשיש הרבה** (1.11): כל פעולת אזור מחזירה אותה, ואחרי ״למצוא פנים״ בסרט ארוך היו בה אלפי פריטים
+        /// בכל תשובה. מעל `ZonesListMax` - אזורי הפנים כסיכום (כמה, ואיך משנים את כולם), והשאר עד `ZonesListMax`, עם המספרים שלהם.</summary>
+        internal const int ZonesListMax = 40;
+
         private List<object> ZonesList()
         {
             List<object> list = new List<object>();
+            bool brief = _style.Zones.Count > ZonesListMax;
+            int faces = 0, more = 0;
             for (int i = 0; i < _style.Zones.Count; i++)
             {
                 BlurZone z = _style.Zones[i];
+                if (brief && z.Kind == "face") { faces++; continue; }
+                if (list.Count >= ZonesListMax) { more++; continue; }
                 Dictionary<string, object> d = new Dictionary<string, object>();
                 d["number"] = i + 1;
                 d["area"] = string.Format(CultureInfo.InvariantCulture, "{0:0},{1:0},{2:0},{3:0}", z.Area.X * 100, z.Area.Y * 100, z.Area.Width * 100, z.Area.Height * 100);
@@ -997,6 +1005,14 @@ namespace SubtitleStudio
                 if (z.Kind != null) d["source"] = z.Kind == "face" ? "faces" : "tracking";
                 list.Add(d);
             }
+            if (faces > 0)
+            {
+                Dictionary<string, object> f = new Dictionary<string, object>();
+                f["face_areas"] = faces;
+                f["note"] = "אזורי פנים מ״למצוא פנים״ - לא מפורטים כאן (יש הרבה). מראה אחר לכולם או מחיקה של כולם: חלון ״טשטוש וצנזורה״, קליק ימני על אזור פנים ← ״כל אזורי הפנים״";
+                list.Add(f);
+            }
+            if (more > 0) { Dictionary<string, object> m = new Dictionary<string, object>(); m["more_areas_not_listed"] = more; list.Add(m); }
             return list;
         }
 

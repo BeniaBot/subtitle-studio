@@ -245,6 +245,13 @@ $z2 = Call 'add_blur_zone' @{ area = '5,5,20'; }
 $zl = Call 'list_blur_zones' @{}
 $zz = @($zl['zones']); $zr = Call 'remove_blur_zone' @{ number = 1 }; $zr2 = Call 'remove_blur_zone' @{ number = 1 }
 Check 'העוזר: אזור צנזורה - נוסף עם הזמן והמראה, אזור שבור - הסבר, נמחק, ופעם שנייה - ״אין אזור״' (('' + $z1['done']).Length -gt 0 -and $z2['error'] -ne $null -and $zz.Count -eq 1 -and $zz[0]['look'] -eq 'pixels' -and [double]$zz[0]['from_sec'] -eq 1 -and [double]$zz[0]['to_sec'] -eq 3 -and $zz[0]['circle'] -and ('' + $zr['done']).Length -gt 0 -and $zr2['error'] -ne $null) ("$($z1['done']) | $($z2['error']) | " + $zz.Count + " | $($zr2['error'])")
+# אחרי ״למצוא פנים״ בסרט ארוך: 500 אזורי פנים ועוד אחד ביד - הרשימה לעוזר: האזור שביד, וסיכום של הפנים (עד 1.11 - 501 פריטים בכל תשובה)
+$styZ = $mfT.GetField('_style', $IN).GetValue($mf); $bzT = $asm.GetType('SubtitleStudio.BlurZone')
+for ($q = 0; $q -lt 500; $q++) { $fz = [Activator]::CreateInstance($bzT); $fz.Kind = 'face'; $fz.FromMs = [long]($q * 1000); $fz.ToMs = [long]($q * 1000 + 900); $styZ.Zones.Add($fz) }
+$zm = Call 'add_blur_zone' @{ area = '10,10,20,20' }
+$zlist = @($zm['zones']); $faceSum = @($zlist | Where-Object { $_.ContainsKey('face_areas') })
+Check 'העוזר: אחרי 500 אזורי פנים - הרשימה מקוצרת (האזור שביד ומספר הפנים)' ($zlist.Count -eq 2 -and $faceSum.Count -eq 1 -and $faceSum[0]['face_areas'] -eq 500 -and $zlist[0]['number'] -eq 501) ("items {0}, faces {1}, number {2}" -f $zlist.Count, $(if ($faceSum.Count) { $faceSum[0]['face_areas'] } else { '-' }), $zlist[0]['number'])
+$styZ.Zones.Clear()
 $res = Call 'listen' @{ index = 1 }
 $w = RunWork $res
 Check 'listen: קטע הקול של הכתובית יוצא (MP3)' ($w -ne $null -and $w['_audio'] -ne $null -and $w['_audio'].Length -gt 1000) ($(if ($w) { '' + $w['clip'] + ' ' + $(if ($w['_audio']) { $w['_audio'].Length } else { $w['error'] }) }))
