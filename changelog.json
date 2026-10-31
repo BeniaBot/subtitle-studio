@@ -2,6 +2,17 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.40",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "t": "fix",
+          "s": "חיפוש פנים ומעקב בחלון הטשטוש: האחוז מוצג נכון (היה הפוך - ״%45״)",
+          "en": "Face search and tracking in the blur window: the percentage shows correctly (it was reversed in Hebrew)"
+        }
+      ]
+    },
+    {
       "v": "0.8.39",
       "date": "2026-11-01",
       "items": [
