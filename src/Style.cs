@@ -76,6 +76,12 @@ namespace SubtitleStudio
         /// <summary>כמו למעלה, ועוד אזורי הצנזורה (`Zones`), כל אחד בזמנים שלו - מוזזים ב-<paramref name="shiftMs"/> כשנצרב רק קטע.</summary>
         internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues, long shiftMs)
         {
+            return BlurGraph(w, h, cues, shiftMs, null, null);
+        }
+
+        /// <param name="dir">תיקיית הצריבה, ו-<paramref name="prefix"/> לשמות - הרבה אזורים נצרבים שם עם קובצי פקודות (`BlurZone.SlotBoxes`).</param>
+        internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues, long shiftMs, string dir, string prefix)
+        {
             System.Text.StringBuilder sb = new System.Text.StringBuilder(SubtitleBlurGraph(w, h, cues));
             // **הרבה אזורים - מסכה, לא שרשרת** (0.8.35). שרשרת של split←crop←overlay לכל אזור מאטה את ffmpeg מעריכית: נמדד על clip.mp4
             // (10 שניות): ‏12 אזורים 1.3 שניות, ‏16 - 12.6, ‏24 - לא נגמר (גם באזורים פשוטים). חיפוש פנים מוסיף עשרות. מעל `ChainMax` - לכל
@@ -96,7 +102,7 @@ namespace SubtitleStudio
                 if (!groups.ContainsKey(key)) { groups[key] = new List<BlurZone>(); order.Add(key); }
                 groups[key].Add(z);
             }
-            for (int g = 0; g < order.Count; g++) sb.Append(BlurZone.MaskGraph(groups[order[g]], w, h, shiftMs, "m" + g));
+            for (int g = 0; g < order.Count; g++) sb.Append(BlurZone.MaskGraph(groups[order[g]], w, h, shiftMs, "m" + g, dir, prefix));
             return sb.ToString();
         }
 
@@ -700,9 +706,16 @@ namespace SubtitleStudio
         /// דרכה (alphamerge ← overlay). העומק קבוע - לא תלוי במספר האזורים.</summary>
         internal static string MaskGraph(List<BlurZone> zones, int w, int h, long shiftMs, string tag)
         {
+            return MaskGraph(zones, w, h, shiftMs, tag, null, null);
+        }
+
+        /// <param name="dir">תיקיית העבודה של הצריבה (עם <paramref name="prefix"/>) - לקובצי הפקודות של ״מלבנים נודדים״ (`SlotBoxes`); null - בלי.</param>
+        internal static string MaskGraph(List<BlurZone> zones, int w, int h, long shiftMs, string tag, string dir, string prefix)
+        {
             CultureInfo ic = CultureInfo.InvariantCulture;
             System.Text.StringBuilder boxes = new System.Text.StringBuilder();
             List<string> when = new List<string>();
+            List<double[]> segs = new List<double[]>();
             bool black = zones[0].Look == Black;
             foreach (BlurZone z in zones)
                 foreach (ZoneSeg sg in z.Segments())
@@ -714,8 +727,17 @@ namespace SubtitleStudio
                     string en = string.Format(ic, "between(t,{0:0.###},{1:0.###})", from, to);
                     boxes.AppendFormat(ic, "drawbox=x={0}:y={1}:w={2}:h={3}:color={4}:t=fill:enable='{5}',", px.X, px.Y, px.Width, px.Height, black ? "black" : "white", en);
                     when.Add(en);
+                    segs.Add(new double[] { from, to, px.X, px.Y, px.Width, px.Height });
                 }
             if (boxes.Length == 0) return "";
+            // **הרבה מלבנים - ״מלבנים נודדים״** (1.11): כל פריים עובר על כל ה-drawbox בשרשרת, אז הזמן גדל בריבוע של אורך הסרט. נמדד: 4 שניות
+            // של סרט עם 1,000 מלבנים - 0.7 שניות, עם 20,000 - 16; חיפוש פנים בסרט של חצי שעה נותן כ-15,000, כלומר שעות של צריבה.
+            // במקומם - כמה מלבנים כמו פנים שעל המסך בבת אחת, ש-``sendcmd`` מזיז בזמנים: 20,000 - 1.4 שניות
+            if (dir != null && segs.Count > SlotsFrom)
+            {
+                boxes.Length = 0;
+                boxes.Append(SlotBoxes(segs, black ? "black" : "white", tag, dir, prefix)).Append(',');
+            }
             if (black) return boxes.ToString();
             BlurZone z0 = zones[0];
             string look;
@@ -732,6 +754,60 @@ namespace SubtitleStudio
                 "split[{0}_a][{0}_b];[{0}_b]{1}[{0}_l];[{0}_a]split[{0}_o][{0}_m];[{0}_m]format=gray,drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill,{2}[{0}_k];" +
                 "[{0}_l][{0}_k]alphamerge[{0}_la];[{0}_o][{0}_la]overlay,",
                 tag, look, masks);
+        }
+
+        /// <summary>מעל כמה מלבנים במסכה עוברים ל״מלבנים נודדים״ (`SlotBoxes`). מתחת - כמו עד 1.11 (נבדק בפיקסלים).</summary>
+        internal static int SlotsFrom = 200;
+        /// <summary>כמה שורות לכל קובץ פקודות: ``sendcmd`` קורא קובץ גדול בזמן שגדל בריבוע (20,000 שורות בקובץ אחד - 32 שניות; ב-20 קבצים - אפס).</summary>
+        internal const int SlotFileLines = 1000;
+
+        /// <summary>**״מלבנים נודדים״:** כל חלק זמן (``segs``: מ, עד, x, y, רוחב, גובה) מקבל ״משבצת״ - drawbox אחד שפנוי באותו זמן; מספר המשבצות
+        /// הוא כמה מלבנים יש על המסך בבת אחת. ``sendcmd`` (בקבצים של `SlotFileLines` שורות, ליד הצריבה) שם כל משבצת במקום שלה בתחילת החלק,
+        /// ומזיז אותה אל מחוץ לתמונה בסופו - אלא אם החלק הבא שלה מתחיל באותו רגע (אז רק המקום משתנה; בלי זה שתי פקודות באותו זמן
+        /// היו יוצאות בסדר לא ידוע). מחזיר את קטע השרשרת, בלי פסיק בסוף.</summary>
+        private static string SlotBoxes(List<double[]> segs, string color, string tag, string dir, string prefix)
+        {
+            CultureInfo ic = CultureInfo.InvariantCulture;
+            segs.Sort(delegate (double[] a, double[] b) { return a[0].CompareTo(b[0]); });
+            List<double> slotEnd = new List<double>();
+            List<List<double[]>> bySlot = new List<List<double[]>>();
+            foreach (double[] s in segs)
+            {
+                int k = slotEnd.FindIndex(delegate (double e) { return e <= s[0] + 1e-9; });
+                if (k < 0) { k = slotEnd.Count; slotEnd.Add(0); bySlot.Add(new List<double[]>()); }
+                slotEnd[k] = s[1];
+                bySlot[k].Add(s);
+            }
+            // אירועים: זמן, ומספר רץ לשבירת שוויון (סדר יציב)
+            List<KeyValuePair<double, string>> ev = new List<KeyValuePair<double, string>>();
+            for (int k = 0; k < bySlot.Count; k++)
+            {
+                string n = "drawbox@" + tag + "_s" + k;
+                List<double[]> list = bySlot[k];
+                for (int i = 0; i < list.Count; i++)
+                {
+                    double[] s = list[i];
+                    ev.Add(new KeyValuePair<double, string>(s[0], string.Format(ic, "{0} x {1}, {0} y {2}, {0} w {3}, {0} h {4}", n, s[2], s[3], s[4], s[5])));
+                    double next = i + 1 < list.Count ? list[i + 1][0] : double.MaxValue;
+                    if (next > s[1] + 1e-9) ev.Add(new KeyValuePair<double, string>(s[1], n + " x -100000"));
+                }
+            }
+            List<int> order = new List<int>();
+            for (int i = 0; i < ev.Count; i++) order.Add(i);
+            order.Sort(delegate (int a, int b) { int c = ev[a].Key.CompareTo(ev[b].Key); return c != 0 ? c : a.CompareTo(b); });
+            System.Text.StringBuilder chain = new System.Text.StringBuilder();
+            for (int f = 0; f * SlotFileLines < order.Count; f++)
+            {
+                string name = prefix + "_" + tag + "_" + f + ".txt";
+                System.Text.StringBuilder file = new System.Text.StringBuilder();
+                for (int i = f * SlotFileLines; i < Math.Min(order.Count, (f + 1) * SlotFileLines); i++)
+                    file.Append(ev[order[i]].Key.ToString("0.###", ic)).Append(' ').Append(ev[order[i]].Value).Append(";\n");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, name), file.ToString(), new System.Text.UTF8Encoding(false));
+                chain.Append("sendcmd=f=").Append(name).Append(',');
+            }
+            for (int k = 0; k < bySlot.Count; k++)
+                chain.Append("drawbox@").Append(tag).Append("_s").Append(k).Append("=x=-100000:y=0:w=2:h=2:color=").Append(color).Append(":t=fill").Append(k + 1 < bySlot.Count ? "," : "");
+            return chain.ToString();
         }
 
         /// <summary>ערך שנע בקו ישר בין נקודות, כביטוי של ffmpeg ב-t (שניות): ``if(lt(t,t1), v0+(v1-v0)*(clip(t,t0,t1)-t0)/(t1-t0), ...)``,

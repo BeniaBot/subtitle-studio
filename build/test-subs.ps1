@@ -422,6 +422,19 @@ $s15 = ZFrame 1.5 'mk-src15' $true; $b15 = ZFrame 1.5 'mk-b15' $false; $s25 = ZF
 $in15 = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 80, 50, 150, 90)); $out15 = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 400, 200, 150, 100)); $in25 = [SubsMad]::Mad($b25, $s25, (New-Object Drawing.Rectangle 80, 50, 150, 90))
 Rep 'many zones: one mask, blurred only inside and only in its time' ($in15 -gt 4 -and $out15 -lt 1 -and $in25 -lt 1 -and $vfText.Contains('alphamerge') -and ([regex]::Matches($vfText, 'split\[z')).Count -eq 0) ("inside {0:0.0} outside {1:0.0} after {2:0.0}" -f $in15, $out15, $in25)
 foreach ($bm in @($s15, $b15, $s25, $b25)) { $bm.Dispose() }
+# אותו דבר ב״מלבנים נודדים״ (sendcmd; בסרט ארוך עם הרבה פנים - בלעדיהם הצריבה לוקחת שעות): אותה תמונה, וגם כיסוי שחור
+$slotF = (TY 'BlurZone').GetField('SlotsFrom', $ST); $slotF.SetValue($null, 1)
+$zArgs = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $many.psobject.BaseObject, [int]640, [int]360, [int64]0, $zAss, [string]$dir, [string]''))
+$vfm = [regex]::Match($zArgs, '-/\w+\s+"?([^"\s]+)'); $vfS = [IO.File]::ReadAllText((Join-Path $dir $vfm.Groups[1].Value))
+$s15 = ZFrame 1.5 'sl-src15' $true; $b15 = ZFrame 1.5 'sl-b15' $false; $s25 = ZFrame 2.5 'sl-src25' $true; $b25 = ZFrame 2.5 'sl-b25' $false; $b32 = ZFrame 3.2 'sl-b32' $false; $s32 = ZFrame 3.2 'sl-src32' $true
+$in15 = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 80, 50, 150, 90)); $out15 = [SubsMad]::Mad($b15, $s15, (New-Object Drawing.Rectangle 400, 200, 150, 100)); $in25 = [SubsMad]::Mad($b25, $s25, (New-Object Drawing.Rectangle 80, 50, 150, 90))
+$small32 = [SubsMad]::Mad($b32, $s32, (New-Object Drawing.Rectangle 14, 20, 34, 30))
+foreach ($q in $many.Zones) { $q.Look = 2 }
+$zArgs = [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($bl, $many.psobject.BaseObject, [int]640, [int]360, [int64]0, $zAss, [string]$dir, [string]''))
+$k15 = ZFrame 1.5 'sl-k15' $false; $k25 = ZFrame 2.5 'sl-k25' $false
+$slotF.SetValue($null, 200)
+Rep 'many zones as moving boxes (sendcmd): same picture - blur only inside and in its time, and a black cover' ($vfS.Contains('sendcmd=f=') -and $in15 -gt 4 -and $out15 -lt 1 -and $in25 -lt 1 -and $small32 -gt 4 -and (Dark $k15 150 90) -and -not (Dark $k25 150 90)) ("inside {0:0.0} outside {1:0.0} after {2:0.0} small {3:0.0} black {4}/{5}" -f $in15, $out15, $in25, $small32, (Dark $k15 150 90), (Dark $k25 150 90))
+foreach ($bm in @($s15, $b15, $s25, $b25, $b32, $s32, $k15, $k25)) { $bm.Dispose() }
 # פנים לאורך זמן: אותן פנים שזזות - אזור אחד; פנים אחרות - אזור משלהן; קפיצה חדה בגודל - פנים אחרות
 $hT = TY 'Faces+Hit'; $hits = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($hT))
 function HitAt([long]$ms, [float]$x, [float]$y, [float]$w, [float]$h) { $ha = New-Object object[] 2; $ha[0] = $ms; $ha[1] = [Drawing.RectangleF]::new($x, $y, $w, $h); [void]$hits.Add([Activator]::CreateInstance($hT, $ha)) }
