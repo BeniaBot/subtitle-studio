@@ -505,8 +505,9 @@ namespace SubtitleStudio
             Theme.Smooth(g);
             RectangleF r = new RectangleF(0, 0, Width, Height);
             Theme.FillRound(g, r, Height / 2f, Theme.PanelAlt);
+            // מתמלא מהצד שבו מתחילים לקרוא: מימין בעברית, משמאל באנגלית (עד 1.11 תמיד מימין - באנגלית זה נראה כמו התקדמות לאחור)
             if (_v > 0.001f)
-                Theme.FillRound(g, new RectangleF(Width - Width * _v, 0, Width * _v, Height), Height / 2f, Theme.Accent);
+                Theme.FillRound(g, new RectangleF(Lang.Rtl ? Width - Width * _v : 0, 0, Width * _v, Height), Height / 2f, Theme.Accent);
         }
     }
 }

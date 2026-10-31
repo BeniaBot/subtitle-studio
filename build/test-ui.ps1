@@ -365,6 +365,19 @@ $fld.Box.Text = 'Groq'; $fld.Box.Select(2, 0); $fld.Box.Text = 'Groq'; $car = $f
 $hostF.Dispose()
 Check 'שדה: לועזית - משמאל לימין, עם עברית - מימין, מספר - בלי שינוי, ריק - כיוון הממשק' ($d1 -eq 'No' -and $d2 -eq 'Yes' -and $d3 -eq 'Yes' -and $d4 -eq 'Yes') "latin=$d1 mixed=$d2 number=$d3 empty=$d4"
 
+# פס ההתקדמות של התרגום מתמלא מהצד שבו קוראים: מימין בעברית, משמאל באנגלית (עד 1.11 תמיד מימין)
+function BarSide([string]$lang) {
+    [void]$asm.GetType('SubtitleStudio.Lang').GetMethod('Set', $ST2).Invoke($null, @($lang))
+    $pb = [Activator]::CreateInstance($asm.GetType('SubtitleStudio.ProgressBarLite')); $pb.Size = New-Object Drawing.Size 200, 10; $pb.Value = 0.3
+    $bm = New-Object Drawing.Bitmap 200, 10; $pb.DrawToBitmap($bm, (New-Object Drawing.Rectangle 0, 0, 200, 10))
+    $l = $bm.GetPixel(20, 5); $r = $bm.GetPixel(180, 5); $bm.Dispose(); $pb.Dispose()
+    $acc = $asm.GetType('SubtitleStudio.Theme').GetProperty('Accent', $ST2).GetValue($null, $null)
+    $near = { param($c) [Math]::Abs($c.R - $acc.R) + [Math]::Abs($c.G - $acc.G) + [Math]::Abs($c.B - $acc.B) -lt 30 }
+    if ((& $near $l) -and -not (& $near $r)) { return 'left' } elseif ((& $near $r) -and -not (& $near $l)) { return 'right' } else { return '?' }
+}
+$sideEn = BarSide 'en'; $sideHe = BarSide 'he'
+Check 'פס התקדמות התרגום: מימין בעברית, משמאל באנגלית' ($sideHe -eq 'right' -and $sideEn -eq 'left') "he=$sideHe en=$sideEn"
+
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }
