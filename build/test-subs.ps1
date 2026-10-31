@@ -368,6 +368,9 @@ $bargv = New-Object object[] 3; $bargv[1] = $zmi; $bargv[2] = $big; $zd = [Activ
 for ($q = 0; $q -lt 40; $q++) { ZCall 'SetLookAll' @([string]'face', [int]($q % 3)) }
 $steps = $zdT.GetProperty('UndoSteps', $IN).GetValue($zd); ZCall 'Undo' @(); $lookAfter = (ZP 'Zones')[0].Look
 Rep 'zones window with 3,000 face areas: undo steps capped by how many areas, and undo still works' ($steps -ge 3 -and $steps -le 20 -and $lookAfter -eq (38 % 3)) ("steps {0}, look after undo {1}" -f $steps, $lookAfter)
+$wsF = $zdT.GetField('_workStart', $IN); $etaM = $zdT.GetMethod('Eta', $IN)
+$wsF.SetValue($zd, [DateTime]::UtcNow.AddSeconds(-60)); $e50 = [string]$etaM.Invoke($zd, @([double]0.5)); $e10 = [string]$etaM.Invoke($zd, @([double]0.1)); $e01 = [string]$etaM.Invoke($zd, @([double]0.01))
+Rep 'face search: how long is left, by the pace so far (seconds, minutes, nothing at the very start)' ($e50 -match '6[05]' -and $e50 -match 'שניות' -and $e10 -match '\b(9|10)\b' -and $e10 -match 'דקות' -and $e01 -eq '') ($e50 + ' |' + $e10 + ' |' + $e01)
 $zd.Dispose()
 
 # ---- החלון ״סנכרון לפי הסרט״ (0.8.35): הכול בתוכו - המשפט שמחכים לו, ״עכשיו״, הפער והפעולה; ומתיחה לפי נקודה שנייה בסוף ----

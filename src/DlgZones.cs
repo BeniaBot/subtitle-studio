@@ -491,7 +491,7 @@ namespace SubtitleStudio
                 Ui.Info(this, Lang.T("אין גלאי פנים"), Lang.T("בווינדוס הזה אין גלאי פנים מובנה (הוא קיים מווינדוס 10). את הפנים מסמנים ביד - גוררים על התמונה."));
                 return;
             }
-            _scanning = true; _faceStop = false;
+            _scanning = true; _faceStop = false; _workStart = DateTime.UtcNow;
             _faceBtn.Text = Lang.T("לעצור"); _faceBtn.Icon = Ico.Stop; _faceBtn.Invalidate();
             // **רק בקטע המסומן על הציר, כשיש** (כמו תמלול ותרגום) - בסרט ארוך חיפוש בכולו לוקח דקות
             long from = 0, to = _mi.DurationMs, ma, mb;
@@ -514,8 +514,23 @@ namespace SubtitleStudio
         {
             if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
             _lastProg = DateTime.UtcNow;
-            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בסרט... {0}%", Theme.Ltr(((int)(f * 100)).ToString())); _canvas.Invalidate(); } }); }
+            string eta = Eta(f);
+            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בסרט... {0}%", Theme.Ltr(((int)(f * 100)).ToString())) + eta; _canvas.Invalidate(); } }); }
             catch { }
+        }
+
+        /// <summary>מתי התחיל החיפוש או המעקב - להערכת הזמן שנשאר (`Eta`).</summary>
+        private DateTime _workStart;
+
+        /// <summary>**כמה זמן נשאר** (1.11): חיפוש פנים בסרט של שעתיים לוקח רבע שעה, ו״12%״ לבד לא אומר אם לחכות או ללכת. לפי הקצב עד עכשיו,
+        /// אחרי 5 שניות ו-3%; ריק לפני זה. ״ · עוד כ-8 דקות״ / ״ · עוד כ-40 שניות״ (בקפיצות של 5).</summary>
+        internal string Eta(double f)
+        {
+            double el = (DateTime.UtcNow - _workStart).TotalSeconds;
+            if (f < 0.03 || f >= 1 || el < 5) return "";
+            double left = el / f * (1 - f);
+            return left >= 90 ? Lang.F(" · עוד כ-{0} דקות", Theme.Ltr(Math.Ceiling(left / 60).ToString(System.Globalization.CultureInfo.InvariantCulture)))
+                              : Lang.F(" · עוד כ-{0} שניות", Theme.Ltr((Math.Max(5, (int)Math.Ceiling(left / 5) * 5)).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
 
         /// <summary>סוף החיפוש: האזורים נוספים (צעד ביטול אחד), הנגן עובר לפנים הראשונות, ו**ההודעה אומרת לעבור על הסרט** - גלאי מפספס לפעמים.</summary>
@@ -559,7 +574,7 @@ namespace SubtitleStudio
             if (!z.ActiveAt(_pos)) { Flash(Lang.T("האזור לא מוסתר ברגע הזה - מזיזים את הנגן לזמן שלו, ואז ״מעקב״.")); return; }
             long until = z.ToMs >= 0 ? z.ToMs : _mi.DurationMs;
             if (until - _pos < 300) { Flash(Lang.T("אין לאן לעקוב - האזור נגמר כאן.")); return; }
-            _tracking = true; _trackStop = false;
+            _tracking = true; _trackStop = false; _workStart = DateTime.UtcNow;
             _trackBtn.Text = Lang.T("לעצור"); _trackBtn.Icon = Ico.Stop; _trackBtn.Invalidate();
             _canvas.Status = Lang.T("עוקב אחרי מה שבאזור..."); _canvas.Invalidate();
             RectangleF area = z.AreaAt(_pos); long from = _pos; string path = _mi.Path; MediaInfo mi = _mi; BlurZone target = z;
@@ -578,7 +593,8 @@ namespace SubtitleStudio
         {
             if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
             _lastProg = DateTime.UtcNow;
-            try { BeginInvoke((Action)delegate { if (_tracking) { _canvas.Status = Lang.F("עוקב אחרי מה שבאזור... {0}%", Theme.Ltr(((int)(f * 100)).ToString())); _canvas.Invalidate(); } }); }
+            string eta = Eta(f);
+            try { BeginInvoke((Action)delegate { if (_tracking) { _canvas.Status = Lang.F("עוקב אחרי מה שבאזור... {0}%", Theme.Ltr(((int)(f * 100)).ToString())) + eta; _canvas.Invalidate(); } }); }
             catch { }
         }
 
