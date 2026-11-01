@@ -663,6 +663,9 @@ namespace SubtitleStudio
                 SubFormat sf = ext == ".mkv" ? SubFormat.Ass : SubFormat.Srt;
                 string codec = ext == ".mkv" ? "ass" : (ext == ".webm" ? "webvtt" : "mov_text");
                 string dir;
+                // הזזה לפי תחילת הקטע - **גם ב-MKV**, שבו ההעתקה מתחילה בפריים המפתח שלפני הקטע: ffmpeg מזיז את כל הערוצים יחד, גם את
+                // הכתוביות (נמדד: מפתח כל 5 שניות, קטע 7-12 - הקובץ מ-5, והכתובית של תחילת הקטע בשנייה 2 שלו). הזזה לפי פריים המפתח נוסתה
+                // ואיחרה את הכתוביות בשתי שניות
                 string subFile = Burn.WriteTempSubs(Burn.ForTrack(cues, a, ranged ? b - a : _mi.DurationMs), sf, _style, _mi.Width, _mi.Height, out dir);
                 string lang = "heb";
                 switch (_lang.SelectedIndex)
