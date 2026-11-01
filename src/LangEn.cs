@@ -337,6 +337,8 @@ namespace SubtitleStudio
             "מאוחר יותר", "later",
             "מוקדם יותר", "earlier",
             "{0} כתוביות יזוזו {1} {2}.", "{0} subtitles will move {1} {2}.",
+            "כתובית אחת תזוז {0} {1}.", "One subtitle will move {0} {1}.",
+            "שנייה אחת", "one second",
             "\nלדוגמה: הכתובית הראשונה תעבור מ-{0} ל-{1}.", "\nFor example: the first subtitle will move from {0} to {1}.",
             "לא הוזן זמן", "No time entered",
             "כתבו בכמה שניות להזיז.", "Type how many seconds to shift.",
@@ -607,10 +609,10 @@ namespace SubtitleStudio
             "מתיחה לפי שתי הנקודות", "Stretch by the two points",
             "המרת קצב פריימים (למי שיודע מה זה)", "Convert frame rate (for those who know what it is)",
             "הכתובית כבר בדיוק במקום", "The subtitle is already exactly in place",
-            "הזזה של {0} שניות {1}", "Shift by {0} seconds {1}",
-            "אין מה לתקן", "Nothing to fix",
         };
         private static readonly string[] P2 = new string[] {
+            "הזזה של {0} שניות {1}", "Shift {0} seconds {1}",
+            "אין מה לתקן", "Nothing to fix",
             "הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.", "The subtitle already starts exactly where the video is.",
             "סנכרון", "Sync",
             "הנקודות קרובות מדי", "The points are too close",
@@ -909,10 +911,10 @@ namespace SubtitleStudio
             "שמירת הפרויקט", "Save the project",
             "הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך", "The video, the subtitles and the style in one file - to go on later",
             "לקפוץ לכתובית שמכילה מילה (Ctrl+F)", "Jump to a subtitle containing a word (Ctrl+F)",
-            "מחיקת כל הכתוביות", "Delete all subtitles",
-            "מרוקן את הרשימה; הסרט נשאר פתוח", "Empties the list; the video stays open",
         };
         private static readonly string[] P3 = new string[] {
+            "מחיקת כל הכתוביות", "Delete all subtitles",
+            "מרוקן את הרשימה; הסרט נשאר פתוח", "Empties the list; the video stays open",
             "הבאת כתוביות", "Get subtitles",
             "תמלול אוטומטי של הסרט", "Transcribe the video automatically",
             "התוכנה מקשיבה וכותבת לבד · הקול נשלח לתמלול באינטרנט", "Listens and writes the subtitles · the audio is sent online",
@@ -1211,10 +1213,10 @@ namespace SubtitleStudio
             "יש כתוביות מהפעם הקודמת ({0}).\nלשחזר אותן?", "There are subtitles from last time ({0}).\nRestore them?",
             "פתחו סרט או צרו כתוביות, ואז אפשר לשמור את הפרויקט.", "Open a video or make subtitles, and then you can save the project.",
             "פרויקט של Subtext|*{0}", "Subtext project|*{0}",
-            "הפרויקט לא נשמר", "The project wasn't saved",
-            "הפרויקט נשמר:  {0}‏   ·   בפעם הבאה הוא יחכה במסך הפתיחה", "Project saved:  {0}   ·   next time it will be waiting on the start screen",
         };
         private static readonly string[] P4 = new string[] {
+            "הפרויקט לא נשמר", "The project wasn't saved",
+            "הפרויקט נשמר:  {0}‏   ·   בפעם הבאה הוא יחכה במסך הפתיחה", "Project saved:  {0}   ·   next time it will be waiting on the start screen",
             "לא הצלחתי לפתוח את הפרויקט", "Couldn't open the project",
             "לפתוח את הפרויקט?", "Open the project?",
             "הכתוביות שלא נשמרו יאבדו.", "Unsaved subtitles will be lost.",
@@ -1513,10 +1515,10 @@ namespace SubtitleStudio
             "ההקראה דלוקה - העוזר מקריא כל תשובה. לחיצה מכבה", "Reading aloud is on - the assistant reads every answer. Click to turn off",
             "להקריא את התשובות בקול", "Read the answers aloud",
             "לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון", "Nothing was heard - try again, closer to the microphone",
-            "מקשיב... לחיצה - שולח", "Listening... click to send",
-            "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
         };
         private static readonly string[] P5 = new string[] {
+            "מקשיב... לחיצה - שולח", "Listening... click to send",
+            "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
             "אני רוצה כתוביות לסרט", "I want subtitles for the video",
             "מה אתה יודע לעשות?", "What can you do?",
             "נעצר", "Stopped",
@@ -1815,10 +1817,10 @@ namespace SubtitleStudio
             "חיפוש הפנים נכשל", "Face search failed",
             "לא נמצאו פנים", "No faces found",
             "הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד.", "The detector found no faces in the video. It may miss very small faces, faces in profile or in the dark - mark those by hand.",
-            "נמצאו פנים", "Faces found",
-            "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
         };
         private static readonly string[] P6 = new string[] {
+            "נמצאו פנים", "Faces found",
+            "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
             "נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",
             "מעקב", "Track",
             "האזור הולך אחרי מה שבתוכו (לוגו, שלט, אדם) - מהרגע של הנגן ועד סוף האזור", "The area follows what is inside it (a logo, a sign, a person) - from where the player is to the end of the area",

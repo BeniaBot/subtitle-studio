@@ -47,7 +47,9 @@ namespace SubtitleStudio
             // ב-16 פיקסלים מהחלון, והאחרון (‎+1) נחתך בקצה - מאז הגרסאות הראשונות.
             int gap = Theme.S(6);
             int bw = (ContentW - gap * (vals.Length - 1)) / vals.Length;
-            int x = ContentW;
+            // מינוס משמאל ופלוס מימין בשתי השפות - כמו ציר הזמן, שבו מאוחר יותר הוא ימינה גם בעברית (עד 0.8.40 בעברית ״‎+1״ היה
+            // בקצה השמאלי). באנגלית החלון משקף את הקואורדינטות, אז שם מתחילים מימין
+            int x = Lang.Rtl ? -gap : ContentW;
             foreach (double v in vals)
             {
                 double captured = v;
@@ -57,9 +59,8 @@ namespace SubtitleStudio
                 b.Font = Theme.Small;
                 b.PadX = Theme.S(6);
                 b.Size = new Size(bw, Theme.S(34));
-                x -= bw;
-                b.Location = new Point(x, 2);
-                x -= gap;
+                if (Lang.Rtl) { x += gap; b.Location = new Point(x, 2); x += bw; }
+                else { x -= bw; b.Location = new Point(x, 2); x -= gap; }
                 b.Click += delegate { _seconds = captured; _amount.Text = captured.ToString("0.###", CultureInfo.InvariantCulture); UpdatePreview(); };
                 chips.Controls.Add(b);
             }
@@ -108,7 +109,11 @@ namespace SubtitleStudio
             long ms = AmountMs();
             List<Cue> t = Target();
             string dir = ms == 0 ? "" : (ms > 0 ? Lang.T("מאוחר יותר") : Lang.T("מוקדם יותר"));
-            string s = Lang.F("{0} כתוביות יזוזו {1} {2}.", t.Count, Tc.Short(Math.Abs(ms)), dir);
+            // ״0.5 שניות״ ולא ״00:00.5״ - כמו הכפתורים שמעל (עד 0.8.40 זמן בשעון, ו״1 כתוביות יזוזו״); מדקה ומעלה - בשעון
+            long abs = Math.Abs(ms);
+            string amount = abs == 1000 ? Lang.T("שנייה אחת")
+                : abs < 60000 ? Lang.F("{0} שניות", (abs / 1000.0).ToString("0.###", CultureInfo.InvariantCulture)) : Theme.Ltr(Tc.Short(abs));
+            string s = t.Count == 1 ? Lang.F("כתובית אחת תזוז {0} {1}.", amount, dir) : Lang.F("{0} כתוביות יזוזו {1} {2}.", t.Count, amount, dir);
             // **לפני תחילת הסרט** (0.8.26): הזזה מוקדמת מעבר ל-0 - הכתוביות האלה נצמדות כולן ל-0:00, אחת על השנייה, בלי שמישהו אמר
             int before = 0;
             if (ms < 0) foreach (Cue c in t) if (c.Start + ms < 0) before++;

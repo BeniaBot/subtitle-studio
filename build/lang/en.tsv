@@ -349,6 +349,8 @@ he	en
 מאוחר יותר	later
 מוקדם יותר	earlier
 {0} כתוביות יזוזו {1} {2}.	{0} subtitles will move {1} {2}.
+כתובית אחת תזוז {0} {1}.	One subtitle will move {0} {1}.
+שנייה אחת	one second
 \nלדוגמה: הכתובית הראשונה תעבור מ-{0} ל-{1}.	\nFor example: the first subtitle will move from {0} to {1}.
 לא הוזן זמן	No time entered
 כתבו בכמה שניות להזיז.	Type how many seconds to shift.
@@ -631,7 +633,7 @@ Ctrl+גלגלת	Ctrl+Wheel
 מתיחה לפי שתי הנקודות	Stretch by the two points
 המרת קצב פריימים (למי שיודע מה זה)	Convert frame rate (for those who know what it is)
 הכתובית כבר בדיוק במקום	The subtitle is already exactly in place
-הזזה של {0} שניות {1}	Shift by {0} seconds {1}
+הזזה של {0} שניות {1}	Shift {0} seconds {1}
 אין מה לתקן	Nothing to fix
 הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.	The subtitle already starts exactly where the video is.
 סנכרון	Sync
