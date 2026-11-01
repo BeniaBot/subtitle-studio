@@ -242,6 +242,23 @@ SeekTo 2500
 Call $g 'NewCueAtPlayhead' (Pack) | Out-Null
 $nw = @($gcues | Where-Object { $_.Text -eq '' })[0]
 Check 'כתובית חדשה באמצע כתובית: כאן מתחילה, הקודמת נגמרת לפניה, בלי חפיפה' ($gdoc.CountOverlaps() -eq 0 -and $nw.Start -eq 2500 -and $gcues[0].End -le 2420) ("overlaps=" + $gdoc.CountOverlaps() + " new=" + $nw.Start + "-" + $nw.End + " first-end=" + $gcues[0].End)
+# קודמת קצרה (1.2 שניות) - כמה שהיא יכולה, והשאר מתחילת הבאה; לכל אחת נשארות 0.7 (0.8.41; עד כאן - חפיפה)
+$gcues.Clear(); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]1000) ([long]2200) 'קצרה'))); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]2280) ([long]6000) 'ארוכה')))
+Call $g 'SyncAfterDocChange' (Pack) | Out-Null
+Call $g 'InsertCueBefore' (Pack ([int]1)) | Out-Null
+$ins = @($gcues | Where-Object { $_.Text -eq '' })[0]; $sh = @($gcues | Where-Object { $_.Text -eq 'קצרה' })[0]; $lg = @($gcues | Where-Object { $_.Text -eq 'ארוכה' })[0]
+Check 'הוספה לפני אחרי כתובית קצרה: בלי חפיפה, החדשה 0.7, הקודמת והבאה לפחות 0.7' ($gdoc.CountOverlaps() -eq 0 -and ($ins.End - $ins.Start) -ge 700 -and ($sh.End - $sh.Start) -ge 700 -and ($lg.End - $lg.Start) -ge 700 -and $sh.End -lt $ins.Start -and $ins.End -lt $lg.Start) ("overlaps=" + $gdoc.CountOverlaps() + " short=" + $sh.Start + "-" + $sh.End + " new=" + $ins.Start + "-" + $ins.End + " long=" + $lg.Start + "-" + $lg.End)
+$gdoc.Undo(); Call $g 'SyncAfterDocChange' (Pack) | Out-Null
+$gcues = $gdoc.GetType().GetField('Cues').GetValue($gdoc)      # ביטול מחליף את הרשימה
+Check 'וביטול אחד מחזיר את שתיהן' ($gcues.Count -eq 2 -and $gcues[0].End -eq 2200 -and $gcues[1].Start -eq 2280) ("n=" + $gcues.Count + " " + $gcues[0].End + " " + $gcues[1].Start)
+# צמודות בלי רווח (1000-4000, 4000-7000): החדשה **לפני** השנייה ובלי חפיפה (עד 0.8.40 השנייה נחשבה ״הקודמת״ - חפיפה)
+$gcues.Clear(); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]1000) ([long]4000) 'אחת'))); $gcues.Add([Activator]::CreateInstance($cueT2, (Pack ([long]4000) ([long]7000) 'שתיים')))
+Call $g 'SyncAfterDocChange' (Pack) | Out-Null
+Call $g 'InsertCueBefore' (Pack ([int]1)) | Out-Null
+$tc = $gdoc.GetType().GetField('Cues').GetValue($gdoc); $order = ($tc | ForEach-Object { if ($_.Text) { $_.Text } else { '*' } }) -join ','
+$ins = @($tc | Where-Object { $_.Text -eq '' })[0]
+Check 'הוספה לפני בין צמודות בלי רווח: החדשה בין שתיהן, בלי חפיפה' ($order -eq 'אחת,*,שתיים' -and $gdoc.CountOverlaps() -eq 0 -and ($ins.End - $ins.Start) -ge 700) ("order=$order overlaps=" + $gdoc.CountOverlaps() + " new=" + $ins.Start + "-" + $ins.End)
+$gdoc.Undo(); Call $g 'SyncAfterDocChange' (Pack) | Out-Null; $gcues = $gdoc.GetType().GetField('Cues').GetValue($gdoc)
 # **לחיצה על הציר היא לא עריכה** (0.8.26): בחירת כתובית בלחיצה לא נרשמת לביטול ולא מסמנת ״לא שמור״; לחיצה על מקום ריק בפס לא יוצרת
 # כתובית; גרירה כן - וצעד ביטול אחד
 $tlc = Fld $g '_tl'; $tlT = $tlc.GetType(); $NPP = [Reflection.BindingFlags]'NonPublic,Public,Instance'

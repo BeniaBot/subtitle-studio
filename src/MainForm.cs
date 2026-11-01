@@ -2193,7 +2193,7 @@ namespace SubtitleStudio
             if (end <= start) end = start + 600;
 
             _doc.Push(Lang.T("כתובית חדשה"));
-            FreeSlot(ref start, ref end);
+            FreeSlot(ref start, ref end, index < _doc.Cues.Count ? _doc.Cues[index] : null);
             Cue nc = new Cue(start, end, "");
             _doc.SelectNone();
             nc.Selected = true;
@@ -2213,14 +2213,20 @@ namespace SubtitleStudio
         /// צפופות): ״הוספה לפני״ יצרה חפיפה ב-94 מ-104 פעמים (ההערה אמרה ״FixOverlaps יסדר״ - והוא לא נקרא), ״כתובית חדשה כאן״ ב-77 מ-82 -
         /// כשהסמן באמצע כתובית. **מקומי, לא FixOverlaps על הכול** (שם יש גם חפיפות מכוונות - שני דוברים):
         /// הסמן בתוך הקודמת - כאן מתחילה החדשה, והקודמת נגמרת רגע לפני (כמו במצב תזמון); קרוב מדי לתחילתה - החדשה אחריה. הסוף - לפני הבאה.
-        /// עדיין אין מקום (צמודות) - החדשה לוקחת שנייה מסוף הקודמת, אם נשאר לה לפחות 0.7. אחרת - כמו שהיה. בתוך אותו צעד ביטול.</summary>
-        private void FreeSlot(ref long start, ref long end)
+        /// עדיין אין מקום (צמודות) - החדשה לוקחת עד שנייה מסוף הקודמת, כל עוד נשארות לה 0.7; ואם הקודמת קצרה מדי - גם מתחילת הבאה
+        /// (0.8.41). שתיהן קצרות - כמו שהיה. בתוך אותו צעד ביטול.</summary>
+        private void FreeSlot(ref long start, ref long end) { FreeSlot(ref start, ref end, null); }
+
+        /// <param name="ahead">״הוספה לפני״: הכתובית שהחדשה באה לפניה. היא ״הבאה״ גם כשהיא מתחילה בדיוק איפה שהקודמת נגמרת - עד 0.8.40
+        /// בכתוביות צמודות בלי רווח היא נחשבה ״הקודמת״, והחדשה יצאה חופפת לה.</param>
+        private void FreeSlot(ref long start, ref long end, Cue ahead)
         {
             const long Gap = 80, MinKeep = 700, MinNew = 700, Take = 1000;
             Cue prev = null, next = null;
             foreach (Cue c in _doc.Cues)
             {
                 if (c.Untimed) continue;
+                if (c == ahead) { next = c; break; }
                 if (c.Start <= start) prev = c;
                 else { next = c; break; }
             }
@@ -2234,8 +2240,23 @@ namespace SubtitleStudio
             if (next != null && e > next.Start - Gap) e = next.Start - Gap;
             if (e - s < MinNew && prev != null && next != null)
             {
-                long ne = next.Start - Gap, ns = ne - Take;
-                if (ns - Gap - prev.Start >= MinKeep) { prev.End = Math.Min(prev.End, ns - Gap); s = ns; e = ne; }
+                // עד שנייה מסוף הקודמת - וכשאין לה שנייה, כמה שהיא יכולה (עד 0.8.40 שנייה או כלום. נמדד על המסמך של edit-torture, 600
+                // הוספות - ״הוספה לפני״ ו״כתובית חדשה כאן״ - בלי חפיפות קודמות: 53 יצאו חופפות, חצי מהן עם קודמת של 1.5-1.8 שניות)
+                long ps = prev.Start + MinKeep + Gap;                     // הכי מוקדם שהחדשה יכולה להתחיל
+                long ne = next.Start - Gap, ns = Math.Max(ne - Take, ps);
+                if (ne - ns >= MinNew) { prev.End = Math.Min(prevEnd, ns - Gap); s = ns; e = ne; }
+                else
+                {
+                    // **גם הבאה נותנת** (0.8.41): הקודמת קצרה מכדי לתת 0.7 - השאר מתחילת הבאה, אם נשארות לה 0.7. אותה מדידה: אחרי
+                    // החלק הראשון נשארו 27 מ-600, כולן עם קודמת של פחות מ-1.5 שניות; אחרי זה - 0
+                    long need = MinNew - (ne - ps);
+                    if (next.End - (next.Start + need) >= MinKeep)
+                    {
+                        prev.End = Math.Min(prevEnd, ps - Gap);
+                        next.Start += need;
+                        s = ps; e = next.Start - Gap;
+                    }
+                }
             }
             if (e - s < MinNew) { if (prev != null) prev.End = prevEnd; return; }   // אין איך - נשאר כמו שהיה
             start = s; end = e;
