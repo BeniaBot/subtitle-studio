@@ -416,6 +416,35 @@ Check 'הגלאי של טקסט הפוך: מספר עטוף ואחריו ״%״ -
 $sideEn = BarSide 'en'; $sideHe = BarSide 'he'
 Check 'פס התקדמות התרגום: מימין בעברית, משמאל באנגלית' ($sideHe -eq 'right' -and $sideEn -eq 'left') "he=$sideHe en=$sideEn"
 
+# **״למחוק את הכתוביות הקיימות״ בחלון התמלול** נקרא אחרי שהחלון נסגר - וחלון סגור מוסתר, כל פקד בו ״לא גלוי״. מ-0.6.0 עד 0.8.40
+# המתג (שדולק מראש) לא עבד אף פעם: מי שתמלל שוב קיבל את החדשות על הישנות
+$trT = $asm.GetType('SubtitleStudio.TranscribeDlg')
+function TrClosed([bool]$on) {
+    $a = New-Object object[] 5; $a[0] = $null; $a[1] = [int]3; $a[2] = [string]''; $a[3] = [long]-1; $a[4] = [long]-1
+    $d = [Activator]::CreateInstance($trT, $a)
+    $trT.GetField('_replace', $NP).GetValue($d).Checked = $on
+    $d.StartPosition = 'Manual'; $d.Location = New-Object Drawing.Point -6000, -6000
+    $tmr = New-Object Windows.Forms.Timer; $tmr.Interval = 300
+    $tmr.Add_Tick({ $tmr.Stop(); $d.Close() }.GetNewClosure()); $tmr.Start()
+    [void]$d.ShowDialog(); $r = $d.ReplaceExisting; $d.Dispose(); $tmr.Dispose()
+    return $r
+}
+$rOn = TrClosed $true; $rOff = TrClosed $false
+Check 'תמלול: ״למחוק את הקיימות״ נקרא נכון אחרי שהחלון נסגר' ($rOn -eq $true -and $rOff -eq $false) "on=$rOn off=$rOff"
+
+# שורת הסבר ריקה בכלי לא נשארת כחור - גם כשהיא ריקה כבר כשהחלון נבנה (GIF של קטע קצר; עד 0.8.40 הבדיקה קראה Visible, שלפני
+# ההצגה תמיד false, והשורה נשארה)
+$tmp4 = Join-Path $env:TEMP 'ss-gallery\test.mp4'
+if (-not (Test-Path $tmp4)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
+$SNP = [Reflection.BindingFlags]'NonPublic,Public,Static'
+$gmi = $asm.GetType('SubtitleStudio.Ff').GetMethod('ProbeFile', $SNP).Invoke($null, @([string]$tmp4))
+$gifTool = $null; foreach ($mt in $asm.GetType('SubtitleStudio.MediaTools').GetMethod('All', $SNP).Invoke($null, @())) { if ($mt.Name -like '*GIF*') { $gifTool = $mt; break } }   # לא דרך צינור: הוא עוטף ב-PSObject והבנאי לא נמצא
+$ga = New-Object object[] 6; $ga[0] = $null; $ga[1] = $gifTool; $ga[2] = $gmi; $ga[3] = [long]1000; $ga[4] = [long]4000; $ga[5] = [long]0
+$gd = [Activator]::CreateInstance($asm.GetType('SubtitleStudio.ToolRunDlg'), [Reflection.BindingFlags]'NonPublic,Public,Instance,CreateInstance', $null, $ga, $null)
+$gh = $gd.GetType().GetField('_hintLbl', $NP).GetValue($gd)
+$ghSelf = $asm.GetType('SubtitleStudio.Dlg').GetMethod('SelfVisible', $SNP).Invoke($null, @($gh)); $ghText = $gh.Text; $gd.Dispose()
+Check 'כלי: שורת הסבר ריקה מוסתרת כבר כשהחלון נבנה (GIF של 3 שניות)' ($ghSelf -eq ($ghText.Length -gt 0)) "visible=$ghSelf text=[$ghText]"
+
 Write-Host ""
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 }

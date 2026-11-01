@@ -277,7 +277,8 @@ namespace SubtitleStudio
         private static readonly System.Reflection.MethodInfo _getState =
             typeof(Control).GetMethod("GetState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-        private static bool SelfVisible(Control c)
+        /// <summary>האם הפקד עצמו מסומן ״גלוי״ - בלי קשר לחלון. ‏`Visible` עונה false על כל פקד כל עוד החלון לא הוצג, ואחרי שנסגר.</summary>
+        internal static bool SelfVisible(Control c)
         {
             try { if (_getState != null) return (bool)_getState.Invoke(c, new object[] { 2 }); }
             catch { }

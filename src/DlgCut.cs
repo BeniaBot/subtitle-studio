@@ -1441,7 +1441,8 @@ namespace SubtitleStudio
             return null;
         }
 
-        private bool Split { get { return _split.Visible && _split.Checked; } }
+        // SelfVisible: נכון גם לפני שהחלון מוצג (בדיקות) - Visible עונה אז false
+        private bool Split { get { return SelfVisible(_split) && _split.Checked; } }
 
         /// <summary>בונה את העבודה ליעד שנבחר (קובץ, או תיקייה בפיצול). מחזיר null עם הודעה כשאי אפשר.</summary>
         internal CutRun Plan(string target, out string[] problem)

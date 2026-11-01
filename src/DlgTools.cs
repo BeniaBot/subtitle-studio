@@ -1151,7 +1151,8 @@ namespace SubtitleStudio
             _hintLbl.Invalidate();
             // בלי מה להגיד - בלי שורה ריקה באמצע החלון (0.8.34: ב-GIF של קטע קצר נשאר חור של 48 פיקסלים)
             bool show = _hintLbl.Text.Length > 0;
-            if (_hintLbl.Visible != show) { _hintLbl.Visible = show; Restack(); }
+            // SelfVisible ולא Visible: לפני שהחלון מוצג Visible תמיד false, ושורה ריקה מהבנייה נשארה (עד 0.8.40 - GIF של קטע קצר)
+            if (SelfVisible(_hintLbl) != show) { _hintLbl.Visible = show; Restack(); }
             if (_ok != null) _ok.Enabled = block == null;
         }
 
