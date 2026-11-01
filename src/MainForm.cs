@@ -869,7 +869,8 @@ namespace SubtitleStudio
                 delegate { StepCue(-1); }, BtnKind.Subtle, 96);
             AddEdit(Lang.T("הבאה"), Lang.Rtl ? Ico.ChevronLeft : Ico.ChevronRight, Lang.T("מעבר לכתובית שאחרי זו (Tab)"),
                 delegate { StepCue(1); }, BtnKind.Subtle, 88);
-            Btn more = AddEdit(Lang.T("עוד"), Ico.ChevronDown, Lang.T("חלוקה לשתיים, חיבור כתוביות"), null, BtnKind.Tool, 74);
+            // ״עוד״ - כפתור כמו השכנים שלו (עד 0.8.40 בלי מסגרת: כשהתווית נשרה נשאר חץ קטן שלא נראה כמו כפתור). בלי תווית - שלוש נקודות (DoLayout)
+            Btn more = AddEdit(Lang.T("עוד"), Ico.ChevronDown, Lang.T("חלוקה לשתיים, חיבור כתוביות"), null, BtnKind.Subtle, 74);
             more.Click += delegate { ShowCueMenu(more); };
         }
 
@@ -1414,7 +1415,9 @@ namespace SubtitleStudio
             b.Kind = kind;
             b.Font = Theme.Small;
             b.Size = new Size(Theme.S(w), Theme.S(36));
-            b.PrefWidth = b.Width;
+            // כמה שהתווית צריכה בשפה הזאת (עד 0.8.40 רוחב קבוע: באנגלית ״More״ לא נכנס ב-74 ונחתך ל״M...״, ובעברית היו 10-20 פיקסלים מיותרים
+            // לכל כפתור - שבגללם התוויות נשרו)
+            b.PrefWidth = b.NeedWidth();
             if (h != null) b.Click += h;
             Ui.Tip.SetToolTip(b, tip);
             _editCard.Controls.Add(b);
@@ -1744,16 +1747,23 @@ namespace SubtitleStudio
             // RTL: הפעולות מתחילות מימין, ומדד קצב הקריאה יושב במה שנשאר משמאל
             int ry2 = ry + rh + S(6);
             int iconOnlyW = S(36);
+            // המקום של מד הקריאה - לפי הנוסח הארוך שלו בשפה הזאת (״Good reading pace״ ארוך מ-84 ונחתך)
             int cpsRoom = S(84);
+            foreach (string s in new string[] { Lang.T("מהיר מדי לקריאה"), Lang.T("קצת מהיר"), Lang.T("קצב קריאה טוב") })
+                cpsRoom = Math.Max(cpsRoom, TextRenderer.MeasureText(s, Theme.Small, new Size(100000, 1000), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width + S(8));
 
-            // התוויות נושרות מהסוף להתחלה: ״עוד״ ראשון, ״מחיקה״ אחרון.
-            // כפתור עם אייקון מובן (חץ, פח) עדיין קריא; תווית שנעלמת מכולם
-            // בבת אחת הופכת את השורה לחידה.
+            // התוויות נושרות לפי מה שהאייקון שלו מובן לבד: קודם החצים (״הבאה״, ״הקודמת״), אחר כך ״עוד״, ״מחיקה״ אחרונה.
+            // תווית שנעלמת מכולם בבת אחת הופכת את השורה לחידה. **עד 0.8.40 ״עוד״ נשר ראשון** - ובחלון של מחשב נייד (1493 ב-125%)
+            // נשאר ממנו חץ קטן בלי מסגרת, בזמן שההודעות אומרות ״עוד ← לחלק לשתי כתוביות״.
             int needed = 0;
             foreach (Btn b in _editBtns) { b.IconOnly = false; needed += b.PrefWidth + S(5); }
-            for (int i = _editBtns.Count - 1; i >= 0 && needed > ew - cpsRoom; i--)
+            if (_editBtns.Count > 3) _editBtns[3].Icon = Ico.ChevronDown;
+            int[] editDrop = { 2, 1, 3, 0 };       // הבאה, הקודמת, עוד, מחיקה (הסדר ב-AddEdit)
+            for (int k = 0; k < editDrop.Length && needed > ew - cpsRoom; k++)
             {
-                Btn b = _editBtns[i];
+                if (editDrop[k] >= _editBtns.Count) continue;
+                Btn b = _editBtns[editDrop[k]];
+                if (editDrop[k] == 3) b.Icon = Ico.More;
                 if (b.PrefWidth <= iconOnlyW) continue;
                 b.IconOnly = true;
                 needed -= b.PrefWidth - iconOnlyW;
