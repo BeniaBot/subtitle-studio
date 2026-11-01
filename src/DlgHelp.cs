@@ -34,6 +34,8 @@ namespace SubtitleStudio
             new string[] { "Ctrl+N", Lang.T("פרויקט חדש") },
             new string[] { "Ctrl+O", Lang.T("פתיחת קובץ") },
             new string[] { "Ctrl+S", Lang.T("שמירת הכתוביות") },
+            new string[] { "Ctrl+F", Lang.T("חיפוש בכתוביות") },
+            new string[] { "Ctrl+H", Lang.T("הזזת תזמון") },
             new string[] { "Ctrl+Z", Lang.T("ביטול פעולה") },
             new string[] { "Ctrl+K", Lang.T("העוזר החכם") },
             new string[] { "F5", Lang.T("יצירת הסרט עם הכתוביות") }
@@ -41,6 +43,8 @@ namespace SubtitleStudio
 
         /// <summary>הקיצורים, גם למדריך של העוזר (`AiKnow`).</summary>
         internal static string[][] KeyList { get { return Keys; } }
+
+        private const int KeyRowH = 28;
 
         // 700 בשתי השפות. באנגלית שמות הפעולות ארוכים; בעברית המקש הארוך (״קליק ימני
         // ברשימה״) מרחיב את עמודת המקשים, וב-620 שני תיאורים נחתכו ב״...״ (0.8.1)
@@ -54,7 +58,8 @@ namespace SubtitleStudio
             // לא רק מקלדת: שלוש מהשורות הן פעולות עכבר (גלגלת, גרירה, קליק ימני)
             Section(Lang.T("קיצורים ופעולות מהירות"));
             KeysPanel keys = new KeysPanel();
-            Row(keys, ((Keys.Length + 1) / 2) * 30 + 6, 8);
+            // שורה של 28 (עד 0.8.40 - 30): עם Ctrl+F ו-Ctrl+H החלון יצא 702 לוגי, מעל התקרה של 1080p ב-150% (test-screens)
+            Row(keys, ((Keys.Length + 1) / 2) * KeyRowH + 6, 8);
 
             Buttons(Lang.T("סגירה"), Ico.Check, null);
         }
@@ -115,7 +120,7 @@ namespace SubtitleStudio
             {
                 Graphics g = e.Graphics;
                 Theme.Smooth(g);
-                int rowH = Theme.S(30);
+                int rowH = Theme.S(KeyRowH);
                 int rows = (Keys.Length + 1) / 2;
                 float colW = (Width - Theme.S(20)) / 2f;
                 // התא של המקש ברוחב המקש הארוך ביותר, לא קבוע: ״Drag on the timeline״
