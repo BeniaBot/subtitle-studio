@@ -22,7 +22,10 @@ namespace SubtitleStudio
         private string _choice;
 
         public string Context { get { return _context.Text.Trim(); } }
-        public bool ReplaceExisting { get { return _replace.Visible && _replace.Checked; } }
+        /// <summary>**לא `_replace.Visible`** - זה נקרא אחרי שהחלון נסגר, וחלון סגור מוסתר: כל פקד בו ״לא גלוי״. מ-0.6.0 עד 0.8.40 המתג
+        /// ״למחוק את הכתוביות הקיימות״ (שדולק מראש) לא עבד אף פעם - מי שתמלל שוב קיבל את החדשות על הישנות.</summary>
+        public bool ReplaceExisting { get { return _hasExisting && _replace.Checked; } }
+        private readonly bool _hasExisting;
         /// <summary>הקטע לתמלול, או 0/0 - כל הסרט.</summary>
         public long FromMs { get { return _range.Checked ? _a : 0; } }
         public long ToMs { get { return _range.Checked ? _b : 0; } }
@@ -104,8 +107,9 @@ namespace SubtitleStudio
             _replace = new Toggle();
             _replace.Text = Lang.T("למחוק את הכתוביות הקיימות ולהתחיל מחדש");
             _replace.Checked = true;
-            _replace.Visible = existingCues > 0;
-            if (_replace.Visible)
+            _hasExisting = existingCues > 0;
+            _replace.Visible = _hasExisting;
+            if (_hasExisting)
             {
                 Row(_replace, 28, 6);
                 Lbl rh = Hint(Lang.T("אם לא - הכתוביות החדשות יתווספו לקיימות."));
