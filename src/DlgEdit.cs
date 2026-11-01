@@ -890,7 +890,10 @@ namespace SubtitleStudio
             {
                 string res;
                 int n = ReplaceIn(c.Text, find, with, out res);
-                if (n > 0) { c.Text = res; hits += n; rows++; }
+                if (n == 0) continue;
+                // מילה ״לא בטוחה״ שהוחלפה - תוקנה; מה שעוד בטקסט נשאר מסומן
+                if (!string.IsNullOrEmpty(c.Doubt)) c.Doubt = Qa.DoubtIn(c.Doubt, res, c.Text);
+                c.Text = res; hits += n; rows++;
             }
             if (hits == 0) { Ui.Info(this, Lang.T("לא נמצא"), Lang.T("הביטוי הזה לא מופיע באף כתובית.")); return false; }
             Replaced = hits;

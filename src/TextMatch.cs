@@ -73,7 +73,7 @@ namespace SubtitleStudio
                 bool ok = true;
                 if (wholeWord)
                 {
-                    bool left = j == 0 || !IsWordChar(t[j - 1]);
+                    bool left = j == 0 || !IsWordChar(t[j - 1]) || !IsWordChar(q[0]);
                     if (!left && prefixOk)
                         for (int k = 1; k <= 2 && j - k >= 0 && !left; k++)
                         {

@@ -897,6 +897,8 @@ $ra = New-Object object[] 6; $ra[0] = 'משה ולמשה ושמשה משהו'; $
 $n3 = $tmRep.Invoke($null, $ra)
 $h4 = $tmFind.Invoke($null, (Pack 'את לאת' 'את' $true $false))
 $h5 = $tmHas.Invoke($null, (Pack ('צ' + [char]0x05F3 + 'רלי בא') "צ'רלי" $true $false))
-Check 'חיפוש בעברית: בלי ניקוד, מעבר שורה = רווח, ״משה״ שלם גם ב״ולמשה״ (לא ב״משהו״), מילה קצרה בלי אותיות שימוש, גרש עברי' ($h1.Count -eq 1 -and $h1[0][1] -eq 7 -and $h2 -and $n3 -eq 3 -and $ra[5] -eq 'יעקב וליעקב ושיעקב משהו' -and $h4.Count -eq 1 -and $h5) ("niqqud=" + $h1.Count + "/" + $(if ($h1.Count) { $h1[0][1] }) + " break=$h2 replace=$n3 '" + $ra[5] + "' short=" + $h4.Count + " geresh=$h5")
+# ביטוי שמתחיל בסימן (סוגריים) - ״מילה שלמה״ לא דורשת רווח לפני הסימן (עד 0.8.40 לא נמצא)
+$h6 = $tmFind.Invoke($null, (Pack 'אמר(הערה) כאן' '(הערה)' $true $false))
+Check 'חיפוש בעברית: בלי ניקוד, מעבר שורה = רווח, ״משה״ שלם גם ב״ולמשה״ (לא ב״משהו״), מילה קצרה בלי אותיות שימוש, גרש עברי, ביטוי שמתחיל בסוגריים' ($h1.Count -eq 1 -and $h1[0][1] -eq 7 -and $h2 -and $n3 -eq 3 -and $ra[5] -eq 'יעקב וליעקב ושיעקב משהו' -and $h4.Count -eq 1 -and $h5 -and $h6.Count -eq 1) ("niqqud=" + $h1.Count + "/" + $(if ($h1.Count) { $h1[0][1] }) + " break=$h2 replace=$n3 '" + $ra[5] + "' short=" + $h4.Count + " geresh=$h5 paren=" + $h6.Count)
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
 if ($fail) { exit 1 }
