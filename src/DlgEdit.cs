@@ -884,9 +884,7 @@ namespace SubtitleStudio
                 int n = ReplaceIn(c.Text, find, "", out dummy);
                 if (n > 0) { hits += n; rows++; }
             }
-            _count.Text = hits == 0
-                ? Lang.T("לא נמצאו התאמות.")
-                : Lang.F("נמצאו {0} מופעים ב־{1} כתוביות.", hits, rows);
+            _count.Text = hits == 0 ? Lang.T("לא נמצאו התאמות.") : Counted(hits, rows, false);
             _count.Invalidate();
         }
 
@@ -909,6 +907,15 @@ namespace SubtitleStudio
             Replaced = hits;
             ReplacedRows = rows;
             return true;
+        }
+
+        /// <summary>״נמצאו 3 מופעים ב-2 כתוביות״ - ובאחד: ״נמצא מופע אחד״, ״בכתובית אחת״ (עד 0.8.40 ״נמצאו 1 מופעים ב־1 כתוביות״ - והמקרה
+        /// הנפוץ הוא בדיוק מילה אחת). ‏<paramref name="done"/> - אחרי ההחלפה, עם Ctrl+Z.</summary>
+        internal static string Counted(int hits, int rows, bool done)
+        {
+            if (hits == 1) return done ? Lang.T("הוחלף מופע אחד.  לביטול - Ctrl+Z.") : Lang.T("נמצא מופע אחד.");
+            if (rows == 1) return done ? Lang.F("הוחלפו {0} מופעים בכתובית אחת.  לביטול - Ctrl+Z.", hits) : Lang.F("נמצאו {0} מופעים בכתובית אחת.", hits);
+            return done ? Lang.F("הוחלפו {0} מופעים ב־{1} כתוביות.  לביטול - Ctrl+Z.", hits, rows) : Lang.F("נמצאו {0} מופעים ב־{1} כתוביות.", hits, rows);
         }
 
         public int Replaced, ReplacedRows;

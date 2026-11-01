@@ -104,6 +104,10 @@ Check 'חיפוש: ״1 מתוך 2״ ואז ״2 מתוך 2״ (בלי ניקוד, 
 $tbx = Fld $f '_text'; $tbxWas = $tbx.Text; $tbx.Text = 'אמר שלום ושלום'; $tbx.Select(4, 4); $seed1 = Call $f 'FindSeed' (Pack)
 $tbx.Select(0, 0); $formT.GetField('_findTerm', $NP).SetValue($f, 'קודם'); $seed2 = Call $f 'FindSeed' (Pack); $tbx.Text = $tbxWas
 Check 'חיפוש נפתח עם המילה המסומנת, ובלי סימון - עם הקודם' ($seed1 -eq 'שלום' -and $seed2 -eq 'קודם') "sel=$seed1 none=$seed2"
+# ״נמצא מופע אחד״, ״בכתובית אחת״ - לא ״נמצאו 1 מופעים ב־1 כתוביות״ (0.8.41)
+$cntM = $asm.GetType('SubtitleStudio.ReplaceDlg').GetMethod('Counted', [Reflection.BindingFlags]'NonPublic,Public,Static')
+$c1 = $cntM.Invoke($null, (Pack 1 1 $false)); $c2 = $cntM.Invoke($null, (Pack 3 1 $false)); $c3 = $cntM.Invoke($null, (Pack 3 2 $true))
+Check 'חיפוש והחלפה: יחיד בעברית תקינה' ($c1 -eq 'נמצא מופע אחד.' -and $c2 -eq 'נמצאו 3 מופעים בכתובית אחת.' -and $c3 -like 'הוחלפו 3 מופעים ב*2 כתוביות.*Ctrl+Z.') "1/1=$c1 | 3/1=$c2 | 3/2=$c3"
 
 # ================= חלוניות קופצות =================
 Write-Host 'חלוניות קופצות'

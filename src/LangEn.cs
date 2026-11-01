@@ -424,6 +424,10 @@ namespace SubtitleStudio
             "כתבו למעלה מה לחפש.", "Type above what to find.",
             "לא נמצאו התאמות.", "No matches found.",
             "נמצאו {0} מופעים ב־{1} כתוביות.", "Found {0} matches in {1} subtitles.",
+            "נמצא מופע אחד.", "Found one match.",
+            "נמצאו {0} מופעים בכתובית אחת.", "Found {0} matches in one subtitle.",
+            "הוחלף מופע אחד.  לביטול - Ctrl+Z.", "Replaced one match.  To undo - Ctrl+Z.",
+            "הוחלפו {0} מופעים בכתובית אחת.  לביטול - Ctrl+Z.", "Replaced {0} matches in one subtitle.  To undo - Ctrl+Z.",
             "מה לחפש?", "What to find?",
             "כתבו מה רוצים להחליף.", "Type what you want to replace.",
             "לא נמצא", "Not found",
@@ -605,12 +609,12 @@ namespace SubtitleStudio
             "החלפת הנקודה הראשונה בנוכחית", "Replace the first point with this one",
             "שמירת הנקודה הזאת כנקודה ראשונה", "Save this point as the first point",
             "הנקודה נשמרה", "The point was saved",
+        };
+        private static readonly string[] P2 = new string[] {
             "עכשיו נגנו עד כתובית אחרת בסוף הסרט, עצרו במקום הנכון, ופתחו שוב את החלון.", "Now play up to another subtitle near the end of the video, stop at the right place, and open this window again.",
             "מתיחה לפי שתי הנקודות", "Stretch by the two points",
             "המרת קצב פריימים (למי שיודע מה זה)", "Convert frame rate (for those who know what it is)",
             "הכתובית כבר בדיוק במקום", "The subtitle is already exactly in place",
-        };
-        private static readonly string[] P2 = new string[] {
             "הזזה של {0} שניות {1}", "Shift {0} seconds {1}",
             "אין מה לתקן", "Nothing to fix",
             "הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.", "The subtitle already starts exactly where the video is.",
@@ -907,12 +911,12 @@ namespace SubtitleStudio
             "יצירת סרט עם כתוביות", "Make a video with subtitles",
             "יוצר קובץ וידאו חדש עם הכתוביות. הסרט המקורי לא משתנה. (F5)", "Makes a new video file with the subtitles. The original video isn't changed. (F5)",
             "קובץ", "File",
+        };
+        private static readonly string[] P3 = new string[] {
             "סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)", "Closes the video and subtitles, back to the start (Ctrl+N)",
             "שמירת הפרויקט", "Save the project",
             "הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך", "The video, the subtitles and the style in one file - to go on later",
             "לקפוץ לכתובית שמכילה מילה (Ctrl+F)", "Jump to a subtitle containing a word (Ctrl+F)",
-        };
-        private static readonly string[] P3 = new string[] {
             "מחיקת כל הכתוביות", "Delete all subtitles",
             "מרוקן את הרשימה; הסרט נשאר פתוח", "Empties the list; the video stays open",
             "הבאת כתוביות", "Get subtitles",
@@ -1209,12 +1213,12 @@ namespace SubtitleStudio
             "נמצאה עבודה שלא נשמרה", "Unsaved work was found",
             "בפעם הקודמת התוכנה נסגרה לפני שהעבודה נשמרה:\n{0}  ·  {1}\nלשחזר אותה?", "Last time the program closed before the work was saved:\n{0}  ·  {1}\nRestore it?",
             "לשחזר", "Restore",
+        };
+        private static readonly string[] P4 = new string[] {
             "לא, תודה", "No, thanks",
             "יש כתוביות מהפעם הקודמת ({0}).\nלשחזר אותן?", "There are subtitles from last time ({0}).\nRestore them?",
             "פתחו סרט או צרו כתוביות, ואז אפשר לשמור את הפרויקט.", "Open a video or make subtitles, and then you can save the project.",
             "פרויקט של Subtext|*{0}", "Subtext project|*{0}",
-        };
-        private static readonly string[] P4 = new string[] {
             "הפרויקט לא נשמר", "The project wasn't saved",
             "הפרויקט נשמר:  {0}‏   ·   בפעם הבאה הוא יחכה במסך הפתיחה", "Project saved:  {0}   ·   next time it will be waiting on the start screen",
             "לא הצלחתי לפתוח את הפרויקט", "Couldn't open the project",
@@ -1511,12 +1515,12 @@ namespace SubtitleStudio
             "מסתכל על הסרט ב-{0}", "Looking at the video at {0}",
             "מסתכל על {0} תמונות מהסרט", "Looking at {0} pictures from the video",
             "לא נמצא מיקרופון, או שווינדוס חוסם את הגישה אליו (הגדרות ← פרטיות ← מיקרופון).", "No microphone was found, or Windows blocks access to it (Settings > Privacy > Microphone).",
+        };
+        private static readonly string[] P5 = new string[] {
             "לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח", "Talk to the assistant: click - it listens, click again - it sends",
             "ההקראה דלוקה - העוזר מקריא כל תשובה. לחיצה מכבה", "Reading aloud is on - the assistant reads every answer. Click to turn off",
             "להקריא את התשובות בקול", "Read the answers aloud",
             "לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון", "Nothing was heard - try again, closer to the microphone",
-        };
-        private static readonly string[] P5 = new string[] {
             "מקשיב... לחיצה - שולח", "Listening... click to send",
             "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
             "אני רוצה כתוביות לסרט", "I want subtitles for the video",
@@ -1813,12 +1817,12 @@ namespace SubtitleStudio
             "בווינדוס הזה אין גלאי פנים מובנה (הוא קיים מווינדוס 10). את הפנים מסמנים ביד - גוררים על התמונה.", "This Windows has no built-in face detector (it exists from Windows 10). Mark the faces by hand - drag on the picture.",
             "לעצור", "Stop",
             "מחפש פנים בסרט...", "Looking for faces in the video...",
+        };
+        private static readonly string[] P6 = new string[] {
             "מחפש פנים בסרט... {0}%", "Looking for faces in the video... {0}%",
             "חיפוש הפנים נכשל", "Face search failed",
             "לא נמצאו פנים", "No faces found",
             "הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד.", "The detector found no faces in the video. It may miss very small faces, faces in profile or in the dark - mark those by hand.",
-        };
-        private static readonly string[] P6 = new string[] {
             "נמצאו פנים", "Faces found",
             "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
             "נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",

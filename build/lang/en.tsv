@@ -436,6 +436,10 @@ he	en
 כתבו למעלה מה לחפש.	Type above what to find.
 לא נמצאו התאמות.	No matches found.
 נמצאו {0} מופעים ב־{1} כתוביות.	Found {0} matches in {1} subtitles.
+נמצא מופע אחד.	Found one match.
+נמצאו {0} מופעים בכתובית אחת.	Found {0} matches in one subtitle.
+הוחלף מופע אחד.  לביטול - Ctrl+Z.	Replaced one match.  To undo - Ctrl+Z.
+הוחלפו {0} מופעים בכתובית אחת.  לביטול - Ctrl+Z.	Replaced {0} matches in one subtitle.  To undo - Ctrl+Z.
 מה לחפש?	What to find?
 כתבו מה רוצים להחליף.	Type what you want to replace.
 לא נמצא	Not found

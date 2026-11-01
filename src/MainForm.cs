@@ -3639,7 +3639,7 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             _doc.RaiseChanged();
             SyncAfterDocChange();
-            _hintLbl.Text = Lang.F("הוחלפו {0} מופעים ב־{1} כתוביות.  לביטול - Ctrl+Z.", hits, rows);
+            _hintLbl.Text = ReplaceDlg.Counted(hits, rows, true);
             _hintLbl.Invalidate();
         }
 
