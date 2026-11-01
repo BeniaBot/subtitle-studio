@@ -2,6 +2,67 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.41",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "t": "fix",
+          "s": "תמלול שוב של אותו סרט: ״למחוק את הכתוביות הקיימות ולהתחיל מחדש״ עובד. עד עכשיו המתג (שדולק מראש) לא עבד אף פעם, והכתוביות החדשות נוספו על הישנות",
+          "en": "Transcribing the same video again: \"delete the existing subtitles and start over\" works. Until now the switch (on by default) never worked, and the new subtitles were added on top of the old ones"
+        },
+        {
+          "t": "fix",
+          "s": "הטמעה של הקטע המסומן כערוץ כתוביות נפרד: הכתוביות בזמנים של הקטע. עד עכשיו הן נשארו בזמנים של הסרט המלא, ובקטע לא הופיעה אף אחת",
+          "en": "Embedding the marked part as a separate subtitle track: the subtitles are in the part's time. Until now they kept the times of the whole video, and none showed in the part"
+        },
+        {
+          "t": "fix",
+          "s": "ערוץ כתוביות נפרד: כתובית שנמשכת אחרי סוף הסרט כבר לא מאריכה אותו (ב-MKV נוספו שניות של תמונה קפואה)",
+          "en": "Separate subtitle track: a subtitle running past the end of the video no longer makes it longer (in MKV, seconds of a frozen picture were added)"
+        },
+        {
+          "t": "fix",
+          "s": "כתובית חדשה בין שתי כתוביות צמודות כבר לא יוצאת חופפת להן: הקודמת מפנה מקום כמה שהיא יכולה, ואם צריך גם הבאה (לכל אחת נשארת לפחות 0.7 שנייה). גם כשהן צמודות בלי רווח בכלל",
+          "en": "A new subtitle between two tight neighbours no longer overlaps them: the previous one makes as much room as it can, and the next one too if needed (each keeps at least 0.7 seconds). Also when they touch with no gap at all"
+        },
+        {
+          "t": "feature",
+          "s": "חיפוש בכתוביות (Ctrl+F): ״2 מתוך 5״, ונפתח עם המילה שמסומנת בעורך. גם ״חיפוש והחלפה״ נפתח איתה (או עם מה שחיפשתם קודם)",
+          "en": "Search the subtitles (Ctrl+F): \"2 of 5\", and it opens with the word selected in the editor. \"Find and replace\" opens with it too (or with what you searched before)"
+        },
+        {
+          "t": "fix",
+          "s": "חלון החיפוש בעברית: ״הבא״ משמאל והחצים פונים החוצה (הם הצביעו זה אל זה), וכפתור כחול אחד בלבד",
+          "en": "The search window in Hebrew: \"next\" on the left with the arrows pointing outward, and only one blue button"
+        },
+        {
+          "t": "fix",
+          "s": "חיפוש והחלפה: מילה ״לא בטוחה״ מהתמלול שהוחלפה כבר לא מסומנת; ״מילים שלמות״ מוצא גם ביטוי שמתחיל בסוגריים; ״נמצא מופע אחד״ במקום ״נמצאו 1 מופעים ב-1 כתוביות״",
+          "en": "Find and replace: a doubtful word from the transcription that was replaced is no longer flagged; \"whole words\" also finds a phrase that starts with a bracket; \"found one match\" instead of \"1 matches in 1 subtitles\""
+        },
+        {
+          "t": "fix",
+          "s": "הזזת תזמון: ״יזוזו 0.5 שניות״ במקום ״00:00.5״, והכפתורים מסודרים כמו ציר הזמן - מינוס משמאל, פלוס מימין",
+          "en": "Shift timing: \"will move 0.5 seconds\" instead of \"00:00.5\", and the buttons run like the timeline - minus on the left, plus on the right"
+        },
+        {
+          "t": "fix",
+          "s": "״עוד״ ליד ״מחיקה״ (חלוקה וחיבור של כתוביות) הוא כפתור ברור - שלוש נקודות כשאין מקום למילה. עד עכשיו במסך של מחשב נייד נשאר ממנו חץ קטן בלי מסגרת",
+          "en": "\"More\" next to \"Delete\" (split and join subtitles) is a clear button - three dots when there is no room for the word. Until now, on a laptop screen, only a small arrow with no frame was left of it"
+        },
+        {
+          "t": "fix",
+          "s": "כלי ״יצירת GIF״ על קטע קצר: בלי שורה ריקה באמצע החלון",
+          "en": "The \"make a GIF\" tool on a short part: no empty line in the middle of the window"
+        },
+        {
+          "t": "feature",
+          "s": "העזרה מראה גם את Ctrl+F (חיפוש בכתוביות) ואת Ctrl+H (הזזת תזמון)",
+          "en": "Help also lists Ctrl+F (search the subtitles) and Ctrl+H (shift timing)"
+        }
+      ]
+    },
+    {
       "v": "0.8.40",
       "date": "2026-11-01",
       "items": [
