@@ -100,6 +100,10 @@ Call $f 'SyncAfterDocChange' (Pack) | Out-Null
 $fs1 = Call $f 'FindStep' (Pack 'שלום' $true); $fa = Pack 'שלום' 0; $n1 = $formT.GetMethod('FindPosition', $NP).Invoke($f, $fa); $t1 = $fa[1]
 $fs2 = Call $f 'FindStep' (Pack 'שלום' $true); $fa = Pack 'שלום' 0; $n2 = $formT.GetMethod('FindPosition', $NP).Invoke($f, $fa); $t2 = $fa[1]
 Check 'חיפוש: ״1 מתוך 2״ ואז ״2 מתוך 2״ (בלי ניקוד, כתובית עם שני מופעים נספרת פעם אחת)' ($fs1 -and $fs2 -and $n1 -eq 1 -and $n2 -eq 2 -and $t1 -eq 2 -and $t2 -eq 2) "found=$fs1/$fs2 nth=$n1/$n2 total=$t1/$t2"
+# החיפוש נפתח עם המילה שמסומנת בעורך; בלי סימון - עם החיפוש הקודם (0.8.41)
+$tbx = Fld $f '_text'; $tbxWas = $tbx.Text; $tbx.Text = 'אמר שלום ושלום'; $tbx.Select(4, 4); $seed1 = Call $f 'FindSeed' (Pack)
+$tbx.Select(0, 0); $formT.GetField('_findTerm', $NP).SetValue($f, 'קודם'); $seed2 = Call $f 'FindSeed' (Pack); $tbx.Text = $tbxWas
+Check 'חיפוש נפתח עם המילה המסומנת, ובלי סימון - עם הקודם' ($seed1 -eq 'שלום' -and $seed2 -eq 'קודם') "sel=$seed1 none=$seed2"
 
 # ================= חלוניות קופצות =================
 Write-Host 'חלוניות קופצות'

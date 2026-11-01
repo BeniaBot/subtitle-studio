@@ -827,7 +827,10 @@ namespace SubtitleStudio
         private Toggle _whole, _matchCase;
         private Lbl _count;
 
-        public ReplaceDlg(Doc doc) : base(Lang.T("חיפוש והחלפה"), Ico.Search, 560)
+        public ReplaceDlg(Doc doc) : this(doc, "") { }
+
+        /// <param name="initial">המילה שמסומנת בעורך, או מה שחיפשו בפעם הקודמת (0.8.41; עד כאן החלון תמיד נפתח ריק).</param>
+        public ReplaceDlg(Doc doc, string initial) : base(Lang.T("חיפוש והחלפה"), Ico.Search, 560)
         {
             _doc = doc;
             Subtitle = Lang.F("מחליף בכל {0} הכתוביות בבת אחת", doc.Cues.Count);
@@ -835,8 +838,10 @@ namespace SubtitleStudio
             Section(Lang.T("לחפש"));
             _find = new Field();
             _find.Placeholder = Lang.T("המילה או הביטוי שרוצים להחליף");
+            _find.Text = initial ?? "";
             _find.Box.TextChanged += delegate { UpdateCount(); };
             Row(_find, 34, 12);
+            Shown += delegate { _find.Focus(); };
 
             Section(Lang.T("להחליף ב־"));
             _with = new Field();
@@ -907,6 +912,8 @@ namespace SubtitleStudio
         }
 
         public int Replaced, ReplacedRows;
+        /// <summary>מה שכתוב בשדה ״לחפש״ - החיפוש הבא (Ctrl+F) נפתח איתו.</summary>
+        public string FindTerm { get { return (_find.Text ?? "").Trim(); } }
     }
 
 }

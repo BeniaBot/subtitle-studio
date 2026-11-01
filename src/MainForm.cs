@@ -990,7 +990,7 @@ namespace SubtitleStudio
                 Ui.Info(this, Lang.T("אין כתוביות"), Lang.T("קודם פותחים או יוצרים כתוביות."));
                 return;
             }
-            FindDlg d = new FindDlg(_findTerm, _doc.Cues.Count);
+            FindDlg d = new FindDlg(FindSeed(), _doc.Cues.Count);
             d.FindNext += delegate (object s, FindArgs a)
             {
                 _findTerm = a.Term;
@@ -1027,6 +1027,14 @@ namespace SubtitleStudio
                 return true;
             }
             return false;
+        }
+
+        /// <summary>מה שחלון החיפוש (וההחלפה) נפתח איתו: מילה שמסומנת בתיבת העריכה - כמו בכל עורך (0.8.41); אחרת מה שחיפשו בפעם הקודמת.</summary>
+        internal string FindSeed()
+        {
+            string sel = _text != null ? (_text.SelectedText ?? "").Trim() : "";
+            if (sel.Length > 0 && sel.Length <= 60 && sel.IndexOf('\n') < 0) return sel;
+            return _findTerm;
         }
 
         /// <summary>״3 מתוך 12״: כמה כתוביות יש בהן את <paramref name="term"/>, ואיזו מהן (מ-1) היא זו שבעריכה. 0 כשהיא לא אחת מהן.</summary>
@@ -3610,8 +3618,9 @@ namespace SubtitleStudio
         {
             if (_doc.Cues.Count == 0) { Ui.Info(this, Lang.T("אין כתוביות"), Lang.T("צריך קודם לטעון או לכתוב כתוביות.")); return; }
             _doc.Push(Lang.T("חיפוש והחלפה"));
-            ReplaceDlg d = new ReplaceDlg(_doc);
+            ReplaceDlg d = new ReplaceDlg(_doc, FindSeed());
             bool ok = d.ShowDialog(this) == DialogResult.OK;
+            if (d.FindTerm.Length > 0) _findTerm = d.FindTerm;
             int hits = d.Replaced, rows = d.ReplacedRows;
             d.Dispose();
             // ביטול בחלון = המסמך לא נגענו בו (ReplaceDlg משנה רק ב-OnOk),
