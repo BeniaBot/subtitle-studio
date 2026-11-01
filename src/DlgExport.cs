@@ -101,6 +101,24 @@ namespace SubtitleStudio
             return use;
         }
 
+        /// <summary>**הכתוביות לערוץ נפרד** (0.8.41): בזמני הקובץ שיוצא - קטע מתחיל ב-<paramref name="shiftMs"/> - ובתוך האורך שלו
+        /// (<paramref name="lengthMs"/>; 0 = לא ידוע). בצריבה זה כבר היה (`Shifted`), אבל הערוץ הנפרד קיבל את הזמנים של הסרט המלא: קטע
+        /// של 10-20 שניות יצא עם הכתובית של שנייה 12 בשנייה 12 (בקובץ של 10 שניות - אף פעם לא נראתה), וכתובית שאחרי הקטע הוסיפה
+        /// לקובץ MKV עשרות שניות. גם בלי קטע: כתובית שנמשכת אחרי סוף הסרט האריכה MKV (סרט של 40 שניות יצא 43).</summary>
+        internal static List<Cue> ForTrack(List<Cue> cues, long shiftMs, long lengthMs)
+        {
+            List<Cue> r = Shifted(cues, shiftMs);
+            if (lengthMs <= 0) return r;
+            List<Cue> keep = new List<Cue>(r.Count);
+            foreach (Cue c in r)
+            {
+                if (c.Start >= lengthMs) continue;
+                if (c.End > lengthMs) c.End = lengthMs;
+                if (c.End > c.Start) keep.Add(c);
+            }
+            return keep;
+        }
+
         /// <summary>הארגומנט של המסננים לצריבה: ``-vf "subtitles=..."``, ועם טשטוש אזור (`SubStyle.BlurGraph`) - השרשרת בקובץ ליד
         /// ה-ASS (``-/vf``; ‏ffmpeg 9 קורא ערך של אפשרות מקובץ), כי ״רק כשיש כתובית״ בסרט ארוך חורג משורת הפקודה.</summary>
         /// <param name="after">פילטר אחרי הכתוביות (״scale=-2:1080״ - הקטנה של 4K, 0.8.33), או ריק. **אחרי** ולא לפני: הכתוביות
@@ -400,6 +418,8 @@ namespace SubtitleStudio
         private Field _out;
         private Combo _quality, _lang;
         private Toggle _rangeOnly, _keepExisting, _defaultTrack, _down;
+        /// <summary>יש קטע מסומן על הציר - המתג ״רק הקטע המסומן״ קיים.</summary>
+        private bool _hasRange;
         private Lbl _note, _qualityLabel;
         private long _inMs, _outMs;
         /// <summary>המקור גדול מ-1080p (‏4K, ‏1440p) - יש מה להקטין.</summary>
@@ -466,8 +486,9 @@ namespace SubtitleStudio
 
             _rangeOnly = new Toggle();
             _rangeOnly.Text = Lang.F("רק הקטע המסומן על הציר ({0} – {1})", Tc.Short(inMs), Tc.Short(outMs));
-            _rangeOnly.Visible = inMs >= 0 && outMs > inMs;
-            if (_rangeOnly.Visible) Row(_rangeOnly, 26, 8);
+            _hasRange = inMs >= 0 && outMs > inMs;
+            _rangeOnly.Visible = _hasRange;
+            if (_hasRange) Row(_rangeOnly, 26, 8);
 
             _keepExisting = new Toggle();
             _keepExisting.Text = Lang.T("לשמור גם ערוצי כתוביות שכבר קיימים בקובץ");
@@ -597,7 +618,8 @@ namespace SubtitleStudio
         internal FfJob BuildJob(string outPath)
         {
             outPath = FinalPath(outPath);
-            bool ranged = _rangeOnly.Visible && _rangeOnly.Checked;
+            // לא `_rangeOnly.Visible`: לפני שהחלון מוצג ווינדוס עונה ״לא גלוי״ על כל פקד שבו (בדיקות, ו-AiUi)
+            bool ranged = _hasRange && _rangeOnly.Checked;
             long a = ranged ? _inMs : 0;
             long b = ranged ? _outMs : 0;
 
@@ -641,7 +663,7 @@ namespace SubtitleStudio
                 SubFormat sf = ext == ".mkv" ? SubFormat.Ass : SubFormat.Srt;
                 string codec = ext == ".mkv" ? "ass" : (ext == ".webm" ? "webvtt" : "mov_text");
                 string dir;
-                string subFile = Burn.WriteTempSubs(cues, sf, _style, _mi.Width, _mi.Height, out dir);
+                string subFile = Burn.WriteTempSubs(Burn.ForTrack(cues, a, ranged ? b - a : _mi.DurationMs), sf, _style, _mi.Width, _mi.Height, out dir);
                 string lang = "heb";
                 switch (_lang.SelectedIndex)
                 {

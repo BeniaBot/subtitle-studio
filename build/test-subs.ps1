@@ -296,6 +296,34 @@ foreach ($ext in '.mkv', '.mp4') {
     $good = $subs.Count -eq 2 -and $mine.Language -eq 'heb' -and ($ext -ne '.mkv' -or $mine.Title -eq 'עברית') -and $mine.Default -and -not $subs[0].Default -and $subs[0].Language -eq 'eng'
     Rep ('soft track beside an old one ' + $ext) $good (($subs | ForEach-Object { '{0}:{1}:{2}:{3}' -f $_.Codec, $_.Language, $_.Title, $(if ($_.Default) { 'default' } else { '-' }) }) -join '  ')
 }
+# ערוץ נפרד של **קטע** (4-10 מתוך 12 שניות), ובלי קטע עם כתובית שנמשכת אחרי הסוף (0.8.41): הכתוביות בזמני הקובץ שיוצא ובתוך האורך שלו.
+# עד כאן הערוץ קיבל את הזמנים של הסרט המלא - הכתובית של שנייה 6 יצאה בשנייה 6 של קטע בן 6 שניות, ו-MKV התארך עד הכתובית האחרונה
+$src12 = Join-Path $dir 'twelve.mkv'
+& $ffx -nostdin -hide_banner -loglevel error -y -f lavfi -i 'color=c=0x404850:s=320x240:d=12:r=10' -f lavfi -i 'sine=d=12' -c:v libx264 -preset ultrafast -g 10 -c:a aac -t 12 $src12
+$mi12 = ProbeIt $src12
+function SoftRange([long]$fromMs, [long]$toMs, $name) {
+    $d = [Activator]::CreateInstance((TY 'Doc')); $dc = (TY 'Doc').GetField('Cues', $IN).GetValue($d)
+    foreach ($c in @(@(6000, 8000, 'בתוך הקטע'), @(11000, 15000, 'עד אחרי הסוף'), @(20000, 22000, 'אחרי הסרט'))) { $dc.Add([Activator]::CreateInstance($cueT, @([int64]$c[0], [int64]$c[1], [string]$c[2]))) }
+    $dlg = [Activator]::CreateInstance((TY 'ExportVideoDlg'), @($null, $d, $mi12, [Activator]::CreateInstance((TY 'SubStyle')), [long]$fromMs, [long]$toMs))
+    [void]$dlg.GetType().GetMethod('SetMode', $IN).Invoke($dlg, @($false))
+    if ($fromMs -ge 0) { $dlg.GetType().GetField('_rangeOnly', $IN).GetValue($dlg).Checked = $true }
+    $o = Join-Path $dir ($name + '.mkv'); if ([IO.File]::Exists($o)) { [IO.File]::Delete($o) }
+    $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $dlg.Dispose()
+    $argv = New-Object object[] 5; $argv[0] = $ffx; $argv[1] = [string]$job.Args; $argv[4] = [string]$job.WorkDir
+    [void](TY 'Ff').GetMethod('RunSync', $ST).Invoke($null, $argv)
+    $back = Join-Path $dir ($name + '-back.srt'); & $ffx -nostdin -hide_banner -loglevel error -y -i $job.OutputPath -map 0:s $back
+    $txt = if (Test-Path $back) { [IO.File]::ReadAllText($back, [Text.Encoding]::UTF8) } else { '' }
+    $pm = ProbeIt $job.OutputPath
+    $dur = if ($pm) { $pm.DurationMs / 1000.0 } else { -1 }
+    return @{ Text = $txt; Dur = $dur }
+}
+$rg = SoftRange 4000 10000 'soft-range'
+$firstAt = [regex]::Match($rg.Text, '(\d\d):(\d\d):(\d\d),(\d\d\d) -->')
+$firstSec = if ($firstAt.Success) { [double]$firstAt.Groups[3].Value + [double]$firstAt.Groups[4].Value / 1000 } else { -1 }
+Rep 'separate track of a part (4-10s): the subtitle of 0:06 at 0:02, nothing from outside the part, the file 6 seconds' ($firstSec -ge 1.9 -and $firstSec -le 2.3 -and $rg.Text -notmatch 'אחרי' -and $rg.Dur -gt 5 -and $rg.Dur -lt 7.5) ("first at {0}s, duration {1}s, text: {2}" -f $firstSec, $rg.Dur, (($rg.Text -replace '\s+', ' ').Trim()))
+$fl = SoftRange -1 -1 'soft-full'
+Rep 'separate track of the whole video: a subtitle running past the end stops at the end, the file stays 12 seconds' ($fl.Dur -gt 11.5 -and $fl.Dur -lt 12.6 -and $fl.Text -match 'עד אחרי הסוף' -and $fl.Text -notmatch 'אחרי הסרט') ("duration {0}s" -f $fl.Dur)
+
 # ערוץ נפרד עם אזורי טשטוש: אזהרה שהם נכנסים רק בצריבה (עד 23.10 הערוץ הנפרד יצא בשקט בלי הטשטוש)
 $zst = [Activator]::CreateInstance((TY 'SubStyle')); $zst.Zones.Add([Activator]::CreateInstance((TY 'BlurZone')))
 $zdlg = [Activator]::CreateInstance((TY 'ExportVideoDlg'), @($null, $doc, $mi, $zst, [long]-1, [long]-1))
