@@ -506,6 +506,7 @@ he	en
 הבא	Next
 צריך להקליד מה לחפש.	Type what to search for.
 נמצא - הכתובית מסומנת מאחורי החלון.	Found - the subtitle is selected behind this window.
+נמצא ({0} מתוך {1}) - הכתובית מסומנת מאחורי החלון.	Found ({0} of {1}) - the subtitle is selected behind this window.
 לא נמצא ״{0}״ בשום כתובית.	“{0}” wasn't found in any subtitle.
 
 # ---- DlgHelp.cs ----

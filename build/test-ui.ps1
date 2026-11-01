@@ -91,6 +91,16 @@ Check 'נוצרה במיקום הנגן' ($null -ne $new -and [Math]::Abs($new.S
     ("start=" + $(if ($new) { $new.Start } else { 'null' }) + " pos=$pos")
 Check 'הכתובית החדשה מסומנת' ($null -ne $new -and $new.Selected) ''
 
+# חיפוש (Ctrl+F): ״2 מתוך 3״ - איזו התאמה זו ומתוך כמה (0.8.41)
+AddCue $doc 4000 5000 'שָׁלוֹם לכולם' | Out-Null
+AddCue $doc 6000 7000 'עולם' | Out-Null
+AddCue $doc 8000 9000 "אמר שלום`nושלום" | Out-Null
+$doc.GetType().GetMethod('RaiseChanged').Invoke($doc, @()) | Out-Null
+Call $f 'SyncAfterDocChange' (Pack) | Out-Null
+$fs1 = Call $f 'FindStep' (Pack 'שלום' $true); $fa = Pack 'שלום' 0; $n1 = $formT.GetMethod('FindPosition', $NP).Invoke($f, $fa); $t1 = $fa[1]
+$fs2 = Call $f 'FindStep' (Pack 'שלום' $true); $fa = Pack 'שלום' 0; $n2 = $formT.GetMethod('FindPosition', $NP).Invoke($f, $fa); $t2 = $fa[1]
+Check 'חיפוש: ״1 מתוך 2״ ואז ״2 מתוך 2״ (בלי ניקוד, כתובית עם שני מופעים נספרת פעם אחת)' ($fs1 -and $fs2 -and $n1 -eq 1 -and $n2 -eq 2 -and $t1 -eq 2 -and $t2 -eq 2) "found=$fs1/$fs2 nth=$n1/$n2 total=$t1/$t2"
+
 # ================= חלוניות קופצות =================
 Write-Host 'חלוניות קופצות'
 foreach ($pair in @(@('_volBtn', 'PopupPanel'), @('_speedBtn', 'PopupPanel'))) {

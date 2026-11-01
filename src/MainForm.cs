@@ -991,7 +991,12 @@ namespace SubtitleStudio
                 return;
             }
             FindDlg d = new FindDlg(_findTerm, _doc.Cues.Count);
-            d.FindNext += delegate (object s, FindArgs a) { _findTerm = a.Term; a.Found = FindStep(a.Term, a.Forward); };
+            d.FindNext += delegate (object s, FindArgs a)
+            {
+                _findTerm = a.Term;
+                a.Found = FindStep(a.Term, a.Forward);
+                if (a.Found) a.Nth = FindPosition(a.Term, out a.Total);
+            };
             d.ShowDialog(this);
             d.Dispose();
         }
@@ -1022,6 +1027,22 @@ namespace SubtitleStudio
                 return true;
             }
             return false;
+        }
+
+        /// <summary>״3 מתוך 12״: כמה כתוביות יש בהן את <paramref name="term"/>, ואיזו מהן (מ-1) היא זו שבעריכה. 0 כשהיא לא אחת מהן.</summary>
+        internal int FindPosition(string term, out int total)
+        {
+            total = 0;
+            int nth = 0;
+            if (_doc == null || string.IsNullOrEmpty(term)) return 0;
+            foreach (Cue c in _doc.Cues)
+            {
+                if (!TextMatch.Contains(c.Text, term, false, false)) continue;
+                total++;
+                if (c == _editing) nth = total;
+            }
+            if (nth == 0) total = 0;
+            return nth;
         }
 
         /// <summary>מעבר לכתובית הקודמת או הבאה.</summary>

@@ -490,6 +490,7 @@ namespace SubtitleStudio
             "הבא", "Next",
             "צריך להקליד מה לחפש.", "Type what to search for.",
             "נמצא - הכתובית מסומנת מאחורי החלון.", "Found - the subtitle is selected behind this window.",
+            "נמצא ({0} מתוך {1}) - הכתובית מסומנת מאחורי החלון.", "Found ({0} of {1}) - the subtitle is selected behind this window.",
             "לא נמצא ״{0}״ בשום כתובית.", "“{0}” wasn't found in any subtitle.",
             "פותחים סרט", "Open a video",
             "כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון", "The “Open” button, or just drag a file into the window",
@@ -608,9 +609,9 @@ namespace SubtitleStudio
             "הכתובית כבר בדיוק במקום", "The subtitle is already exactly in place",
             "הזזה של {0} שניות {1}", "Shift by {0} seconds {1}",
             "אין מה לתקן", "Nothing to fix",
-            "הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.", "The subtitle already starts exactly where the video is.",
         };
         private static readonly string[] P2 = new string[] {
+            "הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא.", "The subtitle already starts exactly where the video is.",
             "סנכרון", "Sync",
             "הנקודות קרובות מדי", "The points are too close",
             "בחרו כתובית רחוקה יותר מהנקודה הראשונה.", "Choose a subtitle further from the first point.",
@@ -910,9 +911,9 @@ namespace SubtitleStudio
             "לקפוץ לכתובית שמכילה מילה (Ctrl+F)", "Jump to a subtitle containing a word (Ctrl+F)",
             "מחיקת כל הכתוביות", "Delete all subtitles",
             "מרוקן את הרשימה; הסרט נשאר פתוח", "Empties the list; the video stays open",
-            "הבאת כתוביות", "Get subtitles",
         };
         private static readonly string[] P3 = new string[] {
+            "הבאת כתוביות", "Get subtitles",
             "תמלול אוטומטי של הסרט", "Transcribe the video automatically",
             "התוכנה מקשיבה וכותבת לבד · הקול נשלח לתמלול באינטרנט", "Listens and writes the subtitles · the audio is sent online",
             "יצירת כתוביות מטקסט", "Make subtitles from text",
@@ -1212,9 +1213,9 @@ namespace SubtitleStudio
             "פרויקט של Subtext|*{0}", "Subtext project|*{0}",
             "הפרויקט לא נשמר", "The project wasn't saved",
             "הפרויקט נשמר:  {0}‏   ·   בפעם הבאה הוא יחכה במסך הפתיחה", "Project saved:  {0}   ·   next time it will be waiting on the start screen",
-            "לא הצלחתי לפתוח את הפרויקט", "Couldn't open the project",
         };
         private static readonly string[] P4 = new string[] {
+            "לא הצלחתי לפתוח את הפרויקט", "Couldn't open the project",
             "לפתוח את הפרויקט?", "Open the project?",
             "הכתוביות שלא נשמרו יאבדו.", "Unsaved subtitles will be lost.",
             "העבודה שוחזרה", "The work was restored",
@@ -1514,9 +1515,9 @@ namespace SubtitleStudio
             "לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון", "Nothing was heard - try again, closer to the microphone",
             "מקשיב... לחיצה - שולח", "Listening... click to send",
             "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
-            "אני רוצה כתוביות לסרט", "I want subtitles for the video",
         };
         private static readonly string[] P5 = new string[] {
+            "אני רוצה כתוביות לסרט", "I want subtitles for the video",
             "מה אתה יודע לעשות?", "What can you do?",
             "נעצר", "Stopped",
             "היום בשעה {0}", "today at {0}",
@@ -1816,9 +1817,9 @@ namespace SubtitleStudio
             "הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד.", "The detector found no faces in the video. It may miss very small faces, faces in profile or in the dark - mark those by hand.",
             "נמצאו פנים", "Faces found",
             "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
-            "נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",
         };
         private static readonly string[] P6 = new string[] {
+            "נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added {0} face areas, each moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",
             "מעקב", "Track",
             "האזור הולך אחרי מה שבתוכו (לוגו, שלט, אדם) - מהרגע של הנגן ועד סוף האזור", "The area follows what is inside it (a logo, a sign, a person) - from where the player is to the end of the area",
             "מעקב מכאן", "Track from here",
