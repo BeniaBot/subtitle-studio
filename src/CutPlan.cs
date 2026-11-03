@@ -182,11 +182,27 @@ namespace SubtitleStudio
         {
             List<Cue> outp = new List<Cue>();
             long offset = 0;
+            long total = 0;
+            foreach (long[] r in kept) total += r[1] - r[0];
+            // **שורות בלי תזמון לא נמחקות** (0.8.42): הזמן שלהן הערכה לפי האורך, לא מקום בסרט - עד כאן שורת טקסט שיובאה ״לתזמן אחר כך״
+            // ונפלה בחלק שהוסר נמחקה בשקט. נשארות בסדר שלהן, במקום המקביל בקובץ החדש, ועדיין בלי תזמון
+            long prevU = -1;
+            foreach (Cue c in cues)
+            {
+                if (!c.Untimed) continue;
+                Cue n = c.Clone();
+                long d = Math.Max(600, c.End - c.Start);
+                n.Start = Math.Max(0, Math.Min(MapPoint(c.Start, kept), total - d));
+                if (n.Start <= prevU) n.Start = prevU + 1;          // כמה שורות מאותו חלק שהוסר - הסדר שלהן נשמר (המיון למטה לא יציב)
+                n.End = n.Start + d;
+                prevU = n.Start;
+                outp.Add(n);
+            }
             foreach (long[] r in kept)
             {
                 foreach (Cue c in cues)
                 {
-                    if (c.End <= r[0] || c.Start >= r[1]) continue;
+                    if (c.Untimed || c.End <= r[0] || c.Start >= r[1]) continue;
                     Cue n = c.Clone();
                     n.Start = Math.Max(r[0], c.Start) - r[0] + offset;
                     n.End = Math.Min(r[1], c.End) - r[0] + offset;
@@ -196,6 +212,19 @@ namespace SubtitleStudio
             }
             outp.Sort(delegate (Cue x, Cue y) { return x.Start.CompareTo(y.Start); });
             return outp;
+        }
+
+        /// <summary>רגע בסרט המקורי ← רגע בקובץ החתוך. רגע שבחלק שהוסר - תחילת הקטע הבא שנשאר (או סוף הקובץ).</summary>
+        internal static long MapPoint(long t, List<long[]> kept)
+        {
+            long offset = 0;
+            foreach (long[] r in kept)
+            {
+                if (t < r[0]) return offset;
+                if (t < r[1]) return offset + t - r[0];
+                offset += r[1] - r[0];
+            }
+            return offset;
         }
 
         /// <summary>**אזורי הטשטוש עוברים לקובץ החתוך** (23.10), כמו הכתוביות (`MapCues`): לכל קטע שנשאר - החלק של האזור שבתוכו, בזמנים
