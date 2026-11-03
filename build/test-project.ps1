@@ -431,6 +431,18 @@ $formT.GetMethod('ImportSubs', $NP).Invoke($sv, (Pack ([string]$zsrt))) | Out-Nu
 $ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
 Check 'SRT עם אזורי טשטוש: ״שמירה״ שומרת פרויקט, וגם את ה-SRT שנערך' ($ok -and (Test-Path $script:zproj) -and ([IO.File]::ReadAllText($zsrt)).Contains('ערוך') -and (Fld $sv '_projectPath') -eq $script:zproj) ([string](Fld $sv '_projectPath'))
 $sv.Close(); $sv.Dispose(); Pump 50
+# **שורה בלי תזמון**, בלי פרויקט: ״שמירה״ שומרת פרויקט (שזוכר שהיא בלי תזמון) - עד 0.8.41 נכתב SRT, הסימון נעלם והיציאה כבר לא שאלה
+$usrt = Join-Path $work 'בלי-תזמון.srt'
+[IO.File]::WriteAllText($usrt, $srtBody, (New-Object Text.UTF8Encoding $true))
+$script:uproj = [string](Join-Path $work 'בלי-תזמון.subtext')
+$picker.SetValue($null, [Func[string, string, string]] { param($title, $name) return $script:uproj })
+$sv = NewForm
+$formT.GetMethod('ImportSubs', $NP).Invoke($sv, (Pack ([string]$usrt))) | Out-Null
+(Fld $sv '_doc').Cues[1].Untimed = $true; (Fld $sv '_doc').Dirty = $true
+$ok = $formT.GetMethod('SaveSubtitles', $NP).Invoke($sv, (Pack $false))
+$ujson = if (Test-Path $script:uproj) { [IO.File]::ReadAllText($script:uproj) } else { '' }
+Check 'שורה בלי תזמון: ״שמירה״ שומרת פרויקט שזוכר אותה' ($ok -and $ujson -match '"untimed": true' -and (Fld $sv '_projectPath') -eq $script:uproj) ([string](Fld $sv '_projectPath'))
+$sv.Close(); $sv.Dispose(); Pump 50
 $picker.SetValue($null, $null)
 
 # כתיבה בטוחה: אם אי אפשר לכתוב את הקובץ הזמני, הקובץ הקיים נשאר שלם

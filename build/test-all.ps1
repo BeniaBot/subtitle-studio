@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $expect = [ordered]@{
     'logic' = 224; 'autotime' = 36; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
-    'update-notes' = 30; 'ui' = 63; 'layout' = 110; 'project' = 114; 'screens' = 39
+    'update-notes' = 30; 'ui' = 63; 'layout' = 110; 'project' = 115; 'screens' = 39
     'fuzz' = 11; 'long' = 15; 'stt' = 146; 'errors' = 38; 'buttons' = 14
     'source' = 9; 'qa' = 106; 'spell' = 75; 'release' = 67; 'settings' = 19; 'subs' = 61; 'cut' = 56; 'import' = 34; 'assistant' = 95; 'chatflow' = 52
     # name@en = the same package with -Lang en: the whole layout is mirrored there

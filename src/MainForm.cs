@@ -3303,8 +3303,10 @@ namespace SubtitleStudio
                 return SaveProject(false) && subsOk;
             }
             // אזורי טשטוש בלי פרויקט: ״שמירה״ שומרת פרויקט (קובץ כתוביות היה מאבד אותם). ״שמירה בשם״ - מה שביקשו.
-            // **וגם את קובץ הכתוביות שפתוח** (23.10), כמו כשיש פרויקט: עד כאן נשמר רק הפרויקט, וה-SRT שערכו בו נשאר ישן בשקט
-            if (!asNew && HasZones)
+            // **וגם את קובץ הכתוביות שפתוח** (23.10), כמו כשיש פרויקט: עד כאן נשמר רק הפרויקט, וה-SRT שערכו בו נשאר ישן בשקט.
+            // **ושורות בלי תזמון** (0.8.42) - גם אותן קובץ כתוביות לא זוכר: עד כאן Ctrl+S כתב SRT, הסימון נעלם, היציאה כבר לא שאלה (הכול
+            // ״שמור״), ובפתיחה הבאה הזמנים המשוערים נראו אמיתיים
+            if (!asNew && (HasZones || UntimedCount() > 0))
             {
                 if (!SaveProject(true)) return false;
                 return _doc.Cues.Count == 0 || !Formats.CanSaveInPlace(_doc.FilePath) || WriteSubtitles(_doc.FilePath);
