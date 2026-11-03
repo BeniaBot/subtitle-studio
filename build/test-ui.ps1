@@ -430,6 +430,22 @@ function TrClosed([bool]$on) {
     return $r
 }
 $rOn = TrClosed $true; $rOff = TrClosed $false
+# לפני יצירת הסרט: שורות בלי תזמון - שואלים (0.8.42; עד כאן נצרבו בזמנים משוערים בלי מילה)
+$bf = NewForm 1400 900
+$bdoc = Fld $bf '_doc'; $bcues = $bdoc.GetType().GetField('Cues').GetValue($bdoc)
+$u1 = AddCue $bdoc 1000 3000 'מתוזמנת'; $u2 = AddCue $bdoc 3000 5000 'בלי תזמון'; $u2.Untimed = $true
+$script:askTitle = ''
+$askT = New-Object Windows.Forms.Timer; $askT.Interval = 300
+$askT.Add_Tick({ foreach ($w in @([Windows.Forms.Application]::OpenForms)) { if ($w -ne $bf -and $w.Text) { $script:askTitle = $w.Text; $w.Close() } } })
+# במצב בדיקה (SUBSTUDIO_TEST) השאלות שלפני הצריבה מדולגות - כאן מכבים אותו לרגע, והטיימר סוגר את השאלה
+$env:SUBSTUDIO_TEST = $null; $askT.Start(); $go = Call $bf 'OfferTidyBeforeBurn' (Pack); $askT.Stop(); $askT.Dispose(); $env:SUBSTUDIO_TEST = '1'
+Check 'לפני יצירת הסרט: שורה בלי תזמון - שואלים, וסגירת השאלה עוצרת' ($script:askTitle -like '*לתזמן*' -and -not $go) "title=[$($script:askTitle)] go=$go"
+$u2.Untimed = $false; $script:askTitle = ''
+$askT = New-Object Windows.Forms.Timer; $askT.Interval = 300
+$askT.Add_Tick({ foreach ($w in @([Windows.Forms.Application]::OpenForms)) { if ($w -ne $bf -and $w.Text) { $script:askTitle = $w.Text; $w.Close() } } })
+$env:SUBSTUDIO_TEST = $null; $askT.Start(); $go2 = Call $bf 'OfferTidyBeforeBurn' (Pack); $askT.Stop(); $askT.Dispose(); $env:SUBSTUDIO_TEST = '1'
+Check 'וכשהכול מתוזמן - בלי השאלה הזאת' ($script:askTitle -notlike '*לתזמן*') "title=[$($script:askTitle)] go=$go2"
+$bf.Close(); $bf.Dispose()
 Check 'תמלול: ״למחוק את הקיימות״ נקרא נכון אחרי שהחלון נסגר' ($rOn -eq $true -and $rOff -eq $false) "on=$rOn off=$rOff"
 
 # שורת הסבר ריקה בכלי לא נשארת כחור - גם כשהיא ריקה כבר כשהחלון נבנה (GIF של קטע קצר; עד 0.8.40 הבדיקה קראה Visible, שלפני

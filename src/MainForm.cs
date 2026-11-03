@@ -3418,6 +3418,19 @@ namespace SubtitleStudio
         private bool OfferTidyBeforeBurn()
         {
             if (Silent) return true;
+            // **שורות בלי תזמון** (0.8.42): הזמנים שלהן הערכה לפי האורך. עד כאן הן נצרבו בשקט - מי שייבא טקסט עם ״לתזמן אחר כך״ ושכח,
+            // קיבל סרט שבו הכתוביות לא כשאומרים אותן. היציאה כבר שומרת אותן כפרויקט (״project-new״) - כאן הן נצרבות
+            int untimed = UntimedCount();
+            if (untimed > 0)
+            {
+                string ask = untimed == 1
+                    ? Lang.T("שורה אחת עוד לא תוזמנה. הזמן שלה הוא הערכה, והיא תופיע בסרט לא בדיוק כשאומרים אותה.")
+                    : Lang.F("{0} שורות עוד לא תוזמנו. הזמנים שלהן הערכה, והן יופיעו בסרט לא בדיוק כשאומרים אותן.", Theme.Ltr(untimed.ToString(CultureInfo.InvariantCulture)));
+                int t = Ui.Msg(this, Lang.T("לתזמן לפני שיוצרים את הסרט?"), ask, Ico.Question,
+                    Lang.T("לתזמן בלחיצה"), Lang.T("להמשיך בכל זאת"), Lang.T("ביטול"));
+                if (t == 0) { StartTapping(); return false; }
+                if (t != 1) return false;
+            }
             // מילים שהמודל לא היה בטוח בהן: אחרי הצריבה אי אפשר לתקן, וזה בדיוק הרגע להקשיב. עד
             // 0.8.4 ההצעה כאן דיברה רק על קריאוּת, ושם שהוחלף (״רק בית Open AI״) נצרב בלי שמישהו שם לב
             List<Issue> unsure = new List<Issue>();

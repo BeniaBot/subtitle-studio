@@ -1925,3 +1925,7 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 תתורגם כתובית אחת לקובץ חדש. הכתוביות כאן לא ישתנו.	One subtitle will be translated into a new file. The subtitles here will not change.
 תיווצר כתובית אחת  ·  {0}\r\n״{1}״	One subtitle will be made  ·  {0}\r\n“{1}”
 נוסף אזור פנים אחד, והוא זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.	Added one face area, moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.
+לתזמן בלחיצה	Click to time
+לתזמן לפני שיוצרים את הסרט?	Time them before making the video?
+שורה אחת עוד לא תוזמנה. הזמן שלה הוא הערכה, והיא תופיע בסרט לא בדיוק כשאומרים אותה.	One line isn't timed yet. Its time is a guess, and it will show in the video not exactly when it is said.
+{0} שורות עוד לא תוזמנו. הזמנים שלהן הערכה, והן יופיעו בסרט לא בדיוק כשאומרים אותן.	{0} lines aren't timed yet. Their times are a guess, and they will show in the video not exactly when they are said.
