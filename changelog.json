@@ -2,6 +2,27 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.42",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "t": "fix",
+          "s": "שורות שעוד לא תוזמנו (טקסט שיובא ״לתזמן אחר כך״) כבר לא הולכות לאיבוד: ״שמירה״ שומרת אותן בפרויקט (עד עכשיו נכתב קובץ כתוביות, והסימון נעלם בשקט), וחיתוך לא מוחק אותן כשהזמן המשוער שלהן נופל בחלק שהוסר",
+          "en": "Lines that aren't timed yet (text imported to \"time later\") are no longer lost: \"Save\" keeps them in a project (until now a subtitle file was written and the mark disappeared silently), and cutting doesn't delete them when their guessed time falls in a removed part"
+        },
+        {
+          "t": "feature",
+          "s": "לפני יצירת הסרט: כשיש שורות שעוד לא תוזמנו, התוכנה שואלת ומציעה ״לתזמן בלחיצה״. עד עכשיו הן נצרבו בזמנים משוערים, לא כשאומרים אותן",
+          "en": "Before making the video: when some lines aren't timed yet, you're asked and offered \"click to time\". Until now they were burned at guessed times, not when they are said"
+        },
+        {
+          "t": "fix",
+          "s": "״כתובית אחת״, ״נוספה מילה אחת״, ״נוצרה כתובית אחת״ - במקום ״1 כתוביות״ ו״נוספו 1 מילים״, ב-12 הודעות (גם באנגלית)",
+          "en": "\"One subtitle\", \"one word was added\" - instead of \"1 subtitles\" and \"1 words were added\", in 12 messages"
+        }
+      ]
+    },
+    {
       "v": "0.8.41",
       "date": "2026-11-01",
       "items": [
