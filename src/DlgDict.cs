@@ -129,7 +129,7 @@ namespace SubtitleStudio
             Reload(words[words.Count - 1]);
             if (added == 0) Say(words.Count == 1 ? Lang.F("״{0}״ כבר במילון.", words[0]) : Lang.T("כל המילים האלה כבר במילון."));
             else if (words.Count == 1) Say(Lang.F("״{0}״ נוספה. מעכשיו היא לא תסומן כשגיאה.", words[0]));
-            else Say(Lang.F("נוספו {0} מילים.", Theme.Ltr(added.ToString())));
+            else Say(added == 1 ? Lang.T("נוספה מילה אחת.") : Lang.F("נוספו {0} מילים.", Theme.Ltr(added.ToString())));
             _field.Box.Focus();
         }
 
@@ -174,7 +174,7 @@ namespace SubtitleStudio
                 if (added == 0 && already == 0) Say(Lang.T("לא נמצאו בקובץ מילים בעברית."));
                 else if (added == 0) Say(Lang.T("כל המילים שבקובץ כבר במילון."));
                 else Say(already > 0 ? Lang.F("נוספו {0} מילים ({1} כבר היו).", Theme.Ltr(added.ToString()), Theme.Ltr(already.ToString()))
-                                     : Lang.F("נוספו {0} מילים.", Theme.Ltr(added.ToString())));
+                                     : added == 1 ? Lang.T("נוספה מילה אחת.") : Lang.F("נוספו {0} מילים.", Theme.Ltr(added.ToString())));
             }
             catch (Exception ex) { Ui.Error(this, Lang.T("הייבוא נכשל"), ErrorText.Of(ex)); }
         }

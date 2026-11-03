@@ -146,7 +146,8 @@ namespace SubtitleStudio
                         : kind == "project-zones"
                             ? Lang.T("יש אזורי טשטוש שלא נשמרו. קובץ כתוביות לא שומר אותם - העבודה תישמר כפרויקט.")
                         : kind == "project-new"
-                            ? Lang.F("יש {0} שורות שעוד לא תוזמנו. כדי שאפשר יהיה להמשיך לתזמן אותן אחר כך, העבודה תישמר כפרויקט.", UntimedCount())
+                            ? (UntimedCount() == 1 ? Lang.T("יש שורה אחת שעוד לא תוזמנה. כדי שאפשר יהיה להמשיך לתזמן אותה אחר כך, העבודה תישמר כפרויקט.")
+                                : Lang.F("יש {0} שורות שעוד לא תוזמנו. כדי שאפשר יהיה להמשיך לתזמן אותן אחר כך, העבודה תישמר כפרויקט.", UntimedCount()))
                             : Lang.T("לשמור את קובץ הכתוביות לפני היציאה?");
                     int r = Ui.Msg(this, Lang.T("יש שינויים שלא נשמרו"), body, Ico.Question,
                         kind.StartsWith("project-") ? Lang.T("לשמור כפרויקט") : Lang.T("לשמור"), Lang.T("לצאת בלי לשמור"), Lang.T("ביטול"));
@@ -2343,10 +2344,10 @@ namespace SubtitleStudio
             }
             // **רקע רועש** (0.8.24): בסרטון עם מוזיקת רקע התזמון נסחף בשניות; עם עוגן כל ~20 משפטים - עשירית שנייה (נמדד 20.10)
             if (r.Noisy)
-                Ui.Info(this, Lang.F("תוזמנו {0} כתוביות - בקירוב", r.Timed),
+                Ui.Info(this, r.Timed == 1 ? Lang.T("תוזמנה כתובית אחת - בקירוב") : Lang.F("תוזמנו {0} כתוביות - בקירוב", r.Timed),
                     Lang.T("בקול יש מוזיקה או רעש רקע כמעט בלי הפסקות, ולכן כאן הזמנים פחות מדויקים.\r\nכדי לדייק: מבטלים (Ctrl+Z), עוברים למצב תזמון ולוחצים Enter על משפט אחד מכל 20 בערך, ואז ״לתזמן לבד״ - כל השאר יתוזמנו סביבם."));
             else
-                Ui.Info(this, Lang.F("תוזמנו {0} כתוביות", r.Timed),
+                Ui.Info(this, r.Timed == 1 ? Lang.T("תוזמנה כתובית אחת") : Lang.F("תוזמנו {0} כתוביות", r.Timed),
                     Lang.T("הזמנים נקבעו לפי השתיקות בסרט. כדאי לעבור ולבדוק - אם הטקסט לא תואם בדיוק את מה שנאמר, כתובית יכולה לזוז משפט אחד.\r\nאפשר לבטל ב-Ctrl+Z."));
         }
 
@@ -2478,7 +2479,7 @@ namespace SubtitleStudio
                     Lang.F("נמצאו {0} מעברי סצנה, וכל הכתוביות כבר מסודרות ביחס אליהם.\r\n{1}", _cuts.Count, lines));
                 return;
             }
-            Ui.Info(this, Lang.F("הוצמדו {0} כתוביות", r.Cues),
+            Ui.Info(this, r.Cues == 1 ? Lang.T("הוצמדה כתובית אחת") : Lang.F("הוצמדו {0} כתוביות", r.Cues),
                 Lang.F("נמצאו {0} מעברי סצנה. כתוביות שהתחילו או נגמרו עד חצי שנייה ממעבר - הוזזו אליו.\r\n{1}\r\nאפשר לבטל ב-Ctrl+Z.", _cuts.Count, lines));
         }
 
@@ -3224,9 +3225,11 @@ namespace SubtitleStudio
             _doc.RaiseChanged();
             SyncAfterDocChange();
 
+            bool oneCue = fresh.Cues.Count == 1;
             string msg = to > from
-                ? Lang.F("נוצרו {0} כתוביות בקטע {1}.", Theme.Ltr(fresh.Cues.Count.ToString()), Theme.Ltr(Tc.Short(from) + " – " + Tc.Short(to)))
-                : Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString()));
+                ? (oneCue ? Lang.F("נוצרה כתובית אחת בקטע {0}.", Theme.Ltr(Tc.Short(from) + " – " + Tc.Short(to)))
+                          : Lang.F("נוצרו {0} כתוביות בקטע {1}.", Theme.Ltr(fresh.Cues.Count.ToString()), Theme.Ltr(Tc.Short(from) + " – " + Tc.Short(to))))
+                : (oneCue ? Lang.T("נוצרה כתובית אחת.") : Lang.F("נוצרו {0} כתוביות.", Theme.Ltr(fresh.Cues.Count.ToString())));
             if (res.Canceled) msg = Lang.F("נעצר. {0}", msg);
             if (silent > 0) msg += Lang.F(" ({0} משפטים ״שנשמעו״ בשקט מוחלט הושמטו.)", Theme.Ltr(silent.ToString()));
             if (res.Proofread > 0) msg += Lang.F(" ({0} שמות ומילים שנשמעו לא נכון תוקנו.)", Theme.Ltr(res.Proofread.ToString()));
@@ -3387,7 +3390,7 @@ namespace SubtitleStudio
                 // הגיבוי האוטומטי ישן מהשמירה. אם הוא נשאר וקרתה קריסה, ההפעלה
                 // הבאה הייתה מציעה ״לשחזר״ גרסה ישנה מזו שנשמרה.
                 ClearAutoSave();
-                _hintLbl.Text = Lang.F("הכתוביות נשמרו:  {0}\u200F{1}", Theme.FileName(Path.GetFileName(path)), keptNote + (blanks > 0 ? Lang.F("   (הושמטו {0} כתוביות בלי טקסט)", blanks) : ""));
+                _hintLbl.Text = Lang.F("הכתוביות נשמרו:  {0}\u200F{1}", Theme.FileName(Path.GetFileName(path)), keptNote + (blanks == 1 ? Lang.T("   (הושמטה כתובית אחת בלי טקסט)") : blanks > 0 ? Lang.F("   (הושמטו {0} כתוביות בלי טקסט)", blanks) : ""));
                 _hintLbl.Invalidate();
                 return true;
             }

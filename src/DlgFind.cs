@@ -28,7 +28,7 @@ namespace SubtitleStudio
 
         public FindDlg(string initial, int total) : base(Lang.T("חיפוש בכתוביות"), Ico.Search, 460)
         {
-            Subtitle = Lang.F("{0} כתוביות", total);
+            Subtitle = total == 1 ? Lang.T("כתובית אחת") : Lang.F("{0} כתוביות", total);
 
             _term = new Field();
             _term.Placeholder = Lang.T("מה לחפש?");

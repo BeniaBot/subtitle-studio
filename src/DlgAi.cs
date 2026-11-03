@@ -292,8 +292,8 @@ namespace SubtitleStudio
             foreach (Cue c in _doc.Cues) if (!_range.Checked || (c.Start >= _a && c.Start < _b)) count++;
             string n = Theme.Ltr(count.ToString());
             _info.Text = _mode.SelectedIndex == 0
-                ? Lang.F("יתורגמו {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", n)
-                : Lang.F("יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.", n);
+                ? (count == 1 ? Lang.T("תתורגם כתובית אחת. אפשר לבטל אחר כך ב-Ctrl+Z.") : Lang.F("יתורגמו {0} כתוביות. אפשר לבטל אחר כך ב-Ctrl+Z.", n))
+                : (count == 1 ? Lang.T("תתורגם כתובית אחת לקובץ חדש. הכתוביות כאן לא ישתנו.") : Lang.F("יתורגמו {0} כתוביות לקובץ חדש. הכתוביות כאן לא ישתנו.", n));
             _info.Invalidate();
         }
 

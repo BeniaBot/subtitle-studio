@@ -434,7 +434,7 @@ namespace SubtitleStudio
         {
             _main = main; _doc = doc; _mi = mi; _style = style;
             _inMs = inMs; _outMs = outMs;
-            Subtitle = Lang.F("{0} כתוביות · {1}", doc.Cues.Count, (mi != null ? mi.Summary() : ""));
+            Subtitle = (doc.Cues.Count == 1 ? Lang.T("כתובית אחת") : Lang.F("{0} כתוביות", doc.Cues.Count)) + " · " + (mi != null ? mi.Summary() : "");
 
             Section(Lang.T("איך להטמיע?"));
             _modeBurn = new Btn();

@@ -355,7 +355,8 @@ namespace SubtitleStudio
             else how = Lang.T("כתובית לכל שורה");
             string first = cues[0].PlainText.Replace("\n", " ");
             if (first.Length > 44) first = first.Substring(0, 42) + "…";
-            _preview.Text = Lang.F("ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״", Theme.Ltr(cues.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)), how, first);
+            _preview.Text = cues.Count == 1 ? Lang.F("תיווצר כתובית אחת  ·  {0}\r\n״{1}״", how, first)
+                : Lang.F("ייווצרו {0} כתוביות  ·  {1}\r\nהראשונה: ״{2}״", Theme.Ltr(cues.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)), how, first);
             _preview.Invalidate();
         }
 

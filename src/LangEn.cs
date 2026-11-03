@@ -1848,6 +1848,18 @@ namespace SubtitleStudio
             "הם במקום {0} אזורי הפנים מהחיפוש הקודם בקטע הזה (Ctrl+Z מחזיר).", "They replace the {0} face areas from the previous search in this part (Ctrl+Z brings them back).",
             " · עוד כ-{0} דקות", " · about {0} minutes left",
             " · עוד כ-{0} שניות", " · about {0} seconds left",
+            "נוספה מילה אחת.", "One word was added.",
+            "יש שורה אחת שעוד לא תוזמנה. כדי שאפשר יהיה להמשיך לתזמן אותה אחר כך, העבודה תישמר כפרויקט.", "There is one line that isn't timed yet. So you can go on timing it later, the work will be saved as a project.",
+            "תוזמנה כתובית אחת - בקירוב", "One subtitle timed - roughly",
+            "תוזמנה כתובית אחת", "Timed one subtitle",
+            "הוצמדה כתובית אחת", "Snapped one subtitle",
+            "נוצרה כתובית אחת בקטע {0}.", "One subtitle was created in the section {0}.",
+            "נוצרה כתובית אחת.", "Made one subtitle.",
+            "   (הושמטה כתובית אחת בלי טקסט)", "   (one subtitle without text was left out)",
+            "תתורגם כתובית אחת. אפשר לבטל אחר כך ב-Ctrl+Z.", "One subtitle will be translated. You can undo it later with Ctrl+Z.",
+            "תתורגם כתובית אחת לקובץ חדש. הכתוביות כאן לא ישתנו.", "One subtitle will be translated into a new file. The subtitles here will not change.",
+            "תיווצר כתובית אחת  ·  {0}\r\n״{1}״", "One subtitle will be made  ·  {0}\r\n“{1}”",
+            "נוסף אזור פנים אחד, והוא זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", "Added one face area, moving with its face. Go over the video to make sure none was missed: a face detector sometimes misses small faces, faces in profile or in the dark - mark those by hand.",
         };
 
         public static void Fill(Dictionary<string, string> d)
