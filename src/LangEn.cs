@@ -1882,6 +1882,8 @@ namespace SubtitleStudio
             "מתי האזור מפסיק להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:45.000. ריק - עד סוף הסרט", "When the area stops being hidden. You can type an exact time, for example 1:45.000. Empty - to the end of the video",
             "ההתחלה צריכה להיות לפני הסוף.", "The start has to be before the end.",
             "הסוף צריך להיות אחרי ההתחלה.", "The end has to be after the start.",
+            "יצירת סרט עם טשטוש", "Make a video with blur",
+            "צורב את הטשטוש בסרט", "Burning the blur into the video",
         };
 
         public static void Fill(Dictionary<string, string> d)

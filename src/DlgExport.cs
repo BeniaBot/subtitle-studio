@@ -430,13 +430,18 @@ namespace SubtitleStudio
         internal bool Down1080 { get { return _burn && _big && _down.Checked; } }
 
         public ExportVideoDlg(MainForm main, Doc doc, MediaInfo mi, SubStyle style, long inMs, long outMs)
-            : base(Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
+            : base(doc != null && doc.Cues.Count == 0 ? Lang.T("יצירת סרט עם טשטוש") : Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
         {
             _main = main; _doc = doc; _mi = mi; _style = style;
             _inMs = inMs; _outMs = outMs;
-            Subtitle = (doc.Cues.Count == 1 ? Lang.T("כתובית אחת") : Lang.F("{0} כתוביות", doc.Cues.Count)) + " · " + (mi != null ? mi.Summary() : "");
+            // **רק טשטוש, בלי כתוביות** (0.8.44) - החלון לא מדבר על כתוביות: בלי ״0 כתוביות״, ובלי הבחירה בין צריבה לערוץ נפרד (אין מה
+            // לשים בערוץ; הטשטוש תמיד נצרב). בנימין: ״למה לכפתור קוראים 'יצירת סרט עם כתוביות'? הרי יש עוד פעולות כמו צנזור״ - ומשתמש
+            // שלח צילום של החלון הזה עם ״הטמעת הכתוביות בסרט · 0 כתוביות״
+            bool blurOnly = doc.Cues.Count == 0;
+            Subtitle = blurOnly ? (mi != null ? mi.Summary() : "")
+                : (doc.Cues.Count == 1 ? Lang.T("כתובית אחת") : Lang.F("{0} כתוביות", doc.Cues.Count)) + " · " + (mi != null ? mi.Summary() : "");
 
-            Section(Lang.T("איך להטמיע?"));
+            if (!blurOnly) Section(Lang.T("איך להטמיע?"));
             _modeBurn = new Btn();
             _modeBurn.Text = Lang.T("צריבה בתמונה");
             _modeBurn.Sub = Lang.T("הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון");
@@ -446,7 +451,7 @@ namespace SubtitleStudio
             _modeBurn.Checkable = false;
             _modeBurn.Checked = true;
             _modeBurn.Click += delegate { SetMode(true); };
-            Row(_modeBurn, 56, 8);
+            if (!blurOnly) Row(_modeBurn, 56, 8);
 
             _modeSoft = new Btn();
             _modeSoft.Text = Lang.T("ערוץ כתוביות נפרד");
@@ -455,7 +460,7 @@ namespace SubtitleStudio
             _modeSoft.Kind = BtnKind.Subtle;
             _modeSoft.Radio = true;
             _modeSoft.Click += delegate { SetMode(false); };
-            Row(_modeSoft, 56, 16);
+            if (!blurOnly) Row(_modeSoft, 56, 16);
 
             Section(Lang.T("קובץ היעד"));
             string sug = SuggestPath(true);
@@ -505,7 +510,7 @@ namespace SubtitleStudio
             Row(_note, 34, 4);
             UpdateNote();
 
-            Buttons(Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
+            Buttons(blurOnly ? Lang.T("יצירת הסרט") : Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
             SetMode(true);
         }
 
@@ -655,7 +660,7 @@ namespace SubtitleStudio
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                job.Title = Lang.T("צורב כתוביות בווידאו");
+                job.Title = cues.Count == 0 ? Lang.T("צורב את הטשטוש בסרט") : Lang.T("צורב כתוביות בווידאו");
             }
             else
             {

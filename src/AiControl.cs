@@ -182,7 +182,8 @@ namespace SubtitleStudio
             Bar(list, Lang.T("פתיחה"), Lang.T("פתיחת סרט, קובץ קול או כתוביות (Ctrl+O)"), AiPerms.Files, true, delegate { OpenAnyDialog(); });
             Bar(list, Lang.T("שמירה"), Lang.T("שמירת הכתוביות (Ctrl+S)"), AiPerms.Files, cues, delegate { SaveSubtitles(false); });
             Bar(list, Lang.T("שמירה בשם"), Lang.T("שמירת הכתוביות לקובץ חדש, בפורמט לבחירה (Ctrl+Shift+S)"), AiPerms.Files, cues, delegate { SaveSubtitles(true); });
-            Bar(list, Lang.T("יצירת סרט עם כתוביות"), Lang.T("צריבה בתמונה או ערוץ כתוביות נפרד (F5)"), AiPerms.Media, media && cues, delegate { ExportVideo(); });
+            // זמין גם כשיש רק אזורי טשטוש בלי כתוביות (0.8.44; עד כאן הפקודה הייתה כבויה לעוזר, כשהכפתור עצמו עבד). השם לעוזר נשאר קבוע
+            Bar(list, Lang.T("יצירת סרט עם כתוביות"), Lang.T("צריבה בתמונה או ערוץ כתוביות נפרד (F5)"), AiPerms.Media, media && (cues || HasZones), delegate { ExportVideo(); });
             Bar(list, Lang.T("ביטול"), Lang.T("ביטול הפעולה האחרונה (Ctrl+Z)"), AiPerms.Edit, _doc.CanUndo, delegate { _doc.Undo(); SyncAfterDocChange(); });
             Bar(list, Lang.T("חזרה"), Lang.T("ביצוע מחדש של מה שבוטל (Ctrl+Y)"), AiPerms.Edit, _doc.CanRedo, delegate { _doc.Redo(); SyncAfterDocChange(); });
             Bar(list, Lang.T("כתובית חדשה כאן"), Lang.T("כתובית ריקה במקום שבו הנגן עומד (Insert)"), AiPerms.Edit, true, delegate { NewCueAtPlayhead(); });

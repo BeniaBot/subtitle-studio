@@ -1590,10 +1590,11 @@ namespace SubtitleStudio
             foreach (Btn b in _toolbarBtns) menusPart += b.Width + S(8);
 
             // ברוחב שהתווית צריכה: ״Make a video with subtitles״ נחתך ב-214, שנמדד לעברית
-            int wide = Math.Max(S(214), BtnWidthFor(Lang.T("יצירת סרט עם כתוביות"), _exportBtn));
+            int wide = Math.Max(S(214), Math.Max(BtnWidthFor(Lang.T("יצירת סרט עם כתוביות"), _exportBtn), BtnWidthFor(Lang.T("יצירת סרט עם טשטוש"), _exportBtn)));
             int narrow = Math.Max(S(150), BtnWidthFor(Lang.T("יצירת הסרט"), _exportBtn));
             bool shortLabel = fixedPart + menusPart + wide > W;
-            _exportBtn.Text = shortLabel ? Lang.T("יצירת הסרט") : Lang.T("יצירת סרט עם כתוביות");
+            _exportShort = shortLabel;
+            _exportBtn.Text = ExportLabel();
             _exportBtn.Width = shortLabel ? narrow : wide;
 
             // סדר ויתור על תוויות: שמירה (דיסקט מובן), פתיחה (תיקייה מובנת),
@@ -1911,6 +1912,7 @@ namespace SubtitleStudio
         private void OnTick()
         {
             if (IsDisposed || Disposing) return;
+            UpdateExportLabel();
             Bitmap f = _engine.Tick();
             if (f != null) _video.SetFrame(f);
             if (f != null && FrameShown != null) FrameShown(f);
@@ -2029,8 +2031,31 @@ namespace SubtitleStudio
             if (_hero != null) { _hero.Recent = Settings.Recent; _hero.Invalidate(); }
         }
 
+        private bool _exportShort;
+
+        /// <summary>יש אזורי טשטוש ואין אף כתובית - הכפתור הירוק יוצר סרט עם טשטוש בלבד.</summary>
+        internal bool OnlyBlur { get { return _doc != null && _doc.Cues.Count == 0 && HasZones; } }
+
+        /// <summary>**מה שכתוב על הכפתור הירוק** (0.8.44). בנימין: ״למה לכפתור קוראים 'יצירת סרט עם כתוביות'? הרי יש עוד פעולות כמו צנזור״.
+        /// חיתוך והכלים שומרים קובץ משלהם, מהחלון שלהם; הכפתור הזה מכניס לסרט את הכתוביות - ומאז 0.8.35 גם את אזורי הטשטוש, אפילו בלי
+        /// אף כתובית. לכן: רק טשטוש - ״יצירת סרט עם טשטוש״ (וגם החלון שנפתח לא מדבר על כתוביות); חלון צר - ״יצירת הסרט״.</summary>
+        internal string ExportLabel()
+        {
+            if (_exportShort) return Lang.T("יצירת הסרט");
+            return OnlyBlur ? Lang.T("יצירת סרט עם טשטוש") : Lang.T("יצירת סרט עם כתוביות");
+        }
+
+        /// <summary>התווית מתעדכנת כשהמצב משתנה (כתובית ראשונה, אזור ראשון) - מהשעון, כי אזורים נוספים מכמה מקומות (החלון, העוזר, פרויקט).</summary>
+        private void UpdateExportLabel()
+        {
+            if (_exportBtn == null) return;
+            string t = ExportLabel();
+            if (_exportBtn.Text != t) { _exportBtn.Text = t; _exportBtn.Invalidate(); }
+        }
+
         private void UpdateSteps()
         {
+            UpdateExportLabel();
             if (_listCard == null) return;
             _listCard.Caption = _doc.Cues.Count > 0 ? Lang.F("הכתוביות שלי  ·  {0}", _doc.Cues.Count) : Lang.T("הכתוביות שלי");
             _listCard.Invalidate();
