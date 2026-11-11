@@ -1871,6 +1871,17 @@ namespace SubtitleStudio
             "הפרטים הועתקו. אפשר להדביק אותם בהודעה (Ctrl+V)", "The details were copied. You can paste them into a message (Ctrl+V)",
             "הקובץ {0} כבר לא נמצא (נמחק או הועבר)", "The file {0} is no longer there (deleted or moved)",
             "הקובץ {0} הועתק. אפשר להדביק אותו (Ctrl+V) בתיקייה, בהודעה או במייל", "The file {0} was copied. You can paste it (Ctrl+V) into a folder, a message or an email",
+            "פריים אחד אחורה (המקש ,)", "One frame back (the , key)",
+            "פריים אחד קדימה (המקש .)", "One frame forward (the . key)",
+            "המיקום בסרט. אפשר להקליד זמן מדויק - למשל 1:23.45 - והנגן עובר לשם", "The position in the video. You can type an exact time - for example 1:23.45 - and the player goes there",
+            "התרחקות בפס הזמן", "Zoom out on the time bar",
+            "התקרבות בפס הזמן - לדיוק (גם גלגלת העכבר מעל הפס)", "Zoom in on the time bar - for precision (also the mouse wheel over the bar)",
+            "מההתחלה", "from the start",
+            "עד הסוף", "to the end",
+            "מתי האזור מתחיל להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:23.450. ריק - מתחילת הסרט", "When the area starts being hidden. You can type an exact time, for example 1:23.450. Empty - from the start of the video",
+            "מתי האזור מפסיק להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:45.000. ריק - עד סוף הסרט", "When the area stops being hidden. You can type an exact time, for example 1:45.000. Empty - to the end of the video",
+            "ההתחלה צריכה להיות לפני הסוף.", "The start has to be before the end.",
+            "הסוף צריך להיות אחרי ההתחלה.", "The end has to be after the start.",
         };
 
         public static void Fill(Dictionary<string, string> d)

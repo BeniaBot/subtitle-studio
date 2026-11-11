@@ -20,6 +20,11 @@ namespace SubtitleStudio
         private readonly ZoneTimeBar _bar;
         private readonly ZoneList _list;
         private readonly Btn _play, _markIn, _markOut, _whole;
+        // כלים לדיוק (0.8.44): פריים אחורה/קדימה, מהירות, זום בפס, והקלדה של המיקום ושל ההתחלה והסוף
+        private readonly Btn _prevF, _nextF, _speed, _zoomIn, _zoomOut;
+        private readonly Field _posF, _fromF, _toF;
+        private SpeedPicker _speedPick;
+        private bool _typedPushed;
         private readonly Lbl _clock, _zoneTitle, _when, _none, _pctCap;
         private readonly Combo _look, _shape;
         private readonly Slider _pct;
@@ -56,7 +61,8 @@ namespace SubtitleStudio
             _canvas.Style = _work;
             _canvas.Zones = _work.Zones;
             if (mi != null && mi.Width > 0) { _canvas.AspectW = mi.Width; _canvas.AspectH = mi.Height; }
-            _canvas.SetBounds(Pad, y, W, Theme.S(290));
+            // 262 ולא 290 (0.8.44): שורת הכלים של הנגן נוספה מתחת, והחלון חייב להיכנס ל-1080p ב-150% (test-screens)
+            _canvas.SetBounds(Pad, y, W, Theme.S(262));
             _canvas.CreateZone += delegate (RectangleF a) { AddZone(a); };
             _canvas.EditStarting += delegate { Push("drag"); };
             _canvas.Edited += delegate { _changed = true; RefreshAll(); };
@@ -65,25 +71,59 @@ namespace SubtitleStudio
             Controls.Add(_canvas);
             y = _canvas.Bottom + s8;
 
-            // ---- הנגן: ▶, שעון, פס זמן (המידות בעברית: ▶ מימין) ----
-            int rowH = Theme.S(36);
+            // ---- הנגן (0.8.44): שורת כלים - ▶, פריים אחורה וקדימה, המיקום (אפשר להקליד), מהירות, זום - ומתחתיה פס הזמן ברוחב מלא.
+            // בנימין: ״הייתי צריך לגרור את הזמן בצורה ממש לא נוחה. לא היה אפשר לקבוע בדיוק דברים, לא היה אפשר לדייק על ידי הרצת הווידאו
+            // מאוד מאוד לאט או מהר״. עד כאן: ▶, שעון בעשיריות, ופס זמן צר באותה שורה. (המידות בעברית: ▶ מימין)
+            int rowH = Theme.S(36), s4 = Theme.S(4), sq = Theme.S(32);
             _play = new Btn(); _play.Icon = Ico.Play; _play.IconOnly = true; _play.Kind = BtnKind.Primary; _play.IconSize = Theme.S(15);
             _play.SetBounds(Pad + W - rowH, y, rowH, rowH);
             _play.Click += delegate { TogglePlay(); };
             Ui.Tip.SetToolTip(_play, Lang.T("ניגון ועצירה (רווח)"));
             Controls.Add(_play);
+            // ״אחורה״ תמיד משמאל ל״קדימה״, כמו הזמן בפס - גם באנגלית, שם החלון משקף את המידות
+            _prevF = PlayerBtn(Ico.StepBack, Lang.T("פריים אחד אחורה (המקש ,)"));
+            _nextF = PlayerBtn(Ico.StepFwd, Lang.T("פריים אחד קדימה (המקש .)"));
+            Btn nearPlay = Lang.Rtl ? _nextF : _prevF, far = Lang.Rtl ? _prevF : _nextF;
+            nearPlay.SetBounds(_play.Left - s8 - sq, y + s4 / 2, sq, rowH - s4);
+            far.SetBounds(nearPlay.Left - s4 - sq, y + s4 / 2, sq, rowH - s4);
+            _prevF.Click += delegate { StepFrame(-1); };
+            _nextF.Click += delegate { StepFrame(1); };
+            // המיקום: שדה שאפשר להקליד בו זמן מדויק, ואחריו ״/ האורך״
+            _posF = new Field(); _posF.Ltr = true; _posF.Box.TextAlign = HorizontalAlignment.Center; _posF.Box.Font = Theme.UiBold;
+            int posW = Theme.S(108);
+            _posF.SetBounds(far.Left - s10 - posW, y + Theme.S(1), posW, rowH - Theme.S(2));
+            Ui.Tip.SetToolTip(_posF.Box, Lang.T("המיקום בסרט. אפשר להקליד זמן מדויק - למשל 1:23.45 - והנגן עובר לשם"));
+            Controls.Add(_posF);
+            WirePosition();
             _clock = new Lbl(); _clock.Font = Theme.UiBold; _clock.Numeric = true; _clock.Color = Theme.TextDim;
-            int clockW = TextRenderer.MeasureText(Theme.Ltr("00:00:00.0 / 00:00:00.0"), _clock.Font).Width + Theme.S(8);
-            _clock.SetBounds(_play.Left - s10 - clockW, y, clockW, rowH);
+            int clockW = TextRenderer.MeasureText(Theme.Ltr("/ 00:00:00.00"), _clock.Font).Width + Theme.S(8);
+            _clock.SetBounds(_posF.Left - s4 - clockW, y, clockW, rowH);
             Controls.Add(_clock);
+            // בצד השני: זום לפס הזמן, ומהירות (אותו נגן כמו בחלון הראשי - כמו בחלון החיתוך)
+            _zoomOut = PlayerBtn(Ico.ZoomOut, Lang.T("התרחקות בפס הזמן"));
+            _zoomIn = PlayerBtn(Ico.ZoomIn, Lang.T("התקרבות בפס הזמן - לדיוק (גם גלגלת העכבר מעל הפס)"));
+            _zoomOut.SetBounds(Pad, y + s4 / 2, sq, rowH - s4);
+            _zoomIn.SetBounds(_zoomOut.Right + s4, y + s4 / 2, sq, rowH - s4);
+            _zoomOut.Click += delegate { _bar.ZoomAt(2, _pos); };
+            _zoomIn.Click += delegate { _bar.ZoomAt(0.5, _pos); };
+            _speed = new Btn(); _speed.Icon = Ico.Gauge; _speed.Kind = BtnKind.Tool; _speed.Menu = true; _speed.Font = Theme.Small;
+            _speed.Text = SpeedPicker.Text(3.85);
+            int spW = Math.Max(Theme.S(84), _speed.NeedWidth());
+            _speed.SetBounds(_zoomIn.Right + s10, y + s4 / 2, spW, rowH - s4);
+            _speed.Click += delegate { ShowSpeed(); };
+            Ui.Tip.SetToolTip(_speed, Lang.T("מהירות ההשמעה (גם גלגלת). לא משנה את הקובץ, רק את ההשמעה כאן"));
+            Controls.Add(_speed);
+            SyncSpeed();
+            y += rowH + Theme.S(6);
+
             _bar = new ZoneTimeBar();
             _bar.Duration = Math.Max(1, mi != null ? mi.DurationMs : 1);
             _bar.Zones = _work.Zones;
-            _bar.SetBounds(Pad, y, _clock.Left - s10 - Pad, rowH);
+            _bar.SetBounds(Pad, y, W, Theme.S(40));
             _bar.SeekTo += delegate (long t) { Seek(t); };
             Ui.Tip.SetToolTip(_bar, Lang.T("לחיצה או גרירה - הנגן עובר לשם. הפסים הצבעוניים - מתי כל אזור מוסתר"));
             Controls.Add(_bar);
-            y += rowH + Theme.S(14);
+            y += Theme.S(40) + Theme.S(14);
 
             // ---- למטה: רשימת האזורים (מימין), והאזור שנבחר (משמאל) ----
             int listW = Theme.S(290), gap = Theme.S(20);
@@ -100,18 +140,29 @@ namespace SubtitleStudio
             _list.MenuFor += delegate (int i, Point p) { ShowMenu(i, p); };
             Controls.Add(_list);
 
+            // ״כל הסרט״ - בקצה של שורת הכותרת (0.8.44: המקום שלו בשורה שמתחת עבר לשדות הזמן)
+            int wx = Pad + Theme.S(92);
+            _whole = SmallBtn(Lang.T("כל הסרט"), Lang.T("האזור מוסתר מההתחלה ועד הסוף"), ref wx, y - Theme.S(5), Theme.S(28));
+            _whole.Left = Pad;
             _zoneTitle = Label("", true, Theme.Text);
-            _zoneTitle.SetBounds(Pad, y, colW, Theme.S(20));
+            _zoneTitle.SetBounds(_whole.Right + s8, y, colW - _whole.Width - s8, Theme.S(20));
             Controls.Add(_zoneTitle);
             _when = Label("", false, Theme.TextDim);
             _when.Font = Theme.Small;
             _when.SetBounds(Pad, y + Theme.S(22), colW, Theme.S(20));
             Controls.Add(_when);
-            // ״התחלה כאן״ / ״סוף כאן״ / ״כל הסרט״ - מימין לשמאל, מהקצה של העמודה
-            int bx = Pad + colW, bh = Theme.S(32), by = y + Theme.S(46);
+            // ״התחלה כאן״ ושדה, ״סוף כאן״ ושדה - מימין לשמאל, מהקצה של העמודה. **בשדה אפשר להקליד זמן מדויק** (0.8.44; עד כאן רק
+            // ״כאן״ לפי הנגן, ברזולוציה של הגרירה): משפיע תוך כדי הקלדה, Esc מחזיר, ריק = פתוח (מההתחלה / עד הסוף)
+            int bx = Pad + colW, bh = Theme.S(32), by = y + Theme.S(46), fw = Theme.S(92);
             _markIn = SmallBtn(Lang.T("התחלה כאן"), Lang.T("האזור מתחיל איפה שהנגן עומד (המקש I)"), ref bx, by, bh);
+            _fromF = TimeField(Lang.T("מההתחלה"), Lang.T("מתי האזור מתחיל להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:23.450. ריק - מתחילת הסרט"));
+            _fromF.SetBounds(bx + s4 - fw, by, fw, bh);
+            bx = _fromF.Left - Theme.S(12);
             _markOut = SmallBtn(Lang.T("סוף כאן"), Lang.T("האזור נגמר איפה שהנגן עומד (המקש O)"), ref bx, by, bh);
-            _whole = SmallBtn(Lang.T("כל הסרט"), Lang.T("האזור מוסתר מההתחלה ועד הסוף"), ref bx, by, bh);
+            _toF = TimeField(Lang.T("עד הסוף"), Lang.T("מתי האזור מפסיק להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:45.000. ריק - עד סוף הסרט"));
+            _toF.SetBounds(bx + s4 - fw, by, fw, bh);
+            WireZoneTime(_fromF, true);
+            WireZoneTime(_toF, false);
             _markIn.Click += delegate { MarkHere(true); };
             _markOut.Click += delegate { MarkHere(false); };
             _whole.Click += delegate { WholeVideo(); };
@@ -195,6 +246,232 @@ namespace SubtitleStudio
             return b;
         }
 
+        private Btn PlayerBtn(Ico ico, string tip)
+        {
+            Btn b = new Btn(); b.Icon = ico; b.IconOnly = true; b.Kind = BtnKind.Ghost; b.IconSize = Theme.S(15);
+            Ui.Tip.SetToolTip(b, tip);
+            Controls.Add(b);
+            return b;
+        }
+
+        private Field TimeField(string placeholder, string tip)
+        {
+            Field f = new Field(); f.Ltr = true; f.Box.TextAlign = HorizontalAlignment.Center; f.Box.Font = Theme.Small; f.Placeholder = placeholder;
+            Ui.Tip.SetToolTip(f.Box, tip);
+            Controls.Add(f);
+            return f;
+        }
+
+        // ---------- דיוק (0.8.44): פריים, מהירות, והקלדה של זמנים ----------
+
+        /// <summary>זמן במאיות, לשעון ולשדה המיקום (אלפיות רצות מרצדות בזמן ניגון).</summary>
+        private static string Hundredths(long ms) { string p = CutDlg.Precise(ms); return p.Substring(0, p.Length - 1); }
+
+        private long FrameMs
+        {
+            get
+            {
+                MediaStream v = _mi != null ? _mi.FirstVideo() : null;
+                return v != null && v.Fps > 1 && v.Fps <= 120 ? Math.Max(1, (long)Math.Round(1000.0 / v.Fps)) : 40;
+            }
+        }
+
+        /// <summary>פריים אחד אחורה או קדימה (הכפתורים, והמקשים פסיק ונקודה). הנגן נעצר: מדייקים על תמונה עומדת.</summary>
+        internal void StepFrame(int dir)
+        {
+            if (_main != null && _main.PlayerIsPlaying) _main.PausePlayer();
+            Seek(_pos + dir * FrameMs);
+        }
+
+        private void SyncSpeed()
+        {
+            double v = _main != null ? _main.PlayerSpeed : 1.0;
+            _speed.Text = SpeedPicker.Text(v);
+            _speed.Tint = Math.Abs(v - 1.0) < 0.001 ? Color.Empty : Theme.Accent;
+            _speed.Invalidate();
+        }
+
+        /// <summary>חלונית המהירות - אותה אחת כמו בחלון הראשי ובחלון החיתוך (0.25 עד 4), על אותו נגן.</summary>
+        private void ShowSpeed()
+        {
+            if (_speedPick == null)
+            {
+                _speedPick = new SpeedPicker();
+                _speedPick.Visible = false;
+                Controls.Add(_speedPick);
+                _speedPick.Changed += delegate
+                {
+                    if (_main != null) _main.PlayerSpeed = _speedPick.Value;
+                    SyncSpeed();
+                };
+            }
+            _speedPick.Value = _main != null ? _main.PlayerSpeed : 1.0;
+            PopupPanel pp = new PopupPanel(_speedPick, _speedPick.PrefWidth + Theme.S(24), SpeedPicker.NeedHeight + Theme.S(24));
+            pp.FormClosed += delegate
+            {
+                // בחזרה לחלון, כדי שהחלונית שנסגרת לא תשמיד אותו
+                _speedPick.Parent = this;
+                _speedPick.Visible = false;
+            };
+            _speedPick.Visible = true;
+            pp.ShowUnder(_speed);
+        }
+
+        /// <summary>הקלדה בשדה המיקום: זמן תקין - הנגן עובר לשם מיד. false - מה שהוקלד עוד לא זמן (או אחרי סוף הסרט).</summary>
+        internal bool TypePosition(string text)
+        {
+            long t;
+            if (!CutDlg.TryTime(text, out t) || (_mi != null && t > _mi.DurationMs)) return false;
+            if (_main != null && _main.PlayerIsPlaying) _main.PausePlayer();
+            Seek(t);
+            return true;
+        }
+
+        private void WirePosition()
+        {
+            TextBox b = _posF.Box;
+            b.Enter += delegate { b.Tag = _pos; };
+            b.TextChanged += delegate { if (b.Focused) TypePosition(b.Text); };
+            b.KeyDown += delegate (object o, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    if (!TypePosition(b.Text)) Flash(Lang.T("זמן לא תקין. דוגמאות: 2:30, ‏1:02:30, ‏150"));
+                    b.Text = Hundredths(_pos); b.SelectAll();
+                }
+                else if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+                {
+                    // שנייה; Shift - עשירית; Ctrl - פריים
+                    e.Handled = true; e.SuppressKeyPress = true;
+                    long step = (e.Control ? FrameMs : e.Shift ? 100 : 1000) * (e.KeyCode == Keys.Up ? 1 : -1);
+                    Seek(_pos + step);
+                    b.Text = Hundredths(_pos); b.SelectAll();
+                }
+            };
+            b.Leave += delegate { b.Text = Hundredths(_pos); };
+        }
+
+        /// <summary>מה שהוקלד בשדה של התחלה או סוף ← זמן. ריק = פתוח (‎-1‎: מההתחלה / עד הסוף); אחרי סוף הסרט בשדה הסוף = עד הסוף.</summary>
+        private bool ParseZoneTime(string text, bool start, out long t)
+        {
+            t = -1;
+            if ((text ?? "").Trim().Length == 0) return true;
+            if (!CutDlg.TryTime(text, out t)) return false;
+            long dur = _mi != null ? _mi.DurationMs : long.MaxValue;
+            if (t >= dur) { if (start) return false; t = -1; }
+            if (start && t < 100) t = -1;
+            return true;
+        }
+
+        /// <summary>**הקלדה של התחלה או סוף לאזור שנבחר** - משפיעה מיד, כמו בחלון החיתוך: רק זמן שלם ועקבי עם הקצה השני (״5״ בדרך ל-״50״
+        /// לא הופך את האזור). הקלדה אחת = צעד ביטול אחד. מחזיר: 1 - נקבע, 0 - כבר כך, ‎-1‎ - לא זמן, ‎-2‎ - לא עקבי עם הקצה השני.</summary>
+        internal int TypeZoneTime(bool start, string text)
+        {
+            BlurZone z = Cur;
+            long t;
+            if (z == null || !ParseZoneTime(text, start, out t)) return -1;
+            if (start ? (t >= 0 && z.ToMs >= 0 && t >= z.ToMs) : (t >= 0 && t <= Math.Max(0, z.FromMs))) return -2;
+            if ((start ? z.FromMs : z.ToMs) == t) return 0;
+            if (!_typedPushed) { Push("type"); _typedPushed = true; }
+            if (start) z.FromMs = t; else z.ToMs = t;
+            _changed = true;
+            _flashUntil = DateTime.MinValue;
+            RefreshAll();
+            // רואים את הרגע שהוקלד (כשהנגן עומד)
+            if (t >= 0 && (_main == null || !_main.PlayerIsPlaying)) Seek(t);
+            return 1;
+        }
+
+        private void WireZoneTime(Field f, bool start)
+        {
+            TextBox b = f.Box;
+            b.Enter += delegate { BlurZone z = Cur; b.Tag = z == null ? -2L : (start ? z.FromMs : z.ToMs); _typedPushed = false; };
+            b.TextChanged += delegate { if (b.Focused) TypeZoneTime(start, b.Text); };
+            b.KeyDown += delegate (object o, KeyEventArgs e)
+            {
+                BlurZone z = Cur;
+                if (z == null) return;
+                if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; CommitZoneTime(f, start); b.SelectAll(); }
+                else if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+                {
+                    // שנייה; Shift - עשירית; Ctrl - פריים. מזמן פתוח - מהמקום של הנגן
+                    e.Handled = true; e.SuppressKeyPress = true;
+                    long cur = start ? z.FromMs : z.ToMs;
+                    if (cur < 0) cur = _pos;
+                    long step = (e.Control ? FrameMs : e.Shift ? 100 : 1000) * (e.KeyCode == Keys.Up ? 1 : -1);
+                    TypeZoneTime(start, CutDlg.Precise(Math.Max(0, cur + step)));
+                    ShowZoneTime(f, start ? z.FromMs : z.ToMs);
+                    b.SelectAll();
+                }
+            };
+            b.Leave += delegate { CommitZoneTime(f, start); };
+        }
+
+        private void CommitZoneTime(Field f, bool start)
+        {
+            BlurZone z = Cur;
+            if (z == null) return;
+            int r = TypeZoneTime(start, f.Text);
+            if (r == -1) Flash(Lang.T("זמן לא תקין. דוגמאות: 2:30, ‏1:02:30, ‏150"));
+            else if (r == -2) Flash(start ? Lang.T("ההתחלה צריכה להיות לפני הסוף.") : Lang.T("הסוף צריך להיות אחרי ההתחלה."));
+            _typedPushed = false;
+            ShowZoneTime(f, start ? z.FromMs : z.ToMs);
+        }
+
+        private static void ShowZoneTime(Field f, long ms)
+        {
+            string s = ms < 0 ? "" : CutDlg.Precise(ms);
+            if (f.Text != s) f.Text = s;
+        }
+
+        /// <summary>Esc בזמן הקלדה: מה שהיה לפניה (היא כבר השפיעה תוך כדי), והמיקוד חוזר לתמונה - בלי לסגור את החלון.</summary>
+        private bool RevertTyping()
+        {
+            if (_posF.Box.Focused)
+            {
+                if (_posF.Box.Tag is long) Seek((long)_posF.Box.Tag);
+                _canvas.Focus();
+                return true;
+            }
+            foreach (Field f in new Field[] { _fromF, _toF })
+            {
+                if (!f.Box.Focused) continue;
+                bool start = f == _fromF;
+                BlurZone z = Cur;
+                if (z != null && f.Box.Tag is long && (long)f.Box.Tag >= -1)
+                {
+                    if (start) z.FromMs = (long)f.Box.Tag; else z.ToMs = (long)f.Box.Tag;
+                    // ההקלדה בוטלה - גם המצב שנשמר לביטול בשבילה
+                    if (_typedPushed && _undo.Count > 0) { _undo.RemoveAt(_undo.Count - 1); _typedPushed = false; _lastPush = ""; }
+                    ShowZoneTime(f, start ? z.FromMs : z.ToMs);
+                }
+                _canvas.Focus();
+                RefreshAll();
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>גלגלת מעל פס הזמן - זום סביב העכבר (Shift - הזזה); מעל כפתור המהירות - מהירות.</summary>
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            Point p = _bar.PointToClient(Cursor.Position);
+            if (_bar.ClientRectangle.Contains(p))
+            {
+                if ((ModifierKeys & Keys.Shift) != 0) _bar.Pan(e.Delta > 0 ? -1 : 1);
+                else _bar.ZoomAt(e.Delta > 0 ? 0.5 : 2, _bar.TimeAt(p.X));
+                return;
+            }
+            if (_main != null && _speed.ClientRectangle.Contains(_speed.PointToClient(Cursor.Position)))
+            {
+                _main.PlayerSpeed = SpeedPicker.StepFrom(_main.PlayerSpeed, e.Delta > 0 ? 1 : -1);
+                SyncSpeed();
+                return;
+            }
+            base.OnMouseWheel(e);
+        }
+
         // ---------- מה שמוצג ----------
 
         internal static string LookName(int look)
@@ -232,7 +509,7 @@ namespace SubtitleStudio
         {
             BlurZone z = Cur;
             bool has = z != null;
-            foreach (Control c in new Control[] { _zoneTitle, _when, _markIn, _markOut, _whole, _look, _shape, _trackBtn, _pctCap, _pct }) c.Visible = has;
+            foreach (Control c in new Control[] { _zoneTitle, _when, _markIn, _markOut, _whole, _fromF, _toF, _look, _shape, _trackBtn, _pctCap, _pct }) c.Visible = has;
             _none.Visible = !has;
             if (has)
             {
@@ -243,6 +520,9 @@ namespace SubtitleStudio
                 _pct.Value = z.Pct;
                 _pct.Visible = _pctCap.Visible = z.Look != BlurZone.Black;
                 _syncing = false;
+                // שדות הזמן - מה שנשמר; שדה שמקלידים בו עכשיו לא נכתב מחדש
+                if (!_fromF.Box.Focused) ShowZoneTime(_fromF, z.FromMs);
+                if (!_toF.Box.Focused) ShowZoneTime(_toF, z.ToMs);
                 if (DateTime.UtcNow > _flashUntil)
                 {
                     _when.Text = Lang.F("מתי: {0}", WhenWords(z));
@@ -458,8 +738,10 @@ namespace SubtitleStudio
         {
             _pos = t;
             _canvas.PosMs = t; _bar.Position = t;
-            string c = Theme.Ltr(Tc.Short(t) + " / " + Tc.Short(_mi != null ? _mi.DurationMs : 0));
+            _bar.Follow(t);
+            string c = Theme.Ltr("/ " + Hundredths(_mi != null ? _mi.DurationMs : 0));
             if (_clock.Text != c) { _clock.Text = c; _clock.Invalidate(); }
+            if (!_posF.Box.Focused) { string p = Hundredths(t); if (_posF.Text != p) _posF.Text = p; }
             RefreshAll();
         }
 
@@ -644,9 +926,12 @@ namespace SubtitleStudio
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            // בזמן הקלדה (העוצמה) ובתיבות הבחירה - המקשים שלהן
-            if (ActiveControl is TextBoxBase || ActiveControl is Combo || ActiveControl is Slider) return base.ProcessCmdKey(ref msg, keyData);
             Keys k = keyData & Keys.KeyCode;
+            // Esc בשדה זמן - מחזיר את מה שהיה, ולא סוגר את החלון
+            if (k == Keys.Escape && RevertTyping()) return true;
+            // בזמן הקלדה (העוצמה, הזמנים) ובתיבות הבחירה - המקשים שלהן
+            if (ActiveControl is TextBoxBase || ActiveControl is Combo || ActiveControl is Slider || ActiveControl is Field ||
+                _posF.Box.Focused || _fromF.Box.Focused || _toF.Box.Focused) return base.ProcessCmdKey(ref msg, keyData);
             bool shift = (keyData & Keys.Shift) != 0, ctrl = (keyData & Keys.Control) != 0;
             if (ctrl && k == Keys.Z) { Undo(); return true; }
             if (ctrl) return base.ProcessCmdKey(ref msg, keyData);
@@ -658,6 +943,9 @@ namespace SubtitleStudio
                 case Keys.Right: Seek(_pos + (shift ? 5000 : 1000)); return true;
                 case Keys.I: MarkHere(true); return true;
                 case Keys.O: MarkHere(false); return true;
+                // פריים אחורה / קדימה - כמו בחלון החיתוך
+                case Keys.Oemcomma: StepFrame(-1); return true;
+                case Keys.OemPeriod: StepFrame(1); return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -926,17 +1214,59 @@ namespace SubtitleStudio
             Cursor = Cursors.Hand;
         }
 
+        /// <summary>**זום** (0.8.44): החלק של הסרט שהפס מראה; 0 ו-0 - כולו. בנימין: ״הייתי צריך לגרור את הזמן בצורה ממש לא נוחה, לא היה אפשר
+        /// לקבוע בדיוק דברים״ - בסרט של שעה כל פיקסל בפס הוא חמש שניות. בזום, גרירה מדייקת עד פריים; פס דק בתחתית מראה איפה נמצאים.</summary>
+        public long ViewStart, ViewEnd;
+        public bool Zoomed { get { return ViewEnd > ViewStart; } }
+        private long V0 { get { return Zoomed ? ViewStart : 0; } }
+        private long V1 { get { return Zoomed ? ViewEnd : Math.Max(1, Duration); } }
+        /// <summary>הכי קרוב שאפשר: שתי שניות על כל הפס.</summary>
+        internal const long MinSpan = 2000;
+
         private float Inner { get { return Theme.S(10); } }
-        private float X(long t) { return Inner + (Width - 2 * Inner) * (float)Math.Max(0, Math.Min(1, t / (double)Math.Max(1, Duration))); }
-        private long T(int x) { return (long)Math.Round(Math.Max(0, Math.Min(1, (x - Inner) / Math.Max(1, Width - 2 * Inner))) * Duration); }
+        private float X(long t) { return Inner + (Width - 2 * Inner) * (float)Math.Max(0, Math.Min(1, (t - V0) / (double)Math.Max(1, V1 - V0))); }
+        /// <summary>הזמן שמתחת לנקודה בפס (בחלק שמוצג).</summary>
+        internal long TimeAt(int x) { return V0 + (long)Math.Round(Math.Max(0, Math.Min(1, (x - Inner) / Math.Max(1, Width - 2 * Inner))) * (V1 - V0)); }
+
+        /// <summary>מתקרב (<paramref name="factor"/> קטן מ-1) או מתרחק סביב <paramref name="center"/> - הוא נשאר באותו מקום בפס. התרחקות עד הסוף = כל הסרט.</summary>
+        internal void ZoomAt(double factor, long center)
+        {
+            long dur = Math.Max(1, Duration);
+            double span = (V1 - V0) * factor;
+            if (span >= dur) { ViewStart = ViewEnd = 0; Invalidate(); return; }
+            span = Math.Max(Math.Min(MinSpan, dur), span);
+            double rel = Math.Max(0, Math.Min(1, (center - V0) / (double)Math.Max(1, V1 - V0)));
+            long a = (long)Math.Round(center - rel * span);
+            a = Math.Max(0, Math.Min(dur - (long)span, a));
+            ViewStart = a; ViewEnd = a + (long)span;
+            Invalidate();
+        }
+
+        /// <summary>מזיז את החלק שמוצג בחמישית (Shift+גלגלת).</summary>
+        internal void Pan(int dir)
+        {
+            if (!Zoomed) return;
+            long span = ViewEnd - ViewStart, a = Math.Max(0, Math.Min(Math.Max(1, Duration) - span, ViewStart + dir * span / 5));
+            ViewStart = a; ViewEnd = a + span;
+            Invalidate();
+        }
+
+        /// <summary>הנגן יצא מהחלק שמוצג (ניגון, פריים, הקלדה) - הפס עובר אליו; בזמן גרירה על הפס - לא.</summary>
+        internal void Follow(long t)
+        {
+            if (!Zoomed || _drag || (t >= ViewStart && t <= ViewEnd)) return;
+            long span = ViewEnd - ViewStart, a = Math.Max(0, Math.Min(Math.Max(1, Duration) - span, t - span / 10));
+            ViewStart = a; ViewEnd = a + span;
+            Invalidate();
+        }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left) return;
             _drag = true;
-            if (SeekTo != null) SeekTo(T(e.X));
+            if (SeekTo != null) SeekTo(TimeAt(e.X));
         }
-        protected override void OnMouseMove(MouseEventArgs e) { if (_drag && SeekTo != null) SeekTo(T(e.X)); }
+        protected override void OnMouseMove(MouseEventArgs e) { if (_drag && SeekTo != null) SeekTo(TimeAt(e.X)); }
         protected override void OnMouseUp(MouseEventArgs e) { _drag = false; }
 
         private void DrawLane(Graphics g, int i, float x1, float x2, float y, float lane)
@@ -960,6 +1290,8 @@ namespace SubtitleStudio
             for (int i = 0; i < Zones.Count; i++)
             {
                 BlurZone z = Zones[i];
+                // בזום - רק מה שנוגע בחלק שמוצג (X עוצר בקצוות, אז אזור שמחוץ לו היה מצויר כפס קטן בקצה)
+                if (Zoomed && ((z.ToMs >= 0 && z.ToMs < ViewStart) || (z.FromMs >= 0 && z.FromMs > ViewEnd))) continue;
                 float x1 = X(z.FromMs < 0 ? 0 : z.FromMs), x2 = Math.Max(X(z.FromMs < 0 ? 0 : z.FromMs) + Theme.S(3), X(z.ToMs < 0 ? Duration : z.ToMs));
                 int ln = i % 3;
                 if (!merge) { DrawLane(g, i, x1, x2, top + ln * (lane + Theme.S(3)), lane); continue; }
@@ -971,7 +1303,8 @@ namespace SubtitleStudio
             if (merge)
             {
                 for (int ln = 0; ln < 3; ln++) if (runA[ln] >= 0) DrawLane(g, runI[ln], runA[ln], runB[ln], top + ln * (lane + Theme.S(3)), lane);
-                if (Selected >= 0 && Selected < Zones.Count)
+                if (Selected >= 0 && Selected < Zones.Count &&
+                    !(Zoomed && ((Zones[Selected].ToMs >= 0 && Zones[Selected].ToMs < ViewStart) || (Zones[Selected].FromMs >= 0 && Zones[Selected].FromMs > ViewEnd))))
                 {
                     BlurZone z = Zones[Selected];
                     float x1 = X(z.FromMs < 0 ? 0 : z.FromMs);
@@ -984,9 +1317,20 @@ namespace SubtitleStudio
                 using (SolidBrush b = new SolidBrush(Theme.Purple))
                     g.FillPolygon(b, new PointF[] { new PointF(mx - Theme.S(5), Theme.S(3)), new PointF(mx + Theme.S(5), Theme.S(3)), new PointF(mx, Theme.S(10)) });
             }
+            if (Zoomed)
+            {
+                // איפה נמצאים: פס דק לכל אורך הסרט, והחלק שמוצג מודגש
+                float tw = Width - 2 * Inner, ty = Height - Theme.S(4);
+                double dur = Math.Max(1, Duration);
+                using (SolidBrush b = new SolidBrush(Theme.Border)) g.FillRectangle(b, Inner, ty, tw, Theme.S(2));
+                float va = Inner + tw * (float)(ViewStart / dur), vb = Inner + tw * (float)(ViewEnd / dur);
+                using (SolidBrush b = new SolidBrush(Theme.Accent)) g.FillRectangle(b, va, ty, Math.Max(Theme.S(4), vb - va), Theme.S(2));
+            }
+            if (Zoomed && (Position < ViewStart || Position > ViewEnd)) return;
             float px = X(Position);
-            using (Pen p = new Pen(Theme.Text, 2f)) g.DrawLine(p, px, Theme.S(4), px, Height - Theme.S(4));
-            using (SolidBrush b = new SolidBrush(Theme.Text)) g.FillEllipse(b, px - Theme.S(4), Height - Theme.S(10), Theme.S(8), Theme.S(8));
+            float bottom = Zoomed ? Height - Theme.S(8) : Height - Theme.S(4);
+            using (Pen p = new Pen(Theme.Text, 2f)) g.DrawLine(p, px, Theme.S(4), px, bottom);
+            using (SolidBrush b = new SolidBrush(Theme.Text)) g.FillEllipse(b, px - Theme.S(4), bottom - Theme.S(6), Theme.S(8), Theme.S(8));
         }
     }
 
