@@ -261,6 +261,59 @@ $gBefore = [string]$zG.Invoke((Zone 0.1 0.1 0.3 0.3 1000 5000 0 $false), @(640, 
 $gInto = [string]$zG.Invoke((Zone 0.1 0.1 0.3 0.3 8000 12000 0 $false), @(640, 360, [long]10000, 'z0'))
 Rep 'part burn: a zone that ended before the part is left out, one that runs into it ends on time' ($gBefore -eq '' -and $gInto -match "between\(t,0,2\)") ("before [{0}]  into: {1}" -f $gBefore, $(if ($gInto -match "enable='([^']+)'") { $Matches[1] } else { 'no enable' }))
 
+# **ffmpeg מפרש ביטוי עד עומק 100** (0.8.43). משתמש שלח צילום: צריבה של טשטוש בלי כתוביות נכשלה מיד, ב-0%. שלושה מקומות בנו ביטוי
+# שהעומק שלו כמספר האיברים: מסלול של אזור שזז (``if`` בתוך ``if`` לכל נקודה - ״מעקב״ ארוך), ה-enable של הטשטוש במסכה (סכום של כל חלקי
+# הזמן - ״למצוא פנים״ בסרטון של דקה-שתיים: 101-300 חלקים), ו״רק כשיש כתובית״ (סכום של כל רצפי הכתוביות). הבדיקות הקודמות עברו כי היו בהן
+# מעט מדי או הרבה מדי (מעל 300 אין enable). כאן: צורבים פריים ובודקים שהטשטוש במקום ובזמן
+$kT = TY 'ZoneKey'
+function KeyList($pairs) { $l = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($kT)); foreach ($p in $pairs) { $ka = New-Object object[] 2; $ka[0] = [long]$p[0]; $ka[1] = [Drawing.RectangleF]::new([single]$p[1], [single]$p[2], [single]$p[3], [single]$p[4]); $l.Add([Activator]::CreateInstance($kT, $ka)) }; return ,$l }
+function DeepArgs($sty, $cues, $name) {
+    $an = "$name.ass"; [IO.File]::WriteAllText((Join-Path $dir $an), "[Script Info]`r`nScriptType: v4.00+`r`n", (New-Object Text.UTF8Encoding $true))
+    return [string](TY 'Burn').GetMethod('VideoFilterArgs', $ST).Invoke($null, [object[]]@($cues, $sty.psobject.BaseObject, [int]640, [int]360, [int64]0, $an, [string]$dir, [string]''))
+}
+function DeepFrame($vf, $at, $name) {
+    $png = Join-Path $dir "$name.png"; if ([IO.File]::Exists($png)) { [IO.File]::Delete($png) }
+    Push-Location $dir; $p = Start-Process $ffx -ArgumentList ("-hide_banner -loglevel error -y -f lavfi -i testsrc2=s=640x360:d=4:r=10 " + $vf + "-ss $at -frames:v 1 $name.png") -NoNewWindow -Wait -PassThru; Pop-Location
+    if (-not [IO.File]::Exists($png)) { return $null }
+    $raw = [Drawing.Image]::FromFile($png); $b = New-Object Drawing.Bitmap $raw; $raw.Dispose(); return $b
+}
+$d15 = DeepFrame '' 1.5 'deep-src15'; $d13 = DeepFrame '' 1.3 'deep-src13'
+# (א) אזור אחד שזז, 300 נקודות (כל עשירית שנייה, שן מסור של שתי שניות): ב-1.5 שניות הוא ב-x=0.475
+$pairs = @(); for ($i = 0; $i -lt 300; $i++) { $pairs += ,@(($i * 100), (0.1 + 0.5 * ($i % 20) / 20.0), 0.3, 0.2, 0.3) }
+$mz = Zone 0.1 0.3 0.2 0.3 0 30000 0 $false; $mz.Path = (KeyList $pairs)
+$ms1 = [Activator]::CreateInstance((TY 'SubStyle')); $ms1.Zones.Add($mz)
+$emptyCues = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($cueT))
+$f1 = DeepFrame (DeepArgs $ms1 $emptyCues 'deep-move') 1.5 'deep-move'
+$in1 = if ($f1) { [SubsMad]::Mad($f1, $d15, (New-Object Drawing.Rectangle 314, 118, 108, 88)) } else { -1 }
+$out1 = if ($f1) { [SubsMad]::Mad($f1, $d15, (New-Object Drawing.Rectangle 20, 118, 100, 88)) } else { -1 }
+Rep 'burn: a moving area with 300 points on its path (a long track) - burned, and in its place at 1.5s' ($in1 -gt 4 -and $out1 -ge 0 -and $out1 -lt 2) ("inside {0:0.0}, where it was at the start {1:0.0}" -f $in1, $out1)
+if ($f1) { $f1.Dispose() }
+# (ב) 12 אזורים שזזים (מסכה): 144 חלקי זמן - drawbox לכל חלק; ו-240 - ״מלבנים נודדים״. בשניהם ה-enable של הטשטוש הוא סכום של כולם
+foreach ($lenMs in 6000, 10000) {
+    $ms2 = [Activator]::CreateInstance((TY 'SubStyle'))
+    for ($i = 0; $i -lt 12; $i++) {
+        $zx = 0.05 + 0.24 * ($i % 4); $zy = 0.05 + 0.32 * [Math]::Floor($i / 4)
+        $pairs = @(); for ($k = 0; $k -le ($lenMs / 500); $k++) { $pairs += ,@(($k * 500), $zx, $zy, 0.15, 0.2) }
+        $z = Zone $zx $zy 0.15 0.2 0 $lenMs 0 $false; $z.Path = (KeyList $pairs); $ms2.Zones.Add($z)
+    }
+    $segs = 0; foreach ($z in $ms2.Zones) { $segs += $zT.GetMethod('Segments', $IN).Invoke($z, @()).Count }
+    $f2 = DeepFrame (DeepArgs $ms2 $emptyCues "deep-mask$lenMs") 1.5 "deep-mask$lenMs"
+    $in2 = if ($f2) { [SubsMad]::Mad($f2, $d15, (New-Object Drawing.Rectangle 38, 24, 84, 60)) } else { -1 }
+    $out2 = if ($f2) { [SubsMad]::Mad($f2, $d15, (New-Object Drawing.Rectangle 138, 24, 40, 60)) } else { -1 }
+    Rep ("burn: 12 moving areas, $segs time parts (find faces in a short video) - burned, blurred inside and untouched between") ($segs -gt 100 -and $segs -le 300 -and $in2 -gt 4 -and $out2 -ge 0 -and $out2 -lt 2) ("inside {0:0.0}, between {1:0.0}" -f $in2, $out2)
+    if ($f2) { $f2.Dispose() }
+}
+# (ג) ״רק כשיש כתובית״ עם 150 כתוביות נפרדות: מטושטש בזמן כתובית (1.3 שניות), ולא ביניהן (1.5)
+$manyCues = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($cueT))
+for ($i = 0; $i -lt 150; $i++) { $manyCues.Add([Activator]::CreateInstance($cueT, @([int64]($i * 400), [int64]($i * 400 + 150), 'כ'))) }
+$ms3 = [Activator]::CreateInstance((TY 'SubStyle')); $ms3.BlurOn = $true; $ms3.BlurPct = 70; $ms3.BlurOnlyWithCue = $true; $ms3.BlurArea = New-Object Drawing.RectangleF 0.1, 0.1, 0.8, 0.3
+$vf3 = DeepArgs $ms3 $manyCues 'deep-cues'
+$f3on = DeepFrame $vf3 1.3 'deep-cues-on'; $f3off = DeepFrame $vf3 1.5 'deep-cues-off'
+$r3 = New-Object Drawing.Rectangle 80, 46, 480, 90
+$on3 = if ($f3on) { [SubsMad]::Mad($f3on, $d13, $r3) } else { -1 }; $off3 = if ($f3off) { [SubsMad]::Mad($f3off, $d15, $r3) } else { -1 }
+Rep 'burn: blur only with a subtitle, 150 separate subtitles - burned, blurred during one and untouched between two' ($on3 -gt 4 -and $off3 -ge 0 -and $off3 -lt 2) ("during {0:0.0}, between {1:0.0}" -f $on3, $off3)
+foreach ($b in @($f3on, $f3off, $d15, $d13)) { if ($b) { $b.Dispose() } }
+
 # גופן בלי עברית: התצוגה והצריבה מחליפות כל אחת לגופן אחר - בכתוביות עבריות החלון לא מציע אותו
 $hh = (TY 'Fonts').GetMethod('HasHebrew', $ST)
 $sdlg = [Activator]::CreateInstance((TY 'StyleDlg'), @([Activator]::CreateInstance((TY 'SubStyle')), $null, $true))

@@ -117,7 +117,7 @@ namespace SubtitleStudio
             string enable = "";
             if (BlurOnlyWithCue)
             {
-                System.Text.StringBuilder e = new System.Text.StringBuilder();
+                List<string> e = new List<string>();
                 long a = -1, b = -1;
                 System.Collections.Generic.List<Cue> sorted = new System.Collections.Generic.List<Cue>(cues ?? new System.Collections.Generic.List<Cue>());
                 sorted.Sort(delegate (Cue p, Cue q) { return p.Start.CompareTo(q.Start); });
@@ -126,12 +126,12 @@ namespace SubtitleStudio
                     if (c.End <= c.Start || c.End <= 0) continue;
                     long s = Math.Max(0, c.Start);
                     if (a >= 0 && s <= b + 200) { b = Math.Max(b, c.End); continue; }     // רצף - טשטוש אחד, בלי הבהוב ביניהן
-                    if (a >= 0) e.Append(e.Length > 0 ? "+" : "").Append(Between(a, b));
+                    if (a >= 0) e.Add(Between(a, b));
                     a = s; b = c.End;
                 }
-                if (a >= 0) e.Append(e.Length > 0 ? "+" : "").Append(Between(a, b));
-                if (e.Length == 0) return "";
-                enable = ":enable='" + e + "'";
+                if (a >= 0) e.Add(Between(a, b));
+                if (e.Count == 0) return "";
+                enable = ":enable='" + BlurZone.AnyOf(e) + "'";
             }
             string s2 = BlurSigma(h).ToString("0.##", CultureInfo.InvariantCulture);
             return string.Format(CultureInfo.InvariantCulture,
@@ -748,7 +748,7 @@ namespace SubtitleStudio
             }
             else
                 look = "format=gbrp,gblur=sigma=" + Math.Max(0.5, z0.Pct / 100.0 * h * 0.03).ToString("0.##", ic) + ":steps=2" +
-                       (when.Count <= 300 ? ":enable='" + string.Join("+", when.ToArray()) + "'" : "");
+                       (when.Count <= 300 ? ":enable='" + AnyOf(when) + "'" : "");
             string masks = boxes.ToString().TrimEnd(',');
             return string.Format(ic,
                 "split[{0}_a][{0}_b];[{0}_b]{1}[{0}_l];[{0}_a]split[{0}_o][{0}_m];[{0}_m]format=gray,drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill,{2}[{0}_k];" +
@@ -811,20 +811,42 @@ namespace SubtitleStudio
         }
 
         /// <summary>ערך שנע בקו ישר בין נקודות, כביטוי של ffmpeg ב-t (שניות): ``if(lt(t,t1), v0+(v1-v0)*(clip(t,t0,t1)-t0)/(t1-t0), ...)``,
-        /// ובסוף ``clip`` לגבולות. לפני הנקודה הראשונה - הערך הראשון; אחרי האחרונה - האחרון.</summary>
+        /// ובסוף ``clip`` לגבולות. לפני הנקודה הראשונה - הערך הראשון; אחרי האחרונה - האחרון.
+        /// **עץ מאוזן, לא שרשרת** (0.8.43): ffmpeg מפרש ביטוי עד עומק 100. שרשרת של ``if`` בתוך ``if`` לכל נקודה נכשלה מ-100 נקודות
+        /// (״Missing ')' or too many args״) - כל ״מעקב״ ארוך, והצריבה נפלה מיד. נמדד: שרשרת 90 עוברת, 100 לא; עץ - גם 8,000.</summary>
         internal static string PathExpr(List<double> ts, List<double> vs, double lo, double hi)
         {
             CultureInfo ic = CultureInfo.InvariantCulture;
             int n = ts.Count;
-            string e = vs[n - 1].ToString("0.##", ic);
-            for (int i = n - 2; i >= 0; i--)
-            {
-                double dt = ts[i + 1] - ts[i];
-                string seg = dt < 1e-6 ? vs[i].ToString("0.##", ic)
-                    : string.Format(ic, "{0:0.##}+({1:0.###})*(clip(t,{2:0.###},{3:0.###})-{2:0.###})/{4:0.###}", vs[i], vs[i + 1] - vs[i], ts[i], ts[i + 1], dt);
-                e = string.Format(ic, "if(lt(t,{0:0.###}),{1},{2})", ts[i + 1], seg, e);
-            }
+            string e = n < 2 ? vs[n - 1].ToString("0.##", ic) : PathTree(ts, vs, 0, n - 1);
             return string.Format(ic, "clip({0},{1:0},{2:0})", e, lo, hi);
+        }
+
+        /// <summary>הקטעים <paramref name="lo"/> עד <paramref name="hi"/> (קטע i - בין נקודה i לנקודה i+1): חציה לפי הזמן, ובעלה - קו ישר
+        /// בתוך הקטע (``clip`` עוצר אותו בקצוות, אז הראשון מכסה גם את מה שלפני והאחרון את מה שאחרי).</summary>
+        private static string PathTree(List<double> ts, List<double> vs, int lo, int hi)
+        {
+            CultureInfo ic = CultureInfo.InvariantCulture;
+            if (hi - lo <= 1)
+            {
+                double dt = ts[lo + 1] - ts[lo];
+                return dt < 1e-6 ? vs[lo + 1].ToString("0.##", ic)
+                    : string.Format(ic, "{0:0.##}+({1:0.###})*(clip(t,{2:0.###},{3:0.###})-{2:0.###})/{4:0.###}", vs[lo], vs[lo + 1] - vs[lo], ts[lo], ts[lo + 1], dt);
+            }
+            int m = (lo + hi) / 2;
+            return string.Format(ic, "if(lt(t,{0:0.###}),{1},{2})", ts[m], PathTree(ts, vs, lo, m), PathTree(ts, vs, m, hi));
+        }
+
+        /// <summary>״אחד מהתנאים״ - סכום, **כעץ מאוזן עם סוגריים** (0.8.43). ``a+b+c+...`` שטוח הוא עץ בעומק מספר האיברים, ו-ffmpeg נכשל
+        /// מ-101 איברים (״Error when evaluating the expression״): ״למצוא פנים״ בסרטון של דקה-שתיים נותן 100-300 חלקי זמן - והצריבה נפלה מיד.
+        /// גם ״טשטוש רק כשיש כתובית״ בסרט עם יותר מ-100 כתוביות נפרדות. נמדד: שטוח 100 עובר, 110 לא; מאוזן - גם 5,000.</summary>
+        internal static string AnyOf(List<string> terms) { return terms.Count == 0 ? "0" : AnyOf(terms, 0, terms.Count); }
+
+        private static string AnyOf(List<string> t, int lo, int hi)
+        {
+            if (hi - lo <= 1) return t[lo];
+            int m = (lo + hi) / 2;
+            return "(" + AnyOf(t, lo, m) + "+" + AnyOf(t, m, hi) + ")";
         }
     }
 
