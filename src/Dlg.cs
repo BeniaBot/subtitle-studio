@@ -534,6 +534,10 @@ namespace SubtitleStudio
                     _close.Visible = true;
                     _openFolder.Visible = _success && !string.IsNullOrEmpty(job.OutputPath);
                     _copy.Visible = !_success && !_cancelled && _error.Length > 0;
+                    // **נשמר גם אחרי שהחלון נסגר** (0.8.44): הפרטים של כישלון - ליומן (`AppLog`), והקובץ שנוצר - לרשימת ״מה שיצרתי״.
+                    // העוזר קורא את שניהם (get_log, show_in_folder)
+                    if (_copy.Visible) AppLog.SaveFailure(Details());
+                    if (_success && !string.IsNullOrEmpty(job.OutputPath)) { AppLog.AddMade(job.OutputPath); Settings.SaveAll(); }
                     _prog = _success ? 1 : _prog;
                     _shown = _prog;
                     Invalidate();

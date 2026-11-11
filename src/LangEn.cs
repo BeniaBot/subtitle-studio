@@ -1865,6 +1865,12 @@ namespace SubtitleStudio
             "שורה אחת עוד לא תוזמנה. הזמן שלה הוא הערכה, והיא תופיע בסרט לא בדיוק כשאומרים אותה.", "One line isn't timed yet. Its time is a guess, and it will show in the video not exactly when it is said.",
             "{0} שורות עוד לא תוזמנו. הזמנים שלהן הערכה, והן יופיעו בסרט לא בדיוק כשאומרים אותן.", "{0} lines aren't timed yet. Their times are a guess, and they will show in the video not exactly when they are said.",
             "העתקת הפרטים", "Copy details",
+            "הקובץ {0} כבר לא נמצא, וגם התיקייה שלו לא (אולי כונן שנותק)", "The file {0} is no longer there, and neither is its folder (maybe a drive that was unplugged)",
+            "סייר הקבצים נפתח, והקובץ {0} מסומן בו", "File Explorer opened with the file {0} selected",
+            "הקובץ {0} כבר לא שם (נמחק או הועבר) - נפתחה התיקייה שבה הוא היה", "The file {0} is no longer there (deleted or moved) - the folder it was in has been opened",
+            "הפרטים הועתקו. אפשר להדביק אותם בהודעה (Ctrl+V)", "The details were copied. You can paste them into a message (Ctrl+V)",
+            "הקובץ {0} כבר לא נמצא (נמחק או הועבר)", "The file {0} is no longer there (deleted or moved)",
+            "הקובץ {0} הועתק. אפשר להדביק אותו (Ctrl+V) בתיקייה, בהודעה או במייל", "The file {0} was copied. You can paste it (Ctrl+V) into a folder, a message or an email",
         };
 
         public static void Fill(Dictionary<string, string> d)

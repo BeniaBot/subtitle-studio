@@ -197,7 +197,27 @@ $det = [string]$pdT.GetMethod('Details', $IF).Invoke($r.Dlg, @())
 $ver = [string](T 'App').GetField('Version', $SF).GetValue($null)
 Check '״העתקת הפרטים״: הגרסה, ההודעה, הפקודה והיומן' ($det.StartsWith("Subtext $ver") -and $det.Contains('פתוח בתוכנה אחרת') -and $det.Contains('ffmpeg -i') -and $det -match 'Permission denied') ($det.Substring(0, [Math]::Min(120, $det.Length)))
 [void]$pdT.GetMethod('ToggleLog', $IF).Invoke($r.Dlg, @())
-
+# **החלון עצמו, מוצג** (מחוץ למסך), עם השעון שלו: אחרי כישלון - ״העתקת הפרטים״ מופיע, והפרטים נשמרים ליומן (`AppLog`, 0.8.44) -
+# כדי שיהיה מה לשלוח, ושהעוזר יוכל לקרוא, גם אחרי שהחלון נסגר
+$alT = T 'AppLog'
+$errFile = [string]$alT.GetProperty('FailurePath', $SF).GetValue($null, $null)
+if ($errFile -and [IO.File]::Exists($errFile)) { [IO.File]::Delete($errFile) }
+$fjob = [Activator]::CreateInstance($jobT); $fjob.Args = '-hide_banner -i "Z:\no-such-file.mp4" -f null -'; $fjob.WorkDir = $work
+$fdlg = [Activator]::CreateInstance($pdT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @('בדיקה', $fjob), $null)
+$fdlg.StartPosition = 'Manual'; $fdlg.Location = New-Object Drawing.Point -6000, -6000
+$script:fTicks = 0; $script:copyShown = $false; $script:fWait = $false
+$ftm = New-Object Windows.Forms.Timer; $ftm.Interval = 200
+$ftm.Add_Tick({
+    $script:fTicks++
+    $isDone = [bool]$pdT.GetField('_done', $IF).GetValue($fdlg)
+    if (-not $isDone -and $script:fTicks -lt 100) { return }
+    if (-not $script:fWait) { $script:fWait = $true; return }          # עוד סיבוב אחד של השעון של החלון
+    $script:copyShown = $pdT.GetField('_copy', $IF).GetValue($fdlg).Visible
+    $ftm.Stop(); $fdlg.Close()
+})
+$ftm.Start(); [void]$fdlg.ShowDialog(); $fdlg.Dispose(); $ftm.Dispose()
+$savedErr = if ($errFile -and [IO.File]::Exists($errFile)) { [IO.File]::ReadAllText($errFile) } else { '' }
+Check 'כישלון בחלון מוצג: ״העתקת הפרטים״ מופיע, והפרטים נשמרים ליומן' ($script:copyShown -and $savedErr.Contains('Subtext') -and $savedErr.Contains('no-such-file')) ("copy=$($script:copyShown) saved=" + $savedErr.Length)
 # **מודדים את הציור, לא את הטקסט.** גרסה ראשונה של הבדיקה מדדה את ההודעה
 # עם גלישת שורות ואמרה ״נכנס״ - והחלון צייר אותה בשורה אחת עם ״...״.
 # כאן מציירים את החלון לתמונה, ומודדים כמה גבוה הדיו האדום.
@@ -214,9 +234,12 @@ for ($y = [int](50 * $sc); $y -lt [int](100 * $sc); $y++) {
         if ([Math]::Abs($px.R - $bad.R) + [Math]::Abs($px.G - $bad.G) + [Math]::Abs($px.B - $bad.B) -lt 90) { if ($top -lt 0) { $top = $y }; $bot = $y; break }
     }
 }
+if ($env:SS_DUMP) { $bmp.Save($env:SS_DUMP) }
 $bmp.Dispose()
 $lineH = (T 'Theme').GetProperty('Small', $SF).GetValue($null, $null).Height
-Check 'ההודעה הארוכה מצוירת בשתי שורות, לא נחתכת' ($top -ge 0 -and ($bot - $top) -gt 1.5 * $lineH) ("דיו " + ($bot - $top) + "px, שורה $lineH px")
+# הסף 1.25 שורות (עד 11.11 - 1.5): שורה אחת של דיו היא עד 0.8 שורה, ושתיים - לפחות שורה ועוד גובה אות קטנה. ב-1.5 הבדיקה נכשלה כשבשורה
+# השנייה נשארה רק ״אחר.״ (בלי אות גבוהה או יורדת): 22 פיקסלים מול סף של 24, כשההודעה מצוירת נכון
+Check 'ההודעה הארוכה מצוירת בשתי שורות, לא נחתכת' ($top -ge 0 -and ($bot - $top) -gt 1.25 * $lineH) ("דיו " + ($bot - $top) + "px, שורה $lineH px")
 $r.Dlg.Dispose()
 
 $slow = "-re -i `"$media`" -f null -"

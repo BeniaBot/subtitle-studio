@@ -99,6 +99,8 @@ namespace SubtitleStudio
                 case "get_state": case "list_cues": case "find_problems": case "check_spelling": case "list_media_tools": case "list_dictionary_words": case "list_blur_zones":
                 case "app_help": case "list_commands": case "ui_read": case "seek": case "play_pause": case "set_playback_speed":
                 case "mark_range": case "select_cue": case "play_range": case "find_text": case "plan_highlights": case "ask_user": case "undo_last_request":
+                // יומנים וסייר (0.8.44): קוראים ומראים, ורק קבצים שהתוכנה מכירה - לא משנים כלום
+                case "get_log": case "copy_log": case "show_in_folder": case "copy_file":
                     return ReadOnly;
                 case "run_media_tool": case "trim_video": case "export_video":
                     return Media;

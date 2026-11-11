@@ -369,6 +369,30 @@ $wres = $res['_work'].Invoke()
 Check 'וכשהחיפוש לפי המשמעות נכשל - אומר מה עוד אפשר (מילה נרדפת, צפייה)' (('' + $wres['note']).Contains('watch_video')) ('' + $wres['note'])
 $state = $mfT.GetMethod('AiStateFull', $IN).Invoke($mf, @())
 Check 'במצב, עם יותר מ-30 כתוביות: ״רק חלק״, ואיך מחפשים בכולן' ($state.Contains('רק חלק') -and $state.Contains('find_text')) ''$mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
+# **יומנים וסייר הקבצים** (0.8.44): העוזר קורא את היומן של הפעולה שנכשלה, מעתיק אותו, ופותח את הסייר - רק על קבצים שהתוכנה מכירה.
+# בבדיקות לא נפתח חלון ולא נוגעים בלוח: מה שהיה נפתח / מועתק נרשם ב-LastShown / LastCopied
+$alT = TY 'AppLog'
+[void]$alT.GetMethod('SaveFailure', $ST).Invoke($null, @([string]"Subtext test`r`nburn: failed`r`nffmpeg -i x.mp4`r`nError when evaluating the expression"))
+$gl = Call 'get_log' @{ which = 'error' }
+Check 'העוזר: get_log מחזיר את היומן של הפעולה שנכשלה' (('' + $gl['log']).Contains('Error when evaluating') -and $gl['file'] -eq 'last-error.txt' -and ('' + $gl['note']).Contains('copy_log')) ('' + $gl['error'])
+$cl = Call 'copy_log' @{ which = 'error' }
+$lastCopied = [string]$mfT.GetField('LastCopied', $ST).GetValue($null)
+Check 'העוזר: copy_log - הפרטים ללוח, ואומר להדביק' ($lastCopied.Contains('Error when evaluating') -and ('' + $cl['done']).Contains('Ctrl+V')) ('' + $cl['error'])
+$madeFile = Join-Path $env:TEMP ('ss-made-' + [guid]::NewGuid().ToString('N').Substring(0, 6) + '.mp4'); [IO.File]::WriteAllText($madeFile, 'x')
+[void]$alT.GetMethod('AddMade', $ST).Invoke($null, @([string]$madeFile))
+$sh = Call 'show_in_folder' @{}
+$shown1 = [string]$mfT.GetField('LastShown', $ST).GetValue($null)
+Check 'העוזר: show_in_folder בלי פרטים - הקובץ האחרון שנוצר, מסומן בסייר' ($shown1 -eq $madeFile -and ('' + $sh['done']).Contains([IO.Path]::GetFileName($madeFile))) ("shown=$shown1 " + $sh['error'])
+$out = Call 'show_in_folder' @{ what = 'C:\Windows\win.ini' }
+$shown2 = [string]$mfT.GetField('LastShown', $ST).GetValue($null)
+Check 'העוזר: קובץ שהתוכנה לא מכירה - לא נפתח, ומקבל את רשימת מה שאפשר' ($out['error'] -ne $null -and $shown2 -eq $madeFile -and @($out['you_can_ask_for']).Count -ge 1) ('' + $out['done'])
+$cf = Call 'copy_file' @{ what = [IO.Path]::GetFileName($madeFile) }
+Check 'העוזר: copy_file לפי שם קובץ - הקובץ עצמו ללוח' ([string]$mfT.GetField('LastCopied', $ST).GetValue($null) -eq $madeFile -and ('' + $cf['done']).Contains('Ctrl+V')) ('' + $cf['error'])
+[IO.File]::Delete($madeFile)
+$gone = Call 'show_in_folder' @{ what = 'last_output' }
+Check 'העוזר: הקובץ נמחק בינתיים - נפתחת התיקייה שלו, והוא אומר' ([string]$mfT.GetField('LastShown', $ST).GetValue($null) -eq [IO.Path]::GetDirectoryName($madeFile) -and ('' + $gone['done']).Contains('כבר לא שם')) ('' + $gone['error'])
+$alT.GetField('Made', $ST).GetValue($null).Clear()
+
 # find_faces (0.8.37): רץ ברקע על הקטע שביקשו; בסרט בלי פנים - 0 ואומר למה; טווח הפוך - שגיאה. **בסוף הקובץ:** באמצע הוא קיבל
 # (או גרם ש-listen יקבל) תשובה של קריאה קודמת - ״אין פקודה בשם הזה״ - ולא הובן (WORKPLAN)
 $perms.GetMethod('Parse', $ST).Invoke($null, @('0,0,0,0,0'))

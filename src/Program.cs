@@ -183,6 +183,8 @@ namespace SubtitleStudio
                 sb.AppendLine("outlinecol=" + s.Outline.ToArgb().ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("boxcol=" + s.BoxColor.ToArgb().ToString(CultureInfo.InvariantCulture));
                 foreach (string r in Recent) sb.AppendLine("recent=" + r);
+                // הקבצים שנוצרו (0.8.44) - ״הקובץ האחרון שיצרתי״ של העוזר, גם אחרי סגירה ופתיחה
+                foreach (string m in AppLog.Made) sb.AppendLine("made=" + m);
                 System.IO.File.WriteAllText(File_, sb.ToString(), Encoding.UTF8);
                 LastError = "";
             }
@@ -251,6 +253,7 @@ namespace SubtitleStudio
                         // צבע הרקע ושקיפותו (0.8.28; עד כאן לא נשמר - כל הפעלה חזרה לשחור)
                         case "boxcol": s.BoxColor = Color.FromArgb((int)D(v, s.BoxColor.ToArgb())); break;
                         case "recent": if (v.Length > 0 && Recent.Count < 6) Recent.Add(v); break;
+                        case "made": if (v.Length > 0 && AppLog.Made.Count < AppLog.MadeMax && !AppLog.Made.Contains(v)) AppLog.Made.Add(v); break;
                         case "autoupdate": AutoUpdate = v != "0"; break;
                         case "lastcheck": LastCheck = v; break;
                         case "volume": Volume = Math.Max(0, Math.Min(100, (int)D(v, 80))); break;

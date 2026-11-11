@@ -113,6 +113,24 @@ namespace SubtitleStudio
                 .P("to_sec", "number", "ועד הזמן הזה"));
             t.Add(new AiTool("select_cue", "בוחר כתובית ברשימה: היא נפתחת בעורך, והנגן קופץ אליה")
                 .Req("index", "integer", "מספר הכתובית, מ-1"));
+
+            // **יומנים וסייר הקבצים (0.8.44)** - בנימין: ״שהעוזר יוכל לשלוף לוגים... להבין את ההקשר איזה לוגים צריך... לפתוח את הסייר
+            // ואת הקובץ הרלוונטי, או אפילו להעתיק... של הקובץ האחרון שיצרת, או קבצים שהוא כבר מכיר״ (`AiFiles.cs`)
+            t.Add(new AiTool("get_log", "**קורא יומן של התוכנה** - כשהמשתמש אומר שמשהו נכשל, נתקע או לא עבד, או מבקש ״לוג״ / ״יומן״ / ״פרטי התקלה״. " +
+                    "קרא אותו לפני שאתה מנחש מה קרה, ואז הסבר במילים פשוטות מה קרה ומה אפשר לעשות - בלי לצטט שורות טכניות. " +
+                    "בחר לפי ההקשר: error - הפעולה האחרונה שנכשלה (יצירת סרט, חיתוך, כלי - מה שמנוע הווידאו אמר); " +
+                    "assistant - תמלול, תרגום, השיחה איתך והרשת; crash - תקלה בלתי צפויה שסגרה את התוכנה. בלי which - היומן האחרון שנכתב")
+                .P("which", "string", "error / assistant / crash"));
+            t.Add(new AiTool("copy_log", "מעתיק יומן ללוח, מוכן להדבקה בהודעה - כשהמשתמש רוצה לשלוח את פרטי התקלה למישהו (למפתח, לפורום). " +
+                    "אחרי זה אמור לו להדביק עם Ctrl+V")
+                .P("which", "string", "error / assistant / crash; בלי - היומן האחרון שנכתב"));
+            t.Add(new AiTool("show_in_folder", "**פותח את סייר הקבצים של ווינדוס עם הקובץ מסומן** - ״איפה הקובץ שיצרתי?״, ״תפתח לי את התיקייה״, " +
+                    "״תראה לי איפה הסרט״, ״איפה היומן?״. רק קבצים שהתוכנה פתחה או יצרה")
+                .P("what", "string", "last_output (הקובץ האחרון שנוצר - ברירת המחדל), output_2 / output_3 (קודמים), video (הסרט הפתוח), subtitles, project, " +
+                    "error_log / assistant_log / crash_log, recent_1.. (נפתחו לאחרונה), או שם של קובץ"));
+            t.Add(new AiTool("copy_file", "מעתיק קובץ ללוח - הקובץ עצמו, לא טקסט - כדי שהמשתמש ידביק אותו (Ctrl+V) בתיקייה אחרת, בהודעה או במייל. " +
+                    "רק קבצים שהתוכנה פתחה או יצרה")
+                .Req("what", "string", "כמו ב-show_in_folder: last_output, video, subtitles, project, error_log, או שם של קובץ"));
             t.Add(new AiTool("redo", "מבצע מחדש את מה שבוטל"));
             t.Add(new AiTool("undo_last_request", "מחזיר את הכתוביות והעיצוב למה שהיה לפני הבקשה הקודמת של המשתמש - כל מה שעשית בה, " +
                 "בבת אחת. זו התשובה ל״תבטל את מה שעשית״ / ״תחזיר כמו שהיה״. undo מבטל רק צעד אחד"));
@@ -458,6 +476,10 @@ namespace SubtitleStudio
                     case "list_blur_zones": return AiListZones();
                     case "remove_blur_zone": return AiRemoveZone(call);
                     case "seek": return AiSeek(call);
+                    case "get_log": return AiGetLog(call);
+                    case "copy_log": return AiCopyLog(call);
+                    case "show_in_folder": return AiShowInFolder(call);
+                    case "copy_file": return AiCopyFile(call);
                     case "save_subtitles": return AiSave();
                     case "mark_range": return AiMarkRange(call);
                     case "export_video": return AiExport(call);
