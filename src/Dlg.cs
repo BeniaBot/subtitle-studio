@@ -419,7 +419,7 @@ namespace SubtitleStudio
         private string _error = "";
         private string _saved;
         internal string Headline { get { return SubText(); } }
-        private Btn _cancel, _close, _openFolder, _log;
+        private Btn _cancel, _close, _openFolder, _log, _copy;
         private TextBox _logBox;
         private Timer _timer;
         // מה שמוצג נע בעדינות אל ההתקדמות האמיתית, והברק רץ לאורך הפס
@@ -457,6 +457,17 @@ namespace SubtitleStudio
                 catch { }
             };
             Controls.Add(_openFolder);
+
+            // **כשנכשל - ״העתקת הפרטים״** (0.8.43), במקום של ״פתיחת התיקייה״ (שמופיע רק בהצלחה): הגרסה, הפקודה והיומן ללוח, כדי שמי
+            // שנתקל בתקלה יוכל להדביק אותם בהודעה. משתמש שלח צילום של ״הפרטים המלאים ביומן״ - ולא הייתה דרך להוציא אותם
+            _copy = new Btn(); _copy.Text = Lang.T("העתקת הפרטים"); _copy.Icon = Ico.Copy; _copy.Kind = BtnKind.Ghost;
+            _copy.SetBounds(Theme.S(172), Theme.S(150), Theme.S(176), Theme.S(40)); _copy.Visible = false;
+            _copy.Click += delegate
+            {
+                try { Clipboard.SetDataObject(Details(), true, 5, 100); _copy.Text = Lang.T("הועתק"); _copy.Icon = Ico.Check; _copy.Invalidate(); }
+                catch { }
+            };
+            Controls.Add(_copy);
 
             _log = new Btn(); _log.Text = Lang.T("יומן"); _log.Kind = BtnKind.Tool; _log.SetBounds(Theme.S(428), Theme.S(150), Theme.S(74), Theme.S(40));
             _log.Click += delegate { ToggleLog(); };
@@ -507,13 +518,7 @@ namespace SubtitleStudio
                 if (Math.Abs(_prog - _shown) < 0.001) _shown = _prog;
                 _phase = (_phase + 0.033f / 1.6f) % 1f;
                 Invalidate();
-                if (_logBox.Visible && (_ticks++ % 3) == 0)
-                {
-                    string t;
-                    lock (job.Log) t = job.Log.ToString();
-                    if (t.Length > 6000) t = t.Substring(t.Length - 6000);
-                    if (_logBox.Text != t) { _logBox.Text = t; _logBox.SelectionStart = t.Length; _logBox.ScrollToCaret(); }
-                }
+                if (_logBox.Visible && (_ticks++ % 3) == 0) FillLog();
                 if (_done)
                 {
                     _timer.Stop();
@@ -528,6 +533,7 @@ namespace SubtitleStudio
                     _cancel.Visible = false;
                     _close.Visible = true;
                     _openFolder.Visible = _success && !string.IsNullOrEmpty(job.OutputPath);
+                    _copy.Visible = !_success && !_cancelled && _error.Length > 0;
                     _prog = _success ? 1 : _prog;
                     _shown = _prog;
                     Invalidate();
@@ -551,10 +557,40 @@ namespace SubtitleStudio
             return _error;
         }
 
+        /// <summary>**היומן מתמלא גם כשפותחים אותו אחרי שהעבודה נגמרה** (0.8.43). עד כאן רק השעון מילא אותו, והשעון נעצר בסוף העבודה:
+        /// ״הפרטים המלאים ביומן״ - ומי שלחץ על ״יומן״ אחרי הכישלון קיבל תיבה ריקה (נמדד: 0 תווים מתוך 175).</summary>
         private void ToggleLog()
         {
-            _logBox.Visible = !_logBox.Visible;
-            ClientSize = new Size(Theme.S(520), Theme.S(_logBox.Visible ? 360 : 210));
+            bool show = !SelfShown(_logBox);
+            _logBox.Visible = show;
+            ClientSize = new Size(Theme.S(520), Theme.S(show ? 360 : 210));
+            if (show) FillLog();
+        }
+
+        // Visible עונה false כל עוד החלון עצמו לא מוצג (בדיקות) - הדגל של הפקד עצמו
+        private static bool SelfShown(Control c) { return Dlg.SelfVisible(c); }
+
+        private void FillLog()
+        {
+            string t;
+            lock (_job.Log) t = _job.Log.ToString();
+            if (t.Length > 6000) t = t.Substring(t.Length - 6000);
+            if (_logBox.Text != t) { _logBox.Text = t; _logBox.SelectionStart = t.Length; _logBox.ScrollToCaret(); }
+        }
+
+        /// <summary>מה ש״העתקת הפרטים״ שם בלוח: הגרסה, ווינדוס, ההודעה, הפקודה, וסוף היומן - מספיק כדי לשחזר תקלה בלי לשאול שאלות.</summary>
+        internal string Details()
+        {
+            string log;
+            lock (_job.Log) log = _job.Log.ToString();
+            if (log.Length > 12000) log = log.Substring(log.Length - 12000);
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Subtext ").Append(App.Version).Append("  |  ").Append(Environment.OSVersion.VersionString).Append("\r\n");
+            sb.Append(_title).Append(": ").Append(_error).Append("\r\n\r\n");
+            if (_job.Steps != null && _job.Steps.Length > 0) for (int i = 0; i < _job.Steps.Length; i++) sb.Append("ffmpeg ").Append(_job.Steps[i]).Append("\r\n");
+            else if (!string.IsNullOrEmpty(_job.Args)) sb.Append("ffmpeg ").Append(_job.Args).Append("\r\n");
+            sb.Append("\r\n").Append(log.Replace("\r\n", "\n").Replace("\n", "\r\n"));
+            return sb.ToString();
         }
 
         protected override void OnPaint(PaintEventArgs e)

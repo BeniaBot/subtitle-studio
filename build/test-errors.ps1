@@ -188,6 +188,15 @@ try { $r = RunDlg "-i `"$media`" -t 2 `"$locked`"" $false } finally { $fs.Close(
 Check 'קובץ נעול: ההודעה בחלון אנושית' ($r.Head.Contains('פתוח בתוכנה אחרת')) $r.Head
 $logTxt = $r.Job.Log.ToString()
 Check 'והיומן הגולמי עדיין שם, מאחורי ״יומן״' ($logTxt -match 'Permission denied') ''
+# **מה שרואים בתיבה, לא מה שיש בזיכרון** (0.8.43): עד כאן הבדיקה שלמעלה עברה - והתיבה שנפתחת בלחיצה על ״יומן״ אחרי כישלון הייתה ריקה
+# (רק השעון מילא אותה, והוא נעצר בסוף העבודה). משתמש שלח צילום של ״הפרטים המלאים ביומן״, ולא היה מה לבקש ממנו
+[void]$pdT.GetMethod('ToggleLog', $IF).Invoke($r.Dlg, @())
+$boxTxt = [string]$pdT.GetField('_logBox', $IF).GetValue($r.Dlg).Text
+Check 'לחיצה על ״יומן״ אחרי כישלון: התיבה מלאה' ($boxTxt -match 'Permission denied') ("תווים בתיבה: " + $boxTxt.Length)
+$det = [string]$pdT.GetMethod('Details', $IF).Invoke($r.Dlg, @())
+$ver = [string](T 'App').GetField('Version', $SF).GetValue($null)
+Check '״העתקת הפרטים״: הגרסה, ההודעה, הפקודה והיומן' ($det.StartsWith("Subtext $ver") -and $det.Contains('פתוח בתוכנה אחרת') -and $det.Contains('ffmpeg -i') -and $det -match 'Permission denied') ($det.Substring(0, [Math]::Min(120, $det.Length)))
+[void]$pdT.GetMethod('ToggleLog', $IF).Invoke($r.Dlg, @())
 
 # **מודדים את הציור, לא את הטקסט.** גרסה ראשונה של הבדיקה מדדה את ההודעה
 # עם גלישת שורות ואמרה ״נכנס״ - והחלון צייר אותה בשורה אחת עם ״...״.
