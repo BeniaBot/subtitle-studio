@@ -2,6 +2,27 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.43",
+      "date": "2026-11-11",
+      "items": [
+        {
+          "t": "fix",
+          "s": "יצירת סרט עם טשטוש נכשלה מיד (״מנוע הווידאו לא הצליח לעבד את הקובץ״) אחרי ״למצוא פנים״ בסרטון של דקה-שתיים, ואחרי ״מעקב״ ארוך. תוקן",
+          "en": "Making a video with blur failed at once (\"the video engine couldn't process the file\") after \"find faces\" in a video of a minute or two, and after a long \"track\". Fixed"
+        },
+        {
+          "t": "fix",
+          "s": "״טשטוש רק כשיש כתובית״ בסרט עם יותר מ-100 כתוביות נפרדות: יצירת הסרט נכשלה מיד. תוקן",
+          "en": "\"Blur only when there is a subtitle\" in a video with more than 100 separate subtitles: making the video failed at once. Fixed"
+        },
+        {
+          "t": "fix",
+          "s": "כשפעולה נכשלת: ״יומן״ מציג את הפרטים (עד עכשיו התיבה נפתחה ריקה), וכפתור חדש ״העתקת הפרטים״ מעתיק אותם כדי לשלוח",
+          "en": "When an action fails: \"Log\" shows the details (until now the box opened empty), and a new \"Copy details\" button copies them so you can send them"
+        }
+      ]
+    },
+    {
       "v": "0.8.42",
       "date": "2026-11-03",
       "items": [
