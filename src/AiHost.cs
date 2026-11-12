@@ -128,6 +128,14 @@ namespace SubtitleStudio
                     "״תראה לי איפה הסרט״, ״איפה היומן?״. רק קבצים שהתוכנה פתחה או יצרה")
                 .P("what", "string", "last_output (הקובץ האחרון שנוצר - ברירת המחדל), output_2 / output_3 (קודמים), video (הסרט הפתוח), subtitles, project, " +
                     "error_log / assistant_log / crash_log, recent_1.. (נפתחו לאחרונה), או שם של קובץ"));
+            t.Add(new AiTool("edit_cues", "**משנה את הטקסט של הרבה כתוביות בקריאה אחת** - לתיקון, ניסוח, קיצור או פיסוק של כמה כתוביות " +
+                    "(במקום edit_cue לכל אחת). צעד ביטול אחד מחזיר את כולן")
+                .Req("edits", "string", "שורה לכל כתובית שמשתנה: מספר|הטקסט החדש. מעבר שורה בתוך כתובית - \\n. רק כתוביות שמשתנות"));
+            t.Add(new AiTool("get_transcript", "**כל הכתוביות כטקסט אחד**, עם מספר וזמן לכל אחת - לסיכום, לפרקים עם זמנים, לכותרת או תיאור לסרטון, " +
+                    "ולמעבר על כל הטקסט לפני תיקון (ואז edit_cues). בסרט ארוך מאוד חוזר בחלקים: more_from_index")
+                .P("from_index", "integer", "מאיזו כתובית להתחיל (ברירת מחדל - 1)"));
+            t.Add(new AiTool("copy_text", "מעתיק ללוח טקסט שכתבת (סיכום, פרקים, תיאור, תמלול) - כשהמשתמש מבקש להעתיק, או רוצה להדביק אותו במקום אחר")
+                .Req("text", "string", "הטקסט להעתקה"));
             t.Add(new AiTool("copy_file", "מעתיק קובץ ללוח - הקובץ עצמו, לא טקסט - כדי שהמשתמש ידביק אותו (Ctrl+V) בתיקייה אחרת, בהודעה או במייל. " +
                     "רק קבצים שהתוכנה פתחה או יצרה")
                 .Req("what", "string", "כמו ב-show_in_folder: last_output, video, subtitles, project, error_log, או שם של קובץ"));
@@ -480,6 +488,9 @@ namespace SubtitleStudio
                     case "copy_log": return AiCopyLog(call);
                     case "show_in_folder": return AiShowInFolder(call);
                     case "copy_file": return AiCopyFile(call);
+                    case "edit_cues": return AiEditCues(call);
+                    case "get_transcript": return AiTranscript(call);
+                    case "copy_text": return AiCopyText(call);
                     case "save_subtitles": return AiSave();
                     case "mark_range": return AiMarkRange(call);
                     case "export_video": return AiExport(call);

@@ -446,6 +446,27 @@ ZCall 'Undo' @()
 $nz2 = (ZP 'Zones')[1]
 Rep 'zones window: "start here" / "end here" follow the player; an end before the start is refused with a note; Ctrl+Z undoes' ($t1 -eq '1000..2500' -and $w1 -match '00:01\.0' -and $w1 -match '00:02\.5' -and $refused -and $nz2.FromMs -eq 1000 -and $nz2.ToMs -eq -1) ("{0}  [{1}]  refused={2}  after undo {3}..{4}" -f $t1, $w1, $refused, $nz2.FromMs, $nz2.ToMs)
 ZCall 'SetLook' @([int]1); ZCall 'RemoveZone' @([int]0)
+# **כלים לדיוק** (0.8.44; בנימין: ״הייתי צריך לגרור את הזמן בצורה ממש לא נוחה, לא היה אפשר לקבוע בדיוק דברים״): הקלדה של התחלה וסוף,
+# הקלדה של המיקום, פריים קדימה, וזום בפס הזמן
+[void]$zdT.GetMethod('Select', $IN, $null, [Type[]]@([int]), $null).Invoke($zd, @([int]0))
+$pz = (ZP 'Zones')[0]; $pf0 = $pz.FromMs; $pt0 = $pz.ToMs; $pz.FromMs = 1000; $pz.ToMs = 2000      # הסרט של הבדיקה באורך 3 שניות
+$tzM = $zdT.GetMethod('TypeZoneTime', $IN); $tpM = $zdT.GetMethod('TypePosition', $IN)
+$r1 = $tzM.Invoke($zd, @($true, [string]'1.5')); $a1 = $pz.FromMs
+$r2 = $tzM.Invoke($zd, @($true, [string]'2.5')); $a2 = $pz.FromMs
+$r3 = $tzM.Invoke($zd, @($true, [string]'abc'))
+$r4 = $tzM.Invoke($zd, @($false, [string]'')); $a4 = $pz.ToMs
+Rep 'zones window: typing a start or an end - applied at once; refused when it crosses the other edge or is not a time; empty = open' ($r1 -eq 1 -and $a1 -eq 1500 -and $r2 -eq -2 -and $a2 -eq 1500 -and $r3 -eq -1 -and $r4 -eq 1 -and $a4 -eq -1) ("{0}/{1} {2}/{3} {4} {5}/{6}" -f $r1, $a1, $r2, $a2, $r3, $r4, $a4)
+$okPos = $tpM.Invoke($zd, @([string]'0:01.20')); $posA = [long]$zdT.GetField('_pos', $IN).GetValue($zd)
+$fms = [long]$zdT.GetProperty('FrameMs', $IN).GetValue($zd, $null)
+[void]$zdT.GetMethod('StepFrame', $IN).Invoke($zd, @([int]1)); $posB = [long]$zdT.GetField('_pos', $IN).GetValue($zd)
+$posTxt = [string]$zdT.GetField('_posF', $IN).GetValue($zd).Text
+Rep 'zones window: typing the position jumps there; one frame forward; the position field shows where the player is' ($okPos -and $posA -eq 1200 -and $fms -gt 0 -and $posB -eq (1200 + $fms) -and $posTxt.StartsWith('00:01.2')) ("pos {0} -> {1} (frame {2}ms), field [{3}]" -f $posA, $posB, $fms, $posTxt)
+$zb = $zdT.GetField('_bar', $IN).GetValue($zd); $zbT = $zb.GetType(); $durB = [long]$zb.Duration
+[void]$zbT.GetMethod('ZoomAt', $IN).Invoke($zb, @([double]0.5, [long]1000)); $span1 = $zb.ViewEnd - $zb.ViewStart; $in1 = ($zb.ViewStart -le 1000 -and $zb.ViewEnd -ge 1000)
+[void]$zbT.GetMethod('Follow', $IN).Invoke($zb, @([long]($durB - 100))); $in2 = ($zb.ViewStart -le ($durB - 100) -and $zb.ViewEnd -ge ($durB - 100))
+[void]$zbT.GetMethod('ZoomAt', $IN).Invoke($zb, @([double]8, [long]1000)); $zoomedOut = -not $zb.Zoomed
+Rep 'zones window: zoom on the time bar - a part of the video around the point, follows the player, zooming out returns to the whole video' ($span1 -gt 0 -and $span1 -lt $durB -and $in1 -and $in2 -and $zoomedOut) ("span {0} of {1}, {2} {3} {4}" -f $span1, $durB, $in1, $in2, $zoomedOut)
+$pz.FromMs = $pf0; $pz.ToMs = $pt0
 [void]$zdT.GetMethod('OnOk', $IN).Invoke($zd, @())
 $res = $zd.Result
 Rep 'zones window: Save returns a copy; the zones it came with are untouched until then' ($res.Count -eq 1 -and $res[0].Look -eq 1 -and $res[0].FromMs -eq 1000 -and $orig.Zones.Count -eq 1 -and $orig.Zones[0].Look -eq 2 -and -not [object]::ReferenceEquals($res[0], (ZP 'Zones')[0]) -and (ZP 'Changed')) ("result {0} (look {1}), original {2} (look {3})" -f $res.Count, $res[0].Look, $orig.Zones.Count, $orig.Zones[0].Look)

@@ -369,6 +369,19 @@ $wres = $res['_work'].Invoke()
 Check 'וכשהחיפוש לפי המשמעות נכשל - אומר מה עוד אפשר (מילה נרדפת, צפייה)' (('' + $wres['note']).Contains('watch_video')) ('' + $wres['note'])
 $state = $mfT.GetMethod('AiStateFull', $IN).Invoke($mf, @())
 Check 'במצב, עם יותר מ-30 כתוביות: ״רק חלק״, ואיך מחפשים בכולן' ($state.Contains('רק חלק') -and $state.Contains('find_text')) ''$mfT.GetField('AiConfirmHook', $ST).SetValue($null, $null)
+# **הרבה כתוביות בקריאה אחת, כל התמלול, והעתקת טקסט** (0.8.44): get_transcript מחזיר הכול (מספר|זמן|טקסט), edit_cues משנה כמה
+# בבת אחת (מעבר שורה ב-\n, מספר שלא קיים מדווח), ו-copy_text שם טקסט בלוח
+$tr0 = Call 'get_transcript' @{}
+$trLines = @(('' + $tr0['transcript']).TrimEnd("`n").Split("`n"))
+Check 'העוזר: get_transcript - כל הכתוביות בקריאה אחת, עם מספר וזמן' ($trLines.Count -ge 2 -and $trLines.Count -eq $tr0['cues'] -and $tr0['returned'] -eq $tr0['cues'] -and $trLines[0] -match '^1\|[\d:.]+\|') ('' + $tr0['error'] + ' lines=' + $trLines.Count)
+$orig1 = ($trLines[0] -split '\|', 3)[2]; $orig2 = ($trLines[1] -split '\|', 3)[2]
+$ed = Call 'edit_cues' @{ edits = "1|שורה ראשונה חדשה`n2|שתי שורות\nכאן`n99999|לא קיימת" }
+$tr1 = @(('' + (Call 'get_transcript' @{})['transcript']).Split("`n"))
+Check 'העוזר: edit_cues - שתי כתוביות בקריאה אחת, מעבר שורה, ומספר שלא קיים מדווח' ($tr1[0] -match '^1\|[^|]*\|שורה ראשונה חדשה$' -and $tr1[1] -match '^2\|[^|]*\|שתי שורות / כאן$' -and @($ed['bad_lines']).Count -eq 1 -and ('' + $ed['done']).Contains('2')) ('' + $ed['error'] + $ed['done'])
+[void](Call 'edit_cues' @{ edits = ("1|" + $orig1.Replace(' / ', '\n') + "`n2|" + $orig2.Replace(' / ', '\n')) })
+$ct = Call 'copy_text' @{ text = 'פרק 1 - 0:00' }
+Check 'העוזר: copy_text - הטקסט ללוח' ([string]$mfT.GetField('LastCopied', $ST).GetValue($null) -eq 'פרק 1 - 0:00' -and ('' + $ct['done']).Contains('Ctrl+V')) ('' + $ct['error'])
+
 # **יומנים וסייר הקבצים** (0.8.44): העוזר קורא את היומן של הפעולה שנכשלה, מעתיק אותו, ופותח את הסייר - רק על קבצים שהתוכנה מכירה.
 # בבדיקות לא נפתח חלון ולא נוגעים בלוח: מה שהיה נפתח / מועתק נרשם ב-LastShown / LastCopied
 $alT = TY 'AppLog'

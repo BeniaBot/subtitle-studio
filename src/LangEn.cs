@@ -1884,6 +1884,10 @@ namespace SubtitleStudio
             "הסוף צריך להיות אחרי ההתחלה.", "The end has to be after the start.",
             "יצירת סרט עם טשטוש", "Make a video with blur",
             "צורב את הטשטוש בסרט", "Burning the blur into the video",
+            "עריכה של כמה כתוביות", "Editing several subtitles",
+            "כתובית אחת שונתה", "One subtitle was changed",
+            "{0} כתוביות שונו", "{0} subtitles were changed",
+            "הטקסט הועתק. אפשר להדביק אותו (Ctrl+V)", "The text was copied. You can paste it (Ctrl+V)",
         };
 
         public static void Fill(Dictionary<string, string> d)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 
 namespace SubtitleStudio
@@ -152,6 +153,96 @@ namespace SubtitleStudio
             }
             r["done"] = Lang.T("הפרטים הועתקו. אפשר להדביק אותם בהודעה (Ctrl+V)");
             r["chars"] = text.Length;
+            return r;
+        }
+
+        // ---------- עוד יכולות (0.8.44, ״תנסה לחשוב אילו יכולות יהיה נחמד שיהיו לו״) ----------
+
+        /// <summary>**הרבה כתוביות בקריאה אחת.** עד כאן edit_cue - אחת בכל סבב: ״תתקן את הפיסוק בכל הכתוביות״ היה עשרות סבבים (איטי, וצורך
+        /// מכסה). כאן: שורה לכל כתובית, ``מספר|הטקסט החדש`` (מעבר שורה - ``\n``), וצעד ביטול אחד לכולן.</summary>
+        private Dictionary<string, object> AiEditCues(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
+            List<KeyValuePair<int, string>> edits = new List<KeyValuePair<int, string>>();
+            List<object> bad = new List<object>();
+            foreach (string raw in c.Str("edits", "").Replace("\r\n", "\n").Split('\n'))
+            {
+                string line = raw.Trim();
+                if (line.Length == 0) continue;
+                int bar = line.IndexOf('|'), idx;
+                if (bar <= 0 || !int.TryParse(line.Substring(0, bar).Trim(), out idx) || idx < 1 || idx > _doc.Cues.Count)
+                {
+                    bad.Add(line.Length > 40 ? line.Substring(0, 40) : line);
+                    continue;
+                }
+                edits.Add(new KeyValuePair<int, string>(idx, line.Substring(bar + 1).Trim().Replace("\\n", "\n")));
+            }
+            if (edits.Count == 0)
+            {
+                r["error"] = "לא התקבלה אף שורה בצורה ״מספר|טקסט״ עם מספר של כתובית קיימת";
+                if (bad.Count > 0) r["bad_lines"] = bad;
+                return r;
+            }
+            _doc.Push(Lang.T("עריכה של כמה כתוביות"));
+            int changed = 0;
+            foreach (KeyValuePair<int, string> e in edits)
+            {
+                Cue q = _doc.Cues[e.Key - 1];
+                if (q.Text == e.Value) continue;
+                q.Text = e.Value;
+                q.Doubt = "";
+                changed++;
+            }
+            if (bad.Count > 0) r["bad_lines"] = bad;
+            if (changed == 0) { _doc.DropLastUndo(); r["done"] = "הטקסט כבר כזה - לא השתנה כלום"; return r; }
+            _doc.Dirty = true;
+            _doc.RaiseChanged();
+            SyncAfterDocChange();
+            r["done"] = changed == 1 ? Lang.T("כתובית אחת שונתה") : Lang.F("{0} כתוביות שונו", changed);
+            r["note"] = "צעד ביטול אחד (Ctrl+Z) מחזיר את כולן";
+            return r;
+        }
+
+        /// <summary>**כל הכתוביות כטקסט אחד**, ``מספר|זמן|טקסט`` בשורה: לסיכום, לפרקים עם זמנים, לתיאור לסרטון, ולמעבר על הכול לפני תיקון.
+        /// עד כאן list_cues בעמודים של 40-200. עד `TranscriptMax` תווים בקריאה; בסרט ארוך מאוד - ``more_from_index``.</summary>
+        private Dictionary<string, object> AiTranscript(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            if (_doc == null || _doc.Cues.Count == 0) { r["error"] = "אין כתוביות"; return r; }
+            int from = Math.Max(1, (int)c.Num("from_index", 1));
+            StringBuilder sb = new StringBuilder();
+            int i = from - 1;
+            for (; i < _doc.Cues.Count; i++)
+            {
+                Cue q = _doc.Cues[i];
+                string line = (i + 1) + "|" + Tc.Short(q.Start) + "|" + (q.Text ?? "").Replace("\r\n", "\n").Replace("\n", " / ");
+                if (sb.Length > 0 && sb.Length + line.Length + 1 > TranscriptMax) break;
+                sb.Append(line).Append('\n');
+            }
+            r["format"] = "מספר|זמן התחלה|טקסט (״ / ״ = מעבר שורה)";
+            r["cues"] = _doc.Cues.Count;
+            r["returned"] = i - (from - 1);
+            if (i < _doc.Cues.Count) r["more_from_index"] = i + 1;
+            r["transcript"] = sb.ToString();
+            return r;
+        }
+
+        internal const int TranscriptMax = 60000;
+
+        /// <summary>טקסט שהעוזר כתב (סיכום, פרקים, תיאור) - ללוח, כדי להדביק במקום אחר.</summary>
+        private Dictionary<string, object> AiCopyText(AiCall c)
+        {
+            Dictionary<string, object> r = new Dictionary<string, object>();
+            string text = c.Str("text", "");
+            if (text.Trim().Length == 0) { r["error"] = "אין טקסט להעתיק"; return r; }
+            LastCopied = text;
+            if (!TestRun)
+            {
+                try { Clipboard.SetDataObject(text.Replace("\r\n", "\n").Replace("\n", "\r\n"), true, 5, 100); }
+                catch (Exception ex) { r["error"] = "ההעתקה ללוח לא הצליחה: " + ex.Message; return r; }
+            }
+            r["done"] = Lang.T("הטקסט הועתק. אפשר להדביק אותו (Ctrl+V)");
             return r;
         }
 
