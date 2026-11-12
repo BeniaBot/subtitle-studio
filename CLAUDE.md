@@ -13,7 +13,7 @@
 - קוד: `src\*.cs` (C#, WinForms)
 - פלט: `dist\Subtext.exe` (~29MB — הכל בפנים) ו-`dist\Subtext-app-update-<זהות>.gz` (~0.5MB, העדכון הקטן)
 - בנייה: `build.cmd`
-- גרסה נוכחית: `App.Version` ב-`src\Updater.cs` (כרגע `0.8.43`)
+- גרסה נוכחית: `App.Version` ב-`src\Updater.cs` (כרגע `0.8.44`)
 
 ---
 
@@ -301,6 +301,20 @@ build.cmd
 - צריבה בתמונה (עברית RTL נכונה — נבדק על פריים אמיתי), ערוץ כתוביות נפרד, חילוץ כתוביות
 - חיתוך (מהיר/מדויק) עם אזהרת פריים מפתח אמיתית, 17 כלי מדיה, קידוד דו-מעברי לגודל יעד
 - פריסה מ-EXE יחיד, מצב נייד, ערכה כהה ובהירה, כל הדיאלוגים נבדקו ויזואלית
+
+### 0.8.44 — דיוק בחלון הטשטוש, ועוזר עם יומנים, סייר ועריכה מרוכזת (12.11.2026)
+
+בנימין: ״קביעת זמן ידנית, הגדלה והקטנה, מהירות ואפשרויות נגן״ בחלון הטשטוש; ״שהעוזר יוכל לשלוף לוגים... לפתוח את הסייר״; ״סבב שיפור כללי לעוזר״.
+WORKPLAN 2לג. מה שחייב להישאר נכון:
+
+- **ZonesDlg:** שורת נגן (`StepFrame`, `_posF` - `TypePosition`, `_speed` על `_main.PlayerSpeed`, זום) ופס הזמן בשורה משלו; `ZoneTimeBar.ViewStart/ViewEnd`
+  (`ZoomAt`, `Pan`, `Follow`, `TimeAt`; 0/0 = כל הסרט - כך SyncDlg). שדות ״מ-״/״עד״: `TypeZoneTime` (משפיע תוך כדי, רק ערך עקבי; ריק = פתוח),
+  Esc - `RevertTyping` ב-ProcessCmdKey. **נבדק בבדיקות ובצילום בלבד - לא נוסה בלחיצות אמיתיות.** צילום בלי Show לא מצייר טקסט של TextBox.
+- **AppLog / AiFiles:** ``last-error.txt`` נכתב מחלון ההתקדמות; `KnownFiles` - העוזר פותח ומעתיק רק קבצים שהתוכנה מכירה (לא נתיב מהמודל).
+  בבדיקות לא נפתח סייר ולא נוגעים בלוח (`LastShown`, `LastCopied`). כלים: get_log, copy_log, show_in_folder, copy_file, edit_cues
+  (``מספר|טקסט``, צעד ביטול אחד), get_transcript (עד `TranscriptMax`), copy_text.
+- **הכפתור הירוק:** `ExportLabel` / `OnlyBlur` (מתעדכן מ-OnTick); `ExportVideoDlg` עם ``blurOnly`` - בלי בחירת המצב.
+- **שחרור מהיר:** real-sweep רק כשקוד המדיה השתנה (WORKPLAN 2לג).
 
 ### 0.8.43 — ביטוי של ffmpeg עד עומק 100 (11.11.2026)
 
