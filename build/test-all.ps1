@@ -64,6 +64,7 @@ foreach ($n in $names) {
     if (-not $ok) {
         $bad++
         $fails = @($out -split "`n" | Where-Object { $_ -match '^\s*FAIL' } | Select-Object -First 6)
+        try { [IO.File]::WriteAllText((Join-Path $env:TEMP ('ss-testall-fail-' + ($n -replace '[^\w@-]', '_') + '.txt')), [string]$out, (New-Object Text.UTF8Encoding $true)) } catch { }
         $why += $(if ($fails.Count) { "`n      " + (($fails | ForEach-Object { $_.Trim() }) -join "`n      ") } else { '' })
     }
     if ($p -gt 0) { $total += $p }
