@@ -79,23 +79,28 @@ namespace SubtitleStudio
         {
             get
             {
-                try
-                {
-                    string dir = Folder;
-                    for (int i = 0; i < Files.Length; i++)
-                        if (!FileOk(Path.Combine(dir, Files[i]), i)) return false;
-                    return true;
-                }
-                catch { return false; }
+                return FilesOk(Folder, Files, Sizes);
             }
         }
 
-        private static bool FileOk(string path, int i)
+        /// <summary>כל הקבצים של חבילה במקום, כל אחד בגודל המדויק שלו (הטביעה נבדקה כשירד). לכל חבילה בקטלוג (0.8.46).</summary>
+        internal static bool FilesOk(string dir, string[] files, long[] sizes)
+        {
+            try
+            {
+                for (int i = 0; i < files.Length; i++)
+                    if (!FileOk(Path.Combine(dir, files[i]), sizes[i])) return false;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private static bool FileOk(string path, long size)
         {
             try
             {
                 FileInfo fi = new FileInfo(path);
-                return fi.Exists && fi.Length == Sizes[i];
+                return fi.Exists && fi.Length == size;
             }
             catch { return false; }
         }
@@ -143,19 +148,27 @@ namespace SubtitleStudio
         /// <summary>מוריד את מה שחסר. ביטול או כישלון משאירים את מה שכבר ירד - הפעם הבאה ממשיכה משם.</summary>
         public static bool Download(Action<long, long> progress, Func<bool> canceled, out string error)
         {
+            return DownloadFiles(BaseUrl, Folder, Files, Sizes, GzSizes, Sha256, progress, canceled, out error);
+        }
+
+        /// <summary>ההורדה של חבילה כלשהי (0.8.46 - הקטלוג): קובץ gz לכל קובץ ב-<paramref name="baseUrl"/>, המשך ב-Range,
+        /// טביעה על הקובץ הפתוח. מה שכבר במקום בגודל הנכון - לא יורד שוב.</summary>
+        internal static bool DownloadFiles(string baseUrl, string dir, string[] files, long[] sizes, long[] gzSizes, string[] sha256,
+                                           Action<long, long> progress, Func<bool> canceled, out string error)
+        {
             error = null;
-            string dir = Folder;
             try
             {
                 Directory.CreateDirectory(dir);
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)768;
-                long total = DownloadBytes, done = 0;
-                for (int i = 0; i < Files.Length; i++)
+                long total = 0, done = 0;
+                foreach (long g in gzSizes) total += g;
+                for (int i = 0; i < files.Length; i++)
                 {
-                    string target = Path.Combine(dir, Files[i]);
-                    if (FileOk(target, i))
+                    string target = Path.Combine(dir, files[i]);
+                    if (FileOk(target, sizes[i]))
                     {
-                        done += GzSizes[i];
+                        done += gzSizes[i];
                         if (progress != null) progress(done, total);
                         continue;
                     }
@@ -166,7 +179,7 @@ namespace SubtitleStudio
                     {
                         done = before;
                         int r;
-                        try { r = FetchTo(BaseUrl + Files[i] + ".gz", part, GzSizes[i], ref done, total, progress, canceled, out error); }
+                        try { r = FetchTo(baseUrl + files[i] + ".gz", part, gzSizes[i], ref done, total, progress, canceled, out error); }
                         catch (WebException wex)
                         {
                             // תשובה מהשרת (404, חסימה) היא סופית; חיבור שנקטע - ממשיכים מאיפה שעצר
@@ -196,7 +209,7 @@ namespace SubtitleStudio
                         error = Lang.T("הקובץ שירד פגום. נסו שוב.");
                         return false;
                     }
-                    if (!string.Equals(hash, Sha256[i], StringComparison.OrdinalIgnoreCase) || new FileInfo(tmp).Length != Sizes[i])
+                    if (!string.Equals(hash, sha256[i], StringComparison.OrdinalIgnoreCase) || new FileInfo(tmp).Length != sizes[i])
                     {
                         Kill(part); Kill(tmp);
                         error = Lang.T("הקובץ שירד פגום, או שהוחלף בשרת. נסו שוב.");
