@@ -1938,6 +1938,18 @@ namespace SubtitleStudio
             "תמלול עברית - הכי מדויק", "Hebrew transcription - the most accurate",
             "המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק.", "The most accurate Hebrew model we found. Slow, and needs a strong computer.",
             "לשימוש לא מסחרי בלבד.", "For non-commercial use only.",
+            "מודלים על המחשב (בטא)", "Models on this computer (beta)",
+            "תמלול ותרגום בלי אינטרנט. מורידים פעם אחת, ומוחקים מתי שרוצים.", "Offline transcription and translation. Download once, delete anytime.",
+            "המחשב הזה: {0} זיכרון, {1} ליבות. ליד כל מודל כתוב אם הוא מתאים לו.", "This computer: {0} of memory, {1} cores. Each model says whether it fits.",
+            "תמלול", "Transcription",
+            "תרגום", "Translation",
+            "בבדיקה - יגיע בקרוב", "Being tested - coming soon",
+            "מותקן · {0}", "Installed · {0}",
+            "בקרוב", "Soon",
+            "הורדה · {0}", "Download · {0}",
+            "למחוק את ״{0}״?", "Delete “{0}”?",
+            "אפשר להוריד אותו שוב מתי שרוצים.", "You can download it again whenever you like.",
+            "מודלים על המחשב", "Models on this computer",
         };
 
         public static void Fill(Dictionary<string, string> d)

@@ -257,6 +257,7 @@ $dialogs = @(
     @{ n = 'SpellSetup'; needsMedia = $false; make = { NewOf 'SpellSetupDlg' @() } },
     @{ n = 'LocalSetup'; needsMedia = $false; make = { NewOf 'LocalSetupDlg' @() } },
     @{ n = 'Storage';    needsMedia = $false; make = { NewOf 'StorageDlg' @() } },
+    @{ n = 'Models';     needsMedia = $false; make = { NewOf 'ModelsDlg' @() } },
     @{ n = 'TranscribeNet'; needsMedia = $true; make = { (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, 'gemini'); NewOf 'TranscribeDlg' @($mi, [int]3); (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, '') } },
     @{ n = 'Update';     needsMedia = $false; make = { NewOf 'UpdateDlg' @($rel, $sum) } }
 )

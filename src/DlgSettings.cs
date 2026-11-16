@@ -357,6 +357,14 @@ namespace SubtitleStudio
             Row(Hint(Lang.T("כל מה שנמחק כאן אפשר להוריד שוב. הכתוביות, ההגדרות, המפתחות והמילון האישי שלכם לא נמחקים מכאן.")), 22, 6);
 
             Buttons(Lang.T("סגירה"), Ico.Check, null);
+            // הקטלוג (0.8.46): כל המודלים שאפשר להוריד, לא רק מה שכבר על הדיסק
+            BottomButton(Lang.T("מודלים על המחשב"), Ico.Download, delegate
+            {
+                ModelsDlg d = new ModelsDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+                Refresh2();
+            });
             Refresh2();
         }
 
