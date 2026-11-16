@@ -1964,6 +1964,7 @@ namespace SubtitleStudio
             "שוקל {0}, ויורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.", "It weighs {0} and downloads once. You can stop the download and continue later from the same place.",
             "רישיון: {0}. {1}", "License: {0}. {1}",
             "יורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.", "Downloads once. You can stop the download and continue later from the same place.",
+            "מנוע התרגום הקל", "Light translation engine",
         };
 
         public static void Fill(Dictionary<string, string> d)
