@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 93 בדיקות.
+# צפוי: 100 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -408,6 +408,80 @@ $forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Pars
 Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון; זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or -not $_.Line -or $_.DiskMB -le 0 -or $_.RamMB -le 0 }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast') (($ids -join ', '))
 $nc = $byId.Invoke($null, @([string]'stt-he-caspi'))
 Check 'רישיון עם מגבלה נאמר (Caspi - לא מסחרי)' ([string]$nc.LicenseNote -match 'לא מסחרי') ([string]$nc.LicenseNote)
+
+# ---------------- מודל שפה דרך llama-server (LocalLlm, 0.8.46) - שרת מדומה ----------------
+Write-Host "`n--- llama-server (fake)"
+$llmSrc = @'
+using System; using System.IO; using System.Net; using System.Net.Sockets; using System.Text; using System.Threading;
+class P {
+  static int Main(string[] a) {
+    int port = 0; for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "--port") port = int.Parse(a[i + 1]);
+    File.WriteAllText("fake-llm-args.txt", string.Join(" ", a) + "|cwd=" + Directory.GetCurrentDirectory(), new UTF8Encoding(false));
+    string mode = File.Exists("fake-llm-mode.txt") ? File.ReadAllText("fake-llm-mode.txt").Trim() : "ok";
+    if (mode == "crash") return 1;
+    TcpListener l = new TcpListener(IPAddress.Loopback, port); l.Start();
+    while (true) {
+      TcpClient c = l.AcceptTcpClient(); NetworkStream ns = c.GetStream(); ns.ReadTimeout = 5000;
+      MemoryStream ms = new MemoryStream(); byte[] buf = new byte[65536]; int headEnd = -1, clen = 0;
+      while (true) {
+        int n = ns.Read(buf, 0, buf.Length); if (n <= 0) break; ms.Write(buf, 0, n);
+        string s = Encoding.ASCII.GetString(ms.ToArray());
+        if (headEnd < 0) { headEnd = s.IndexOf("\r\n\r\n"); if (headEnd >= 0) { int k = s.ToLower().IndexOf("content-length:"); if (k >= 0 && k < headEnd) clen = int.Parse(s.Substring(k + 15, s.IndexOf("\r\n", k) - k - 15).Trim()); } }
+        if (headEnd >= 0 && ms.Length >= headEnd + 4 + clen) break;
+      }
+      byte[] all = ms.ToArray(); string head = Encoding.ASCII.GetString(all, 0, Math.Max(0, headEnd));
+      string body;
+      if (head.StartsWith("GET /health")) body = "{\"status\":\"ok\"}";
+      else {
+        File.WriteAllBytes("fake-llm-req.json", new MemoryStream(all, headEnd + 4, all.Length - headEnd - 4).ToArray());
+        body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"<think>hmm</think>שלום\"}}]}";
+      }
+      byte[] b = Encoding.UTF8.GetBytes(body);
+      byte[] h = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + b.Length + "\r\nConnection: close\r\n\r\n");
+      ns.Write(h, 0, h.Length); ns.Write(b, 0, b.Length); c.Close();
+    }
+  }
+}
+'@
+$llDir = Join-Path $work 'מנוע מודל'; $llModels = Join-Path $work 'מודלים'
+New-Item -ItemType Directory $llDir, $llModels | Out-Null
+[IO.File]::WriteAllText((Join-Path $work 'fakellm.cs'), $llmSrc)
+& $csc /nologo /target:exe /out:"$llDir\llama-server.exe" "$work\fakellm.cs" | Out-Null
+$llT = T 'LocalLlm'
+function NewLlm([string]$model, $mmproj) { return [Activator]::CreateInstance($llT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @([string](Join-Path $llDir 'llama-server.exe'), [string]$llModels, [string]$model, $mmproj, [int]4096), $null) }
+$msgT = [Collections.Generic.Dictionary``2].MakeGenericType([string], [object])
+function Ask($ll, $msg) {
+    $msgs = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($msgT)); $msgs.Add($msg)
+    $argv = New-Object object[] 5; $argv[0] = $msgs; $argv[1] = [int]50; $argv[2] = [double]0; $argv[3] = $null; $argv[4] = $null
+    $out = $llT.GetMethod('Chat', $IF).Invoke($ll, $argv)
+    return @{ out = $out; err = [string]$argv[4] }
+}
+function LlmProcs { return @(Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'" | Where-Object { $_.ExecutablePath -like ($llDir + '*') }) }
+$ll = NewLlm 'caspi\model.gguf' 'caspi\mmproj.gguf'
+$a = [string]$llT.GetMethod('Arguments', $IF).Invoke($ll, @([int]5555))
+$expA = '-m caspi' + [char]92 + 'model.gguf --mmproj caspi' + [char]92 + 'mmproj.gguf --host 127.0.0.1 --port 5555 -c 4096 -t '
+Check 'llama-server: שמות יחסיים, רק 127.0.0.1, ועד 4 ליבות' ($a.StartsWith($expA) -and $a -match '-t [1-4] -tb [1-4] --no-webui$') $a
+$r = Ask $ll ($llT.GetMethod('AudioMessage', $SF).Invoke($null, @([byte[]](1, 2, 3), [string]'תמלל')))
+$req = [IO.File]::ReadAllText((Join-Path $llModels 'fake-llm-req.json'), [Text.Encoding]::UTF8)
+$args0 = [IO.File]::ReadAllText((Join-Path $llModels 'fake-llm-args.txt'), [Text.Encoding]::UTF8)
+Check 'llama-server: עולה מתוך תיקיית המודלים (בשם עברי), ותשובה בלי ה״חשיבה״' ($r.out -eq 'שלום' -and $args0.EndsWith('|cwd=' + $llModels)) ([string]$r.out + ' ' + $r.err)
+Check 'llama-server: קול נשלח כ-input_audio, ב-base64, עם ההוראה' ($req -match '"type":"input_audio"' -and $req -match '"data":"AQID"' -and $req -match '"format":"wav"') ''
+$ll.Stop(); Start-Sleep -Milliseconds 400
+Check 'llama-server: Stop סוגר את התהליך' (@(LlmProcs).Count -eq 0) ''
+$llT.GetField('IdleSec', $SF).SetValue($null, 1)
+$ll = NewLlm 'caspi\model.gguf' $null
+$r = Ask $ll ($llT.GetMethod('TextMessage', $SF).Invoke($null, @([string]'user', [string]'שלום')))
+$t0 = [DateTime]::UtcNow; while (@(LlmProcs).Count -gt 0 -and ([DateTime]::UtcNow - $t0).TotalSeconds -lt 15) { Start-Sleep -Milliseconds 300 }
+Check 'llama-server: בלי בקשות - נסגר לבד (לא נשאר עם כמה GB בזיכרון)' ($r.out -eq 'שלום' -and @(LlmProcs).Count -eq 0) ("" + [int]([DateTime]::UtcNow - $t0).TotalSeconds + 's out=[' + $r.out + '] err=[' + $r.err + '] procs=' + @(LlmProcs).Count)
+$llT.GetField('IdleSec', $SF).SetValue($null, 120)
+$ll = NewLlm 'מודל\model.gguf' $null
+$r = Ask $ll ($llT.GetMethod('TextMessage', $SF).Invoke($null, @([string]'user', [string]'x')))
+Check 'llama-server: שם קובץ בעברית - נעצר עם הודעה, בלי להפעיל' ($r.out -eq $null -and $r.err -match 'תיקייה' -and @(LlmProcs).Count -eq 0) ($r.err + ' out=[' + $r.out + '] procs=' + @(LlmProcs).Count)
+[IO.File]::WriteAllText((Join-Path $llModels 'fake-llm-mode.txt'), 'crash')
+$ll = NewLlm 'caspi\model.gguf' $null
+$r = Ask $ll ($llT.GetMethod('TextMessage', $SF).Invoke($null, @([string]'user', [string]'x')))
+Check 'llama-server: נסגר בזמן הטעינה - ״אולי אין מספיק זיכרון״ והצעה למודל קל' ($r.out -eq $null -and $r.err -match 'זיכרון' -and $r.err -match 'קל יותר') $r.err
+Remove-Item (Join-Path $llModels 'fake-llm-mode.txt')
 
 # ---------------- ההורדה ----------------
 Write-Host "`n--- download"
