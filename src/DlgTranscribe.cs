@@ -17,8 +17,8 @@ namespace SubtitleStudio
         private readonly Toggle _replace, _range;
         private readonly long _a, _b;
         private readonly MediaInfo _mi;
-        private readonly Btn _optGoogle, _optGroq, _connect;
-        private readonly Lbl _warn, _info;
+        private readonly Btn _optLocal, _optGoogle, _optGroq, _connect;
+        private readonly Lbl _warn, _warn2, _info, _ctxHint;
         private string _choice;
 
         public string Context { get { return _context.Text.Trim(); } }
@@ -29,7 +29,7 @@ namespace SubtitleStudio
         /// <summary>הקטע לתמלול, או 0/0 - כל הסרט.</summary>
         public long FromMs { get { return _range.Checked ? _a : 0; } }
         public long ToMs { get { return _range.Checked ? _b : 0; } }
-        public ISttProvider Provider { get { return _choice == "groq" ? (ISttProvider)Stt.Groq : Stt.Gemini; } }
+        public ISttProvider Provider { get { return Stt.ById(_choice) ?? Stt.Gemini; } }
 
         public TranscribeDlg(MediaInfo mi, int existingCues) : this(mi, existingCues, "") { }
 
@@ -46,28 +46,18 @@ namespace SubtitleStudio
 
             // **הבחירה כאן ולא בהגדרות.** חלון ההגדרות כבר על גבול הגובה, והמקום
             // שבו מחליטים איפה לתמלל הוא הרגע שבו מתמללים.
+            // **שלוש אפשרויות בשורה אחת (0.8.45):** על המחשב, ושני השירותים ברשת. בשליש רוחב נכנסות רק שתי-שלוש
+            // מילים, אז כל כרטיס אומר את הדבר האחד שמבדיל אותו; ״מפתח חינמי״ כתוב על הכפתור שמתחת. בלי אייקונים -
+            // העיגול מספיק, והטקסט צריך את המקום
             Section(Lang.T("איפה לתמלל"));
-            int gapX = Theme.S(12);
-            int half = (ContentW - gapX) / 2;
-            _optGoogle = new Btn();
-            _optGoogle.Text = Lang.T("גוגל");
-            // ״המפתח שכבר יש לכם״ רק למי שיש. עד 0.8.5 זה נכתב גם למי שעוד לא חיבר את גוגל
-            _optGoogle.Sub = Ai.HasKey ? Lang.T("המפתח שכבר יש לכם · מכסה קטנה") : Lang.T("מפתח חינמי · מכסה קטנה");
-            _optGoogle.Icon = Ico.Sparkles;
-            _optGoogle.Kind = BtnKind.Subtle;
-            _optGoogle.Radio = true;
-            _optGoogle.SetBounds(Pad + half + gapX, Y, half, Theme.S(56));
-            _optGoogle.Click += delegate { Choose("gemini"); };
-            Controls.Add(_optGoogle);
-            _optGroq = new Btn();
-            _optGroq.Text = "Groq";
-            _optGroq.Sub = Lang.T("עד 8 שעות ביום · מפתח חינמי נפרד");
-            _optGroq.Icon = Ico.Mic;
-            _optGroq.Kind = BtnKind.Subtle;
-            _optGroq.Radio = true;
-            _optGroq.SetBounds(Pad, Y, half, Theme.S(56));
-            _optGroq.Click += delegate { Choose("groq"); };
-            Controls.Add(_optGroq);
+            int gapX = Theme.S(10);
+            int third = (ContentW - 2 * gapX) / 3;
+            _optLocal = Option(Lang.T("על המחשב"), Lang.T("בלי אינטרנט"), "local");
+            _optLocal.SetBounds(Pad + 2 * (third + gapX), Y, ContentW - 2 * (third + gapX), Theme.S(56));
+            _optGoogle = Option(Lang.T("גוגל"), Lang.T("מכסה יומית קטנה"), "gemini");
+            _optGoogle.SetBounds(Pad + third + gapX, Y, third, Theme.S(56));
+            _optGroq = Option("Groq", Lang.T("עד 8 שעות ביום"), "groq");
+            _optGroq.SetBounds(Pad, Y, third, Theme.S(56));
             Y += Theme.S(64);
 
             _connect = new Btn();
@@ -80,9 +70,8 @@ namespace SubtitleStudio
             Section(Lang.T("לפני שמתחילים"));
             _warn = Label("", true, Theme.Warn);
             Row(_warn, 24, 2);
-            Lbl warn2 = Hint(
-                Lang.T("הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל ידנית - זה עובד בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."));
-            Row(warn2, 44, 8);
+            _warn2 = Hint(CloudNote);
+            Row(_warn2, 44, 8);
 
             _info = Hint("");
             // רק חלק מהסרט: הקטע שסומן על הציר (״תחילת קטע״ / ״סוף קטע״), כמו בהטמעה ובכלים. בלי סימון
@@ -122,11 +111,28 @@ namespace SubtitleStudio
             if (!string.IsNullOrEmpty(context)) _context.Text = context;
             Row(_context, 40, 4);
             // שם שהמודל לא מכיר יוצא משובש או נעלם. כאן אפשר להגיד לו מראש - וזה עובר גם לתרגום
-            Lbl ch = Hint(Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."));
-            Row(ch, 22, 6);
+            _ctxHint = Hint(CloudContext);
+            Row(_ctxHint, 22, 6);
 
             Buttons(Lang.T("להתחיל בתמלול"), Ico.Sparkles, Lang.T("ביטול"));
             Refresh_();
+        }
+
+        private static string CloudNote { get { return Lang.T("הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל על המחשב - בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
+        private static string LocalNote { get { return Lang.T("התמלול על המחשב יודע עברית בלבד, והוא פחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
+        private static string CloudContext { get { return Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."); } }
+        private static string LocalContext { get { return Lang.T("התמלול על המחשב לא משתמש ברקע. הוא נשמר, ועובר לתרגום."); } }
+
+        private Btn Option(string text, string sub, string id)
+        {
+            Btn b = new Btn();
+            b.Text = text;
+            b.Sub = sub;
+            b.Kind = BtnKind.Subtle;
+            b.Radio = true;
+            b.Click += delegate { Choose(id); };
+            Controls.Add(b);
+            return b;
         }
 
         private void Choose(string id)
@@ -140,22 +146,45 @@ namespace SubtitleStudio
         private void Refresh_()
         {
             ISttProvider p = Provider;
-            _optGoogle.Checked = _choice != "groq";
-            _optGroq.Checked = _choice == "groq";
+            bool local = p.Id == "local";
+            _optLocal.Checked = local;
+            _optGoogle.Checked = p.Id == "gemini";
+            _optGroq.Checked = p.Id == "groq";
+            _optLocal.Invalidate();
             _optGoogle.Invalidate();
             _optGroq.Invalidate();
 
-            _connect.Text = p.HasKey
-                ? Lang.F("החלפת המפתח של {0}", p.Name)
-                : Lang.F("{0} - מפתח חינמי, פעם אחת", Theme.Pfx(Lang.T("חיבור ל"), p.Name));
-            _connect.Kind = p.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
+            if (local)
+            {
+                // הורדה פעם אחת, באותו מקום שבו השירותים ברשת מבקשים מפתח. אחרי שהורד - אין מה ללחוץ כאן
+                _connect.Text = Lang.F("הורדה של {0}, פעם אחת", LocalModel.DownloadText);
+                _connect.Icon = Ico.Download;
+                _connect.Kind = BtnKind.Subtle;
+                _connect.Visible = !p.HasKey;
+                // **האזהרה נעלמת כשהיא לא נכונה** (ISttProvider.SendsAudioOut): אחרת היא מאבדת משמעות גם כשהיא נכונה
+                _warn.Text = Lang.T("הקול נשאר במחשב. שום דבר לא נשלח.");
+                _warn.Color = Theme.Good;
+            }
+            else
+            {
+                _connect.Text = p.HasKey
+                    ? Lang.F("החלפת המפתח של {0}", p.Name)
+                    : Lang.F("{0} - מפתח חינמי, פעם אחת", Theme.Pfx(Lang.T("חיבור ל"), p.Name));
+                _connect.Icon = Ico.Key;
+                _connect.Kind = p.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
+                _connect.Visible = true;
+                // אחרי Groq גם הטקסט הולך לגוגל, לבדיקת שגיאות השמיעה (TranscribeRunDlg.ProofreadOn) - זה נאמר כאן, לא קורה בשקט
+                _warn.Text = TranscribeRunDlg.ProofreadOn(p)
+                    ? Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + Lang.T(", והטקסט - לגוגל, לבדיקת שמות.")
+                    : Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
+                _warn.Color = Theme.Warn;
+            }
             _connect.Invalidate();
-
-            // אחרי Groq גם הטקסט הולך לגוגל, לבדיקת שגיאות השמיעה (TranscribeRunDlg.ProofreadOn) - זה נאמר כאן, לא קורה בשקט
-            _warn.Text = TranscribeRunDlg.ProofreadOn(p)
-                ? Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + Lang.T(", והטקסט - לגוגל, לבדיקת שמות.")
-                : Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
             _warn.Invalidate();
+            _warn2.Text = local ? LocalNote : CloudNote;
+            _warn2.Invalidate();
+            _ctxHint.Text = local ? LocalContext : CloudContext;
+            _ctxHint.Invalidate();
 
             _replace.Text = _range.Checked ? Lang.T("למחוק את הכתוביות הקיימות בקטע הזה") : Lang.T("למחוק את הכתוביות הקיימות ולהתחיל מחדש");
             _replace.Invalidate();
@@ -170,16 +199,25 @@ namespace SubtitleStudio
                 // ותמלול שלוקח שנייה-שתיים. לעדכן אחרי תמלול אמיתי.
                 double perChunk = p.Id == "groq" ? 6 : 13;
                 int mins = Math.Max(1, (int)Math.Ceiling(chunks * perChunk / 60.0));
+                // על המחשב: לפי אורך הקול. נמדד פי 20-30 מזמן אמת על מחשב נייד; ההערכה זהירה (מחשב איטי)
+                if (local) mins = Math.Max(1, (int)Math.Ceiling(dur / 1000.0 / LocalStt.SpeedGuess / 60.0));
                 // המספר בסוף המשפט ולא באמצעו: ‏Ltr באמצע טקסט עברי הפך את
                 // "40 שניות · 1 קטעים" ל-"1 · 40 שניות קטעים"
                 _info.Text = Lang.F("אורך: {0}\r\n{1}אפשר לעצור באמצע, ומה שכבר תומלל יישמר.", Theme.Ltr(Tc.Length(dur)), (mins == 1 ? Lang.T("לוקח בערך דקה. ") : Lang.F("לוקח בערך {0} דקות. ", Theme.Ltr(mins.ToString()))));
                 _info.Invalidate();
             }
+            Restack();
         }
 
         private void Connect()
         {
-            if (_choice == "groq")
+            if (Provider.Id == "local")
+            {
+                LocalSetupDlg d = new LocalSetupDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+            }
+            else if (_choice == "groq")
             {
                 GroqSetupDlg d = new GroqSetupDlg();
                 d.ShowDialog(this);
@@ -206,9 +244,113 @@ namespace SubtitleStudio
                 Connect();
                 if (!Provider.HasKey) return false;
             }
-            Stt.ProviderId = _choice;
+            Stt.ProviderId = Provider.Id;
             Settings.SaveAll();
             return true;
+        }
+    }
+
+    /// <summary>ההורדה החד-פעמית של התמלול על המחשב (0.8.45): מה יורד, כמה, ומה כדאי לדעת לפני.
+    ///
+    /// אותו עיקרון כמו במילון (`SpellSetupDlg`): זו פנייה לאינטרנט, והמשתמש צריך לדעת שמשהו יורד, כמה, ושאחרי
+    /// זה הכול עובד בלי רשת. **סגירה באמצע לא מאבדת כלום** - ההורדה ממשיכה בפעם הבאה מאותו מקום.</summary>
+    internal class LocalSetupDlg : Dlg
+    {
+        private readonly Lbl _status;
+        private readonly ProgressBarLite _bar;
+        private readonly Btn _ok;
+        private volatile bool _busy, _cancel;
+
+        public LocalSetupDlg() : base(Lang.T("תמלול על המחשב"), Ico.Download, 580)
+        {
+            Subtitle = Lang.T("בלי אינטרנט, בלי מפתח, והקול נשאר אצלכם");
+
+            Section(Lang.T("מה צריך"));
+            Row(Hint(Lang.F("מנוע תמלול ומודל לעברית. הם חינמיים, שוקלים {0}, ויורדים פעם אחת. אחרי זה התמלול עובד בלי אינטרנט.", LocalModel.DownloadText)), 22, 10);
+
+            Section(Lang.T("מה כדאי לדעת"));
+            Row(Hint(Lang.T("המודל יודע עברית בלבד. הוא מהיר - שיעור של שעה מתומלל בכמה דקות - אבל פחות מדויק מהשירותים ברשת, בעיקר בשמות ובמונחים.")), 22, 4);
+            Row(Hint(Lang.T("אפשר לעצור את ההורדה באמצע ולהמשיך אחר כך מאותו מקום. מחיקה - בהגדרות, תחת ״אחסון״.")), 22, 4);
+            // CC-BY: הקרדיט נאמר למשתמש, לא רק בקובץ שליד המודל
+            Row(Hint(Lang.F("המודל פותח על ידי יעקב קולני, על הקלטות של {0}. המנוע: {1}.", Theme.Ltr("ivrit.ai"), Theme.Ltr("sherpa-onnx"))), 22, 12);
+
+            // שורת המצב והפס מופיעים רק כשמתחילים להוריד. לפני זה הם רק חור מעל הכפתורים.
+            _status = Hint("");
+            Row(_status, 22, 4);
+            _bar = new ProgressBarLite();
+            Row(_bar, 10, 8);
+
+            _ok = Buttons(Lang.T("להוריד"), Ico.Download, Lang.T("ביטול"));
+            _status.Visible = false;
+            _bar.Visible = false;
+            Restack();
+            FormClosing += delegate { _cancel = true; };
+        }
+
+        protected override bool OnOk()
+        {
+            if (_busy) return false;
+            if (!LocalModel.Supported)
+            {
+                _status.Visible = true;
+                Restack();
+                Say(Lang.T("התמלול על המחשב צריך ווינדוס של 64 ביט."), Theme.Bad);
+                return false;
+            }
+            _busy = true;
+            _cancel = false;
+            _ok.Enabled = false;
+            _ok.Invalidate();
+            _bar.Value = 0;
+            _bar.Visible = true;
+            _status.Visible = true;
+            Restack();
+            Say(Lang.T("מוריד…"), Theme.TextDim);
+
+            Thread t = new Thread(delegate ()
+            {
+                string err;
+                bool ok = LocalModel.Download(
+                    delegate (long done, long total)
+                    {
+                        Post(delegate
+                        {
+                            _bar.Value = total > 0 ? done / (float)total : 0;
+                            Say(Lang.F("מוריד… {0} מתוך {1}", Theme.Ltr(MediaInfo.FormatSize(done)), Theme.Ltr(MediaInfo.FormatSize(total))), Theme.TextDim);
+                        });
+                    },
+                    delegate { return _cancel; },
+                    out err);
+                Post(delegate
+                {
+                    _busy = false;
+                    _ok.Enabled = true;
+                    _ok.Invalidate();
+                    if (ok) { Ok = true; Close(); }
+                    else
+                    {
+                        _bar.Visible = false;
+                        Restack();
+                        Say(err ?? Lang.T("ההורדה לא הצליחה."), Theme.Bad);
+                    }
+                });
+            });
+            t.IsBackground = true;
+            t.Start();
+            return false;
+        }
+
+        private void Post(MethodInvoker m)
+        {
+            try { if (IsHandleCreated && !IsDisposed) BeginInvoke(m); }
+            catch { }
+        }
+
+        private void Say(string s, Color c)
+        {
+            _status.Text = s;
+            _status.Color = c;
+            _status.Invalidate();
         }
     }
 

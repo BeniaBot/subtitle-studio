@@ -773,10 +773,8 @@ namespace SubtitleStudio
             "התוכנה מקשיבה לסרט וכותבת את הכתוביות", "The program listens to the video and writes the subtitles",
             "איפה לתמלל", "Where to transcribe",
             "גוגל", "Google",
-            "המפתח שכבר יש לכם · מכסה קטנה", "Your existing key · small quota",
-            "עד 8 שעות ביום · מפתח חינמי נפרד", "8 hours a day · separate free key",
             "לפני שמתחילים", "Before you start",
-            "הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל ידנית - זה עובד בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.", "The audio is sent to the service you chose only to transcribe it. If the recording is sensitive, better to transcribe by hand - that works without the internet.\r\nThe result goes into the editor like any subtitle, and it is worth going over it and fixing.",
+            "הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל על המחשב - בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.", "The audio is sent to the service you chose only to transcribe it. If the recording is sensitive, better to transcribe on this PC - without the internet.\r\nThe result goes into the editor like any subtitle, and it is worth going over it and fixing.",
             "הקובץ", "The file",
             "למחוק את הכתוביות הקיימות ולהתחיל מחדש", "Delete the current subtitles and start over",
             "אם לא - הכתוביות החדשות יתווספו לקיימות.", "If not, the new subtitles are added to the current ones.",
@@ -805,7 +803,6 @@ namespace SubtitleStudio
             "אפשר לעצור בכל רגע - מה שכבר תומלל יישאר.", "You can stop at any moment - what's already transcribed stays.",
             "עצירה", "Stop",
             "עוצר…", "Stopping…",
-            "מפתח חינמי · מכסה קטנה", "Free key · small quota",
             "רק הקטע המסומן על הציר: {0}", "Only the section marked on the timeline: {0}",
             "רק חלק מהסרט? מסמנים אותו קודם על הציר", "Only part of the video? Mark it on the timeline first",
             "למחוק את הכתוביות הקיימות בקטע הזה", "Delete the existing subtitles in this section",
@@ -911,11 +908,11 @@ namespace SubtitleStudio
             "יצירת סרט עם כתוביות", "Make a video with subtitles",
             "יוצר קובץ וידאו חדש עם הכתוביות. הסרט המקורי לא משתנה. (F5)", "Makes a new video file with the subtitles. The original video isn't changed. (F5)",
             "קובץ", "File",
-        };
-        private static readonly string[] P3 = new string[] {
             "סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)", "Closes the video and subtitles, back to the start (Ctrl+N)",
             "שמירת הפרויקט", "Save the project",
             "הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך", "The video, the subtitles and the style in one file - to go on later",
+        };
+        private static readonly string[] P3 = new string[] {
             "לקפוץ לכתובית שמכילה מילה (Ctrl+F)", "Jump to a subtitle containing a word (Ctrl+F)",
             "מחיקת כל הכתוביות", "Delete all subtitles",
             "מרוקן את הרשימה; הסרט נשאר פתוח", "Empties the list; the video stays open",
@@ -1213,11 +1210,11 @@ namespace SubtitleStudio
             "נמצאה עבודה שלא נשמרה", "Unsaved work was found",
             "בפעם הקודמת התוכנה נסגרה לפני שהעבודה נשמרה:\n{0}  ·  {1}\nלשחזר אותה?", "Last time the program closed before the work was saved:\n{0}  ·  {1}\nRestore it?",
             "לשחזר", "Restore",
-        };
-        private static readonly string[] P4 = new string[] {
             "לא, תודה", "No, thanks",
             "יש כתוביות מהפעם הקודמת ({0}).\nלשחזר אותן?", "There are subtitles from last time ({0}).\nRestore them?",
             "פתחו סרט או צרו כתוביות, ואז אפשר לשמור את הפרויקט.", "Open a video or make subtitles, and then you can save the project.",
+        };
+        private static readonly string[] P4 = new string[] {
             "פרויקט של Subtext|*{0}", "Subtext project|*{0}",
             "הפרויקט לא נשמר", "The project wasn't saved",
             "הפרויקט נשמר:  {0}‏   ·   בפעם הבאה הוא יחכה במסך הפתיחה", "Project saved:  {0}   ·   next time it will be waiting on the start screen",
@@ -1515,11 +1512,11 @@ namespace SubtitleStudio
             "מסתכל על הסרט ב-{0}", "Looking at the video at {0}",
             "מסתכל על {0} תמונות מהסרט", "Looking at {0} pictures from the video",
             "לא נמצא מיקרופון, או שווינדוס חוסם את הגישה אליו (הגדרות ← פרטיות ← מיקרופון).", "No microphone was found, or Windows blocks access to it (Settings > Privacy > Microphone).",
-        };
-        private static readonly string[] P5 = new string[] {
             "לדבר אל העוזר: לחיצה - מקשיב, לחיצה שוב - שולח", "Talk to the assistant: click - it listens, click again - it sends",
             "ההקראה דלוקה - העוזר מקריא כל תשובה. לחיצה מכבה", "Reading aloud is on - the assistant reads every answer. Click to turn off",
             "להקריא את התשובות בקול", "Read the answers aloud",
+        };
+        private static readonly string[] P5 = new string[] {
             "לא נקלט כלום - נסו שוב, קרוב יותר למיקרופון", "Nothing was heard - try again, closer to the microphone",
             "מקשיב... לחיצה - שולח", "Listening... click to send",
             "הודעה קולית ({0} שניות)", "Voice message ({0} seconds)",
@@ -1817,11 +1814,11 @@ namespace SubtitleStudio
             "בווינדוס הזה אין גלאי פנים מובנה (הוא קיים מווינדוס 10). את הפנים מסמנים ביד - גוררים על התמונה.", "This Windows has no built-in face detector (it exists from Windows 10). Mark the faces by hand - drag on the picture.",
             "לעצור", "Stop",
             "מחפש פנים בסרט...", "Looking for faces in the video...",
-        };
-        private static readonly string[] P6 = new string[] {
             "מחפש פנים בסרט... {0}%", "Looking for faces in the video... {0}%",
             "חיפוש הפנים נכשל", "Face search failed",
             "לא נמצאו פנים", "No faces found",
+        };
+        private static readonly string[] P6 = new string[] {
             "הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד.", "The detector found no faces in the video. It may miss very small faces, faces in profile or in the dark - mark those by hand.",
             "נמצאו פנים", "Faces found",
             "החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.", "The search was stopped midway - only the faces found up to there were added.",
@@ -1888,6 +1885,42 @@ namespace SubtitleStudio
             "כתובית אחת שונתה", "One subtitle was changed",
             "{0} כתוביות שונו", "{0} subtitles were changed",
             "הטקסט הועתק. אפשר להדביק אותו (Ctrl+V)", "The text was copied. You can paste it (Ctrl+V)",
+            "התמלול על המחשב", "On-device transcription",
+            "התמלול על המחשב עוד לא הורד. מורידים אותו פעם אחת, מחלון התמלול.", "On-device transcription has not been downloaded yet. It is a one-time download, from the transcription window.",
+            "התמלול על המחשב לא הצליח לרוץ במחשב הזה. אפשר לתמלל דרך גוגל או Groq.", "On-device transcription could not run on this computer. You can transcribe with Google or Groq.",
+            "לא הצלחתי להכין את הקול לתמלול.", "Could not prepare the audio for transcription.",
+            "התמלול על המחשב לא הגיב, ונעצר.", "On-device transcription stopped responding and was stopped.",
+            "התמלול על המחשב לא החזיר תשובה.", "On-device transcription returned no answer.",
+            "הקובץ שירד פגום. נסו שוב.", "The downloaded file is damaged. Try again.",
+            "הקובץ שירד פגום, או שהוחלף בשרת. נסו שוב.", "The downloaded file is damaged, or was replaced on the server. Try again.",
+            "הקובץ לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.", "The file was not found on the server. Update the program and try again.",
+            "על המחשב", "On this PC",
+            "בלי אינטרנט", "No internet",
+            "מכסה יומית קטנה", "Small daily quota",
+            "עד 8 שעות ביום", "Up to 8 hours a day",
+            "התמלול על המחשב יודע עברית בלבד, והוא פחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.", "On-device transcription knows Hebrew only, and it is less accurate than the online services - mostly with names and terms.\r\nThe result goes into the editor like any subtitle, and it is worth going over it and fixing.",
+            "התמלול על המחשב לא משתמש ברקע. הוא נשמר, ועובר לתרגום.", "On-device transcription does not use the background. It is kept, and passed on to the translation.",
+            "הורדה של {0}, פעם אחת", "A one-time download of {0}",
+            "הקול נשאר במחשב. שום דבר לא נשלח.", "The audio stays on this PC. Nothing is sent.",
+            "תמלול על המחשב", "Transcription on this PC",
+            "בלי אינטרנט, בלי מפתח, והקול נשאר אצלכם", "No internet, no key, and the audio stays with you",
+            "מה כדאי לדעת", "Good to know",
+            "מנוע תמלול ומודל לעברית. הם חינמיים, שוקלים {0}, ויורדים פעם אחת. אחרי זה התמלול עובד בלי אינטרנט.", "A transcription engine and a model for Hebrew. They are free, weigh {0}, and download once. After that, transcription works without the internet.",
+            "המודל יודע עברית בלבד. הוא מהיר - שיעור של שעה מתומלל בכמה דקות - אבל פחות מדויק מהשירותים ברשת, בעיקר בשמות ובמונחים.", "The model knows Hebrew only. It is fast - an hour-long lesson is transcribed in a few minutes - but less accurate than the online services, mostly with names and terms.",
+            "אפשר לעצור את ההורדה באמצע ולהמשיך אחר כך מאותו מקום. מחיקה - בהגדרות, תחת ״אחסון״.", "You can stop the download midway and continue later from the same place. To delete it - Settings, under “Storage”.",
+            "המודל פותח על ידי יעקב קולני, על הקלטות של {0}. המנוע: {1}.", "The model was developed by Yakov Kolani, on recordings from {0}. The engine: {1}.",
+            "להוריד", "Download",
+            "התמלול על המחשב צריך ווינדוס של 64 ביט.", "On-device transcription needs 64-bit Windows.",
+            "פירוט ומחיקה", "Details and delete",
+            "מה שהתוכנה שמרה במחשב · {0}", "What the program keeps on this PC · {0}",
+            "התוכנה לא שמרה במחשב שום דבר שאפשר למחוק", "The program keeps nothing on this PC that can be deleted",
+            "מה התוכנה שמרה במחשב, וכמה זה תופס", "What the program keeps on this PC, and how much room it takes",
+            "מחיקת התמלול", "Delete the transcription",
+            "כל מה שנמחק כאן אפשר להוריד שוב. הכתוביות, ההגדרות, המפתחות והמילון האישי שלכם לא נמחקים מכאן.", "Anything deleted here can be downloaded again. Your subtitles, settings, keys and personal dictionary are not deleted from here.",
+            "למחוק את התמלול על המחשב?", "Delete on-device transcription?",
+            "תמלול בלי אינטרנט יפסיק לעבוד עד שתורידו אותו שוב ({0}), מחלון התמלול.", "Transcription without the internet will stop working until you download it again ({0}), from the transcription window.",
+            "התמלול על המחשב · {0}", "On-device transcription · {0}",
+            "התמלול על המחשב, הורדה שלא הסתיימה · {0}", "On-device transcription, unfinished download · {0}",
         };
 
         public static void Fill(Dictionary<string, string> d)

@@ -255,6 +255,9 @@ $dialogs = @(
     @{ n = 'AiPerms';    needsMedia = $false; make = { NewOf 'AiPermsDlg' @() } },
     @{ n = 'GroqSetup';  needsMedia = $false; make = { NewOf 'GroqSetupDlg' @() } },
     @{ n = 'SpellSetup'; needsMedia = $false; make = { NewOf 'SpellSetupDlg' @() } },
+    @{ n = 'LocalSetup'; needsMedia = $false; make = { NewOf 'LocalSetupDlg' @() } },
+    @{ n = 'Storage';    needsMedia = $false; make = { NewOf 'StorageDlg' @() } },
+    @{ n = 'TranscribeNet'; needsMedia = $true; make = { (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, 'gemini'); NewOf 'TranscribeDlg' @($mi, [int]3); (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, '') } },
     @{ n = 'Update';     needsMedia = $false; make = { NewOf 'UpdateDlg' @($rel, $sum) } }
 )
 $mainForDlg = [Activator]::CreateInstance($formT)

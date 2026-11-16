@@ -343,11 +343,12 @@ namespace SubtitleStudio
             t.Add(new AiTool("transcribe_media",
                 "**מתמלל את הסרט הפתוח אוטומטית** - התוכנה מקשיבה לקול וכותבת " +
                 "את הכתוביות עם הזמנים. זו התשובה הראשונה כשיש סרט ואין כתוביות. " +
-                "פותח חלון אישור, כי הקול נשלח לשירות חיצוני (גוגל או Groq, המשתמש בוחר שם) - " +
-                "המשתמש מאשר בעצמו")
-                .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים")
-                .P("service", "string", "google או groq - מה שהמשתמש בחר (המצב אומר לאיזה יש מפתח). " +
-                   "כשמותר לשלוח ויש מפתח - התמלול מתחיל ישר; אחרת נפתח החלון עם השירות הזה כבר בחור")
+                "שלושה שירותים, והמשתמש בוחר: local (על המחשב - בלי אינטרנט ובלי מפתח, הקול לא יוצא מהמחשב; עברית בלבד, " +
+                "פחות מדויק; צריך הורדה חד-פעמית), google או groq (ברשת - הקול נשלח לשירות חיצוני, ולכן נפתח חלון אישור " +
+                "והמשתמש מאשר בעצמו)")
+                .P("context", "string", "רקע על התוכן (למשל: שיעור בגמרא) - עוזר לזהות מונחים (לא ב-local)")
+                .P("service", "string", "local, google או groq - מה שהמשתמש בחר (המצב אומר מה מוכן). " +
+                   "local שכבר הורד - מתחיל ישר, בלי חלון; google/groq - ישר רק כשמותר לשלוח ויש מפתח. אחרת נפתח החלון עם השירות הזה כבר בחור")
                 .P("from_sec", "number", "רק קטע (״רק את חמש הדקות הראשונות״): מהזמן הזה. בלי - כל הסרט")
                 .P("to_sec", "number", "עד הזמן הזה"));
 
@@ -1803,9 +1804,10 @@ namespace SubtitleStudio
             }
             // השירות שהמשתמש בחר בצ'אט (ask_user): בחור מראש בחלון, ובלי החלון כשמותר לשלוח, יש מפתח, ואין מה לדרוס
             string svc = c.Str("service", "").Trim().ToLowerInvariant();
-            ISttProvider chosen = svc.StartsWith("groq") ? (ISttProvider)Stt.Groq : svc.Length > 0 ? Stt.Gemini : null;
+            ISttProvider chosen = AiService(svc);
             if (chosen != null) Stt.ProviderId = chosen.Id;
-            if (chosen != null && chosen.HasKey && before == 0 && AiPerms.Get(AiPerms.Send) == Perm.Allow)
+            // על המחשב שום דבר לא נשלח - השער של ״שליחה החוצה״ לא שייך (0.8.45)
+            if (chosen != null && chosen.HasKey && before == 0 && (!chosen.SendsAudioOut || AiPerms.Get(AiPerms.Send) == Perm.Allow))
                 TranscribeMedia(chosen, c.Args.ContainsKey("context") ? c.Str("context", "") : null);
             else
                 TranscribeMedia();
@@ -1825,6 +1827,17 @@ namespace SubtitleStudio
                             "(translate_subtitles) בלי לשאול, ואחר כך הצע את הצעד הבא";
             }
             return r;
+        }
+
+        /// <summary>השירות שהעוזר ביקש, במילים שלו: ״local״ / ״מקומי״ / ״על המחשב״ / ״offline״ - התמלול על המחשב;
+        /// ״groq״; כל שם אחר - גוגל; ריק - לא נבחר.</summary>
+        internal static ISttProvider AiService(string svc)
+        {
+            svc = (svc ?? "").Trim().ToLowerInvariant();
+            if (svc.Length == 0) return null;
+            if (svc.StartsWith("local") || svc.StartsWith("offline") || svc.Contains("מקומי") || svc.Contains("מחשב")) return Stt.Local;
+            if (svc.StartsWith("groq")) return Stt.Groq;
+            return Stt.Gemini;
         }
 
         /// <summary>״עברית״ / ״אנגלית״ / ״ערבית״... לפי האותיות של הכתוביות מ-<paramref name="from"/> והלאה.</summary>

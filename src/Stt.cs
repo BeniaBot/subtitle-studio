@@ -775,9 +775,21 @@ namespace SubtitleStudio
 
         private static GeminiStt _gemini;
         private static OpenAiStt _groq;
+        private static LocalStt _local;
 
         public static GeminiStt Gemini { get { if (_gemini == null) _gemini = new GeminiStt(); return _gemini; } }
         public static OpenAiStt Groq { get { if (_groq == null) _groq = new OpenAiStt(); return _groq; } }
+        /// <summary>התמלול שרץ על המחשב (0.8.45, ‏LocalStt.cs).</summary>
+        public static LocalStt Local { get { if (_local == null) _local = new LocalStt(); return _local; } }
+
+        /// <summary>לפי השם השמור ("gemini", ‏"groq", ‏"local"). לא מוכר - null.</summary>
+        public static ISttProvider ById(string id)
+        {
+            if (id == "groq") return Groq;
+            if (id == "gemini") return Gemini;
+            if (id == "local") return Local;
+            return null;
+        }
 
         /// <summary>הספק שנבחר. בלי בחירה מפורשת: Groq אם יש לו מפתח, אחרת גוגל -
         /// מי שטרח להוציא מפתח ל-Groq רצה אותו.</summary>
@@ -785,9 +797,14 @@ namespace SubtitleStudio
         {
             get
             {
-                if (ProviderId == "groq") return Groq;
-                if (ProviderId == "gemini") return Gemini;
-                return !string.IsNullOrEmpty(GroqKey) ? (ISttProvider)Groq : Gemini;
+                // **בלי אף מפתח** (0.8.45): התמלול על המחשב - אם הוא כבר הורד, או שהממשק בעברית (הוא יודע רק
+                // עברית, ולהוריד אותו קל מלהוציא מפתח); אחרת גוגל, כמו תמיד
+                ISttProvider chosen = ById(ProviderId);
+                if (chosen != null) return chosen;
+                if (!string.IsNullOrEmpty(GroqKey)) return Groq;
+                if (Ai.HasKey) return Gemini;
+                if (LocalModel.Supported && (LocalModel.Installed || !Lang.IsEn)) return Local;
+                return Gemini;
             }
         }
     }

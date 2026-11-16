@@ -43,8 +43,8 @@ namespace SubtitleStudio
         private static string LangTarget() { return (Settings.LangChoice ?? Lang.Code) == Lang.En ? Lang.He : Lang.En; }
         /// <summary>המשתמש בחר שפה אחרת וביקש להפעיל מחדש. ‏MainForm מפעיל מחדש אחרי שהחלון נסגר.</summary>
         public bool RestartWanted;
-        private Btn _google, _perms, _groq, _getDict, _delEngine, _delDict, _dict;
-        private Lbl _spellLine, _engineLine, _dictLine;
+        private Btn _google, _perms, _groq, _getDict, _storageBtn, _dict;
+        private Lbl _spellLine, _storageLine;
 
         public SettingsDlg(MainForm main) : base(Lang.T("הגדרות"), Ico.Gear, 580)
         {
@@ -173,31 +173,26 @@ namespace SubtitleStudio
             Controls.Add(check);
 
             // ---------- אחסון ----------
+            // **שורה אחת, והפירוט בחלון משלו (0.8.45).** עד כאן שורה למנוע ושורה למילון; עם התמלול על המחשב (ועוד
+            // מודלים בדרך) שורה לכל דבר הייתה מוציאה את החלון מ-693. כאן הסכום - זה מה שמסביר למה הכונן התמלא
             Section(Lang.T("אחסון"));
-            _engineLine = StorageRow(out _delEngine, Lang.T("מחיקת המנוע"), 6);
-            _delEngine.Click += delegate
+            _storageLine = Row(Hint(""), 28, 6);
+            int sbw = Theme.S(150);
+            _storageLine.SetBounds(_storageLine.Left + sbw + Theme.S(10), _storageLine.Top, _storageLine.Width - sbw - Theme.S(10), _storageLine.Height);
+            _storageBtn = Small(Lang.T("פירוט ומחיקה"), Ico.Trash);
+            _storageBtn.SetBounds(Pad, _storageLine.Top, sbw, Theme.S(28));
+            Controls.Add(_storageBtn);
+            _storageBtn.Click += delegate
             {
-                AboutDlg.RemoveEngine(this);
+                StorageDlg d = new StorageDlg();
+                d.ShowDialog(this);
+                d.Dispose();
                 Refresh2();
             };
-            _dictLine = StorageRow(out _delDict, Lang.T("מחיקת המילון"), 12);
-            _delDict.Click += delegate { RemoveDict(); };
 
             Buttons(Lang.T("סגירה"), Ico.Check, null);
             BottomButton(Lang.T("איפוס הגדרות"), Ico.Refresh, delegate { ResetAll(); });
             Refresh2();
-        }
-
-        /// <summary>שורת אחסון: כמה תופס מה, וכפתור מחיקה בצד שמאל.</summary>
-        private Lbl StorageRow(out Btn del, string delText, int gap)
-        {
-            Lbl l = Row(Hint(""), 28, gap);
-            int bw = Theme.S(150);
-            l.SetBounds(l.Left + bw + Theme.S(10), l.Top, l.Width - bw - Theme.S(10), l.Height);
-            del = Small(delText, Ico.Trash);
-            del.SetBounds(Pad, l.Top, bw, Theme.S(28));
-            Controls.Add(del);
-            return l;
         }
 
         private Btn Card(string text, Ico icon)
@@ -236,16 +231,6 @@ namespace SubtitleStudio
             Refresh2();
         }
 
-        private void RemoveDict()
-        {
-            if (Ui.Msg(this, Lang.T("למחוק את המילון?"),
-                    Lang.F("בדיקת האיות תפסיק לעבוד עד שהמילון יורד שוב ({0}). המילים שהוספתם למילון האישי נשמרות.", Theme.Ltr("1.2 MB")),
-                    Ico.Warning, Lang.T("למחוק"), Lang.T("ביטול")) != 0) return;
-            string err;
-            if (!Spell.Remove(out err)) Ui.Error(this, Lang.T("לא נמחק"), err);
-            Refresh2();
-        }
-
         /// <summary>מרענן את כל מה שיכול להשתנות מחלון אחר: מפתחות, מילון, מנוע.</summary>
         private void Refresh2()
         {
@@ -273,27 +258,12 @@ namespace SubtitleStudio
             _dict.Text = mine == 0 ? Lang.T("המילון שלי") : Lang.F("המילון שלי · {0}", Theme.Ltr(mine.ToString()));
             _dict.Invalidate();
 
-            _engineLine.Text = EngineLine();
-            _delEngine.Visible = Ff.IsOwnEngine;
-            // בלי מילון אין מה לספר כאן, והמקטע ״בדיקת איות״ כבר מציע להוריד אותו
-            long dict = Spell.SizeOnDisk;
-            _dictLine.Text = Lang.F("מילון האיות · {0}", Theme.Ltr(MediaInfo.FormatSize(dict)));
-            _dictLine.Visible = dict > 0;
-            _delDict.Visible = dict > 0;
-            _engineLine.Invalidate();
-            _dictLine.Invalidate();
+            long kept = StorageDlg.Total();
+            _storageLine.Text = kept > 0
+                ? Lang.F("מה שהתוכנה שמרה במחשב · {0}", Theme.Ltr(MediaInfo.FormatSize(kept)))
+                : Lang.T("התוכנה לא שמרה במחשב שום דבר שאפשר למחוק");
+            _storageLine.Invalidate();
             Restack();
-        }
-
-        private static string EngineLine()
-        {
-            string ff = Ff.Exe;
-            if (string.IsNullOrEmpty(ff)) return Lang.T("מנוע הווידאו · ייפרס בהפעלה הבאה");
-            if (!Ff.IsOwnEngine) return Lang.F("מנוע הווידאו · מותקן במחשב: {0}", Theme.Ltr(ff));
-            long size = 0;
-            try { size = new FileInfo(ff).Length; }
-            catch { }
-            return Lang.F("מנוע הווידאו · {0}", (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff)));
         }
 
         /// <summary>מחזיר את ההעדפות לברירת המחדל. **המפתחות לא נמחקים** - הם
@@ -343,6 +313,120 @@ namespace SubtitleStudio
                 RestartWanted = true;
                 Close();
             }
+        }
+    }
+
+    /// <summary>״אחסון״ (0.8.45): מה התוכנה שמרה במחשב, כמה כל דבר תופס, ומחיקה. נפתח מההגדרות.
+    ///
+    /// שלושה דברים, וכולם מטמון - אפשר להוריד או לפרוס אותם שוב: מנוע הווידאו (נפרס מתוך התוכנה), מילון האיות,
+    /// והתמלול על המחשב. שורה מופיעה רק כשיש מה למחוק. **מה שהמשתמש יצר לא כאן**: כתוביות, פרויקטים, הגדרות,
+    /// המפתחות והמילון האישי.</summary>
+    internal class StorageDlg : Dlg
+    {
+        private readonly Lbl _engineLine, _dictLine, _localLine;
+        private readonly Btn _delEngine, _delDict, _delLocal;
+
+        /// <summary>כל מה שאפשר למחוק מכאן, בבתים. מנוע שהותקן במחשב בנפרד (לא שלנו) לא נספר.</summary>
+        public static long Total()
+        {
+            return EngineBytes() + Spell.SizeOnDisk + LocalModel.SizeOnDisk;
+        }
+
+        private static long EngineBytes()
+        {
+            if (!Ff.IsOwnEngine || string.IsNullOrEmpty(Ff.Exe)) return 0;
+            try { return new FileInfo(Ff.Exe).Length; }
+            catch { return 0; }
+        }
+
+        public StorageDlg() : base(Lang.T("אחסון"), Ico.Folder, 560)
+        {
+            Subtitle = Lang.T("מה התוכנה שמרה במחשב, וכמה זה תופס");
+
+            _engineLine = StorageRow(out _delEngine, Lang.T("מחיקת המנוע"));
+            _delEngine.Click += delegate
+            {
+                AboutDlg.RemoveEngine(this);
+                Refresh2();
+            };
+            _dictLine = StorageRow(out _delDict, Lang.T("מחיקת המילון"));
+            _delDict.Click += delegate { RemoveDict(); };
+            _localLine = StorageRow(out _delLocal, Lang.T("מחיקת התמלול"));
+            _delLocal.Click += delegate { RemoveLocal(); };
+
+            Row(Hint(Lang.T("כל מה שנמחק כאן אפשר להוריד שוב. הכתוביות, ההגדרות, המפתחות והמילון האישי שלכם לא נמחקים מכאן.")), 22, 6);
+
+            Buttons(Lang.T("סגירה"), Ico.Check, null);
+            Refresh2();
+        }
+
+        /// <summary>שורת אחסון: כמה תופס מה, וכפתור מחיקה בצד שמאל.</summary>
+        private Lbl StorageRow(out Btn del, string delText)
+        {
+            Lbl l = Row(Hint(""), 28, 6);
+            int bw = Theme.S(160);
+            l.SetBounds(l.Left + bw + Theme.S(10), l.Top, l.Width - bw - Theme.S(10), l.Height);
+            del = new Btn();
+            del.Text = delText;
+            del.Kind = BtnKind.Tool;
+            del.Font = Theme.Small;
+            del.Icon = Ico.Trash;
+            del.IconSize = Theme.S(14);
+            del.SetBounds(Pad, l.Top, bw, Theme.S(28));
+            Controls.Add(del);
+            return l;
+        }
+
+        private void RemoveDict()
+        {
+            if (Ui.Msg(this, Lang.T("למחוק את המילון?"),
+                    Lang.F("בדיקת האיות תפסיק לעבוד עד שהמילון יורד שוב ({0}). המילים שהוספתם למילון האישי נשמרות.", Theme.Ltr("1.2 MB")),
+                    Ico.Warning, Lang.T("למחוק"), Lang.T("ביטול")) != 0) return;
+            string err;
+            if (!Spell.Remove(out err)) Ui.Error(this, Lang.T("לא נמחק"), err);
+            Refresh2();
+        }
+
+        private void RemoveLocal()
+        {
+            if (Ui.Msg(this, Lang.T("למחוק את התמלול על המחשב?"),
+                    Lang.F("תמלול בלי אינטרנט יפסיק לעבוד עד שתורידו אותו שוב ({0}), מחלון התמלול.", LocalModel.DownloadText),
+                    Ico.Warning, Lang.T("למחוק"), Lang.T("ביטול")) != 0) return;
+            string err;
+            if (!LocalModel.Remove(out err)) Ui.Error(this, Lang.T("לא נמחק"), err);
+            Refresh2();
+        }
+
+        private void Refresh2()
+        {
+            _engineLine.Text = EngineLine();
+            _delEngine.Visible = Ff.IsOwnEngine;
+            long dict = Spell.SizeOnDisk;
+            _dictLine.Text = Lang.F("מילון האיות · {0}", Theme.Ltr(MediaInfo.FormatSize(dict)));
+            _dictLine.Visible = dict > 0;
+            _delDict.Visible = dict > 0;
+            long local = LocalModel.SizeOnDisk;
+            // הורדה שנעצרה באמצע תופסת מקום בלי לעבוד - וזה נאמר, כדי שיהיה ברור מה נמחק
+            _localLine.Text = LocalModel.Installed || local == 0
+                ? Lang.F("התמלול על המחשב · {0}", Theme.Ltr(MediaInfo.FormatSize(local)))
+                : Lang.F("התמלול על המחשב, הורדה שלא הסתיימה · {0}", Theme.Ltr(MediaInfo.FormatSize(local)));
+            _localLine.Visible = local > 0;
+            _delLocal.Visible = local > 0;
+            _engineLine.Invalidate();
+            _dictLine.Invalidate();
+            _localLine.Invalidate();
+            Restack();
+        }
+
+        private static string EngineLine()
+        {
+            string ff = Ff.Exe;
+            if (string.IsNullOrEmpty(ff)) return Lang.T("מנוע הווידאו · ייפרס בהפעלה הבאה");
+            if (!Ff.IsOwnEngine) return Lang.F("מנוע הווידאו · מותקן במחשב: {0}", Theme.Ltr(ff));
+            long size = 0;
+            try { size = new FileInfo(ff).Length; }
+            catch { }
+            return Lang.F("מנוע הווידאו · {0}", (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff)));
         }
     }
 }

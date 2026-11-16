@@ -74,6 +74,10 @@ namespace SubtitleStudio
         public static Result Run(ISttProvider provider, string mediaPath, long durationMs, string context,
                                  ProgressFn progress, Func<bool> canceled, long fromMs, long toMs)
         {
+            // על המחשב: בלי מכסה, בלי המתנות ובלי השלמת חורים, וחיבור בין קטעים לפי מילים - מסלול משלו (LocalStt.cs)
+            LocalStt local = provider as LocalStt;
+            if (local != null) return local.RunFile(mediaPath, durationMs, progress, canceled, fromMs, toMs);
+
             Result res = new Result();
             res.ProviderName = provider.Name;
             if (!provider.HasKey) { res.Error = Theme.Pfx(Lang.T("לא הוגדר מפתח ל"), provider.Name) + "."; return res; }

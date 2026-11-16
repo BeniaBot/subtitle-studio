@@ -272,7 +272,7 @@ namespace SubtitleStudio
             if (f is AiSetupDlg || f is GroqSetupDlg || f is AiPermsDlg) return -2;
             if (f is CutDlg || f is ExportVideoDlg || f is ToolsDlg || f is ToolRunDlg) return AiPerms.Media;
             if (f is TranscribeDlg || f is TranscribeRunDlg) return AiPerms.Send;
-            if (f is SettingsDlg || f is UpdateDlg || f is AboutDlg || f is SpellSetupDlg) return AiPerms.Prefs;
+            if (f is SettingsDlg || f is UpdateDlg || f is AboutDlg || f is SpellSetupDlg || f is LocalSetupDlg || f is StorageDlg) return AiPerms.Prefs;
             if (f is ExtractSubsDlg) return AiPerms.Files;
             if (!(f is Dlg)) return _aiLastWinCat;          // חלון הודעה - כמו החלון שהעוזר עבד בו
             return AiPerms.Edit;
@@ -847,10 +847,12 @@ namespace SubtitleStudio
                 sb.Append("ממשק ").Append(Lang.IsEn ? "באנגלית" : "בעברית").Append(", מצב ").Append(Theme.Dark ? "כהה" : "בהיר").Append(". ");
                 // כדי שיציע רק מה שעובד, ויידע מה ייפתח
                 // **עם התיאור הנכון של כל אחד:** בלעדיו העוזר המציא ״גוגל - יקר, Groq - זול יותר״ (נמדד 12.10; שניהם חינם)
-                sb.Append("שירותי תמלול (שניהם חינם): גוגל - ").Append(Stt.Gemini.HasKey ? "מחובר" : "אין מפתח")
+                sb.Append("שירותי תמלול (שלושתם חינם): גוגל - ").Append(Stt.Gemini.HasKey ? "מחובר" : "אין מפתח")
                   .Append(" (מדויק, מזהה דוברים ומסמן מילים לא בטוחות; המכסה היומית קטנה - שיעור ארוך עלול למצות אותה); Groq - ")
                   .Append(Stt.Groq.HasKey ? "מחובר" : "אין מפתח (מתחברים בחינם מחלון התמלול, בכמה לחיצות)")
-                  .Append(" (מהיר מאוד, עד 8 שעות קול ביום, בלי זיהוי דוברים). אין עדיין תמלול במחשב עצמו. ");
+                  .Append(" (מהיר מאוד, עד 8 שעות קול ביום, בלי זיהוי דוברים); על המחשב (local) - ")
+                  .Append(Stt.Local.HasKey ? "מוכן" : "עוד לא הורד (הורדה חד-פעמית של כ-62 MB מחלון התמלול)")
+                  .Append(" (בלי אינטרנט ובלי מפתח, הקול לא יוצא מהמחשב; עברית בלבד, פחות מדויק בשמות ובמונחים, בלי זיהוי דוברים; שעה מתומללת בכמה דקות). ");
                 string native = AiUi.NativeNote();
                 Form w = AiWindow();
                 if (native != null) sb.Append('\n').Append(native).Append('.');
