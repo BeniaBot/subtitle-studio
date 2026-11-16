@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 100 בדיקות.
+# צפוי: 107 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -482,6 +482,30 @@ $ll = NewLlm 'caspi\model.gguf' $null
 $r = Ask $ll ($llT.GetMethod('TextMessage', $SF).Invoke($null, @([string]'user', [string]'x')))
 Check 'llama-server: נסגר בזמן הטעינה - ״אולי אין מספיק זיכרון״ והצעה למודל קל' ($r.out -eq $null -and $r.err -match 'זיכרון' -and $r.err -match 'קל יותר') $r.err
 Remove-Item (Join-Path $llModels 'fake-llm-mode.txt')
+
+# ---------------- תרגום בחלונות ופיזור חזרה (WindowTranslate, 0.8.46) ----------------
+Write-Host "`n--- window translate"
+$wtT = T 'WindowTranslate'
+function SplitT([string]$text, [int[]]$w) { return ,[string[]]$wtT.GetMethod('Split', $SF).Invoke($null, (Pack $text $w)) }
+$sp = SplitT 'אחת שתיים שלוש ארבע חמש שש' @(10, 10)
+Check 'פיזור: לפי אורך המקור, חצי-חצי' (($sp -join '|') -eq 'אחת שתיים שלוש|ארבע חמש שש') ($sp -join '|')
+$sp = SplitT 'כמעט סיימתי. חדש במקום, רק צריך סרט בידוד' @(12, 10)
+Check 'פיזור: חותך מיד אחרי נקודה כשהיא קרובה לאמצע' ($sp[0] -eq 'כמעט סיימתי.' -or $sp[0] -eq 'כמעט סיימתי. חדש במקום,') ($sp -join '|')
+$sp = SplitT 'אחת שתיים' @(5, 5, 5)
+Check 'פיזור: פחות מילים מכתוביות - אף מילה לא אובדת' ((($sp | Where-Object { $_ }) -join ' ') -eq 'אחת שתיים' -and $sp.Count -eq 3) ($sp -join '|')
+$sp = SplitT 'a b c d e f g h' @(1, 1, 1, 1)
+Check 'פיזור: כשיש מספיק מילים - לכל כתובית לפחות מילה' (@($sp | Where-Object { -not $_ }).Count -eq 0 -and ($sp -join ' ') -eq 'a b c d e f g h') ($sp -join '|')
+$wins = $wtT.GetMethod('Windows', $SF).Invoke($null, (Pack ([int]7) ([double[]]@(0, 0.3, 0.2, 0.4, 5.0, 0.1, 0.2))))
+$ws = @($wins | ForEach-Object { ($_ -join ',') }) -join ' / '
+Check 'חלונות: עד 3 כתוביות, ולא מעבר להפסקה של יותר משתי שניות' ($ws -eq '0,1,2 / 3 / 4,5,6') $ws
+$lines = [Collections.Generic.List[string]]@('i guess it was bound to happen', 'i have my first ever failed', 'laptop review', '')
+$seen = New-Object Collections.ArrayList
+$tr = [Func[Collections.Generic.List[string], Collections.Generic.List[string]]]{ param($xs) [void]$seen.AddRange($xs); $o = New-Object Collections.Generic.List[string]; foreach ($x in $xs) { $o.Add('תרגום של ' + $x) }; return ,$o }
+$pu = [Func[string, string]]{ param($x) return ($x.Substring(0, 1).ToUpper() + $x.Substring(1) + '.') }
+$res = $wtT.GetMethod('Translate', $SF).Invoke($null, (Pack $lines ([double[]]@(0, 0.1, 0.1, 0.1)) $tr $pu))
+Check 'תרגום בחלונות: המתרגם מקבל משפט מחובר עם פיסוק, והתוצאה מתפזרת לכל הכתוביות - שורה ריקה נשארת ריקה' ($seen.Count -eq 2 -and $seen[0] -eq 'I guess it was bound to happen i have my first ever failed laptop review.' -and $res.Count -eq 4 -and $res[3] -eq '' -and $res[0].StartsWith('תרגום')) (($seen -join ' | ') + ' => ' + ($res -join ' | '))
+$hp = $wtT.GetMethod('HasPunctuation', $SF)
+Check 'פיסוק קיים (גוגל, Groq) - לא מפעילים את מודל הפיסוק; טקסט גולמי של Whisper - כן' ([bool]$hp.Invoke($null, @([string]'Hello, world. How are you?')) -and -not [bool]$hp.Invoke($null, @([string]'i guess it was bound to happen i have my first ever failed laptop review failed and that there is'))) ''
 
 # ---------------- ההורדה ----------------
 Write-Host "`n--- download"
