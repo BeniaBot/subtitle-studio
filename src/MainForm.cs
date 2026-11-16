@@ -1099,8 +1099,7 @@ namespace SubtitleStudio
                 Ui.Info(this, Lang.T("אין מה לתרגם"), Lang.T("צריך קודם לטעון או לכתוב כתוביות."));
                 return;
             }
-            if (!EnsureAiKey()) return;
-
+            // **המפתח - בחלון, לא לפניו** (0.8.46): על המחשב לא צריך מפתח
             AiTranslateDlg d = new AiTranslateDlg(_doc, _contentContext, _tl.InPoint, _tl.OutPoint, _mi != null ? _mi.DurationMs : 0);
             d.ShowDialog(this);
             if (!d.Ok) return;
@@ -1113,7 +1112,7 @@ namespace SubtitleStudio
                 Ui.Info(this, Lang.T("אין מה לתרגם"), Lang.T("בקטע המסומן על הציר אין כתוביות."));
                 return;
             }
-            AiRunDlg run = new AiRunDlg(cues, d.Target, d.Context);
+            AiRunDlg run = new AiRunDlg(cues, d.Target, d.Context, d.Local);
             run.ShowDialog(this);
             if (!run.Ok || run.Translated == null)
             {

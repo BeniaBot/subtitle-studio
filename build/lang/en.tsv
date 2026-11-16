@@ -2038,3 +2038,15 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 רישיון: {0}. {1}	License: {0}. {1}
 יורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.	Downloads once. You can stop the download and continue later from the same place.
 מנוע התרגום הקל	Light translation engine
+איפה לתרגם	Where to translate
+מאנגלית לעברית · בטא	English to Hebrew · beta
+כל השפות · מדויק יותר	All languages · more accurate
+רק מאנגלית לעברית	English to Hebrew only
+הכתוביות נשארות במחשב. שום דבר לא נשלח.	The subtitles stay on this computer. Nothing is sent.
+בטא: פחות מדויק מגוגל. שם באותיות לועזיות שכתוב ב״רקע על התוכן״ יישאר כמו שהוא.	Beta: less accurate than Google. A name in Latin letters written under "About the content" stays as written.
+החלפת המפתח של גוגל	Replace the Google key
+הכתוביות יישלחו לגוגל לתרגום.	The subtitles will be sent to Google for translation.
+אם התוכן רגיש, אפשר לתרגם על המחשב - מאנגלית לעברית, בלי אינטרנט.	If the content is sensitive, you can translate on this computer - English to Hebrew, without the internet.
+על המחשב · בטא	On this computer · beta
+מעלה את המתרגם...	Starting the translator...
+המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום.	The on-device translator is not downloaded yet. You can download it in the translation window.

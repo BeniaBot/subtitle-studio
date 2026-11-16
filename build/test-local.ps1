@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 121 בדיקות.
+# צפוי: 135 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -405,7 +405,8 @@ Check 'במחשב של 32GB - גם הכבד מתאים' ([bool]$tg.Fits) ''
 $miT.GetField('FakeTotalMB', $SF).SetValue($null, [long]-1); $miT.GetField('FakeFreeMB', $SF).SetValue($null, [long]-1)
 $ids = @($all | ForEach-Object { $_.Id }); $dup = @($ids | Group-Object | Where-Object { $_.Count -gt 1 })
 $forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Transcribe'))))
-Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון; זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or -not $_.Line -or $_.DiskMB -le 0 -or $_.RamMB -le 0 }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast') (($ids -join ', '))
+$mtl = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Translate'))))
+Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast' -and $mtl.Count -eq 1 -and $mtl[0].Id -eq 'mt-en-he-quick') (($ids -join ', '))
 $nc = $byId.Invoke($null, @([string]'stt-he-caspi'))
 Check 'רישיון עם מגבלה נאמר (Caspi - לא מסחרי)' ([string]$nc.LicenseNote -match 'לא מסחרי') ([string]$nc.LicenseNote)
 
@@ -501,6 +502,12 @@ class P {
       if (line.Length > 0 && line[0] == '\uFEFF') { say("{\"id\": null, \"error\": \"BOM\"}"); continue; }
       File.AppendAllText("fake-py-req.txt", line + "\n", new UTF8Encoding(false));
       if (mode == "wrongcount") { say("{\"id\": 1, \"out\": [\"x\"]}"); continue; }
+      if (mode == "echo" || mode == "lose") {
+        int a0 = line.IndexOf("\"texts\":") + 8; int a1 = line.LastIndexOf("]}");
+        string arr = line.Substring(a0, a1 - a0 + 1);
+        if (mode == "lose") arr = System.Text.RegularExpressions.Regex.Replace(arr, "ZX[0-9]+", "");
+        say("{\"id\": 1, \"out\": " + arr + "}"); continue;
+      }
       int n = 0, k = 0; while ((k = line.IndexOf("\",", k) + 1) > 0) n++;
       int items = line.Split(new string[] { "\"texts\":[" }, StringSplitOptions.None)[1].Split(new string[] { "\",\"" }, StringSplitOptions.None).Length;
       StringBuilder sb = new StringBuilder("{\"id\": 1, \"out\": [");
@@ -571,6 +578,100 @@ $res = $wtT.GetMethod('Translate', $SF).Invoke($null, (Pack $lines ([double[]]@(
 Check 'תרגום בחלונות: המתרגם מקבל משפט מחובר עם פיסוק, והתוצאה מתפזרת לכל הכתוביות - שורה ריקה נשארת ריקה' ($seen.Count -eq 2 -and $seen[0] -eq 'I guess it was bound to happen i have my first ever failed laptop review.' -and $res.Count -eq 4 -and $res[3] -eq '' -and $res[0].StartsWith('תרגום')) (($seen -join ' | ') + ' => ' + ($res -join ' | '))
 $hp = $wtT.GetMethod('HasPunctuation', $SF)
 Check 'פיסוק קיים (גוגל, Groq) - לא מפעילים את מודל הפיסוק; טקסט גולמי של Whisper - כן' ([bool]$hp.Invoke($null, @([string]'Hello, world. How are you?')) -and -not [bool]$hp.Invoke($null, @([string]'i guess it was bound to happen i have my first ever failed laptop review failed and that there is'))) ''
+
+# ---------------- התרגום על המחשב מקצה לקצה (LocalTranslator, 0.8.46) - על ה״פייתון״ המדומה ----------------
+Write-Host "`n--- local translator"
+$ltT = T 'LocalTranslator'
+$cueT = T 'Cue'
+function Cues($items) {
+    $l = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))
+    foreach ($it in $items) { $c = [Activator]::CreateInstance($cueT); $c.Start = [long]$it[0]; $c.End = [long]$it[1]; $c.Text = [string]$it[2]; [void]$l.Add($c) }
+    return ,$l
+}
+$names = $ltT.GetMethod('NamesFrom', $SF).Invoke($null, @([string]'סקירה של Vivobook מבית Asus, עם Microsoft Edge ו-Zenbook 14. The review; iPhone'))
+Check 'שמות מהרקע: רצפים לועזיים עם אות גדולה, מספר שאחרי שם, הארוך קודם; לא ״The״ ולא ״review״' (($names -join '|') -eq 'Microsoft Edge|Zenbook 14|Vivobook|iPhone|Asus') ($names -join '|')
+$argv = New-Object object[] 3; $argv[0] = [string]'I loved the Vivobook and Microsoft Edge, and Edgewood too.'; $argv[1] = $names; $argv[2] = $null
+$prot = [string]$ltT.GetMethod('Protect', $SF).Invoke($null, $argv)
+Check 'הגנה: כל שם - סימן משלו, רק כמילה שלמה (Edgewood לא נוגעים)' ($prot -eq 'I loved the ZX3 and ZX1, and Edgewood too.' -and [int]$argv[2] -eq 2) $prot
+$rargv = New-Object object[] 4; $rargv[0] = [string]'אהבתי את הZX3 ואת ZX 1.'; $rargv[1] = $names; $rargv[2] = [int]2; $rargv[3] = $null
+$rest = [string]$ltT.GetMethod('Restore', $SF).Invoke($null, $rargv)
+$rargv2 = New-Object object[] 4; $rargv2[0] = [string]'אהבתי את זה ואת ZX1.'; $rargv2[1] = $names; $rargv2[2] = [int]2; $rargv2[3] = $null
+[void]$ltT.GetMethod('Restore', $SF).Invoke($null, $rargv2)
+Check 'שחזור: השמות חוזרים (״ה-Vivobook״ עם מקף), וסימן שנעלם - מדווח' ($rest -eq 'אהבתי את ה-Vivobook ואת Microsoft Edge.' -and -not [bool]$rargv[3] -and [bool]$rargv2[3]) $rest
+$le = $ltT.GetMethod('LooksEnglish', $SF)
+function LE([string[]]$xs) { return [bool]$le.Invoke($null, @(,[Collections.Generic.List[string]]$xs)) }
+Check 'אנגלית? כן לאנגלית; לא לצרפתית, לעברית, ולרשימת שמות בלי משפט' ((LE @('I always loved the Vivobook.', 'It rarely disappointed me.')) -and -not (LE @("Je n'ai jamais aimé ce livre.", 'Il est très long et ennuyeux.')) -and -not (LE @('שלום לכולם', 'מה שלומכם')) -and -not (LE @('Vivobook Asus Zenbook'))) ''
+
+# החבילות בתיקייה מדומה: הטבלאות מוקטנות, והמנוע - ה״פייתון״ המדומה בשם ובמקום של האמיתי
+$ltRoot = Join-Path $work 'מודלים לתרגום מקומי'
+$catT = T 'ModelCatalog'
+$catT.GetField('RootOverride', $SF).SetValue($null, [string]$ltRoot)
+$engP = $catT.GetMethod('ById', $SF).Invoke($null, @('engine-ct2')); $mtP = $catT.GetMethod('ById', $SF).Invoke($null, @('mt-en-he-quick'))
+$keep = @{ ef = $engP.Files; es = $engP.Sizes; mf = $mtP.Files; ms = $mtP.Sizes }
+$engP.Files = [string[]]@('engine-test-1.zip'); $engP.Sizes = [long[]]@(1)
+$mtP.Files = [string[]]@('model.bin'); $mtP.Sizes = [long[]]@(4)
+$noInst = $ltT.GetMethod('Run', $SF)
+function LtRun($cues, [string]$ctx, $cancel) {
+    $script:ltProg = @()
+    $prog = [Action[int, int]]{ param($d, $n) $script:ltProg += ,@($d, $n) }
+    $argv = New-Object object[] 6; $argv[0] = $cues; $argv[1] = $ctx; $argv[2] = $prog; $argv[3] = $cancel; $argv[4] = $null; $argv[5] = $null
+    $out = $ltT.GetMethod('Run', $SF).Invoke($null, $argv)
+    return @{ out = $out; err = [string]$argv[4]; stopped = [int]$argv[5] }
+}
+$r = LtRun (Cues @(,@(0, 1000, 'Hello there.'))) '' $null
+Check 'תרגום על המחשב: החבילה לא הורדה - נעצר עם הודעה' ($r.out -eq $null -and $r.err -match 'לא הורד') $r.err
+New-Item -ItemType Directory (Join-Path $ltRoot 'engine-ct2\py'), (Join-Path $ltRoot 'mt-en-he-quick') -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $ltRoot 'engine-ct2\engine-test-1.zip.ok'), 'ok')
+[IO.File]::WriteAllText((Join-Path $ltRoot 'mt-en-he-quick\model.bin'), 'abcd')
+Copy-Item (Join-Path $pyDir 'python.exe') (Join-Path $ltRoot 'engine-ct2\py\python.exe')
+[IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'echo')
+$src = @(@(0, 1500, 'I always loved the Vivobook.'), @(1600, 3000, 'It rarely, if ever,'), @(3100, 4000, 'disappointed me.'), @(4100, 5200, 'Then I bought a Zenbook 14,'), @(8000, 9500, 'and I loved it too.'))
+$cs = Cues $src
+$r = LtRun $cs 'Vivobook, Zenbook 14' $null
+$argsLt = [IO.File]::ReadAllText((Join-Path $ltRoot 'fake-py-args.txt'), [Text.Encoding]::UTF8)
+$reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
+$joined = ($r.out -join ' ')
+Check 'תרגום על המחשב: המנוע מתיקיית החבילה, שמות יחסיים מתוך ״models״ (שם עברי), המודל של החבילה' ($argsLt -match '^-I -s engine-ct2\\translate_runner\.py mt-en-he-quick [12] 4\|cwd=' -and $argsLt.Contains('|cwd=' + $ltRoot + '|')) $argsLt
+Check 'תרגום על המחשב: חלונות של עד 3 כתוביות (לא מעבר להפסקה), השמות בסימנים בבקשה - ובחזרה במקום' ($reqLt.Count -eq 1 -and $reqLt[0].Contains('"I always loved the ZX2. It rarely, if ever, disappointed me.","Then I bought a ZX1,","and I loved it too."') -and $r.out.Count -eq 5 -and $joined -eq 'I always loved the Vivobook. It rarely, if ever, disappointed me. Then I bought a Zenbook 14, and I loved it too.' -and $r.stopped -eq -1) ($reqLt[0] + ' => ' + ($r.out -join ' | '))
+$lastP = $script:ltProg[$script:ltProg.Count - 1]
+Check 'תרגום על המחשב: ההתקדמות מגיעה ל-5 מתוך 5' ($lastP[0] -eq 5 -and $lastP[1] -eq 5) ($lastP -join '/')
+Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')
+$cs = Cues @(@(0, 1000, 'i guess it was bound to happen'), @(1100, 2000, 'i have my first ever failed'), @(2100, 3000, 'laptop review'))
+$r = LtRun $cs '' $null
+$reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
+Check 'תרגום על המחשב: מקור בלי פיסוק - שורה-שורה, בלי לחבר (חיבור בלי פיסוק גרוע יותר)' ($reqLt.Count -eq 1 -and $reqLt[0].Contains('"texts":["i guess it was bound to happen","i have my first ever failed","laptop review"]') -and $r.out[2] -eq 'laptop review') $reqLt[0]
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
+[IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'lose')
+Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')
+$r = LtRun (Cues @(,@(0, 1500, 'I always loved the Vivobook.'))) 'Vivobook' $null
+$reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
+Check 'תרגום על המחשב: סימן שנעלם בתרגום - החלון מתורגם שוב בלי ההגנה, והשם לא אובד' ($reqLt.Count -eq 2 -and $reqLt[0].Contains('ZX1') -and $reqLt[1].Contains('the Vivobook.') -and $r.out[0] -eq 'I always loved the Vivobook.') (($reqLt -join ' || ') + ' => ' + $r.out[0])
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
+[IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'echo')
+$many = @(); for ($i = 0; $i -lt 60; $i++) { $many += ,@(($i * 1000), ($i * 1000 + 800), "Line number $i is here.") }
+$ltT.GetField('ChunkWindows', $SF).SetValue($null, 4)
+$r = LtRun (Cues $many) '' ([Func[bool]]{ return ($script:ltProg.Count -ge 2) })
+Check 'תרגום על המחשב: עצירה בין מנות - בלי תוצאה ובלי הודעת שגיאה' ($r.out -eq $null -and [string]::IsNullOrEmpty($r.err) -and $script:ltProg.Count -eq 2) ("" + $script:ltProg.Count + ' ' + $r.err)
+$ltT.GetField('ChunkWindows', $SF).SetValue($null, 16)
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
+
+# חלון התרגום: ״איפה לתרגם״
+$docT = T 'Doc'
+function TDoc($items) { $d = [Activator]::CreateInstance($docT); foreach ($c in (Cues $items)) { [void]$d.Cues.Add($c) }; return $d }
+$ltT.GetField('ProviderId', $SF).SetValue($null, '')
+$td = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (TDoc @(@(0, 2000, 'I always loved the Vivobook, and you know it.'), @(2500, 4000, 'It is the best laptop that I have.'))) ''))
+$optL = $td.GetType().GetField('_optLocal', $IF).GetValue($td)
+$conn = $td.GetType().GetField('_connect', $IF).GetValue($td)
+Check 'חלון התרגום: כתוביות באנגלית, בלי מפתח ובלי בחירה קודמת - ״על המחשב״, והורדה בכפתור (החבילה לא ״מותקנת״ בטבלה האמיתית)' ($optL.Enabled -and $td.Local -and [string]$conn.Text -match 'הורדה') ([string]$conn.Text)
+$td.GetType().GetField('_lang', $IF).GetValue($td).SelectedIndex = 1
+Check 'חלון התרגום: יעד אחר מעברית - ״על המחשב״ כבוי ואומר ״רק מאנגלית לעברית״, ונבחר גוגל' (-not $optL.Enabled -and [string]$optL.Sub -eq 'רק מאנגלית לעברית' -and -not $td.Local) ([string]$optL.Sub)
+$td.Dispose()
+$td = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (TDoc @(,@(0, 2000, 'האויבים שלנו מתקדמים.'))) ''))
+Check 'חלון התרגום: כתוביות בעברית - רק גוגל' (-not $td.GetType().GetField('_optLocal', $IF).GetValue($td).Enabled -and -not $td.Local) ''
+$td.Dispose()
+
+$engP.Files = $keep.ef; $engP.Sizes = $keep.es; $mtP.Files = $keep.mf; $mtP.Sizes = $keep.ms
+$catT.GetField('RootOverride', $SF).SetValue($null, $null)
 
 # ---------------- ההורדה ----------------
 Write-Host "`n--- download"

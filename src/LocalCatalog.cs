@@ -165,7 +165,7 @@ namespace SubtitleStudio
             // (כמו ש-CTranslate2 עושה בטעינה) - 410MB ← 211MB, ותרגום זהה ב-255 מתוך 255 משפטים
             r.Add(Pack("mt-en-he-quick", ModelTask.Translate, ModelTier.Light, Lang.T("תרגום מאנגלית לעברית - קל ומהיר"),
                        Lang.T("מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים."), "en-he",
-                       204, 400, "CC BY 4.0", "", "engine-ct2", false));
+                       204, 400, "CC BY 4.0", "", "engine-ct2", true));
             p = r[r.Count - 1];
             p.Credit = "quickmt · CTranslate2";
             p.Tag = "local-mt-1";

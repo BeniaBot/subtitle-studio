@@ -218,9 +218,15 @@ namespace SubtitleStudio
         private readonly Doc _doc;
         private readonly Toggle _range;
         private readonly long _a, _b;
+        private readonly Btn _optLocal, _optGoogle, _connect;
+        private readonly Lbl _where, _whereNote;
+        private string _choice;
+        private readonly bool _english;
 
         public List<Cue> Result;          // הכתוביות המתורגמות
         public bool ReplaceInPlace = true;
+        /// <summary>**על המחשב** (0.8.46, בטא): `LocalTranslator`, בלי מפתח ובלי רשת. אחרת - גוגל.</summary>
+        public bool Local { get { return CanLocal && _choice == "local"; } }
 
         private static readonly string[] Langs = new string[]
         {
@@ -250,7 +256,34 @@ namespace SubtitleStudio
             // כתוביות בשפה זרה מתורגמות כמעט תמיד לעברית; עבריות - לאנגלית. עד 0.8.5 החלון נפתח תמיד
             // על ״אנגלית״, וגם מי שתרגם סרטון באנגלית לעברית היה צריך לזכור להחליף
             _lang.SelectedIndex = MostlyHebrew(doc) ? 1 : 0;
+            _lang.SelectedIndexChanged += delegate { Refresh_(); };
             Row(_lang, 40, 12);
+
+            // **איפה לתרגם** (0.8.46): על המחשב - בטא, רק מאנגלית לעברית; גוגל - כל השפות, מדויק יותר. כמו בחלון התמלול: הבחירה
+            // ברגע שמתרגמים, וההורדה או המפתח - בכפתור שמתחת
+            List<string> texts = new List<string>();
+            if (doc != null) foreach (Cue c in doc.Cues) texts.Add(c.Text);
+            _english = LocalTranslator.LooksEnglish(texts);
+            Section(Lang.T("איפה לתרגם"));
+            int gapX = Theme.S(10);
+            int half = (ContentW - gapX) / 2;
+            _optLocal = Option(Lang.T("על המחשב"), Lang.T("מאנגלית לעברית · בטא"), "local");
+            _optLocal.SetBounds(Pad + half + gapX, Y, ContentW - half - gapX, Theme.S(56));
+            _optGoogle = Option(Lang.T("גוגל"), Lang.T("כל השפות · מדויק יותר"), "gemini");
+            _optGoogle.SetBounds(Pad, Y, half, Theme.S(56));
+            Y += Theme.S(64);
+            _connect = new Btn();
+            _connect.Kind = BtnKind.Subtle;
+            _connect.Click += delegate { Connect(); };
+            Row(_connect, 38, 8);
+            _where = Label("", true, Theme.Good);
+            Row(_where, 24, 2);
+            _whereNote = Hint("");
+            Row(_whereNote, 40, 12);
+            bool canLocal = _english && _lang.SelectedIndex == 0;
+            _choice = LocalTranslator.ProviderId;
+            if (_choice != "local" && _choice != "gemini")
+                _choice = canLocal && (LocalTranslator.Installed || !Ai.HasKey) ? "local" : "gemini";
 
             Section(Lang.T("מה לעשות עם התוצאה"));
             _mode = new Combo();
@@ -282,6 +315,79 @@ namespace SubtitleStudio
             Row(_info, 36, 2);
 
             Buttons(Lang.T("תרגמו"), Ico.Sparkles, Lang.T("ביטול"));
+            Refresh_();
+        }
+
+        private Btn Option(string text, string sub, string id)
+        {
+            Btn b = new Btn();
+            b.Text = text;
+            b.Sub = sub;
+            b.Kind = BtnKind.Subtle;
+            b.Radio = true;
+            b.Click += delegate { if (b.Enabled) { _choice = id; Refresh_(); } };
+            Controls.Add(b);
+            return b;
+        }
+
+        /// <summary>המתרגם על המחשב יודע רק מאנגלית לעברית: כתוביות בשפה אחרת, או יעד אחר - האפשרות כבויה ואומרת למה.</summary>
+        private bool CanLocal { get { return _english && _lang.SelectedIndex == 0; } }
+
+        private void Refresh_()
+        {
+            if (_optLocal == null) return;
+            bool can = CanLocal;
+            _optLocal.Enabled = can;
+            _optLocal.Sub = can ? Lang.T("מאנגלית לעברית · בטא") : Lang.T("רק מאנגלית לעברית");
+            bool local = can && _choice == "local";
+            _optLocal.Checked = local;
+            _optGoogle.Checked = !local;
+            _optLocal.Invalidate();
+            _optGoogle.Invalidate();
+            if (local)
+            {
+                ModelPack p = LocalTranslator.Pack;
+                _connect.Text = Lang.F("הורדה של {0}, פעם אחת", Theme.Ltr(MediaInfo.FormatSize(ModelCatalog.DownloadBytes(p))));
+                _connect.Icon = Ico.Download;
+                _connect.Kind = BtnKind.Subtle;
+                _connect.Visible = !LocalTranslator.Installed;
+                _where.Text = Lang.T("הכתוביות נשארות במחשב. שום דבר לא נשלח.");
+                _where.Color = Theme.Good;
+                _whereNote.Text = Lang.T("בטא: פחות מדויק מגוגל. שם באותיות לועזיות שכתוב ב״רקע על התוכן״ יישאר כמו שהוא.");
+            }
+            else
+            {
+                _connect.Text = Ai.HasKey ? Lang.T("החלפת המפתח של גוגל") : Lang.F("{0} - מפתח חינמי, פעם אחת", Theme.Pfx(Lang.T("חיבור ל"), Lang.T("גוגל")));
+                _connect.Icon = Ico.Key;
+                _connect.Kind = Ai.HasKey ? BtnKind.Ghost : BtnKind.Subtle;
+                _connect.Visible = !Ai.HasKey;
+                _where.Text = Lang.T("הכתוביות יישלחו לגוגל לתרגום.");
+                _where.Color = Theme.Warn;
+                _whereNote.Text = Lang.T("אם התוכן רגיש, אפשר לתרגם על המחשב - מאנגלית לעברית, בלי אינטרנט.");
+            }
+            // המשפט על ״על המחשב״ - רק כשזו באמת אפשרות כאן (כתוביות בעברית: האפשרות כבויה ואומרת ״רק מאנגלית לעברית״)
+            _whereNote.Visible = local || can;
+            _connect.Invalidate();
+            _where.Invalidate();
+            _whereNote.Invalidate();
+            Restack();
+        }
+
+        private void Connect()
+        {
+            if (Local)
+            {
+                PackSetupDlg d = new PackSetupDlg(LocalTranslator.Pack);
+                d.ShowDialog(this);
+                d.Dispose();
+            }
+            else
+            {
+                AiSetupDlg d = new AiSetupDlg();
+                d.ShowDialog(this);
+                d.Dispose();
+            }
+            Refresh_();
         }
 
         /// <summary>״אפשר לבטל ב-Ctrl+Z״ רק כשהתרגום מחליף את הכתוביות כאן; לקובץ חדש - אין מה לבטל.</summary>
@@ -317,7 +423,16 @@ namespace SubtitleStudio
         protected override bool OnOk()
         {
             ReplaceInPlace = _mode.SelectedIndex == 0;
-            return _doc != null && _doc.Cues.Count > 0;
+            if (_doc == null || _doc.Cues.Count == 0) return false;
+            if (!CanLocal && _choice == "local") _choice = "gemini";
+            if (Local ? !LocalTranslator.Installed : !Ai.HasKey)
+            {
+                Connect();
+                if (Local ? !LocalTranslator.Installed : !Ai.HasKey) return false;
+            }
+            // נזכר רק כשבאמת הייתה בחירה: בכתוביות בעברית ״גוגל״ הוא היחיד, וזה לא אומר שבפעם הבאה לא ירצו על המחשב
+            if (CanLocal) { LocalTranslator.ProviderId = _choice; Settings.SaveAll(); }
+            return true;
         }
     }
 
@@ -339,6 +454,14 @@ namespace SubtitleStudio
         public int StoppedAt = -1;
 
         private const int BatchSize = 40;
+        private readonly bool _local;
+
+        /// <summary><paramref name="local"/> - על המחשב (`LocalTranslator`), בלי מילון שמות ובלי קיצור: אלה בקשות לגוגל.</summary>
+        public AiRunDlg(List<Cue> cues, string lang, string context, bool local) : this(cues, lang, context)
+        {
+            _local = local;
+            if (local) Subtitle = Lang.T("על המחשב · בטא");
+        }
 
         public AiRunDlg(List<Cue> cues, string lang, string context) : base(Lang.T("מתרגם..."), Ico.Sparkles, 520)
         {
@@ -366,8 +489,52 @@ namespace SubtitleStudio
             Shown += delegate { Start(); };
         }
 
+        /// <summary>התרגום על המחשב: מנה אחרי מנה, עצירה בין מנות (וגם באמצע - המתרגם נסגר), נכשל באמצע - מה שתורגם נשמר.</summary>
+        private void StartLocal()
+        {
+            Thread t = new Thread(delegate ()
+            {
+                try { BeginInvoke((MethodInvoker)delegate { _stat.Text = Lang.T("מעלה את המתרגם..."); _stat.Invalidate(); }); }
+                catch { }
+                string err = null;
+                int stoppedAt = -1;
+                List<string> res = null;
+                try
+                {
+                    res = LocalTranslator.Run(_cues, _context, delegate (int d, int n)
+                    {
+                        try
+                        {
+                            BeginInvoke((MethodInvoker)delegate
+                            {
+                                _bar.Value = d / (float)Math.Max(1, n);
+                                _stat.Text = Lang.F("תורגמו {0} מתוך {1} כתוביות", Theme.Ltr(d.ToString()), Theme.Ltr(n.ToString()));
+                                _stat.Invalidate();
+                            });
+                        }
+                        catch { }
+                    }, delegate { return _cancel; }, out err, out stoppedAt);
+                }
+                catch (Exception ex) { err = ErrorText.Of(ex); Ai.Log("חריגה בתרגום על המחשב: " + ex); }
+                if (res == null)
+                {
+                    if (!_cancel) Error = err;
+                    try { BeginInvoke((MethodInvoker)delegate { Ok = false; Close(); }); }
+                    catch { }
+                    return;
+                }
+                if (stoppedAt >= 0) { StoppedAt = stoppedAt; Error = err; Ai.Log("תרגום על המחשב: נעצר אחרי " + stoppedAt + " מתוך " + _cues.Count + " - " + err); }
+                Translated = res;
+                try { BeginInvoke((MethodInvoker)delegate { Ok = !_cancel && Translated.Count == _cues.Count; Close(); }); }
+                catch { }
+            });
+            t.IsBackground = true;
+            t.Start();
+        }
+
         private void Start()
         {
+            if (_local) { StartLocal(); return; }
             Thread t = new Thread(delegate ()
             {
                 StopToken.Attach(_stop);
