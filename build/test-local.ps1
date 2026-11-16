@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 111 בדיקות.
+# צפוי: 118 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -482,6 +482,71 @@ $ll = NewLlm 'caspi\model.gguf' $null
 $r = Ask $ll ($llT.GetMethod('TextMessage', $SF).Invoke($null, @([string]'user', [string]'x')))
 Check 'llama-server: נסגר בזמן הטעינה - ״אולי אין מספיק זיכרון״ והצעה למודל קל' ($r.out -eq $null -and $r.err -match 'זיכרון' -and $r.err -match 'קל יותר') $r.err
 Remove-Item (Join-Path $llModels 'fake-llm-mode.txt')
+
+# ---------------- המתרגם הקל דרך פייתון מוטמע (LocalCt2, 0.8.46) - ״פייתון״ מדומה ----------------
+Write-Host "`n--- ct2 runner (fake python)"
+$pySrc = @'
+using System; using System.IO; using System.Text;
+class P {
+  static int Main(string[] a) {
+    File.WriteAllText("fake-py-args.txt", string.Join(" ", a) + "|cwd=" + Directory.GetCurrentDirectory() + "|enc=" + Environment.GetEnvironmentVariable("PYTHONIOENCODING"), new UTF8Encoding(false));
+    string mode = File.Exists("fake-py-mode.txt") ? File.ReadAllText("fake-py-mode.txt").Trim() : "ok";
+    if (mode == "crash") return 1;
+    Stream o = Console.OpenStandardOutput();
+    Action<string> say = delegate (string s) { byte[] b = Encoding.UTF8.GetBytes(s + "\n"); o.Write(b, 0, b.Length); o.Flush(); };
+    say("{\"ready\": true}");
+    StreamReader r = new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false));
+    string line;
+    while ((line = r.ReadLine()) != null) {
+      if (line.Length > 0 && line[0] == '\uFEFF') { say("{\"id\": null, \"error\": \"BOM\"}"); continue; }
+      File.AppendAllText("fake-py-req.txt", line + "\n", new UTF8Encoding(false));
+      if (mode == "wrongcount") { say("{\"id\": 1, \"out\": [\"x\"]}"); continue; }
+      int n = 0, k = 0; while ((k = line.IndexOf("\",", k) + 1) > 0) n++;
+      int items = line.Split(new string[] { "\"texts\":[" }, StringSplitOptions.None)[1].Split(new string[] { "\",\"" }, StringSplitOptions.None).Length;
+      StringBuilder sb = new StringBuilder("{\"id\": 1, \"out\": [");
+      for (int i = 0; i < items; i++) sb.Append(i > 0 ? ", " : "").Append("\"\u05ea\u05e8\u05d2\u05d5\u05dd " + i + "\"");
+      say(sb.Append("]}").ToString());
+    }
+    return 0;
+  }
+}
+'@
+$pyDir = Join-Path $work 'פייתון'; $ctModels = Join-Path $work 'מודלים לתרגום'
+New-Item -ItemType Directory $pyDir, $ctModels | Out-Null
+[IO.File]::WriteAllText((Join-Path $work 'fakepy.cs'), $pySrc)
+& $csc /nologo /target:exe /out:"$pyDir\python.exe" "$work\fakepy.cs" | Out-Null
+$ctT = T 'LocalCt2'
+function NewCt([string]$model) { return [Activator]::CreateInstance($ctT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @([string](Join-Path $pyDir 'python.exe'), [string]'ct2\translate_runner.py', [string]$ctModels, [string]$model), $null) }
+function CtAsk($ct, [string[]]$xs) {
+    $l = New-Object Collections.Generic.List[string]; foreach ($x in $xs) { $l.Add($x) }
+    $argv = New-Object object[] 3; $argv[0] = $l.psobject.BaseObject; $argv[1] = $null; $argv[2] = $null
+    $out = $ctT.GetMethod('Translate', $IF).Invoke($ct, $argv)
+    return @{ out = $out; err = [string]$argv[2] }
+}
+function PyProcs { return @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.ExecutablePath -like ($pyDir + '*') }) }
+$ct = NewCt 'mt-en-he-quick'
+$r = CtAsk $ct @('one', 'two "quoted"', 'שלוש')
+$args0 = [IO.File]::ReadAllText((Join-Path $ctModels 'fake-py-args.txt'), [Text.Encoding]::UTF8)
+$req0 = [IO.File]::ReadAllText((Join-Path $ctModels 'fake-py-req.txt'), [Text.Encoding]::UTF8)
+Check 'מתרגם קל: פייתון מבודד (-I -s), שמות יחסיים, מתוך תיקיית המודלים (בשם עברי), פלט UTF-8' ($args0 -match '^-I -s ct2\\translate_runner\.py mt-en-he-quick [12] 4\|cwd=' -and $args0.Contains('|cwd=' + $ctModels + '|') -and $args0.EndsWith('|enc=utf-8')) $args0
+Check 'מתרגם קל: בקשה אחת בשורת JSON בלי BOM, ותשובה באותו אורך' (@($r.out).Count -eq 3 -and $r.out[0] -eq 'תרגום 0' -and $req0.StartsWith('{"id":1,"texts":["one","two \"quoted\"","שלוש"]}')) ([string]$r.err + ' ' + ($r.out -join '|'))
+$r = CtAsk $ct @('again')
+Check 'מתרגם קל: בקשה שנייה - אותו תהליך, בלי טעינה מחדש' ($r.out[0] -eq 'תרגום 0' -and @(PyProcs).Count -eq 1) ''
+$ct.Stop(); Start-Sleep -Milliseconds 400
+Check 'מתרגם קל: Stop סוגר את התהליך' (@(PyProcs).Count -eq 0) ''
+[IO.File]::WriteAllText((Join-Path $ctModels 'fake-py-mode.txt'), 'wrongcount')
+$ct = NewCt 'mt-en-he-quick'
+$r = CtAsk $ct @('a', 'b')
+Check 'מתרגם קל: תשובה באורך אחר - ״פורמט לא צפוי״, לא תרגום חלקי בשקט' ($r.out -eq $null -and $r.err -match 'פורמט') $r.err
+$ct.Stop()
+[IO.File]::WriteAllText((Join-Path $ctModels 'fake-py-mode.txt'), 'crash')
+$ct = NewCt 'mt-en-he-quick'
+$r = CtAsk $ct @('a')
+Check 'מתרגם קל: נסגר בטעינה - ״אולי אין מספיק זיכרון״' ($r.out -eq $null -and $r.err -match 'זיכרון') $r.err
+Remove-Item (Join-Path $ctModels 'fake-py-mode.txt')
+$ct = NewCt 'מודל'
+$r = CtAsk $ct @('a')
+Check 'מתרגם קל: שם תיקייה בעברית - נעצר עם הודעה, בלי להפעיל' ($r.out -eq $null -and $r.err -match 'תיקייה' -and @(PyProcs).Count -eq 0) $r.err
 
 # ---------------- תרגום בחלונות ופיזור חזרה (WindowTranslate, 0.8.46) ----------------
 Write-Host "`n--- window translate"
