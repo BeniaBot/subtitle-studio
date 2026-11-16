@@ -41,6 +41,8 @@
 
 <sub>דורש אינטרנט ומפתח חינמי: מגוגל, או מ-Groq (עד 8 שעות הקלטה ביום). התוכנה מסבירה בדיוק איך משיגים אותו.</sub>
 
+<sub>**חדש, בבטא: תמלול עברית על המחשב** - בלי אינטרנט, בלי מפתח, והקול לא יוצא מהמחשב. הורדה חד-פעמית של כ-62MB מתוך חלון התמלול. מהיר וקל (שיעור של שעה בכמה דקות, בלי להכביד על המחשב), פחות מדויק מהשירותים ברשת.</sub>
+
 ### 🎯 לתקן ולבדוק
 
 * **סנכרון** - עוצרים איפה שהמשפט באמת נשמע, והתוכנה מזיזה הכול. או רק מכאן והלאה, או רק אחת.
@@ -122,7 +124,7 @@
 כן, לגמרי. בלי פרסומות ובלי הרשמה.
 
 **צריך אינטרנט?**\
-לא. הכול עובד על המחשב שלכם. אינטרנט נחוץ רק לתמלול ולתרגום האוטומטיים, ולבדיקת עדכונים.
+לא. הכול עובד על המחשב שלכם. אינטרנט נחוץ רק לתרגום האוטומטי, לתמלול דרך שירות ברשת, ולבדיקת עדכונים. תמלול עברית אפשר גם בלי אינטרנט (בטא).
 
 **ומה עם אנגלית?**\
 כל התוכנה קיימת גם באנגלית. היא נפתחת בעברית כשהווינדוס בעברית (או כשיש בו מקלדת עברית), ואפשר להחליף בהגדרות.
@@ -166,7 +168,7 @@ Built for Hebrew (right‑to‑left done properly), with a complete English inte
 
 * **Write** subtitles against the waveform; each one shows on the picture as you type.
 * **Open** SRT, VTT, ASS or SUB - or plain text, split into subtitles and timed to the speech. Old Hebrew encodings open correctly.
-* **Transcribe** automatically, with speakers separated and unsure words marked, and **translate** into any language. Online, with a free key from Google or Groq; the audio is sent only after you agree.
+* **Transcribe** automatically, with speakers separated and unsure words marked, and **translate** into any language. Online, with a free key from Google or Groq; the audio is sent only after you agree. New, in beta: Hebrew transcription on the PC itself - offline, no key, a one-time 62 MB download.
 * **Work on part of the video** - mark a section (`I` / `O`) and transcription, translation, timing and auto‑fix run on it alone.
 * **Fix out‑of‑sync subtitles** by pointing at where a line is actually spoken, and **check** for overlaps, reading speed, long lines and spelling.
 * **Burn** the subtitles into the picture, or add them as a separate track. Font, size, colour, outline and a semi‑transparent box behind the text - what the style window shows is what gets burned.

@@ -2,6 +2,32 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.45",
+      "date": "2026-11-16",
+      "items": [
+        {
+          "t": "major",
+          "s": "בטא: תמלול עברית על המחשב - בלי אינטרנט, בלי מפתח, והקול לא יוצא מהמחשב. בחלון התמלול בוחרים ״על המחשב״: הורדה חד-פעמית של כ-62 MB (אפשר לעצור ולהמשיך), ואחריה שיעור של שעה מתומלל בכמה דקות, בלי להכביד על המחשב. פחות מדויק מהשירותים ברשת, ועדיין בפיתוח",
+          "en": "Beta: Hebrew transcription on the PC itself - no internet, no key, and the audio never leaves the computer. In the transcription window choose \"On this PC\": a one-time download of about 62 MB (you can stop and continue), and after it an hour-long lesson is transcribed in a few minutes, without weighing the computer down. Less accurate than the online services, and still in development"
+        },
+        {
+          "t": "feature",
+          "s": "שמות, מקומות ומונחים בעברית שכותבים ב״רקע על התוכן״ עוזרים גם לתמלול על המחשב לכתוב אותם נכון",
+          "en": "Names, places and terms in Hebrew written in \"About the content\" also help on-device transcription get them right"
+        },
+        {
+          "t": "feature",
+          "s": "חלון התמלול: שלוש אפשרויות בשורה אחת - על המחשב, גוגל, Groq. כשבוחרים ״על המחשב״, במקום האזהרה על שליחת הקול כתוב שהוא נשאר במחשב",
+          "en": "The transcription window: three options in one row - On this PC, Google, Groq. With \"On this PC\", instead of the warning about sending the audio it says that the audio stays on the PC"
+        },
+        {
+          "t": "feature",
+          "s": "הגדרות ← אחסון: רואים כמה תופס כל מה שהתוכנה שמרה במחשב, ו״פירוט ומחיקה״ פותח חלון עם מנוע הווידאו, מילון האיות והתמלול על המחשב - גודל ומחיקה לכל אחד",
+          "en": "Settings, Storage: shows how much room everything the program keeps on the PC takes, and \"Details and delete\" opens a window with the video engine, the spelling dictionary and on-device transcription - size and delete for each"
+        }
+      ]
+    },
+    {
       "v": "0.8.44",
       "date": "2026-11-12",
       "items": [

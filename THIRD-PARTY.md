@@ -9,6 +9,7 @@
 | **גופן IBM Plex Sans Hebrew** (מוטמע ב‑EXE) | **SIL OFL 1.1** | להשתמש, להטמיע ולהפיץ; אסור למכור את הגופן בפני עצמו |
 | **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
 | **מילון Hspell** (בדיקת איות, **לא ב‑EXE**, יורד בנפרד רק למי שמבקש) | **AGPLv3** | להשתמש ולהפיץ, עם הרישיון והפניה למקור |
+| **תמלול על המחשב** (בטא; **לא ב‑EXE**, יורד בנפרד רק למי שמבקש): המנוע sherpa-onnx, ‏ONNX Runtime, והמודל העברי zipformer2-66m | **Apache 2.0**, **MIT**, **CC BY 4.0** | להשתמש ולהפיץ, עם הרישיונות והקרדיט ליוצרים |
 
 הנוסח המלא של כולם נמצא בתיקייה [`licenses/`](licenses) — **וגם בתוך ה‑EXE עצמו**:
 ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
@@ -148,6 +149,34 @@ independent C# 5 implementation under MIT, as is our Torah‑study word list.*
 | רישיון · License | **GNU Affero General Public License v3** |
 | נוסח הרישיון · License text | [`licenses/AGPL-3.0-Hspell.txt`](licenses/AGPL-3.0-Hspell.txt) |
 | מקור · Source | http://hspell.ivrix.org.il/ |
+
+---
+
+## תמלול על המחשב (בטא) — מנוע ומודל שיורדים בנפרד
+
+מגרסה 0.8.45 התוכנה יודעת לתמלל עברית על המחשב, בלי אינטרנט. בשביל זה היא מורידה,
+**פעם אחת ורק כשהמשתמש מבקש**, חבילה של כ‑62MB ממהדורה ייעודית במאגר הזה
+(`local-stt-he-1`). **שום דבר ממנה לא נמצא בתוך ה‑EXE.** היא נשמרת בתיקייה משלה:
+‏`%LOCALAPPDATA%\SubtitleStudio\models\stt-he`, או `models\stt-he` ליד ה‑EXE בגרסה
+הניידת, והתוכנה בודקת את טביעת ה‑SHA‑256 של כל קובץ לפני שהיא משתמשת בו.
+
+התוכנה **מריצה** את המנוע כתהליך נפרד (כמו את FFmpeg) ולא מקשרת אליו קוד. הקוד
+שלנו סביבו (`src\LocalStt.cs`) הוא MIT כמו שאר הקוד.
+
+*From 0.8.45 Subtext can transcribe Hebrew on the PC, offline (beta). For that it downloads,
+once and only when the user asks, a pack of about 62 MB from a dedicated release in this
+repository (`local-stt-he-1`). Nothing of it is inside the EXE. Subtext runs the engine as a
+separate process; our own code around it is MIT. Every file's SHA‑256 is verified before use,
+and the license texts travel with the pack (`LICENSES.txt`).*
+
+| רכיב · Component | רישיון · License | מקור · Source |
+|---|---|---|
+| **sherpa-onnx** 2.0.1 (`sherpa-onnx.exe`), ללא שינוי · unmodified | Apache License 2.0 | https://github.com/k2-fsa/sherpa-onnx |
+| **ONNX Runtime** 1.28.2 (`onnxruntime.dll`), ללא שינוי · unmodified | MIT, © Microsoft Corporation | https://github.com/microsoft/onnxruntime |
+| **zipformer2-66m-streaming-he** — מודל זיהוי דיבור עברי מאת **יעקב קולני** (Yakov Kolani), על הקלטות של **ivrit.ai**. הקבצים ללא שינוי; ‏`bpe.vocab` הוא אוצר החלקים של המודל עצמו, שיוצא מ‑`bpe.model` שלו · a Hebrew speech model by Yakov Kolani, trained on ivrit.ai audio; files unmodified, `bpe.vocab` exported from the model's own `bpe.model` | Creative Commons Attribution 4.0 (CC BY 4.0) | https://huggingface.co/thewh1teagle/zipformer2-66m-streaming-he · https://huggingface.co/ivrit-ai/zipformer2-66m-streaming-he |
+
+נוסח הרישיונות של המנוע ושל ONNX Runtime נמצא בקובץ `LICENSES.txt` שיורד עם החבילה
+ונשמר ליד הקבצים. החבילה נארזת בסקריפט `build\make-local-stt.ps1`.
 | ההפצה שלנו · Our copy | המהדורה [`spell-he-1.4`](https://github.com/BeniaBot/subtitle-studio/releases/tag/spell-he-1.4), עם הרישיון וקובץ ה‑README המקורי |
 
 ---
