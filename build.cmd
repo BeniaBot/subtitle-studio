@@ -58,6 +58,8 @@ echo Compiling...
   /reference:System.Windows.Forms.dll ^
   /reference:System.Web.Extensions.dll ^
   /reference:System.Security.dll ^
+  /reference:System.IO.Compression.dll ^
+  /reference:System.IO.Compression.FileSystem.dll ^
   /reference:"%WINMD%\Windows.Foundation.winmd" ^
   /reference:"%WINMD%\Windows.Media.winmd" ^
   /reference:"%WINMD%\Windows.Storage.winmd" ^

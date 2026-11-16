@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 118 בדיקות.
+# צפוי: 121 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -756,6 +756,43 @@ $r = Download
 Check 'קובץ בחלקים: חלק עם תוכן אחר - הטביעה של הקובץ השלם תופסת, והחלקים נמחקים' (-not $r.ok -and $r.err -match 'הוחלף' -and @(Get-ChildItem $s.folder | Where-Object { $_.Name -match 'big' }).Count -eq 0) $r.err
 StopDl
 $lmT.GetField('SplitAt', $SF).SetValue($null, [long](1900L * 1024 * 1024))
+$lmT.GetField('Files', $SF).SetValue($null, [string[]]@('a.bin', 'b.bin', 'c.txt'))
+$lmT.GetField('Sizes', $SF).SetValue($null, [long[]]@($rawA.Length, $rawB.Length, $rawC.Length))
+$lmT.GetField('GzSizes', $SF).SetValue($null, [long[]]@($gzA.Length, $gzB.Length, $gzC.Length))
+$lmT.GetField('Sha256', $SF).SetValue($null, [string[]]@((Sha $rawA), (Sha $rawB), (Sha $rawC)))
+
+# ---- ארכיון שנפרס (מנוע של עשרות קבצים: פייתון מוטמע, 0.8.46) ----
+Add-Type -AssemblyName System.IO.Compression
+function ZipOf($entries) {
+    $ms = New-Object IO.MemoryStream
+    $za = New-Object IO.Compression.ZipArchive($ms, [IO.Compression.ZipArchiveMode]::Create, $true)
+    foreach ($k in $entries.Keys) { $e = $za.CreateEntry($k); $st = $e.Open(); $b = [Text.Encoding]::UTF8.GetBytes([string]$entries[$k]); $st.Write($b, 0, $b.Length); $st.Dispose() }
+    $za.Dispose()
+    return ,$ms.ToArray()
+}
+function UseZip([byte[]]$zip) {
+    $gz = Gz $zip
+    $lmT.GetField('Files', $SF).SetValue($null, [string[]]@('engine.zip', 'c.txt'))
+    $lmT.GetField('Sizes', $SF).SetValue($null, [long[]]@($zip.Length, $rawC.Length))
+    $lmT.GetField('GzSizes', $SF).SetValue($null, [long[]]@($gz.Length, $gzC.Length))
+    $lmT.GetField('Sha256', $SF).SetValue($null, [string[]]@((Sha $zip), (Sha $rawC)))
+    return @{ 'engine.zip.gz' = $gz; 'c.txt.gz' = $gzC }
+}
+$zipOk = ZipOf ([ordered]@{ 'py/python.exe' = 'fake python'; 'py/Lib/site.txt' = 'שלום'; 'translate_runner.py' = 'print(1)' })
+$s = StartDl @() (UseZip $zipOk)
+$r = Download
+$f = $s.folder
+Check 'ארכיון: נפרס לתיקיית החבילה (גם תת-תיקיות), נשאר רק הסימן, ו״מותקן״' ($r.ok -and (Test-Path (Join-Path $f 'py\python.exe')) -and [IO.File]::ReadAllText((Join-Path $f 'py\Lib\site.txt'), [Text.Encoding]::UTF8) -eq 'שלום' -and (Test-Path (Join-Path $f 'translate_runner.py')) -and (Test-Path (Join-Path $f 'engine.zip.ok')) -and -not (Test-Path (Join-Path $f 'engine.zip')) -and (Same (Join-Path $f 'c.txt') $rawC) -and (Installed)) $r.err
+$before = @(Reqs).Count
+$r = Download
+Check 'ארכיון: הורדה שנייה - לא יורד שוב (הסימן מספיק)' ($r.ok -and @(Reqs).Count -eq $before) ("" + (@(Reqs).Count - $before))
+StopDl
+$zipBad = ZipOf ([ordered]@{ 'ok.txt' = 'x'; '../evil.txt' = 'evil' })
+$s = StartDl @() (UseZip $zipBad)
+$r = Download
+$evil = Join-Path (Split-Path $s.folder -Parent) 'evil.txt'
+Check 'ארכיון: שם שיוצא מהתיקייה (..\) - נדחה, ״פגום״, שום קובץ בחוץ, בלי סימן ובלי הארכיון' (-not $r.ok -and $r.err -match 'פגום' -and -not (Test-Path $evil) -and -not (Test-Path (Join-Path $s.folder 'engine.zip.ok')) -and -not (Test-Path (Join-Path $s.folder 'engine.zip')) -and -not (Installed)) $r.err
+StopDl
 $lmT.GetField('Files', $SF).SetValue($null, [string[]]@('a.bin', 'b.bin', 'c.txt'))
 $lmT.GetField('Sizes', $SF).SetValue($null, [long[]]@($rawA.Length, $rawB.Length, $rawC.Length))
 $lmT.GetField('GzSizes', $SF).SetValue($null, [long[]]@($gzA.Length, $gzB.Length, $gzC.Length))

@@ -89,10 +89,45 @@ namespace SubtitleStudio
             try
             {
                 for (int i = 0; i < files.Length; i++)
-                    if (!FileOk(Path.Combine(dir, files[i]), sizes[i])) return false;
+                {
+                    if (IsZip(files[i])) { if (!File.Exists(Path.Combine(dir, files[i] + ".ok"))) return false; }
+                    else if (!FileOk(Path.Combine(dir, files[i]), sizes[i])) return false;
+                }
                 return true;
             }
             catch { return false; }
+        }
+
+        /// <summary>**ארכיון שנפרס** (0.8.46): מנוע של עשרות קבצים בתיקיות (פייתון מוטמע) יורד כ-ZIP אחד, נבדק בטביעה, נפרס לתיקיית
+        /// החבילה, ובמקומו נשאר סימן ``<שם>.ok``. ההורדה שלו - כמו כל קובץ (gz, או בחלקים).</summary>
+        internal static bool IsZip(string name) { return name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase); }
+
+        /// <summary>פורס ארכיון לתיקייה - **רק בתוכה** (שם כמו ``..\x`` בארכיון נדחה), ומחליף מה שכבר שם.</summary>
+        internal static void Unzip(string zip, string dir)
+        {
+            string root = Path.GetFullPath(dir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            using (System.IO.Compression.ZipArchive za = System.IO.Compression.ZipFile.OpenRead(zip))
+                foreach (System.IO.Compression.ZipArchiveEntry e in za.Entries)
+                {
+                    string full = Path.GetFullPath(Path.Combine(dir, e.FullName));
+                    if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("bad entry in archive: " + e.FullName);
+                    if (e.FullName.EndsWith("/") || e.FullName.EndsWith("\\")) { Directory.CreateDirectory(full); continue; }
+                    Directory.CreateDirectory(Path.GetDirectoryName(full));
+                    e.ExtractToFile(full, true);
+                }
+        }
+
+        /// <summary>אחרי שקובץ ירד ונבדק: ארכיון - נפרס, ונשאר רק הסימן. ארכיון פגום - false (והוא נמחק); דיסק מלא וכדומה - חריגה,
+        /// וההודעה הרגילה של <see cref="ErrorText"/>.</summary>
+        private static bool AfterVerified(string target)
+        {
+            if (!IsZip(target)) return true;
+            try { Unzip(target, Path.GetDirectoryName(target)); }
+            catch (InvalidDataException ex) { Ai.Log("ארכיון פגום בהורדה: " + ex.Message); Kill(target); return false; }
+            catch { Kill(target); throw; }
+            File.WriteAllText(target + ".ok", "ok", new UTF8Encoding(false));
+            Kill(target);
+            return true;
         }
 
         private static bool FileOk(string path, long size)
@@ -166,7 +201,7 @@ namespace SubtitleStudio
                 for (int i = 0; i < files.Length; i++)
                 {
                     string target = Path.Combine(dir, files[i]);
-                    if (FileOk(target, sizes[i]))
+                    if (IsZip(files[i]) ? File.Exists(target + ".ok") : FileOk(target, sizes[i]))
                     {
                         done += gzSizes[i];
                         if (progress != null) progress(done, total);
@@ -201,6 +236,7 @@ namespace SubtitleStudio
                     if (File.Exists(target)) File.Delete(target);
                     File.Move(tmp, target);
                     Kill(part);
+                    if (!AfterVerified(target)) { error = Lang.T("הקובץ שירד פגום. נסו שוב."); return false; }
                 }
                 return true;
             }
@@ -290,6 +326,7 @@ namespace SubtitleStudio
             if (File.Exists(target)) File.Delete(target);
             File.Move(tmp, target);
             for (int k = 1; k <= parts; k++) Kill(PartName(target, k));
+            if (!AfterVerified(target)) { error = Lang.T("הקובץ שירד פגום. נסו שוב."); return false; }
             return true;
         }
 
