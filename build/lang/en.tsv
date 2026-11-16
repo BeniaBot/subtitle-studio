@@ -2022,3 +2022,12 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 למחוק את ״{0}״?	Delete “{0}”?
 אפשר להוריד אותו שוב מתי שרוצים.	You can download it again whenever you like.
 מודלים על המחשב	Models on this computer
+# ---- LocalLlm.cs (0.8.46) ----
+המודל שמור בתיקייה שהמנוע לא יודע לקרוא.	The model is saved in a folder the engine cannot read.
+המנוע של המודל לא נמצא. אפשר להוריד אותו שוב בחלון ״מודלים על המחשב״.	The model's engine was not found. You can download it again in the “Models on this computer” window.
+המודל לא הצליח לעלות במחשב הזה.	The model could not start on this computer.
+המודל לא הצליח לעלות - אולי אין מספיק זיכרון פנוי. אפשר לסגור תוכנות אחרות, או לבחור מודל קל יותר.	The model could not start - maybe there is not enough free memory. Close other programs, or choose a lighter model.
+המודל לא נטען בזמן. במחשב איטי אפשר לבחור מודל קל יותר.	The model did not load in time. On a slow computer, choose a lighter model.
+המודל לא ענה כמו שצריך.	The model did not answer properly.
+המודל נסגר באמצע - אולי נגמר הזיכרון. אפשר לבחור מודל קל יותר.	The model closed in the middle - maybe memory ran out. Choose a lighter model.
+המודל ענה בפורמט לא צפוי.	The model answered in an unexpected format.
