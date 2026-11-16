@@ -1922,6 +1922,8 @@ namespace SubtitleStudio
             "תמלול בלי אינטרנט יפסיק לעבוד עד שתורידו אותו שוב ({0}), מחלון התמלול.", "Transcription without the internet will stop working until you download it again ({0}), from the transcription window.",
             "התמלול על המחשב · {0}", "On-device transcription · {0}",
             "התמלול על המחשב, הורדה שלא הסתיימה · {0}", "On-device transcription, unfinished download · {0}",
+            "מתאים למחשב הזה", "Fits this computer",
+            "כבד למחשב הזה: צריך כ-{0} זיכרון פנוי, ויש כ-{1}", "Heavy for this computer: needs about {0} of free memory, and there is about {1}",
         };
 
         public static void Fill(Dictionary<string, string> d)

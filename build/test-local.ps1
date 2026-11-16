@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 82 בדיקות.
+# צפוי: 88 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -384,6 +384,30 @@ $line = [string](Fld $st '_localLine').Text
 Check 'אחסון: שורה לתמלול על המחשב, עם הגודל; והסכום בהגדרות כולל אותה' ($line -match 'התמלול על המחשב' -and $line -match '\d' -and [bool]$selfVis.Invoke($null, @((Fld $st '_delLocal'))) -and [long](T 'StorageDlg').GetMethod('Total', $SF).Invoke($null, @()) -ge [long]$lmT.GetProperty('SizeOnDisk', $SF).GetValue($null, $null)) $line
 $st.Dispose()
 $aiT.GetField('Key', $SF).SetValue($null, $oldKey); $sttT.GetField('GroqKey', $SF).SetValue($null, $oldGroq); $sttT.GetField('ProviderId', $SF).SetValue($null, $oldId)
+
+# ---------------- הקטלוג והמחשב (0.8.46) ----------------
+Write-Host "`n--- catalog"
+$miT = T 'MachineInfo'; $catT = T 'ModelCatalog'
+$realTotal = [long]$miT.GetProperty('TotalMB', $SF).GetValue($null, $null)
+Check 'המחשב: זיכרון כולל וליבות נקראים מווינדוס' ($realTotal -gt 1000 -and [int]$miT.GetProperty('Cores', $SF).GetValue($null, $null) -ge 1) ("" + $realTotal + ' MB')
+function Budget([long]$total, [long]$free) {
+    $miT.GetField('FakeTotalMB', $SF).SetValue($null, [long]$total); $miT.GetField('FakeFreeMB', $SF).SetValue($null, [long]$free)
+    return [long]$miT.GetProperty('BudgetMB', $SF).GetValue($null, $null)
+}
+Check 'תקציב: מחשב של 8GB עם 2GB פנויים - כ-4GB; של 16GB - 8GB; של 4GB - 2GB' ((Budget 8192 2048) -eq 4096 -and (Budget 16384 3000) -eq 8192 -and (Budget 4096 3500) -eq 2048) ''
+$all = $catT.GetProperty('All', $SF).GetValue($null, $null)
+$byId = $catT.GetMethod('ById', $SF)
+$fast = $byId.Invoke($null, @([string]'stt-he-fast')); $tg = $byId.Invoke($null, @([string]'mt-translategemma-4b'))
+[void](Budget 8192 2500)
+Check 'במחשב של 8GB: התמלול הקל ״מתאים״, TranslateGemma ״כבד״ - עם מספרים' ([bool]$fast.Fits -and -not [bool]$tg.Fits -and [string]$catT.GetMethod('FitText', $SF).Invoke($null, @($tg)) -match 'כבד' -and [string]$catT.GetMethod('FitText', $SF).Invoke($null, @($tg)) -match 'GB') ([string]$catT.GetMethod('FitText', $SF).Invoke($null, @($tg)))
+[void](Budget 32768 20000)
+Check 'במחשב של 32GB - גם הכבד מתאים' ([bool]$tg.Fits) ''
+$miT.GetField('FakeTotalMB', $SF).SetValue($null, [long]-1); $miT.GetField('FakeFreeMB', $SF).SetValue($null, [long]-1)
+$ids = @($all | ForEach-Object { $_.Id }); $dup = @($ids | Group-Object | Where-Object { $_.Count -gt 1 })
+$forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Transcribe'))))
+Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון; זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or -not $_.Line -or $_.DiskMB -le 0 -or $_.RamMB -le 0 }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast') (($ids -join ', '))
+$nc = $byId.Invoke($null, @([string]'stt-he-caspi'))
+Check 'רישיון עם מגבלה נאמר (Caspi - לא מסחרי)' ([string]$nc.LicenseNote -match 'לא מסחרי') ([string]$nc.LicenseNote)
 
 # ---------------- ההורדה ----------------
 Write-Host "`n--- download"
