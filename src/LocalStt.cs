@@ -172,33 +172,16 @@ namespace SubtitleStudio
                         if (progress != null) progress(done, total);
                         continue;
                     }
-                    string part = target + ".gz.part";
-                    long before = done;
-                    int tries = 0;
-                    while (true)
+                    // **קובץ גדול מ-2GB** (מגבלה של נכס במהדורה בגיטהאב): בחלקים, בלי gz - משקלים של מודל כמעט לא נדחסים
+                    if (sizes[i] > SplitAt)
                     {
-                        done = before;
-                        int r;
-                        try { r = FetchTo(baseUrl + files[i] + ".gz", part, gzSizes[i], ref done, total, progress, canceled, out error); }
-                        catch (WebException wex)
-                        {
-                            // תשובה מהשרת (404, חסימה) היא סופית; חיבור שנקטע - ממשיכים מאיפה שעצר
-                            if (wex.Response != null || ++tries > Retries) throw;
-                            Ai.Log("הורדת התמלול המקומי: החיבור נקטע (" + wex.Status + "), ממשיך. ניסיון " + tries);
-                            System.Threading.Thread.Sleep(tries * 700);
-                            continue;
-                        }
-                        catch (IOException iox)
-                        {
-                            if (++tries > Retries) throw;
-                            Ai.Log("הורדת התמלול המקומי: " + iox.Message + ", ממשיך. ניסיון " + tries);
-                            System.Threading.Thread.Sleep(tries * 700);
-                            continue;
-                        }
-                        if (r == 1) { error = Lang.T("ההורדה בוטלה."); return false; }
-                        if (r != 0) return false;
-                        break;
+                        if (!DownloadSplit(baseUrl + files[i], target, sizes[i], sha256[i], ref done, total, progress, canceled, out error)) return false;
+                        continue;
                     }
+                    string part = target + ".gz.part";
+                    int r = FetchWithRetry(baseUrl + files[i] + ".gz", part, gzSizes[i], true, ref done, total, progress, canceled, out error);
+                    if (r == 1) { error = Lang.T("ההורדה בוטלה."); return false; }
+                    if (r != 0) return false;
 
                     string tmp = target + ".download";
                     string hash;
@@ -235,9 +218,85 @@ namespace SubtitleStudio
             }
         }
 
-        /// <summary>מוריד קובץ דחוס אחד אל <paramref name="part"/>, וממשיך אותו אם כבר התחיל.
+        /// <summary>גודל חלק של קובץ גדול. נכס במהדורה בגיטהאב מוגבל ל-2GB; לבדיקות - קטן.</summary>
+        internal static long SplitAt = 1900L * 1024 * 1024;
+
+        /// <summary>``FetchTo`` עם ניסיונות חוזרים כשהחיבור נקטע. תשובה מהשרת (404, חסימה) - סופית.</summary>
+        private static int FetchWithRetry(string url, string part, long expect, bool gz, ref long done, long total,
+                                          Action<long, long> progress, Func<bool> canceled, out string error)
+        {
+            long before = done;
+            int tries = 0;
+            while (true)
+            {
+                done = before;
+                try { return FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error); }
+                catch (WebException wex)
+                {
+                    if (wex.Response != null || ++tries > Retries) throw;
+                    Ai.Log("הורדת מודל: החיבור נקטע (" + wex.Status + "), ממשיך. ניסיון " + tries);
+                    System.Threading.Thread.Sleep(tries * 700);
+                }
+                catch (IOException iox)
+                {
+                    if (++tries > Retries) throw;
+                    Ai.Log("הורדת מודל: " + iox.Message + ", ממשיך. ניסיון " + tries);
+                    System.Threading.Thread.Sleep(tries * 700);
+                }
+            }
+        }
+
+        private static string PartName(string target, int k) { return target + ".part" + k.ToString(CultureInfo.InvariantCulture); }
+
+        /// <summary>קובץ בחלקים: ``<url>.part1``, ``part2``... כל אחד <see cref="SplitAt"/> חוץ מהאחרון. כל חלק ממשיך מאיפה שנעצר;
+        /// אחרי כולם - מחברים, בודקים טביעה על הקובץ השלם, ורק אז הוא נכנס למקום.</summary>
+        private static bool DownloadSplit(string url, string target, long size, string sha, ref long done, long total,
+                                          Action<long, long> progress, Func<bool> canceled, out string error)
+        {
+            error = null;
+            int parts = (int)((size + SplitAt - 1) / SplitAt);
+            for (int k = 1; k <= parts; k++)
+            {
+                long expect = Math.Min(SplitAt, size - (k - 1) * SplitAt);
+                int r = FetchWithRetry(url + ".part" + k.ToString(CultureInfo.InvariantCulture), PartName(target, k), expect, false,
+                                       ref done, total, progress, canceled, out error);
+                if (r == 1) { error = Lang.T("ההורדה בוטלה."); return false; }
+                if (r != 0) return false;
+            }
+            string tmp = target + ".download";
+            string hash;
+            using (FileStream dst = File.Create(tmp))
+            using (SHA256 h = SHA256.Create())
+            {
+                byte[] buf = new byte[1 << 20];
+                for (int k = 1; k <= parts; k++)
+                    using (FileStream src = File.OpenRead(PartName(target, k)))
+                    {
+                        int n;
+                        while ((n = src.Read(buf, 0, buf.Length)) > 0) { dst.Write(buf, 0, n); h.TransformBlock(buf, 0, n, null, 0); }
+                    }
+                h.TransformFinalBlock(buf, 0, 0);
+                StringBuilder sb = new StringBuilder(64);
+                foreach (byte b in h.Hash) sb.Append(b.ToString("X2"));
+                hash = sb.ToString();
+            }
+            if (!string.Equals(hash, sha, StringComparison.OrdinalIgnoreCase) || new FileInfo(tmp).Length != size)
+            {
+                Kill(tmp);
+                for (int k = 1; k <= parts; k++) Kill(PartName(target, k));
+                error = Lang.T("הקובץ שירד פגום, או שהוחלף בשרת. נסו שוב.");
+                return false;
+            }
+            if (File.Exists(target)) File.Delete(target);
+            File.Move(tmp, target);
+            for (int k = 1; k <= parts; k++) Kill(PartName(target, k));
+            return true;
+        }
+
+        /// <summary>מוריד קובץ אחד אל <paramref name="part"/>, וממשיך אותו אם כבר התחיל. <paramref name="gz"/> - הקובץ דחוס (נבדק
+        /// שמתחיל כמו gz); אחרת - רק שזה לא דף אינטרנט (חסימה של סינון).
         /// 0 - ירד כולו, 1 - בוטל, 2 - לא מה שביקשנו (ההודעה ב-<paramref name="error"/>).</summary>
-        private static int FetchTo(string url, string part, long expect, ref long done, long total,
+        private static int FetchTo(string url, string part, long expect, bool gz, ref long done, long total,
                                    Action<long, long> progress, Func<bool> canceled, out string error)
         {
             error = null;
@@ -266,7 +325,7 @@ namespace SubtitleStudio
                 if (have > 0 && bad != null && (int)bad.StatusCode == 416)
                 {
                     Kill(part);
-                    return FetchTo(url, part, expect, ref done, total, progress, canceled, out error);
+                    return FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error);
                 }
                 throw;
             }
@@ -290,7 +349,7 @@ namespace SubtitleStudio
                         {
                             first = false;
                             // לא קובץ דחוס: דף חסימה של סינון (הכי נפוץ אצלנו), או סתם שבור
-                            if (n < 2 || buf[0] != 0x1F || buf[1] != 0x8B)
+                            if (gz ? (n < 2 || buf[0] != 0x1F || buf[1] != 0x8B) : ErrorText.IsWebPage(type, buf, n))
                             {
                                 error = ErrorText.IsWebPage(type, buf, n) ? ErrorText.Filtered : Lang.T("הקובץ שירד פגום. נסו שוב.");
                                 notOurs = true;

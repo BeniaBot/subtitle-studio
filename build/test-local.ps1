@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 107 בדיקות.
+# צפוי: 111 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -661,6 +661,40 @@ $argv = New-Object object[] 1; $argv[0] = $null
 $okDel = $lmT.GetMethod('Remove', $SF).Invoke($null, $argv)
 Check 'מחיקה: התיקייה נעלמת, ״לא מותקן״, ואפס בדיסק' ($r.ok -and $size -ge ($rawA.Length + $rawB.Length + $rawC.Length) -and [bool]$okDel -and -not (Test-Path $s.folder) -and -not (Installed) -and [long]$lmT.GetProperty('SizeOnDisk', $SF).GetValue($null, $null) -eq 0) ("" + $size)
 StopDl
+
+# ---- קובץ גדול בחלקים (מעל 2GB - מגבלה של גיטהאב; כאן החלק 150KB) ----
+$lmT.GetField('SplitAt', $SF).SetValue($null, [long]150000)
+$big = New-Object byte[] 400000; $rnd.NextBytes($big)
+function Slice([byte[]]$b, [int]$from, [int]$len) { $o = New-Object byte[] $len; [Array]::Copy($b, $from, $o, 0, $len); return ,$o }
+$bigFiles = @{ 'big.gguf.part1' = (Slice $big 0 150000); 'big.gguf.part2' = (Slice $big 150000 150000); 'big.gguf.part3' = (Slice $big 300000 100000) }
+$lmT.GetField('Files', $SF).SetValue($null, [string[]]@('big.gguf'))
+$lmT.GetField('Sizes', $SF).SetValue($null, [long[]]@($big.Length))
+$lmT.GetField('GzSizes', $SF).SetValue($null, [long[]]@($big.Length))
+$lmT.GetField('Sha256', $SF).SetValue($null, [string[]]@((Sha $big)))
+$s = StartDl @() $bigFiles
+$r = Download
+$reqs = @(Reqs)
+Check 'קובץ בחלקים: שלושה חלקים יורדים, מתחברים, והקובץ זהה למקור' ($r.ok -and (Same (Join-Path $s.folder 'big.gguf') $big) -and $reqs.Count -eq 3 -and $reqs[2] -match 'big\.gguf\.part3' -and @(Get-ChildItem $s.folder | Where-Object { $_.Name -match '\.part\d|\.download$' }).Count -eq 0) ($r.err + ' reqs ' + $reqs.Count)
+StopDl
+$s = StartDl @('', 'cut:60000') $bigFiles
+$r = Download
+$reqs = @(Reqs)
+Check 'קובץ בחלקים: חלק שנקטע ממשיך מאותו מקום (Range), השאר לא יורדים פעמיים' ($r.ok -and (Same (Join-Path $s.folder 'big.gguf') $big) -and @($reqs | Where-Object { $_ -match '(?im)^range:\s*bytes=60000-' }).Count -eq 1) ($r.err + ' reqs ' + $reqs.Count)
+StopDl
+$s = StartDl @('html') $bigFiles
+$r = Download
+Check 'קובץ בחלקים: דף חסימה במקום חלק - ״סינון״, ושום חלק לא נשאר' (-not $r.ok -and $r.err -match 'סינון' -and @(Get-ChildItem $s.folder -ErrorAction SilentlyContinue).Count -eq 0) $r.err
+StopDl
+$wrong = @{ 'big.gguf.part1' = (Slice $big 0 150000); 'big.gguf.part2' = (Slice $big 0 150000); 'big.gguf.part3' = (Slice $big 300000 100000) }
+$s = StartDl @() $wrong
+$r = Download
+Check 'קובץ בחלקים: חלק עם תוכן אחר - הטביעה של הקובץ השלם תופסת, והחלקים נמחקים' (-not $r.ok -and $r.err -match 'הוחלף' -and @(Get-ChildItem $s.folder | Where-Object { $_.Name -match 'big' }).Count -eq 0) $r.err
+StopDl
+$lmT.GetField('SplitAt', $SF).SetValue($null, [long](1900L * 1024 * 1024))
+$lmT.GetField('Files', $SF).SetValue($null, [string[]]@('a.bin', 'b.bin', 'c.txt'))
+$lmT.GetField('Sizes', $SF).SetValue($null, [long[]]@($rawA.Length, $rawB.Length, $rawC.Length))
+$lmT.GetField('GzSizes', $SF).SetValue($null, [long[]]@($gzA.Length, $gzB.Length, $gzC.Length))
+$lmT.GetField('Sha256', $SF).SetValue($null, [string[]]@((Sha $rawA), (Sha $rawB), (Sha $rawC)))
 
 # ---- הקטלוג: שתי חבילות שחולקות מנוע אחד (0.8.46) ----
 $mpT = T 'ModelPack'
