@@ -407,8 +407,11 @@ $ids = @($all | ForEach-Object { $_.Id }); $dup = @($ids | Group-Object | Where-
 $forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Transcribe'))))
 $mtl = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Translate'))))
 Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast' -and $mtl.Count -eq 1 -and $mtl[0].Id -eq 'mt-en-he-quick') (($ids -join ', '))
-$nc = $byId.Invoke($null, @([string]'stt-he-caspi'))
-Check 'רישיון עם מגבלה נאמר (Caspi - לא מסחרי)' ([string]$nc.LicenseNote -match 'לא מסחרי') ([string]$nc.LicenseNote)
+$nc = [Activator]::CreateInstance((T 'ModelPack'), $true); $nc.Id = 'test-nc'; $nc.Title = 'מודל לבדיקה'; $nc.Line = 'שורה'; $nc.License = 'CC BY-NC 4.0'; $nc.LicenseNote = 'לשימוש לא מסחרי בלבד.'; $nc.Files = [string[]]@('x.bin'); $nc.Sizes = [long[]]@(10); $nc.GzSizes = [long[]]@(10); $nc.Sha256 = [string[]]@('00')
+$psd = [Activator]::CreateInstance((T 'PackSetupDlg'), $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($nc), $null)
+$psdTexts = @($psd.Controls | ForEach-Object { [string]$_.Text }) -join ' | '
+$psd.Dispose()
+Check 'רישיון עם מגבלה (לא מסחרי) - נאמר בחלון ההורדה, לפני שמורידים' ($psdTexts -match 'CC BY-NC 4\.0' -and $psdTexts -match 'לא מסחרי') $psdTexts
 
 # ---------------- מודל שפה דרך llama-server (LocalLlm, 0.8.46) - שרת מדומה ----------------
 Write-Host "`n--- llama-server (fake)"

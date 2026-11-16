@@ -1935,8 +1935,6 @@ namespace SubtitleStudio
             "מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק.", "A translation model by Google. Slower, and needs a strong computer.",
             "פיסוק לאנגלית", "English punctuation",
             "מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר.", "Adds periods and commas to English text before translating - the translation comes out better.",
-            "תמלול עברית - הכי מדויק", "Hebrew transcription - the most accurate",
-            "המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק.", "The most accurate Hebrew model we found. Slow, and needs a strong computer.",
             "לשימוש לא מסחרי בלבד.", "For non-commercial use only.",
             "מודלים על המחשב (בטא)", "Models on this computer (beta)",
             "תמלול ותרגום בלי אינטרנט. מורידים פעם אחת, ומוחקים מתי שרוצים.", "Offline transcription and translation. Download once, delete anytime.",

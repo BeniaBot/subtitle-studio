@@ -190,11 +190,8 @@ namespace SubtitleStudio
                        Lang.T("מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר."), "en",
                        30, 100, "Apache 2.0", "", "engine-sherpa", false));
             r[r.Count - 1].Credit = "k2-fsa · sherpa-onnx";
-            // Caspi (על Qwen3-ASR): לפי הכרטיס 4.2% על eval-d1; רישיון לא מסחרי - בנימין אישר (Subtext לא מסחרית)
-            r.Add(Pack("stt-he-caspi", ModelTask.Transcribe, ModelTier.Heavy, Lang.T("תמלול עברית - הכי מדויק"),
-                       Lang.T("המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק."), "he",
-                       1460, 2500, "CC BY-NC 4.0", Lang.T("לשימוש לא מסחרי בלבד."), "engine-llama", false));
-            r[r.Count - 1].Credit = "OzLabs Caspi · Qwen3-ASR · ivrit.ai · llama.cpp";
+            // **Caspi-1.7B (על Qwen3-ASR) - לא בקטלוג** (נמדד 17.11, Q4_K_M דרך llama-server): 12.77% שגיאות על ״כאן״ - גרוע מהקל (9.3%)
+            // ומ-Parakeet (8.7%), כזמן אמת על 2 ליבות. הכרטיס אומר 4.2-7.1% - כנראה על GPU ובדיוק מלא. לבדוק Q8_0 לפני שמחזירים
             return r;
         }
 
