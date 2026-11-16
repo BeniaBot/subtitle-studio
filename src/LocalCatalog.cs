@@ -101,6 +101,12 @@ namespace SubtitleStudio
         /// <summary>אפשר להוריד כבר עכשיו. חבילה שעוד בבדיקה נשארת בקטלוג מוסתרת.</summary>
         public bool Available;
 
+        /// <summary>איפה הקבצים: תגית המהדורה בגיטהאב (טרום הפצה), שם התיקייה תחת ``models``, וטבלת הקבצים -
+        /// כמו ש-``build\make-local-stt.ps1`` מדפיס (שם, גודל, גודל דחוס, טביעה של הקובץ הפתוח).</summary>
+        public string Tag = "", Folder = "";
+        public string[] Files = new string[0], Sha256 = new string[0];
+        public long[] Sizes = new long[0], GzSizes = new long[0];
+
         /// <summary>״מתאים למחשב הזה״ - הזיכרון שהמודל תופס בזמן ריצה בתוך התקציב (`MachineInfo.BudgetMB`).</summary>
         public bool Fits { get { long b = MachineInfo.BudgetMB; return b <= 0 || RamMB <= b; } }
     }
@@ -133,30 +139,139 @@ namespace SubtitleStudio
         {
             List<ModelPack> r = new List<ModelPack>();
             // נמדד 15-16.11: 9.3% שגיאות על ״כאן״ (8.1% עם מילים מהרקע), פי 18 מזמן אמת על 2 ליבות, 179MB זיכרון
-            r.Add(Pack("stt-he-fast", ModelTask.Transcribe, ModelTier.Light, "תמלול עברית - קל ומהיר",
-                       "שעה של שיעור בכמה דקות, גם במחשב חלש. טועה במילה בערך בכל משפט שני.", "he",
+            r.Add(Pack("stt-he-fast", ModelTask.Transcribe, ModelTier.Light, Lang.T("תמלול עברית - קל ומהיר"),
+                       Lang.T("שעה של שיעור בכמה דקות, גם במחשב חלש. טועה במילה בערך בכל משפט שני."), "he",
                        89, 180, "CC BY 4.0 · Apache 2.0", "", "", true));
             // נמדד 16.11: 8.68% על ״כאן״, עם פיסוק, פי 4.5 על 2 ליבות; 1.37GB זיכרון על דקה וחצי - צריך חיתוך לקטעים קצרים
-            r.Add(Pack("stt-he-parakeet", ModelTask.Transcribe, ModelTier.Balanced, "תמלול עברית - מדויק יותר",
-                       "פחות טעויות, ועדיין בלי להכביד: שעה של שיעור בכרבע שעה.", "he",
+            r.Add(Pack("stt-he-parakeet", ModelTask.Transcribe, ModelTier.Balanced, Lang.T("תמלול עברית - מדויק יותר"),
+                       Lang.T("פחות טעויות, ועדיין בלי להכביד: שעה של שיעור בכרבע שעה."), "he",
                        673, 1400, "CC BY 4.0", "", "engine-sherpa", false));
             // נמדד 16.11: chrF++ ‏50.4 על WMT24++ (OPUS-MT ‏42.7), ‏0.05-0.08 שנ׳ לשורה על 2 ליבות; כ-400MB זיכרון (לא נמדד במדויק)
-            r.Add(Pack("mt-en-he-quick", ModelTask.Translate, ModelTier.Light, "תרגום מאנגלית לעברית - קל ומהיר",
-                       "מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים.", "en-he",
+            r.Add(Pack("mt-en-he-quick", ModelTask.Translate, ModelTier.Light, Lang.T("תרגום מאנגלית לעברית - קל ומהיר"),
+                       Lang.T("מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים."), "en-he",
                        410, 400, "CC BY 4.0", "", "", false));
             // לא נמדד עדיין (הקובץ הראשון היה פגום); כ-4.8GB זיכרון בריצה
-            r.Add(Pack("mt-translategemma-4b", ModelTask.Translate, ModelTier.Heavy, "תרגום לכל השפות - מדויק",
-                       "מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק.", "*",
+            r.Add(Pack("mt-translategemma-4b", ModelTask.Translate, ModelTier.Heavy, Lang.T("תרגום לכל השפות - מדויק"),
+                       Lang.T("מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק."), "*",
                        2490, 4800, "Gemma", "", "engine-llama", false));
             // 30MB, רבע שנייה לכל התמלול; העלה את התרגום מ-36.4 ל-42.3 על כתוביות בלי פיסוק
-            r.Add(Pack("punct-en", ModelTask.Punctuate, ModelTier.Light, "פיסוק לאנגלית",
-                       "מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר.", "en",
+            r.Add(Pack("punct-en", ModelTask.Punctuate, ModelTier.Light, Lang.T("פיסוק לאנגלית"),
+                       Lang.T("מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר."), "en",
                        30, 100, "Apache 2.0", "", "engine-sherpa", false));
             // Caspi (על Qwen3-ASR): לפי הכרטיס 4.2% על eval-d1; רישיון לא מסחרי - בנימין אישר (Subtext לא מסחרית)
-            r.Add(Pack("stt-he-caspi", ModelTask.Transcribe, ModelTier.Heavy, "תמלול עברית - הכי מדויק",
-                       "המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק.", "he",
-                       1460, 2500, "CC BY-NC 4.0", "לשימוש לא מסחרי בלבד.", "engine-llama", false));
+            r.Add(Pack("stt-he-caspi", ModelTask.Transcribe, ModelTier.Heavy, Lang.T("תמלול עברית - הכי מדויק"),
+                       Lang.T("המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק."), "he",
+                       1460, 2500, "CC BY-NC 4.0", Lang.T("לשימוש לא מסחרי בלבד."), "engine-llama", false));
             return r;
+        }
+
+        // ---------- התקנה, הורדה, מחיקה (לכל חבילה) ----------
+
+        /// <summary>החבילה של 0.8.45 - יושבת ב-``models\stt-he`` עם המנוע בתוכה, והטבלה שלה ב-`LocalModel`. עד שהמנוע
+        /// יפוצל לחבילה משלו (WORKPLAN 2לד), כל מה שנוגע בה עובר דרך `LocalModel` - כך גם הבדיקות הקיימות.</summary>
+        internal const string LegacyId = "stt-he-fast";
+
+        /// <summary>לבדיקות: תיקיית ``models`` אחרת.</summary>
+        internal static string RootOverride;
+
+        /// <summary>``models`` - האב של התיקייה של התמלול הקל (``%LOCALAPPDATA%\SubtitleStudio\models``, או ליד ה-EXE במצב נייד).</summary>
+        public static string Root
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(RootOverride)) return RootOverride;
+                return System.IO.Path.GetDirectoryName(LocalModel.Folder.TrimEnd(System.IO.Path.DirectorySeparatorChar));
+            }
+        }
+
+        public static string FolderOf(ModelPack p)
+        {
+            if (p.Id == LegacyId) return LocalModel.Folder;
+            return System.IO.Path.Combine(Root, string.IsNullOrEmpty(p.Folder) ? p.Id : p.Folder);
+        }
+
+        /// <summary>כל הקבצים במקום - וגם המנוע שהיא צריכה.</summary>
+        public static bool Installed(ModelPack p)
+        {
+            if (p == null) return false;
+            if (p.Id == LegacyId) return LocalModel.Installed;
+            if (p.Files.Length == 0) return false;
+            if (!LocalModel.FilesOk(FolderOf(p), p.Files, p.Sizes)) return false;
+            return string.IsNullOrEmpty(p.Requires) || Installed(ById(p.Requires));
+        }
+
+        /// <summary>כמה יורד בפועל, כולל מנוע שעוד לא הורד.</summary>
+        public static long DownloadBytes(ModelPack p)
+        {
+            if (p.Id == LegacyId) return LocalModel.DownloadBytes;
+            long n = 0;
+            foreach (long g in p.GzSizes) n += g;
+            ModelPack req = string.IsNullOrEmpty(p.Requires) ? null : ById(p.Requires);
+            if (req != null && !Installed(req)) n += DownloadBytes(req);
+            return n;
+        }
+
+        /// <summary>מוריד את החבילה - קודם את המנוע שהיא צריכה, אם חסר. ההתקדמות מצטברת על פני שתיהן.</summary>
+        public static bool Download(ModelPack p, Action<long, long> progress, Func<bool> canceled, out string error)
+        {
+            error = null;
+            if (p.Id == LegacyId) return LocalModel.Download(progress, canceled, out error);
+            if (!LocalModel.Supported) { error = Lang.T("התמלול על המחשב צריך ווינדוס של 64 ביט."); return false; }
+            long total = DownloadBytes(p), offset = 0;
+            ModelPack req = string.IsNullOrEmpty(p.Requires) ? null : ById(p.Requires);
+            if (req != null && !Installed(req))
+            {
+                long reqBytes = DownloadBytes(req);
+                if (!Download(req, delegate (long d, long t) { if (progress != null) progress(d, total); }, canceled, out error)) return false;
+                offset = reqBytes;
+            }
+            string url = "https://github.com/" + App.Repo + "/releases/download/" + p.Tag + "/";
+            return LocalModel.DownloadFiles(UrlOverride ?? url, FolderOf(p), p.Files, p.Sizes, p.GzSizes, p.Sha256,
+                delegate (long d, long t) { if (progress != null) progress(offset + d, total); }, canceled, out error);
+        }
+
+        /// <summary>לבדיקות: שרת מדומה במקום גיטהאב.</summary>
+        internal static string UrlOverride;
+
+        public static long SizeOnDisk(ModelPack p)
+        {
+            if (p.Id == LegacyId) return LocalModel.SizeOnDisk;
+            long n = 0;
+            try
+            {
+                string d = FolderOf(p);
+                if (!System.IO.Directory.Exists(d)) return 0;
+                foreach (string f in System.IO.Directory.GetFiles(d, "*", System.IO.SearchOption.AllDirectories))
+                    try { n += new System.IO.FileInfo(f).Length; }
+                    catch { }
+            }
+            catch { }
+            return n;
+        }
+
+        /// <summary>מוחק רק את החבילה. **מנוע לא נמחק כל עוד חבילה מותקנת אחרת צריכה אותו** - מחזיר false עם הסבר.</summary>
+        public static bool Remove(ModelPack p, out string error)
+        {
+            error = null;
+            if (p.Id == LegacyId) return LocalModel.Remove(out error);
+            foreach (ModelPack o in All)
+                if (o != p && o.Requires == p.Id && Installed(o))
+                {
+                    error = Lang.F("המנוע הזה משמש את ״{0}״. מוחקים קודם אותו.", o.Title);
+                    return false;
+                }
+            try
+            {
+                string d = FolderOf(p);
+                if (System.IO.Directory.Exists(d)) System.IO.Directory.Delete(d, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ErrorText.Of(ex);
+                Ai.Log("מחיקת " + p.Id + " נכשלה: " + ex.Message);
+                return false;
+            }
         }
 
         public static ModelPack ById(string id)

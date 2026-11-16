@@ -1995,3 +1995,17 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 # ---- LocalCatalog.cs, the model catalog (0.8.46) ----
 מתאים למחשב הזה	Fits this computer
 כבד למחשב הזה: צריך כ-{0} זיכרון פנוי, ויש כ-{1}	Heavy for this computer: needs about {0} of free memory, and there is about {1}
+המנוע הזה משמש את ״{0}״. מוחקים קודם אותו.	This engine is used by “{0}”. Delete that first.
+תמלול עברית - קל ומהיר	Hebrew transcription - light and fast
+שעה של שיעור בכמה דקות, גם במחשב חלש. טועה במילה בערך בכל משפט שני.	An hour-long lesson in a few minutes, even on a weak computer. Gets a word wrong in about every second sentence.
+תמלול עברית - מדויק יותר	Hebrew transcription - more accurate
+פחות טעויות, ועדיין בלי להכביד: שעה של שיעור בכרבע שעה.	Fewer mistakes, and still light: an hour-long lesson in about a quarter of an hour.
+תרגום מאנגלית לעברית - קל ומהיר	English to Hebrew translation - light and fast
+מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים.	Translates hundreds of lines a minute. Good with whole sentences, less so with names and terms.
+תרגום לכל השפות - מדויק	Translation for all languages - accurate
+מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק.	A translation model by Google. Slower, and needs a strong computer.
+פיסוק לאנגלית	English punctuation
+מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר.	Adds periods and commas to English text before translating - the translation comes out better.
+תמלול עברית - הכי מדויק	Hebrew transcription - the most accurate
+המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק.	The most accurate Hebrew model we found. Slow, and needs a strong computer.
+לשימוש לא מסחרי בלבד.	For non-commercial use only.

@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 88 בדיקות.
+# צפוי: 93 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -563,6 +563,47 @@ $argv = New-Object object[] 1; $argv[0] = $null
 $okDel = $lmT.GetMethod('Remove', $SF).Invoke($null, $argv)
 Check 'מחיקה: התיקייה נעלמת, ״לא מותקן״, ואפס בדיסק' ($r.ok -and $size -ge ($rawA.Length + $rawB.Length + $rawC.Length) -and [bool]$okDel -and -not (Test-Path $s.folder) -and -not (Installed) -and [long]$lmT.GetProperty('SizeOnDisk', $SF).GetValue($null, $null) -eq 0) ("" + $size)
 StopDl
+
+# ---- הקטלוג: שתי חבילות שחולקות מנוע אחד (0.8.46) ----
+$mpT = T 'ModelPack'
+function FakePack([string]$id, [string]$req, [string]$file, [byte[]]$rawF, [byte[]]$gzF) {
+    $x = [Activator]::CreateInstance($mpT, $true)
+    $x.Id = $id; $x.Requires = $req; $x.Title = $id; $x.Line = $id; $x.Tag = 't'; $x.Available = $true
+    $x.Files = [string[]]@($file); $x.Sizes = [long[]]@($rawF.Length); $x.GzSizes = [long[]]@($gzF.Length); $x.Sha256 = [string[]]@((Sha $rawF))
+    $catT.GetProperty('All', $SF).GetValue($null, $null).Add($x)
+    return $x
+}
+$eng = FakePack 'test-engine' '' 'a.bin' $rawA $gzA
+$pa = FakePack 'test-a' 'test-engine' 'b.bin' $rawB $gzB
+$pb = FakePack 'test-b' 'test-engine' 'c.txt' $rawC $gzC
+$s = StartDl @()
+$catT.GetField('RootOverride', $SF).SetValue($null, [string](Join-Path $s.dir 'models'))
+$catT.GetField('UrlOverride', $SF).SetValue($null, [string]$lmT.GetField('BaseUrl', $SF).GetValue($null))
+function CatDl($pk) {
+    $script:prog = @()
+    $progress = [Action[long, long]]{ param($d, $t) $script:prog += ,@($d, $t) }
+    $argv = New-Object object[] 4; $argv[0] = $pk; $argv[1] = $progress; $argv[2] = $null; $argv[3] = $null
+    $ok = $catT.GetMethod('Download', $SF).Invoke($null, $argv)
+    return @{ ok = [bool]$ok; err = [string]$argv[3] }
+}
+function CatInst($pk) { return [bool]$catT.GetMethod('Installed', $SF).Invoke($null, @($pk)) }
+function CatRemove($pk) { $argv = New-Object object[] 2; $argv[0] = $pk; $argv[1] = $null; $ok = $catT.GetMethod('Remove', $SF).Invoke($null, $argv); return @{ ok = [bool]$ok; err = [string]$argv[1] } }
+$need = [long]$catT.GetMethod('DownloadBytes', $SF).Invoke($null, @($pa))
+Check 'קטלוג: ההורדה הראשונה כוללת גם את המנוע' ($need -eq ($gzA.Length + $gzB.Length) -and -not (CatInst $pa)) ("" + $need)
+$r = CatDl $pa
+$last = $script:prog[$script:prog.Count - 1]
+Check 'קטלוג: מודל ראשון - המנוע והמודל יורדים, כל אחד לתיקייה שלו, וההתקדמות אחת עד הסוף' ($r.ok -and (CatInst $pa) -and (CatInst $eng) -and (Same (Join-Path $s.dir 'models\test-engine\a.bin') $rawA) -and (Same (Join-Path $s.dir 'models\test-a\b.bin') $rawB) -and $last[0] -eq $need -and $last[1] -eq $need) ($r.err + ' ' + $last[0] + '/' + $need)
+$before = @(Reqs).Count
+$r = CatDl $pb
+$after = @(Reqs)
+Check 'קטלוג: מודל שני על אותו מנוע - המנוע לא יורד שוב' ($r.ok -and (CatInst $pb) -and ($after.Count - $before) -eq 1 -and $after[$after.Count - 1] -match 'c\.txt\.gz') ("" + ($after.Count - $before))
+$r = CatRemove $eng
+Check 'קטלוג: מנוע שמודל מותקן צריך - לא נמחק, ונאמר למה' (-not $r.ok -and $r.err -match 'test-a|test-b' -and (CatInst $eng)) $r.err
+$r1 = CatRemove $pa; $r2 = CatRemove $pb; $r3 = CatRemove $eng
+Check 'קטלוג: אחרי המודלים - גם המנוע נמחק, וכלום לא ״מותקן״' ($r1.ok -and $r2.ok -and $r3.ok -and -not (CatInst $pa) -and -not (Test-Path (Join-Path $s.dir 'models\test-engine'))) ''
+StopDl
+$allL = $catT.GetProperty('All', $SF).GetValue($null, $null); [void]$allL.Remove($eng); [void]$allL.Remove($pa); [void]$allL.Remove($pb)
+$catT.GetField('RootOverride', $SF).SetValue($null, $null); $catT.GetField('UrlOverride', $SF).SetValue($null, $null)
 
 $lmT.GetField('Files', $SF).SetValue($null, $realFiles); $lmT.GetField('Sizes', $SF).SetValue($null, $realSizes)
 $lmT.GetField('GzSizes', $SF).SetValue($null, $realGz); $lmT.GetField('Sha256', $SF).SetValue($null, $realSha)
