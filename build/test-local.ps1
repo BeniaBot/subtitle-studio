@@ -466,7 +466,7 @@ $r = Ask $ll ($llT.GetMethod('AudioMessage', $SF).Invoke($null, @([byte[]](1, 2,
 $req = [IO.File]::ReadAllText((Join-Path $llModels 'fake-llm-req.json'), [Text.Encoding]::UTF8)
 $args0 = [IO.File]::ReadAllText((Join-Path $llModels 'fake-llm-args.txt'), [Text.Encoding]::UTF8)
 Check 'llama-server: עולה מתוך תיקיית המודלים (בשם עברי), ותשובה בלי ה״חשיבה״' ($r.out -eq 'שלום' -and $args0.EndsWith('|cwd=' + $llModels)) ([string]$r.out + ' ' + $r.err)
-Check 'llama-server: קול נשלח כ-input_audio, ב-base64, עם ההוראה' ($req -match '"type":"input_audio"' -and $req -match '"data":"AQID"' -and $req -match '"format":"wav"') ''
+Check 'llama-server: קול נשלח כ-input_audio, ב-base64, עם ההוראה - ובלי ״חשיבה״ (Gemma 4: אחרת תשובה ריקה)' ($req -match '"type":"input_audio"' -and $req -match '"data":"AQID"' -and $req -match '"format":"wav"' -and $req -match '"chat_template_kwargs":\{"enable_thinking":false\}') $req.Substring(0, [Math]::Min(300, $req.Length))
 $ll.Stop(); Start-Sleep -Milliseconds 400
 Check 'llama-server: Stop סוגר את התהליך' (@(LlmProcs).Count -eq 0) ''
 $llT.GetField('IdleSec', $SF).SetValue($null, 1)

@@ -213,6 +213,11 @@ namespace SubtitleStudio
             body["max_tokens"] = maxTokens;
             body["temperature"] = temperature;
             body["cache_prompt"] = true;
+            // **בלי ״חשיבה״** (נמדד 17.11, Gemma 4 E2B): ברירת המחדל של התבנית - 200 טוקנים של ״Thinking Process״ ותשובה ריקה, 11 שניות
+            // לשורה; כבוי - 1.8 שניות ותרגום נכון. מודל בלי מצב כזה מתעלם מהשדה
+            Dictionary<string, object> kw = new Dictionary<string, object>();
+            kw["enable_thinking"] = false;
+            body["chat_template_kwargs"] = kw;
             JavaScriptSerializer js = new JavaScriptSerializer();
             js.MaxJsonLength = 256 * 1024 * 1024;
             byte[] data = Encoding.UTF8.GetBytes(js.Serialize(body));
