@@ -81,6 +81,7 @@ $dialogs = @(
     @{ n = 'LocalSetup';  make = { NewOf 'LocalSetupDlg' @() } },
     @{ n = 'Storage';     make = { NewOf 'StorageDlg' @() } },
     @{ n = 'Models';      make = { NewOf 'ModelsDlg' @() } },
+    @{ n = 'PackSetup';   make = { (TY 'MachineInfo').GetField('FakeTotalMB', $ST).SetValue($null, [long]8192); (TY 'MachineInfo').GetField('FakeFreeMB', $ST).SetValue($null, [long]2500); NewOf 'PackSetupDlg' @((TY 'ModelCatalog').GetMethod('ById', $ST).Invoke($null, @([string]'mt-translategemma-4b'))); (TY 'MachineInfo').GetField('FakeTotalMB', $ST).SetValue($null, [long]-1); (TY 'MachineInfo').GetField('FakeFreeMB', $ST).SetValue($null, [long]-1) } },
     @{ n = 'TranscribeNet'; make = { (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, 'gemini'); NewOf 'TranscribeDlg' @($mi, [int]3); (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, '') } },
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'Update';      make = { NewOf 'UpdateDlg' @($rel, $sum) } },

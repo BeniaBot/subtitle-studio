@@ -96,6 +96,8 @@ namespace SubtitleStudio
         public long DiskMB, RamMB;
         /// <summary>רישיון, והערה כשיש בו מגבלה שהמשתמש צריך לדעת (לא מסחרי, טריטוריה).</summary>
         public string License = "", LicenseNote = "";
+        /// <summary>מי פיתח ועל מה אומן - נאמר למשתמש לפני ההורדה (CC-BY מחייב קרדיט). קבוע, בלי `Lang.T` (שמות).</summary>
+        public string Credit = "";
         /// <summary>חבילת מנוע משותפת שחייבת להיות לפני (``engine-sherpa``, ``engine-llama``), או ריק.</summary>
         public string Requires = "";
         /// <summary>אפשר להוריד כבר עכשיו. חבילה שעוד בבדיקה נשארת בקטלוג מוסתרת.</summary>
@@ -142,26 +144,32 @@ namespace SubtitleStudio
             r.Add(Pack("stt-he-fast", ModelTask.Transcribe, ModelTier.Light, Lang.T("תמלול עברית - קל ומהיר"),
                        Lang.T("שעה של שיעור בכמה דקות, גם במחשב חלש. טועה במילה בערך בכל משפט שני."), "he",
                        89, 180, "CC BY 4.0 · Apache 2.0", "", "", true));
+            r[r.Count - 1].Credit = "Yakov Kolani · ivrit.ai · sherpa-onnx";
             // נמדד 16.11: 8.68% על ״כאן״, עם פיסוק, פי 4.5 על 2 ליבות; 1.37GB זיכרון על דקה וחצי - צריך חיתוך לקטעים קצרים
             r.Add(Pack("stt-he-parakeet", ModelTask.Transcribe, ModelTier.Balanced, Lang.T("תמלול עברית - מדויק יותר"),
                        Lang.T("פחות טעויות, ועדיין בלי להכביד: שעה של שיעור בכרבע שעה."), "he",
                        673, 1400, "CC BY 4.0", "", "engine-sherpa", false));
+            r[r.Count - 1].Credit = "Yakov Kolani · ivrit.ai · NVIDIA Parakeet · sherpa-onnx";
             // נמדד 16.11: chrF++ ‏50.4 על WMT24++ (OPUS-MT ‏42.7), ‏0.05-0.08 שנ׳ לשורה על 2 ליבות; כ-400MB זיכרון (לא נמדד במדויק)
             r.Add(Pack("mt-en-he-quick", ModelTask.Translate, ModelTier.Light, Lang.T("תרגום מאנגלית לעברית - קל ומהיר"),
                        Lang.T("מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים."), "en-he",
                        410, 400, "CC BY 4.0", "", "", false));
+            r[r.Count - 1].Credit = "quickmt · CTranslate2";
             // לא נמדד עדיין (הקובץ הראשון היה פגום); כ-4.8GB זיכרון בריצה
             r.Add(Pack("mt-translategemma-4b", ModelTask.Translate, ModelTier.Heavy, Lang.T("תרגום לכל השפות - מדויק"),
                        Lang.T("מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק."), "*",
                        2490, 4800, "Gemma", "", "engine-llama", false));
+            r[r.Count - 1].Credit = "Google TranslateGemma · llama.cpp";
             // 30MB, רבע שנייה לכל התמלול; העלה את התרגום מ-36.4 ל-42.3 על כתוביות בלי פיסוק
             r.Add(Pack("punct-en", ModelTask.Punctuate, ModelTier.Light, Lang.T("פיסוק לאנגלית"),
                        Lang.T("מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר."), "en",
                        30, 100, "Apache 2.0", "", "engine-sherpa", false));
+            r[r.Count - 1].Credit = "k2-fsa · sherpa-onnx";
             // Caspi (על Qwen3-ASR): לפי הכרטיס 4.2% על eval-d1; רישיון לא מסחרי - בנימין אישר (Subtext לא מסחרית)
             r.Add(Pack("stt-he-caspi", ModelTask.Transcribe, ModelTier.Heavy, Lang.T("תמלול עברית - הכי מדויק"),
                        Lang.T("המודל העברי המדויק ביותר שמצאנו. איטי, וצריך מחשב חזק."), "he",
                        1460, 2500, "CC BY-NC 4.0", Lang.T("לשימוש לא מסחרי בלבד."), "engine-llama", false));
+            r[r.Count - 1].Credit = "OzLabs Caspi · Qwen3-ASR · ivrit.ai · llama.cpp";
             return r;
         }
 

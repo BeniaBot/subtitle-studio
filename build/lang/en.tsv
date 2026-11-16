@@ -2031,3 +2031,9 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 המודל לא ענה כמו שצריך.	The model did not answer properly.
 המודל נסגר באמצע - אולי נגמר הזיכרון. אפשר לבחור מודל קל יותר.	The model closed in the middle - maybe memory ran out. Choose a lighter model.
 המודל ענה בפורמט לא צפוי.	The model answered in an unexpected format.
+{0} (בטא)	{0} (beta)
+בלי אינטרנט, בלי מפתח, והקובץ נשאר אצלכם	No internet, no key, and the file stays with you
+אפשר להוריד, אבל הוא עלול להיות איטי מאוד במחשב הזה.	You can download it, but it may be very slow on this computer.
+שוקל {0}, ויורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.	It weighs {0} and downloads once. You can stop the download and continue later from the same place.
+רישיון: {0}. {1}	License: {0}. {1}
+יורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.	Downloads once. You can stop the download and continue later from the same place.
