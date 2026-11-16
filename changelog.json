@@ -17,6 +17,11 @@
         },
         {
           "t": "feature",
+          "s": "התמלול על המחשב מסמן מילים שהוא לא בטוח בהן. בדיקת השגיאות מראה אותן כ״מילה לא בטוחה״, כמו בתמלול של גוגל - כך יודעים איפה כדאי להקשיב ולתקן",
+          "en": "On-device transcription marks words it is unsure of. The error check shows them as \"unsure word\", as with Google's transcription - so you know where to listen and fix"
+        },
+        {
+          "t": "feature",
           "s": "חלון התמלול: שלוש אפשרויות בשורה אחת - על המחשב, גוגל, Groq. כשבוחרים ״על המחשב״, במקום האזהרה על שליחת הקול כתוב שהוא נשאר במחשב",
           "en": "The transcription window: three options in one row - On this PC, Google, Groq. With \"On this PC\", instead of the warning about sending the audio it says that the audio stays on the PC"
         },
