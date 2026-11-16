@@ -52,7 +52,8 @@ namespace SubtitleStudio
             Section(Lang.T("איפה לתמלל"));
             int gapX = Theme.S(10);
             int third = (ContentW - 2 * gapX) / 3;
-            _optLocal = Option(Lang.T("על המחשב"), Lang.T("בלי אינטרנט"), "local");
+            // **בטא** (בנימין, 16.11): כל מה שרץ על מודל מקומי מסומן כך - זה חדש, ועדיין בפיתוח
+            _optLocal = Option(Lang.T("על המחשב"), Lang.T("בלי אינטרנט · בטא"), "local");
             _optLocal.SetBounds(Pad + 2 * (third + gapX), Y, ContentW - 2 * (third + gapX), Theme.S(56));
             _optGoogle = Option(Lang.T("גוגל"), Lang.T("מכסה יומית קטנה"), "gemini");
             _optGoogle.SetBounds(Pad + third + gapX, Y, third, Theme.S(56));
@@ -119,9 +120,9 @@ namespace SubtitleStudio
         }
 
         private static string CloudNote { get { return Lang.T("הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל על המחשב - בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
-        private static string LocalNote { get { return Lang.T("התמלול על המחשב יודע עברית בלבד, והוא פחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
+        private static string LocalNote { get { return Lang.T("התמלול על המחשב בבטא: הוא יודע עברית בלבד, ופחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
         private static string CloudContext { get { return Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."); } }
-        private static string LocalContext { get { return Lang.T("התמלול על המחשב לא משתמש ברקע. הוא נשמר, ועובר לתרגום."); } }
+        private static string LocalContext { get { return Lang.T("שמות, מקומות ומונחים בעברית שכתובים כאן ייכתבו נכון יותר. הרקע עובר גם לתרגום."); } }
 
         private Btn Option(string text, string sub, string id)
         {
@@ -261,9 +262,13 @@ namespace SubtitleStudio
         private readonly Btn _ok;
         private volatile bool _busy, _cancel;
 
-        public LocalSetupDlg() : base(Lang.T("תמלול על המחשב"), Ico.Download, 580)
+        public LocalSetupDlg() : base(Lang.T("תמלול על המחשב (בטא)"), Ico.Download, 580)
         {
             Subtitle = Lang.T("בלי אינטרנט, בלי מפתח, והקול נשאר אצלכם");
+
+            // בטא נאמר לפני הכול: מי שמוריד 62 מגה צריך לדעת שזה חדש
+            Lbl beta = Label(Lang.T("גרסת בטא - התכונה חדשה, ועדיין בפיתוח."), true, Theme.Warn);
+            Row(beta, 24, 8);
 
             Section(Lang.T("מה צריך"));
             Row(Hint(Lang.F("מנוע תמלול ומודל לעברית. הם חינמיים, שוקלים {0}, ויורדים פעם אחת. אחרי זה התמלול עובד בלי אינטרנט.", LocalModel.DownloadText)), 22, 10);

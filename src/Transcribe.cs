@@ -76,7 +76,7 @@ namespace SubtitleStudio
         {
             // על המחשב: בלי מכסה, בלי המתנות ובלי השלמת חורים, וחיבור בין קטעים לפי מילים - מסלול משלו (LocalStt.cs)
             LocalStt local = provider as LocalStt;
-            if (local != null) return local.RunFile(mediaPath, durationMs, progress, canceled, fromMs, toMs);
+            if (local != null) return local.RunFile(mediaPath, durationMs, context, progress, canceled, fromMs, toMs);
 
             Result res = new Result();
             res.ProviderName = provider.Name;

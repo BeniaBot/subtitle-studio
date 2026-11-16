@@ -1962,15 +1962,16 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 הקובץ שירד פגום, או שהוחלף בשרת. נסו שוב.	The downloaded file is damaged, or was replaced on the server. Try again.
 הקובץ לא נמצא בשרת. כדאי לעדכן את התוכנה ולנסות שוב.	The file was not found on the server. Update the program and try again.
 על המחשב	On this PC
-בלי אינטרנט	No internet
+בלי אינטרנט · בטא	No internet · beta
 מכסה יומית קטנה	Small daily quota
 עד 8 שעות ביום	Up to 8 hours a day
-התמלול על המחשב יודע עברית בלבד, והוא פחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.	On-device transcription knows Hebrew only, and it is less accurate than the online services - mostly with names and terms.\r\nThe result goes into the editor like any subtitle, and it is worth going over it and fixing.
-התמלול על המחשב לא משתמש ברקע. הוא נשמר, ועובר לתרגום.	On-device transcription does not use the background. It is kept, and passed on to the translation.
+התמלול על המחשב בבטא: הוא יודע עברית בלבד, ופחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.	On-device transcription is in beta: it knows Hebrew only, and is less accurate than the online services - mostly with names and terms.\r\nThe result goes into the editor like any subtitle, and it is worth going over it and fixing.
+שמות, מקומות ומונחים בעברית שכתובים כאן ייכתבו נכון יותר. הרקע עובר גם לתרגום.	Names, places and terms in Hebrew written here come out more accurately. This carries over to the translation too.
 הורדה של {0}, פעם אחת	A one-time download of {0}
 הקול נשאר במחשב. שום דבר לא נשלח.	The audio stays on this PC. Nothing is sent.
-תמלול על המחשב	Transcription on this PC
+תמלול על המחשב (בטא)	Transcription on this PC (beta)
 בלי אינטרנט, בלי מפתח, והקול נשאר אצלכם	No internet, no key, and the audio stays with you
+גרסת בטא - התכונה חדשה, ועדיין בפיתוח.	Beta - this feature is new, and still in development.
 מה כדאי לדעת	Good to know
 מנוע תמלול ומודל לעברית. הם חינמיים, שוקלים {0}, ויורדים פעם אחת. אחרי זה התמלול עובד בלי אינטרנט.	A transcription engine and a model for Hebrew. They are free, weigh {0}, and download once. After that, transcription works without the internet.
 המודל יודע עברית בלבד. הוא מהיר - שיעור של שעה מתומלל בכמה דקות - אבל פחות מדויק מהשירותים ברשת, בעיקר בשמות ובמונחים.	The model knows Hebrew only. It is fast - an hour-long lesson is transcribed in a few minutes - but less accurate than the online services, mostly with names and terms.

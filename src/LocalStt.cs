@@ -15,9 +15,10 @@ namespace SubtitleStudio
     ///
     /// **לא בתוך ה-EXE** (עקרון המשקל, CLAUDE.md 4א) - כמו מילון האיות: מי שרוצה מוריד פעם אחת,
     /// ממהדורה ייעודית במאגר שלנו (מסומנת ״טרום הפצה״, כדי שבדיקת העדכון - `/releases/latest` -
-    /// לא תראה אותה). שבעה קבצים, כל אחד דחוס לבד (`build\make-local-stt.ps1`):
+    /// לא תראה אותה). שמונה קבצים, כל אחד דחוס לבד (`build\make-local-stt.ps1`):
     /// המנוע sherpa-onnx (‏EXE + ‏onnxruntime.dll, בלי Visual C++ Runtime), המודל העברי
-    /// zipformer2-66m של יעקב קולני / ivrit.ai (‏CC-BY-4.0), והרישיונות.
+    /// zipformer2-66m של יעקב קולני / ivrit.ai (‏CC-BY-4.0) עם אוצר החלקים שלו (``bpe.vocab``, בשביל
+    /// המילים שהמשתמש נותן), והרישיונות.
     ///
     /// **קובץ-קובץ, עם המשך מנקודת העצירה.** 62 מגה ברשת מסוננת ואיטית הם לא 1.2 מגה של המילון:
     /// הורדה שנקטעה ממשיכה מאיפה שעצרה (`Range`), וקובץ שכבר ירד ונבדק לא יורד שוב.
@@ -30,18 +31,19 @@ namespace SubtitleStudio
         public const string EngineExe = "sherpa-onnx.exe";
 
         // הטבלה מודפסת על ידי build\make-local-stt.ps1. לא readonly: הבדיקות מחליפות אותה בקבצים קטנים.
-        internal static string[] Files = { "sherpa-onnx.exe", "onnxruntime.dll", "tokens.txt", "encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "LICENSES.txt" };
-        internal static long[] Sizes = { 2450944, 17799168, 17086, 70478964, 1049105, 771805, 13726 };
-        internal static long[] GzSizes = { 941259, 6388780, 7841, 56405163, 597553, 540519, 4893 };
+        internal static string[] Files = { "sherpa-onnx.exe", "onnxruntime.dll", "tokens.txt", "bpe.vocab", "encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "LICENSES.txt" };
+        internal static long[] Sizes = { 2450944, 17799168, 17086, 39121, 70478964, 1049105, 771805, 13919 };
+        internal static long[] GzSizes = { 941259, 6388780, 7841, 17632, 56405163, 597553, 540519, 4991 };
         internal static string[] Sha256 =
         {
             "563F68CF1C687005A1AFBB6858DE272FDBF80BB31635AA413B152FAF256E87F6",
             "7F66F939A881BAF4F46A2216496798EDF4A1429878B646D12674AA62F27D8A25",
             "E4EBB5E72A6AEEF47437A55FA2308EBBEDB7C51C557DE7A89BF965C23EA9AF4A",
+            "9E6534080D66310A383C77DDE1FA26E04C1C53162A7DE734B559181A1D4A422E",
             "6C6FEBCB74A09435315A1D872A6539F6E7FC2C333533F14C74EDC0E85C49FFCD",
             "FEB03E7C8AA761593A9284A6FA1E91259BE3702DE75F630062256C1A59C5A906",
             "1D2C6D8E6DABC5EB52DE52E95718E9BDFBFFBFE7EAD3808FB5FFD74E83BD9CAE",
-            "66406AA9E5B22609397395FDF37E693C38B65434E7CC588ADFF37FBAB6535408"
+            "701D702F0B8C6C38E27D19A1513FF3FD2EE80722BB4F094684133A950C1D5663"
         };
 
         /// <summary>כמה יורד בפועל (כל הקבצים הדחוסים) - להצגה ולפס ההתקדמות.</summary>
@@ -290,6 +292,11 @@ namespace SubtitleStudio
             }
             if (notOurs) { Kill(part); return 2; }
             if (stop) return 1;
+            // חיבור שנסגר באמצע נגמר לפעמים בלי שגיאה - רק בפחות בייטים. זה ״נקטע״, לא ״ירד״: ממשיכים
+            long got = 0;
+            try { got = new FileInfo(part).Length; }
+            catch { }
+            if (expect > 0 && got < expect) throw new IOException("the connection closed early: " + got + " of " + expect);
             return 0;
         }
 
@@ -336,8 +343,15 @@ namespace SubtitleStudio
     ///   (`SnapToSpeech`) מדייקת אחר כך.
     /// - **בלי שקט בסוף הוא חותך את המילה האחרונה**: 14.3% שגיאות במקום 10.1%. ‏ffmpeg מוסיף חצי שנייה
     ///   שקט בהתחלה ושתיים בסוף (`adelay`, ‏`apad`).
-    /// - **מהירות** (Core Ultra 5 125U): ליבה אחת פי 17 מזמן אמת, שתיים פי 24, ארבע פי 30, **שמונה - פי 10**
-    ///   (גרוע יותר). טעינת המודל כ-3 שניות לכל הרצה - ולכן קטעים של חמש דקות, לא של דקה.
+    /// - **מהירות** (Core Ultra 5 125U, ניחוש מיידי): ליבה אחת פי 17 מזמן אמת, שתיים פי 24, ארבע פי 30,
+    ///   **שמונה - פי 10** (גרוע יותר). טעינת המודל כ-3 שניות לכל הרצה - ולכן קטעים של חמש דקות, לא של דקה.
+    /// - **חיפוש רחב** (``modified_beam_search``, ארבעה מסלולים) במקום הניחוש המיידי: 9.3% שגיאות במקום 10.1%.
+    ///   המחיר: פי שניים בזמן הפענוח (פי 18 מזמן אמת במקום 36) - ושתי ליבות מספיקות לו. ו**מילים מהמשתמש** (``--hotwords-file``, עם ``bpe.vocab`` שבחבילה): 32 מילים שהמודל פספס,
+    ///   בניקוד 1.5-2.5 - ‏8.1%, תשע מהן תוקנו; שמונה מילים שלא נאמרו בכלל - אף אחת לא נכנסה, והדיוק לא זז.
+    ///   כך ״רקע על התוכן״ עובד גם כאן (`Hotwords`). פסיק בתוך מילה כזאת נכנס לתמלול - ולכן הן מנוקות.
+    /// - **המודל יודע איפה הוא לא בטוח** (``ys_probs``, לכל חלק-מילה): מילה שהחלק הכי חלש בה מתחת ל-‎-1.5 -
+    ///   5.6% מהמילים, 61% מהן באמת שגויות, והן 44% מכל השגיאות (ב-‎-2.0: ‏3%, ‏79%, ‏31%; ב-‎-1.2: ‏9.5%, ‏49%, ‏61%).
+    ///   מסומנות ⟦כך⟧ כמו בתמלול של גוגל, ו-`Transcribe.MakeCue` הופך את הסימון ל״מילה לא בטוחה״ (`Cue.Doubt`).
     ///
     /// **קובץ ארוך:** קטעים של <see cref="ChunkSec"/> עם חפיפה של <see cref="OverlapSec"/>. שני קטעים שכנים
     /// שמעו את אותן שניות, ולכן מחברים אותם **במילה ששניהם זיהו** (`Stitch`) - לא מאבדים מילה ולא מכפילים.
@@ -347,6 +361,8 @@ namespace SubtitleStudio
         /// <summary>בכמה הזמנים של המנוע מאחרים אחרי הדיבור (נמדד).</summary>
         internal const double DelaySec = 0.78;
         internal const double HeadPadSec = 0.5, TailPadSec = 2.0;
+        /// <summary>מילה שהמודל נתן לחלק ממנה פחות מזה (לוגריתם ההסתברות) מסומנת ״לא בטוחה״. נמדד - ראו למעלה.</summary>
+        internal const double DoubtBelow = -1.5;
         /// <summary>כמה נמשך חלק-מילה אחרי הרגע שבו דווח - לסוף המילה כשאחריה הפסקה.</summary>
         internal const double TailSec = 0.40;
         internal const int OverlapSec = 6;
@@ -364,18 +380,20 @@ namespace SubtitleStudio
         public bool CheapRetry { get { return true; } }
         public void NewFile() { }
 
-        /// <summary>עד ארבע ליבות, וחצי ממה שיש: שמונה חוטים האטו פי שלושה (נמדד), והמחשב צריך להישאר שמיש.</summary>
+        /// <summary>**שתי ליבות לכל היותר** (ואחת במחשב של שתיים): בחיפוש הרחב ארבע ליבות לא מהירות משתיים (נמדד
+        /// 16.11 על חמש דקות: 17 שניות בארבע, 18 בשתיים; בניחוש המיידי 8.4 מול 11), ושמונה האטו פי שלושה.
+        /// בנימין: ״בלי לתקוע לאנשים את המחשב״ - וגם העדיפות של התהליך נמוכה (`RunEngine`).</summary>
         internal static int Threads
         {
             get
             {
                 int n = Environment.ProcessorCount / 2;
-                return n < 1 ? 1 : n > 4 ? 4 : n;
+                return n < 1 ? 1 : n > 2 ? 2 : n;
             }
         }
 
-        /// <summary>כמה שניות קול מתומללות בשנייה, להערכת הזמן בחלון. זהיר: במחשב שנמדד זה 25-30.</summary>
-        internal const double SpeedGuess = 12;
+        /// <summary>כמה שניות קול מתומללות בשנייה, להערכת הזמן בחלון. זהיר: במחשב שנמדד (נייד מ-2024) זה 15.</summary>
+        internal const double SpeedGuess = 8;
 
         // ---------- קטע בודד (הממשק הכללי) ----------
 
@@ -387,7 +405,8 @@ namespace SubtitleStudio
             string work = WorkDir();
             string tag = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) + "_" + NextId();
             string src = Path.Combine(work, "in" + tag + (mime != null && mime.Contains("wav") ? ".wav" : ".mp3"));
-            string name = "c" + tag + ".wav";
+            string name = "c" + tag + "_0.wav";
+            string hot = null;
             try
             {
                 File.WriteAllBytes(src, audio);
@@ -395,7 +414,8 @@ namespace SubtitleStudio
                 Ff.RunSync(Ff.Exe, "-y -hide_banner -v error -i " + Ff.Q(src) + " -vn -ac 1 -ar 16000 -c:a pcm_s16le -af " + PadFilter + " " +
                                    Ff.Q(Path.Combine(work, name)), out so, out se, work);
                 if (!File.Exists(Path.Combine(work, name))) { error = Lang.T("לא הצלחתי להכין את הקול לתמלול."); return null; }
-                List<OpenAiStt.SttWord> words = RunEngine("work\\" + name, WavSeconds(Path.Combine(work, name)), null, out error);
+                hot = WriteHotwords(work, tag, context);
+                List<OpenAiStt.SttWord> words = RunEngine("work\\" + name, WavSeconds(Path.Combine(work, name)), hot, null, out error);
                 return words == null ? null : OpenAiStt.FromWords(words);
             }
             catch (Exception ex) { error = ErrorText.Of(ex); return null; }
@@ -403,6 +423,7 @@ namespace SubtitleStudio
             {
                 Kill(src);
                 Kill(Path.Combine(work, name));
+                if (hot != null) Kill(Path.Combine(LocalModel.Folder, hot));
             }
         }
 
@@ -423,6 +444,78 @@ namespace SubtitleStudio
                 return "adelay=delays=" + ((int)(HeadPadSec * 1000)).ToString(CultureInfo.InvariantCulture) + ":all=1,apad=pad_dur=" +
                        TailPadSec.ToString("0.###", CultureInfo.InvariantCulture);
             }
+        }
+
+        /// <summary>כמה ״שווה״ כל חלק-מילה של מילה מהרשימה. נמדד: 1.0 כמעט לא עוזר, 1.5-2.5 - הכי טוב, 3.5 - מתחיל להזיק.</summary>
+        internal const double HotScore = 2.0;
+        private const int HotMax = 300;
+
+        /// <summary>המילים שהמנוע יעדיף, מתוך ״רקע על התוכן״: שמות, מקומות ומונחים שהמשתמש כתב.
+        ///
+        /// כל מילה עברית של שלוש אותיות ומעלה, וגם כל צירוף קצר (2-4 מילים בין פסיקים או נקודות: ״בבא קמא״,
+        /// ״סנטו דומינגו״) כצירוף. **רק אותיות עבריות** (וגרשיים בתוך מילה: רמב"ם): המודל יודע עברית בלבד, וסימן
+        /// פיסוק שנשאר במילה נכנס לתמלול (נמדד: ״קדאפי,״ ברשימה ← פסיק אחרי השם). בלי ניקוד.</summary>
+        internal static List<string> Hotwords(string context)
+        {
+            List<string> r = new List<string>();
+            if (string.IsNullOrEmpty(context)) return r;
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            StringBuilder flat = new StringBuilder();
+            foreach (char ch in context)
+            {
+                if (ch >= 0x0591 && ch <= 0x05C7) continue;                 // ניקוד וטעמים
+                flat.Append(ch == '\u05F4' || ch == '\u201C' || ch == '\u201D' ? '"' : ch == '\u05F3' || ch == '\u2019' ? '\'' : ch);
+            }
+            foreach (string phrase in flat.ToString().Split(new char[] { ',', ';', '.', ':', '\n', '\r', '\t', '\u00B7', '\u2022', '|', '/', '(', ')', '[', ']', '!', '?', '\u2013', '\u2014' },
+                                                           StringSplitOptions.RemoveEmptyEntries))
+            {
+                List<string> words = new List<string>();
+                foreach (string raw in phrase.Split(new char[] { ' ', '-', '\u05BE' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string w = CleanHot(raw);
+                    if (w.Length > 0) words.Add(w);
+                }
+                foreach (string w in words)
+                    if (HebrewLetters(w) >= 3 && seen.Add(w) && r.Count < HotMax) r.Add(w);
+                if (words.Count >= 2 && words.Count <= 4)
+                {
+                    string joined = string.Join(" ", words.ToArray());
+                    if (seen.Add(joined) && r.Count < HotMax) r.Add(joined);
+                }
+            }
+            return r;
+        }
+
+        /// <summary>מילה לרשימה: אותיות עבריות, וגרש או גרשיים רק **בין** אותיות. מילה עם אות לועזית או ספרה - לא.</summary>
+        private static string CleanHot(string raw)
+        {
+            string w = raw.Trim('"', '\'', ' ');
+            if (w.Length == 0) return "";
+            for (int i = 0; i < w.Length; i++)
+            {
+                char ch = w[i];
+                bool he = ch >= 0x05D0 && ch <= 0x05EA;
+                bool mark = (ch == '"' || ch == '\'') && i > 0 && i < w.Length - 1;
+                if (!he && !mark) return "";
+            }
+            return w;
+        }
+
+        private static int HebrewLetters(string s)
+        {
+            int n = 0;
+            foreach (char ch in s) if (ch >= 0x05D0 && ch <= 0x05EA) n++;
+            return n;
+        }
+
+        /// <summary>כותב את רשימת המילים לקובץ בתיקיית העבודה ומחזיר את השם היחסי שלו, או null כשאין מילים.</summary>
+        private static string WriteHotwords(string work, string tag, string context)
+        {
+            List<string> hot = Hotwords(context);
+            if (hot.Count == 0) return null;
+            string name = "hot" + tag + ".txt";
+            File.WriteAllText(Path.Combine(work, name), string.Join("\n", hot.ToArray()) + "\n", new UTF8Encoding(false));
+            return "work\\" + name;
         }
 
         private static int _id;
@@ -466,6 +559,13 @@ namespace SubtitleStudio
         public Transcribe.Result RunFile(string mediaPath, long durationMs, Transcribe.ProgressFn progress,
                                          Func<bool> canceled, long fromMs, long toMs)
         {
+            return RunFile(mediaPath, durationMs, null, progress, canceled, fromMs, toMs);
+        }
+
+        /// <summary><paramref name="context"/>: ״רקע על התוכן״ - המילים העבריות שבו עוברות למנוע כמילים מועדפות (`Hotwords`).</summary>
+        public Transcribe.Result RunFile(string mediaPath, long durationMs, string context, Transcribe.ProgressFn progress,
+                                         Func<bool> canceled, long fromMs, long toMs)
+        {
             Transcribe.Result res = new Transcribe.Result();
             res.ProviderName = Name;
             if (!LocalModel.Installed) { res.Error = NotInstalled; return res; }
@@ -491,6 +591,9 @@ namespace SubtitleStudio
             catch (Exception ex) { res.Error = ErrorText.Of(ex); return res; }
             CleanWork();
             string tag = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) + "_" + NextId();
+            string hot = null;
+            try { hot = WriteHotwords(work, tag, context); }
+            catch (Exception ex) { Ai.Log("רשימת המילים לתמלול המקומי לא נכתבה: " + ex.Message); }
 
             List<OpenAiStt.SttWord> all = new List<OpenAiStt.SttWord>();
             int failStreak = 0;
@@ -518,7 +621,7 @@ namespace SubtitleStudio
                 string err = null;
                 List<OpenAiStt.SttWord> words = null;
                 if (File.Exists(wav) && new FileInfo(wav).Length > 1000)
-                    words = RunEngine("work\\" + name, len + HeadPadSec + TailPadSec, canceled, out err);
+                    words = RunEngine("work\\" + name, len + HeadPadSec + TailPadSec, hot, canceled, out err);
                 else err = Lang.T("לא הצלחתי להכין את הקול לתמלול.");
                 Kill(wav);
 
@@ -560,6 +663,7 @@ namespace SubtitleStudio
                 prevOk = true;
             }
 
+            if (hot != null) Kill(Path.Combine(LocalModel.Folder, hot));
             foreach (Ai.TrLine ln in OpenAiStt.FromWords(all))
             {
                 long a = (long)Math.Round(ln.Start * 1000.0), b = (long)Math.Round(ln.End * 1000.0);
@@ -580,7 +684,7 @@ namespace SubtitleStudio
 
         /// <summary>מריץ את המנוע על קובץ WAV שיושב בתיקיית המודל (שם יחסי, באנגלית). מחזיר את המילים עם
         /// הזמנים שלהן בשניות **מתחילת הקול האמיתי** (בלי השקט שהוספנו, ואחרי תיקון האיחור), או null.</summary>
-        internal static List<OpenAiStt.SttWord> RunEngine(string relWav, double audioSec, Func<bool> canceled, out string error)
+        internal static List<OpenAiStt.SttWord> RunEngine(string relWav, double audioSec, string relHotwords, Func<bool> canceled, out string error)
         {
             error = null;
             string dir = LocalModel.Folder;
@@ -593,7 +697,11 @@ namespace SubtitleStudio
                     ProcessStartInfo psi = new ProcessStartInfo();
                     psi.FileName = Path.Combine(dir, LocalModel.EngineExe);
                     psi.Arguments = "--tokens=tokens.txt --encoder=encoder.int8.onnx --decoder=decoder.int8.onnx --joiner=joiner.int8.onnx" +
-                                    " --num-threads=" + Threads.ToString(CultureInfo.InvariantCulture) + " " + relWav;
+                                    " --num-threads=" + Threads.ToString(CultureInfo.InvariantCulture) +
+                                    " --decoding-method=modified_beam_search" +
+                                    (relHotwords == null ? "" : " --modeling-unit=bpe --bpe-vocab=bpe.vocab --hotwords-file=" + relHotwords +
+                                                                " --hotwords-score=" + HotScore.ToString("0.##", CultureInfo.InvariantCulture)) +
+                                    " " + relWav;
                     psi.WorkingDirectory = dir;
                     psi.UseShellExecute = false;
                     psi.CreateNoWindow = true;
@@ -683,7 +791,20 @@ namespace SubtitleStudio
                 try { at[i] = Convert.ToDouble(times[i], CultureInfo.InvariantCulture); }
                 catch { at[i] = i > 0 ? at[i - 1] : 0; }
             }
-            return WordsFromTokens(tokens, at, HeadPadSec + DelaySec);
+            // כמה המודל בטוח בכל חלק. חסר, או באורך אחר (גרסה אחרת של המנוע) - פשוט בלי סימון
+            double[] probs = null;
+            object po;
+            object[] pr = root.TryGetValue("ys_probs", out po) ? Arr(po) : null;
+            if (pr != null && pr.Length == toks.Length)
+            {
+                probs = new double[pr.Length];
+                for (int i = 0; i < pr.Length; i++)
+                {
+                    try { probs[i] = Convert.ToDouble(pr[i], CultureInfo.InvariantCulture); }
+                    catch { probs[i] = 0; }
+                }
+            }
+            return WordsFromTokens(tokens, at, HeadPadSec + DelaySec, probs);
         }
 
         private static object[] Arr(object o)
@@ -698,8 +819,16 @@ namespace SubtitleStudio
         /// החלק האחרון **שיש בו אות** (נקודה מדווחת רק אחרי ההפסקה, והייתה מותחת את המילה לתוכה).</summary>
         internal static List<OpenAiStt.SttWord> WordsFromTokens(string[] tokens, double[] at, double shift)
         {
+            return WordsFromTokens(tokens, at, shift, null);
+        }
+
+        /// <summary><paramref name="probs"/>: כמה המודל בטוח בכל חלק (null - לא ידוע). מילה שהחלק הכי חלש שלה מתחת
+        /// ל-<see cref="DoubtBelow"/> מסומנת ⟦כך⟧ - **סביב האותיות בלבד**, כדי שנקודה בסוף המילה תמשיך לסגור משפט.</summary>
+        internal static List<OpenAiStt.SttWord> WordsFromTokens(string[] tokens, double[] at, double shift, double[] probs)
+        {
             List<OpenAiStt.SttWord> words = new List<OpenAiStt.SttWord>();
             List<double> lastLetter = new List<double>();
+            List<double> weakest = new List<double>();
             OpenAiStt.SttWord cur = null;
             for (int i = 0; i < tokens.Length; i++)
             {
@@ -709,17 +838,22 @@ namespace SubtitleStudio
                 string piece = t.Trim(' ', '\u2581');
                 if (starts || cur == null)
                 {
-                    if (cur != null && cur.Text.Length == 0) { words.RemoveAt(words.Count - 1); lastLetter.RemoveAt(lastLetter.Count - 1); }
+                    if (cur != null && cur.Text.Length == 0) { words.RemoveAt(words.Count - 1); lastLetter.RemoveAt(lastLetter.Count - 1); weakest.RemoveAt(weakest.Count - 1); }
                     cur = new OpenAiStt.SttWord();
                     cur.Start = time;
                     words.Add(cur);
                     lastLetter.Add(time);
+                    weakest.Add(0);
                 }
                 if (piece.Length == 0) continue;
                 cur.Text += piece;
-                if (HasLetter(piece)) lastLetter[lastLetter.Count - 1] = time;
+                if (HasLetter(piece))
+                {
+                    lastLetter[lastLetter.Count - 1] = time;
+                    if (probs != null && probs[i] < weakest[weakest.Count - 1]) weakest[weakest.Count - 1] = probs[i];
+                }
             }
-            if (cur != null && cur.Text.Length == 0) { words.RemoveAt(words.Count - 1); lastLetter.RemoveAt(lastLetter.Count - 1); }
+            if (cur != null && cur.Text.Length == 0) { words.RemoveAt(words.Count - 1); lastLetter.RemoveAt(lastLetter.Count - 1); weakest.RemoveAt(weakest.Count - 1); }
             for (int i = 0; i < words.Count; i++)
             {
                 OpenAiStt.SttWord w = words[i];
@@ -727,8 +861,19 @@ namespace SubtitleStudio
                 double end = Math.Max(w.Start, lastLetter[i]) + TailSec;
                 if (i + 1 < words.Count && words[i + 1].Start < end) end = words[i + 1].Start;
                 w.End = Math.Max(end, w.Start + 0.06);
+                if (weakest[i] < DoubtBelow) w.Text = MarkDoubt(w.Text);
             }
             return words;
+        }
+
+        /// <summary>״שלום.״ ← ״⟦שלום⟧.״ - הסימון סביב האותיות; מה שלפניהן ואחריהן (מרכאות, פיסוק) נשאר בחוץ.</summary>
+        internal static string MarkDoubt(string word)
+        {
+            int a = 0, b = word.Length - 1;
+            while (a <= b && !char.IsLetterOrDigit(word[a])) a++;
+            while (b >= a && !char.IsLetterOrDigit(word[b])) b--;
+            if (a > b) return word;
+            return word.Substring(0, a) + "\u27E6" + word.Substring(a, b - a + 1) + "\u27E7" + word.Substring(b + 1);
         }
 
         private static bool HasLetter(string s)
@@ -783,14 +928,17 @@ namespace SubtitleStudio
                 return;
             }
 
-            // בלי עוגן: ההפסקה הגדולה ביותר בין מילים של הקטע הקודם, בתוך האמצע של החפיפה
+            // בלי עוגן: ההפסקה הגדולה ביותר של הקטע הקודם בתוך החפיפה - בין שתי מילים שלו, או אחרי האחרונה.
+            // חותכים **קצת אחרי תחילת ההפסקה**, לא באמצעה: בהפסקה ארוכה הקטע הקודם לא שמע כלום, ומילה שהחדש
+            // שמע שם היא מילה שאחרת הייתה אובדת (נמצא בבדיקה: שקט בקודם, ״ד״ בחדש - נזרקה)
             double cut = mid, bestGap = -1;
-            for (int a = all.Count - 1; a > 0 && all[a].Start >= lo; a--)
+            for (int a = all.Count; a > 0; a--)
             {
-                double gapFrom = all[a - 1].End, gapTo = all[a].Start, m = (gapFrom + gapTo) / 2;
-                if (m < lo || m > hi) continue;
-                double gap = gapTo - gapFrom - Math.Abs(m - mid) * 0.01;
-                if (gap > bestGap) { bestGap = gap; cut = m; }
+                double gapFrom = Math.Max(all[a - 1].End, lo), gapTo = Math.Min(a < all.Count ? all[a].Start : to, hi);
+                if (all[a - 1].End < lo && a < all.Count && all[a].Start < lo) break;      // כבר לפני החפיפה
+                if (gapTo < gapFrom) continue;
+                double gap = gapTo - gapFrom;
+                if (gap > bestGap) { bestGap = gap; cut = gapFrom + Math.Min(0.15, gap / 2); }
             }
             all.RemoveAll(delegate (OpenAiStt.SttWord w) { return w.Start >= cut; });
             foreach (OpenAiStt.SttWord w in next) if (w.Start >= cut) all.Add(w);

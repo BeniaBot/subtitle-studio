@@ -592,7 +592,10 @@ Write-Host 'בחירת הספק'
 $stt = T 'Stt'
 $pid0 = $stt.GetField('ProviderId', $SF).GetValue($null); $key0 = $stt.GetField('GroqKey', $SF).GetValue($null)
 $stt.GetField('ProviderId', $SF).SetValue($null, ''); $stt.GetField('GroqKey', $SF).SetValue($null, '')
+# מ-0.8.45: בלי אף מפתח הברירה היא התמלול על המחשב (test-local). כאן: יש מפתח של גוגל ואין של Groq
+$aiKey0 = (T 'Ai').GetField('Key', $SF).GetValue($null); (T 'Ai').GetField('Key', $SF).SetValue($null, 'AIza_test')
 $cur = $stt.GetProperty('Current', $SF).GetValue($null, $null)
+(T 'Ai').GetField('Key', $SF).SetValue($null, $aiKey0)
 Check 'בלי בחירה ובלי מפתח ל-Groq: גוגל' ($cur.Id -eq 'gemini') $cur.Id
 $stt.GetField('GroqKey', $SF).SetValue($null, 'gsk_x')
 $cur = $stt.GetProperty('Current', $SF).GetValue($null, $null)

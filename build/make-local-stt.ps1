@@ -3,7 +3,9 @@
 # (tag = LocalModel.PackVersion) and the app downloads them one by one (src\LocalStt.cs).
 #
 #   build\make-local-stt.ps1 -Engine <folder with sherpa-onnx.exe and onnxruntime.dll>
-#                            -Model  <folder with tokens.txt and the three int8 .onnx files>
+#                            -Model  <folder with tokens.txt, bpe.vocab and the three int8 .onnx files>
+#                                    (bpe.vocab: python, sentencepiece - for each piece of the model's bpe.model
+#                                     write "piece<TAB>score"; this is sherpa-onnx's scripts/export_bpe_vocab.py)
 #                            -Licenses <folder with LICENSE-sherpa-onnx.txt and LICENSE-onnxruntime.txt>
 #                            -Out <folder>
 #
@@ -27,12 +29,13 @@ $text = "Subtext - local transcription pack" + $nl + $nl +
     "   https://github.com/k2-fsa/sherpa-onnx" + $nl + $nl +
     "2. ONNX Runtime 1.28.2 (onnxruntime.dll) - MIT License, Copyright (c) Microsoft Corporation" + $nl +
     "   https://github.com/microsoft/onnxruntime  (third-party notices: ThirdPartyNotices.txt in that repository)" + $nl + $nl +
-    "3. zipformer2-66m-streaming-he (tokens.txt, encoder.int8.onnx, decoder.int8.onnx, joiner.int8.onnx)" + $nl +
+    "3. zipformer2-66m-streaming-he (tokens.txt, bpe.vocab, encoder.int8.onnx, decoder.int8.onnx, joiner.int8.onnx)" + $nl +
     "   Hebrew speech recognition model developed by Yakov Kolani, trained on ivrit.ai audio." + $nl +
     "   Creative Commons Attribution 4.0 International (CC BY 4.0) - https://creativecommons.org/licenses/by/4.0/" + $nl +
     "   https://huggingface.co/thewh1teagle/zipformer2-66m-streaming-he" + $nl +
     "   https://huggingface.co/ivrit-ai/zipformer2-66m-streaming-he" + $nl +
-    "   The files are unchanged." + $nl + $nl +
+    "   The model files are unchanged. bpe.vocab is the model's own vocabulary, exported from its bpe.model" + $nl +
+    "   (sentencepiece: one piece and its score per line); the engine needs it to prefer words the user gives." + $nl + $nl +
     "==================== sherpa-onnx: Apache License 2.0 ====================" + $nl + $nl +
     ([IO.File]::ReadAllText((Join-Path $Licenses 'LICENSE-sherpa-onnx.txt')) -replace "`r?`n", $nl) + $nl + $nl +
     "==================== ONNX Runtime: MIT License ====================" + $nl + $nl +
@@ -43,6 +46,7 @@ $items = @(
     @{ n = 'sherpa-onnx.exe';   p = (Join-Path $Engine 'sherpa-onnx.exe') },
     @{ n = 'onnxruntime.dll';   p = (Join-Path $Engine 'onnxruntime.dll') },
     @{ n = 'tokens.txt';        p = (Join-Path $Model 'tokens.txt') },
+    @{ n = 'bpe.vocab';         p = (Join-Path $Model 'bpe.vocab') },
     @{ n = 'encoder.int8.onnx'; p = (Join-Path $Model 'encoder.int8.onnx') },
     @{ n = 'decoder.int8.onnx'; p = (Join-Path $Model 'decoder.int8.onnx') },
     @{ n = 'joiner.int8.onnx';  p = (Join-Path $Model 'joiner.int8.onnx') },

@@ -9,11 +9,11 @@ $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $expect = [ordered]@{
     'logic' = 224; 'autotime' = 36; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
-    'update-notes' = 30; 'ui' = 65; 'layout' = 110; 'project' = 115; 'screens' = 39
+    'update-notes' = 30; 'ui' = 65; 'layout' = 119; 'project' = 115; 'screens' = 42
     'fuzz' = 11; 'long' = 15; 'stt' = 146; 'errors' = 41; 'buttons' = 14
-    'source' = 9; 'qa' = 106; 'spell' = 75; 'release' = 67; 'settings' = 19; 'subs' = 68; 'cut' = 57; 'import' = 34; 'assistant' = 104; 'chatflow' = 52
+    'source' = 9; 'qa' = 106; 'spell' = 75; 'release' = 67; 'settings' = 19; 'subs' = 68; 'cut' = 57; 'import' = 34; 'assistant' = 104; 'chatflow' = 52; 'local' = 82
     # name@en = the same package with -Lang en: the whole layout is mirrored there
-    'buttons@en' = 14; 'layout@en' = 110; 'screens@en' = 39
+    'buttons@en' = 14; 'layout@en' = 119; 'screens@en' = 42
 }
 $names = @($expect.Keys)
 if ($Only -ne '') { $names = @($Only -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) }

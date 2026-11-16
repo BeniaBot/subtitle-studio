@@ -406,9 +406,14 @@ $spT.GetField('Enabled', $SF).SetValue($null, $true)
 # ״Cannot find an overload for GetMethod״, שלא רומז על שום דבר.
 $setDlg = [Activator]::CreateInstance($setT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($null), $null)
 Check 'הגדרות: בלי מפתחות - שני השירותים מסומנים ״לא מוגדר״' ((SetText $setDlg '_google').Contains('לא מוגדר') -and (SetText $setDlg '_groq').Contains('לא מוגדר')) ((SetText $setDlg '_google') + ' | ' + (SetText $setDlg '_groq'))
-$dictLine = [string]($setT.GetField('_dictLine', $IF).GetValue($setDlg)).Text
-$engLine = [string]($setT.GetField('_engineLine', $IF).GetValue($setDlg)).Text
-Check 'הגדרות: ״אחסון״ אומר כמה תופסים המנוע והמילון' ($dictLine.Contains('מילון האיות') -and $dictLine -match '\d' -and $engLine.Contains('מנוע הווידאו')) ($engLine + ' | ' + $dictLine)
+# מ-0.8.45 הפירוט בחלון ״אחסון״ (StorageDlg), ובהגדרות שורה אחת עם הסכום
+$stT = T 'StorageDlg'
+$stDlg = [Activator]::CreateInstance($stT, $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @(), $null)
+$dictLine = [string]($stT.GetField('_dictLine', $IF).GetValue($stDlg)).Text
+$engLine = [string]($stT.GetField('_engineLine', $IF).GetValue($stDlg)).Text
+$stDlg.Dispose()
+$sumLine = [string]($setT.GetField('_storageLine', $IF).GetValue($setDlg)).Text
+Check 'הגדרות: ״אחסון״ אומר כמה תופסים המנוע והמילון' ($dictLine.Contains('מילון האיות') -and $dictLine -match '\d' -and $engLine.Contains('מנוע הווידאו') -and $sumLine -match '\d') ($engLine + ' | ' + $dictLine + ' | ' + $sumLine)
 $setDlg.Dispose()
 $sttT.GetField('GroqKey', $SF).SetValue($null, 'gsk_test')
 $aiT.GetField('Key', $SF).SetValue($null, 'AIza_test')
