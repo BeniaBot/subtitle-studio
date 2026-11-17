@@ -137,6 +137,7 @@ $forms = @(
     @{ n = 'Storage';     make = { NewOf 'StorageDlg' @() } },
     @{ n = 'Models';      make = { NewOf 'ModelsDlg' @() } },
     @{ n = 'PackSetup';   make = { (TY 'MachineInfo').GetField('FakeTotalMB', $ST).SetValue($null, [long]8192); (TY 'MachineInfo').GetField('FakeFreeMB', $ST).SetValue($null, [long]2500); NewOf 'PackSetupDlg' @((TY 'ModelCatalog').GetMethod('ById', $ST).Invoke($null, @([string]'mt-translategemma-4b'))); (TY 'MachineInfo').GetField('FakeTotalMB', $ST).SetValue($null, [long]-1); (TY 'MachineInfo').GetField('FakeFreeMB', $ST).SetValue($null, [long]-1) } },
+    @{ n = 'PackSetupMt'; make = { NewOf 'PackSetupDlg' @((TY 'ModelCatalog').GetMethod('ById', $ST).Invoke($null, @([string]'mt-en-he-quick'))) } },
     @{ n = 'TranscribeNet'; make = { (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, 'gemini'); NewOf 'TranscribeDlg' @($mi, [int]3); (TY 'Stt').GetField('ProviderId', $ST).SetValue($null, '') } },
     @{ n = 'AiTranslate'; make = { NewOf 'AiTranslateDlg' @($doc) } },
     @{ n = 'AiTranslateLocal'; make = { $edoc = NewOf 'Doc' @(); $ec = (TY 'Doc').GetField('Cues', $IN).GetValue($edoc); foreach ($c in @(@(1000, 4000, 'I always loved the Vivobook, and you know it.'), @(5500, 9000, 'It is the best laptop that I have.'))) { $ec.Add((NewOf 'Cue' @([int64]$c[0], [int64]$c[1], [string]$c[2]))) }; (TY 'LocalTranslator').GetField('ProviderId', $ST).SetValue($null, 'local'); NewOf 'AiTranslateDlg' @($edoc); (TY 'LocalTranslator').GetField('ProviderId', $ST).SetValue($null, '') } },

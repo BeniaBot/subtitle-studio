@@ -168,7 +168,7 @@ namespace SubtitleStudio
                        Lang.T("מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים."), "en-he",
                        212, 400, "CC BY 4.0 · Apache 2.0", "", "engine-ct2", true));
             p = r[r.Count - 1];
-            p.Credit = "quickmt · CTranslate2";
+            p.Credit = "quickmt · CTranslate2 · Edge-Punct-Casing · sherpa-onnx";
             p.Tag = "local-mt-1";
             p.Files = new string[] { "config.json", "model.bin", "punct-en.int8.onnx", "punct-en.vocab", "quickmt-en-he-LICENSE.txt", "source_vocabulary.json", "src.spm.model", "target_vocabulary.json", "tgt.spm.model" };
             p.Sizes = new long[] { 223, 210822367, 7490500, 149430, 1079, 545941, 802664, 1157365, 882724 };
