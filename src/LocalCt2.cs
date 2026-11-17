@@ -169,6 +169,18 @@ namespace SubtitleStudio
         /// <summary>מתרגם רשימת טקסטים (מנה אחת). מחזיר רשימה באותו אורך, או null עם הודעה.</summary>
         public List<string> Translate(List<string> texts, Func<bool> canceled, out string error)
         {
+            return Ask("texts", texts, canceled, out error);
+        }
+
+        /// <summary>**פיסוק ואותיות גדולות לאנגלית** (0.8.46) - באותו תהליך, במודל של sherpa-onnx שבתיקיית המודל (``punct-en.int8.onnx``).
+        /// נמדד: כ-10 אלפיות לחלון. מחזיר רשימה באותו אורך, או null (אין מודל פיסוק, או שנכשל).</summary>
+        public List<string> Punctuate(List<string> texts, Func<bool> canceled, out string error)
+        {
+            return Ask("punct", texts, canceled, out error);
+        }
+
+        private List<string> Ask(string kind, List<string> texts, Func<bool> canceled, out string error)
+        {
             error = null;
             if (texts == null || texts.Count == 0) return new List<string>();
             if (!Ensure(canceled, out error)) return null;
@@ -176,7 +188,7 @@ namespace SubtitleStudio
             lock (_lock) { id = ++_id; _last = DateTime.UtcNow; }
             Dictionary<string, object> req = new Dictionary<string, object>();
             req["id"] = id;
-            req["texts"] = texts;
+            req[kind] = texts;
             JavaScriptSerializer js = new JavaScriptSerializer();
             js.MaxJsonLength = 64 * 1024 * 1024;
             try { _in.WriteLine(js.Serialize(req)); }

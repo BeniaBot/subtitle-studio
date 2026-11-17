@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 135 בדיקות.
+# צפוי: 137 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -504,8 +504,15 @@ class P {
     while ((line = r.ReadLine()) != null) {
       if (line.Length > 0 && line[0] == '\uFEFF') { say("{\"id\": null, \"error\": \"BOM\"}"); continue; }
       File.AppendAllText("fake-py-req.txt", line + "\n", new UTF8Encoding(false));
+      if (line.Contains("\"punct\":")) {
+        if (mode == "nopunct") { say("{\"id\": 1, \"error\": \"no punctuation model\"}"); continue; }
+        int p0 = line.IndexOf("\"punct\":") + 8; int p1 = line.LastIndexOf("]}");
+        string parr = line.Substring(p0, p1 - p0 + 1);
+        parr = System.Text.RegularExpressions.Regex.Replace(parr, "\"([a-z])([^\"]*)\"", m => "\"" + m.Groups[1].Value.ToUpper() + m.Groups[2].Value + ".\"");
+        say("{\"id\": 1, \"out\": " + parr + "}"); continue;
+      }
       if (mode == "wrongcount") { say("{\"id\": 1, \"out\": [\"x\"]}"); continue; }
-      if (mode == "echo" || mode == "lose") {
+      if (mode == "echo" || mode == "lose" || mode == "nopunct") {
         int a0 = line.IndexOf("\"texts\":") + 8; int a1 = line.LastIndexOf("]}");
         string arr = line.Substring(a0, a1 - a0 + 1);
         if (mode == "lose") arr = System.Text.RegularExpressions.Regex.Replace(arr, "ZX[0-9]+", "");
@@ -576,7 +583,7 @@ Check 'חלונות: עד 3 כתוביות, ולא מעבר להפסקה של י
 $lines = [Collections.Generic.List[string]]@('i guess it was bound to happen', 'i have my first ever failed', 'laptop review', '')
 $seen = New-Object Collections.ArrayList
 $tr = [Func[Collections.Generic.List[string], Collections.Generic.List[string]]]{ param($xs) [void]$seen.AddRange($xs); $o = New-Object Collections.Generic.List[string]; foreach ($x in $xs) { $o.Add('תרגום של ' + $x) }; return ,$o }
-$pu = [Func[string, string]]{ param($x) return ($x.Substring(0, 1).ToUpper() + $x.Substring(1) + '.') }
+$pu = [Func[Collections.Generic.List[string], Collections.Generic.List[string]]]{ param($xs) $o = New-Object Collections.Generic.List[string]; foreach ($x in $xs) { $o.Add($x.Substring(0, 1).ToUpper() + $x.Substring(1) + '.') }; return ,$o }
 $res = $wtT.GetMethod('Translate', $SF).Invoke($null, (Pack $lines ([double[]]@(0, 0.1, 0.1, 0.1)) $tr $pu))
 Check 'תרגום בחלונות: המתרגם מקבל משפט מחובר עם פיסוק, והתוצאה מתפזרת לכל הכתוביות - שורה ריקה נשארת ריקה' ($seen.Count -eq 2 -and $seen[0] -eq 'I guess it was bound to happen i have my first ever failed laptop review.' -and $res.Count -eq 4 -and $res[3] -eq '' -and $res[0].StartsWith('תרגום')) (($seen -join ' | ') + ' => ' + ($res -join ' | '))
 $hp = $wtT.GetMethod('HasPunctuation', $SF)
@@ -643,6 +650,21 @@ $cs = Cues @(@(0, 1000, 'i guess it was bound to happen'), @(1100, 2000, 'i have
 $r = LtRun $cs '' $null
 $reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
 Check 'תרגום על המחשב: מקור בלי פיסוק - שורה-שורה, כל שורה כמשפט (אות גדולה, ״I״, נקודה), בלי לחבר' ($reqLt.Count -eq 1 -and $reqLt[0].Contains('"texts":["I guess it was bound to happen.","I have my first ever failed.","Laptop review."]') -and $r.out[2] -eq 'Laptop review.') $reqLt[0]
+# מודל הפיסוק בתיקיית המודל: חלונות, פיסוק לכל חלון באותו תהליך, ואז תרגום
+[IO.File]::WriteAllText((Join-Path $ltRoot 'mt-en-he-quick\punct-en.int8.onnx'), 'x')
+Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')
+$r = LtRun $cs '' $null
+$reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
+Check 'תרגום על המחשב: בלי פיסוק ועם מודל הפיסוק - בקשת פיסוק לחלון המחובר, ואז תרגום שלו, ומפוזר לשלוש הכתוביות' ($reqLt.Count -eq 2 -and $reqLt[0].Contains('"punct":["i guess it was bound to happen i have my first ever failed laptop review"]') -and $reqLt[1].Contains('"texts":["I guess it was bound to happen i have my first ever failed laptop review."]') -and $r.out.Count -eq 3 -and ($r.out -join ' ') -eq 'I guess it was bound to happen i have my first ever failed laptop review.') (($reqLt -join ' || ') + ' => ' + ($r.out -join ' | '))
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
+[IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'nopunct')
+Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')
+$r = LtRun $cs '' $null
+$reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
+Check 'תרגום על המחשב: הפיסוק נכשל - ממשיכים שורה-שורה כמשפט, בלי שגיאה' ($reqLt.Count -eq 2 -and $reqLt[1].Contains('"texts":["I guess it was bound to happen.","I have my first ever failed.","Laptop review."]') -and $r.out[2] -eq 'Laptop review.' -and [string]::IsNullOrEmpty($r.err)) (($reqLt -join ' || ') + ' => ' + $r.err)
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
+Remove-Item (Join-Path $ltRoot 'mt-en-he-quick\punct-en.int8.onnx')
+[IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'echo')
 $ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
 [IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'lose')
 Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')

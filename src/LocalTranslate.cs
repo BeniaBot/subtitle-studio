@@ -100,9 +100,10 @@ namespace SubtitleStudio
         }
 
         /// <summary>מתרגם כתוביות בחלונות ומפזר חזרה. <paramref name="translate"/> - מקבל רשימת טקסטים ומחזיר רשימה באותו אורך
-        /// (או null בכישלון); <paramref name="punctuate"/> - מוסיף פיסוק לטקסט במקור (null - בלי). מחזיר תרגום לכל כתובית, או null.</summary>
+        /// (או null בכישלון); <paramref name="punctuate"/> - פיסוק לכל החלונות שאין בהם (בבת אחת, אותו אורך; null - בלי). מחזיר תרגום
+        /// לכל כתובית, או null (גם כשהפיסוק נכשל - מי שקרא מחליט מה לעשות בלעדיו).</summary>
         internal static List<string> Translate(List<string> lines, double[] gapsSec, Func<List<string>, List<string>> translate,
-                                               Func<string, string> punctuate)
+                                               Func<List<string>, List<string>> punctuate)
         {
             List<List<int>> wins = Windows(lines.Count, gapsSec);
             List<string> joined = new List<string>();
@@ -116,9 +117,20 @@ namespace SubtitleStudio
                     if (sb.Length > 0) sb.Append(' ');
                     sb.Append(t);
                 }
-                string j = sb.ToString();
-                if (punctuate != null && j.Length > 0 && !HasPunctuation(j)) j = punctuate(j) ?? j;
-                joined.Add(j);
+                joined.Add(sb.ToString());
+            }
+            if (punctuate != null)
+            {
+                List<int> need = new List<int>();
+                List<string> raw = new List<string>();
+                for (int k = 0; k < joined.Count; k++)
+                    if (joined[k].Length > 0 && !HasPunctuation(joined[k])) { need.Add(k); raw.Add(joined[k]); }
+                if (need.Count > 0)
+                {
+                    List<string> p = punctuate(raw);
+                    if (p == null || p.Count != need.Count) return null;
+                    for (int k = 0; k < need.Count; k++) if (!string.IsNullOrEmpty(p[k])) joined[need[k]] = p[k];
+                }
             }
             List<string> got = translate(joined);
             if (got == null || got.Count != joined.Count) return null;
@@ -169,6 +181,16 @@ namespace SubtitleStudio
         private static readonly object _lock = new object();
 
         public static ModelPack Pack { get { return ModelCatalog.ById(PackId); } }
+
+        /// <summary>מודל הפיסוק לאנגלית בתיקיית המודל (מ-``local-mt-1`` עם ``engine-ct2-2``).</summary>
+        internal static bool HasPunctModel
+        {
+            get
+            {
+                try { return File.Exists(Path.Combine(ModelCatalog.FolderOf(Pack), "punct-en.int8.onnx")); }
+                catch { return false; }
+            }
+        }
         public static bool Installed { get { ModelPack p = Pack; return p != null && ModelCatalog.Installed(p); } }
 
         private static readonly HashSet<string> EnglishWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -383,21 +405,33 @@ namespace SubtitleStudio
                 lines.Add((cues[i].Text ?? "").Replace("\r", "").Replace('\n', ' ').Trim());
                 gaps[i] = i == 0 ? 0 : Math.Max(0, (cues[i].Start - cues[i - 1].End) / 1000.0);
             }
-            // **בלי פיסוק במקור - שורה-שורה, כל שורה כמשפט** (נמדד על כתוביות גולמיות של Whisper, chrF++: כמו שהן 36.4; אות גדולה,
-            // ״I״ ונקודה 38.3; שלוש מחוברות בלי פיסוק 35.2; **שלוש מחוברות אחרי מודל הפיסוק 42.3** - והוא יבוא בחבילה משלו. פיסוק של כל
-            // התמלול בבת אחת וחלונות אחריו - 34.7: המודל צריך את החלון עצמו)
+            // **בלי פיסוק במקור** (כתוביות אוטומטיות של יוטיוב, Whisper גולמי) - נמדד, chrF++: כמו שהן 36.4; כל שורה כמשפט (אות גדולה,
+            // ״I״, נקודה) 38.3; שלוש מחוברות בלי פיסוק 35.2; **שלוש מחוברות אחרי מודל הפיסוק - 42.3**; פיסוק של כל התמלול בבת אחת
+            // וחלונות אחריו - 34.7 (המודל צריך את החלון עצמו). לכן: מודל הפיסוק לכל חלון, ובלעדיו (חבילה ישנה, או שנכשל) - שורה-שורה כמשפט
             bool punct = WindowTranslate.HasPunctuation(string.Join(" ", lines.ToArray()));
+            bool canPunct = !punct && HasPunctModel;
             List<List<int>> wins;
-            if (punct) wins = WindowTranslate.Windows(n, gaps);
+            if (punct || canPunct) wins = WindowTranslate.Windows(n, gaps);
             else
             {
                 wins = new List<List<int>>();
-                for (int i = 0; i < n; i++) { wins.Add(new List<int>(new int[] { i })); lines[i] = AsSentence(lines[i]); }
+                for (int i = 0; i < n; i++) wins.Add(new List<int>(new int[] { i }));
             }
             List<string> names = NamesFrom(context);
             LocalCt2 ct = Engine();
             string[] err = new string[1];
             Func<List<string>, List<string>> tr = Translator(ct, names, canceled, err);
+            bool[] punctFailed = new bool[1];
+            Func<List<string>, List<string>> pu = null;
+            if (canPunct)
+                pu = delegate (List<string> xs)
+                {
+                    if (punctFailed[0]) return null;
+                    string pe;
+                    List<string> r = ct.Punctuate(xs, canceled, out pe);
+                    if (r == null) { punctFailed[0] = true; Ai.Log("פיסוק על המחשב נכשל - ממשיכים שורה-שורה: " + pe); }
+                    return r;
+                };
             List<string> outp = new List<string>();
             for (int w0 = 0; w0 < wins.Count; w0 += ChunkWindows)
             {
@@ -410,7 +444,17 @@ namespace SubtitleStudio
                 Array.Copy(gaps, from, subGaps, 0, sub.Count);
                 List<string> got = null;
                 if (canceled == null || !canceled())
-                    got = punct ? WindowTranslate.Translate(sub, subGaps, tr, null) : tr(sub);
+                {
+                    if (punct) got = WindowTranslate.Translate(sub, subGaps, tr, null);
+                    else if (canPunct && !punctFailed[0]) got = WindowTranslate.Translate(sub, subGaps, tr, pu);
+                    // בלי מודל פיסוק, או שהוא נכשל (גם באמצע המנה הזאת) - שורה-שורה, כל שורה כמשפט
+                    if (got == null && !punct && (!canPunct || punctFailed[0]) && (canceled == null || !canceled()))
+                    {
+                        List<string> asSent = new List<string>();
+                        foreach (string x in sub) asSent.Add(AsSentence(x));
+                        got = tr(asSent);
+                    }
+                }
                 if (got == null)
                 {
                     if (canceled != null && canceled()) return null;

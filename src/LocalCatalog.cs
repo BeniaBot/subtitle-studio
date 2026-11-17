@@ -151,31 +151,34 @@ namespace SubtitleStudio
                        673, 1400, "CC BY 4.0", "", "engine-sherpa", false));
             r[r.Count - 1].Credit = "Yakov Kolani · ivrit.ai · NVIDIA Parakeet · sherpa-onnx";
             // המנוע של המתרגם הקל (17.11): פייתון מוטמע רשמי + CTranslate2 + SentencePiece + זמן הריצה של ++C, ב-ZIP אחד שנפרס.
-            // לא מוצג בחלון - יורד לבד לפני מודל שצריך אותו. **גרסה חדשה = שם חדש לקובץ** (``engine-ct2-2.zip``): הסימן ``.ok``.
+            // לא מוצג בחלון - יורד לבד לפני מודל שצריך אותו. **גרסה חדשה = שם חדש לקובץ**: הסימן ``.ok`` לא יודע גרסה.
+            // גרסה 2 (17.11): גם sherpa-onnx (המודול לפייתון, עם ONNX Runtime) - לפיסוק של אנגלית לפני התרגום, באותו תהליך
             r.Add(Pack("engine-ct2", ModelTask.Engine, ModelTier.Light, Lang.T("מנוע התרגום הקל"), "", "*",
-                       81, 0, "PSF · MIT · Apache 2.0", "", "", true));
+                       103, 0, "PSF · MIT · Apache 2.0", "", "", true));
             ModelPack p = r[r.Count - 1];
             p.Credit = "Python · CTranslate2 · SentencePiece";
             p.Tag = "local-mt-1";
-            p.Files = new string[] { "engine-ct2-1.zip" };
-            p.Sizes = new long[] { 84396298 };
-            p.GzSizes = new long[] { 30190370 };
-            p.Sha256 = new string[] { "A68E434CE94E6132803F1149284CD90CF20A9681CCCE58C3BE8435372165D33F" };
+            p.Files = new string[] { "engine-ct2-2.zip" };
+            p.Sizes = new long[] { 107838377 };
+            p.GzSizes = new long[] { 38744109 };
+            p.Sha256 = new string[] { "5ACAB535EB8C0C5B7EC5E07499CFD6E71CBE8846200133ABE8BBF99560FF1D9F" };
             // נמדד 16.11: chrF++ 50.4 על WMT24++ (OPUS-MT 42.7), 0.05-0.08 שנ׳ לשורה על 2 ליבות. 17.11: המשקלים נשמרו ב-8 ביט
             // (כמו ש-CTranslate2 עושה בטעינה) - 410MB ← 211MB, ותרגום זהה ב-255 מתוך 255 משפטים
             r.Add(Pack("mt-en-he-quick", ModelTask.Translate, ModelTier.Light, Lang.T("תרגום מאנגלית לעברית - קל ומהיר"),
                        Lang.T("מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים."), "en-he",
-                       204, 400, "CC BY 4.0", "", "engine-ct2", true));
+                       212, 400, "CC BY 4.0 · Apache 2.0", "", "engine-ct2", true));
             p = r[r.Count - 1];
             p.Credit = "quickmt · CTranslate2";
             p.Tag = "local-mt-1";
-            p.Files = new string[] { "config.json", "model.bin", "quickmt-en-he-LICENSE.txt", "source_vocabulary.json", "src.spm.model", "target_vocabulary.json", "tgt.spm.model" };
-            p.Sizes = new long[] { 223, 210822367, 706, 545941, 802664, 1157365, 882724 };
-            p.GzSizes = new long[] { 145, 188934113, 421, 144716, 404210, 165968, 403529 };
+            p.Files = new string[] { "config.json", "model.bin", "punct-en.int8.onnx", "punct-en.vocab", "quickmt-en-he-LICENSE.txt", "source_vocabulary.json", "src.spm.model", "target_vocabulary.json", "tgt.spm.model" };
+            p.Sizes = new long[] { 223, 210822367, 7490500, 149430, 1079, 545941, 802664, 1157365, 882724 };
+            p.GzSizes = new long[] { 145, 188934113, 1962854, 59971, 588, 144716, 404210, 165968, 403529 };
             p.Sha256 = new string[] {
                 "66EDC5D58CEB812A41B4B784497001F815C35400884F40984B19DE29E1BC3D69",
                 "AD18583B6F1C30E771F5EDBB2DFDA1D18762D12EA30113C45F4CCC8919E0ECD7",
-                "68FA7BDD01418AD8579D88F5A74E76AFB923D05F3A61A8CB8F142203597D1164",
+                "9D611F445FE4A46186080FE161BE6059D87D72EB88D3A8CB00C1A06E83A6067E",
+                "E118B7AD88C54DB562517DF49E1CFFD4836D166C34FB190FD311D7F34EB238F5",
+                "3E4B5D053F2F48EB67F47CCB1F242166A78FC50F4C0B53F75B646BD41844B9AA",
                 "FF81562987774EABA94282D8737A4754322512995E909206BB19198D4267681C",
                 "38AADFAE3DD591032D6E46DDCC38A7EC706E1F1429236CE9266882DBA6C3CE83",
                 "E1BD37402EA3EA193D7116FA5FAEAEDB182EA7499A239BAD4D74472B8D7F5411",
