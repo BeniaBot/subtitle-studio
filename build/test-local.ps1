@@ -642,7 +642,7 @@ Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')
 $cs = Cues @(@(0, 1000, 'i guess it was bound to happen'), @(1100, 2000, 'i have my first ever failed'), @(2100, 3000, 'laptop review'))
 $r = LtRun $cs '' $null
 $reqLt = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-py-req.txt'), [Text.Encoding]::UTF8))
-Check 'תרגום על המחשב: מקור בלי פיסוק - שורה-שורה, בלי לחבר (חיבור בלי פיסוק גרוע יותר)' ($reqLt.Count -eq 1 -and $reqLt[0].Contains('"texts":["i guess it was bound to happen","i have my first ever failed","laptop review"]') -and $r.out[2] -eq 'laptop review') $reqLt[0]
+Check 'תרגום על המחשב: מקור בלי פיסוק - שורה-שורה, כל שורה כמשפט (אות גדולה, ״I״, נקודה), בלי לחבר' ($reqLt.Count -eq 1 -and $reqLt[0].Contains('"texts":["I guess it was bound to happen.","I have my first ever failed.","Laptop review."]') -and $r.out[2] -eq 'Laptop review.') $reqLt[0]
 $ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 300
 [IO.File]::WriteAllText((Join-Path $ltRoot 'fake-py-mode.txt'), 'lose')
 Remove-Item (Join-Path $ltRoot 'fake-py-req.txt')

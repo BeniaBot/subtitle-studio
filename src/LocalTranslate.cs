@@ -277,6 +277,18 @@ namespace SubtitleStudio
             return r;
         }
 
+        /// <summary>שורה בלי פיסוק - כמשפט: אות גדולה בהתחלה, ״I״ גדולה (``i``, ``i'm``...), ונקודה בסוף אם אין שום סימן.</summary>
+        internal static string AsSentence(string s)
+        {
+            s = (s ?? "").Trim();
+            if (s.Length == 0) return s;
+            s = Regex.Replace(s, "(?<![A-Za-z'])i(?=('(m|ve|ll|d))?(?![A-Za-z']))", "I");
+            s = char.ToUpperInvariant(s[0]) + s.Substring(1);
+            char last = s[s.Length - 1];
+            if (last != '.' && last != '?' && last != '!' && last != ',') s += ".";
+            return s;
+        }
+
         private static bool HasUpper(string w)
         {
             foreach (char c in w) if (c >= 'A' && c <= 'Z') return true;
@@ -371,14 +383,16 @@ namespace SubtitleStudio
                 lines.Add((cues[i].Text ?? "").Replace("\r", "").Replace('\n', ' ').Trim());
                 gaps[i] = i == 0 ? 0 : Math.Max(0, (cues[i].Start - cues[i - 1].End) / 1000.0);
             }
-            // **בלי פיסוק במקור - שורה-שורה** (נמדד: חיבור של שורות בלי פיסוק גרוע מכל שורה לבד). מודל הפיסוק יבוא בחבילה משלו
+            // **בלי פיסוק במקור - שורה-שורה, כל שורה כמשפט** (נמדד על כתוביות גולמיות של Whisper, chrF++: כמו שהן 36.4; אות גדולה,
+            // ״I״ ונקודה 38.3; שלוש מחוברות בלי פיסוק 35.2; **שלוש מחוברות אחרי מודל הפיסוק 42.3** - והוא יבוא בחבילה משלו. פיסוק של כל
+            // התמלול בבת אחת וחלונות אחריו - 34.7: המודל צריך את החלון עצמו)
             bool punct = WindowTranslate.HasPunctuation(string.Join(" ", lines.ToArray()));
             List<List<int>> wins;
             if (punct) wins = WindowTranslate.Windows(n, gaps);
             else
             {
                 wins = new List<List<int>>();
-                for (int i = 0; i < n; i++) wins.Add(new List<int>(new int[] { i }));
+                for (int i = 0; i < n; i++) { wins.Add(new List<int>(new int[] { i })); lines[i] = AsSentence(lines[i]); }
             }
             List<string> names = NamesFrom(context);
             LocalCt2 ct = Engine();
