@@ -203,7 +203,8 @@ namespace SubtitleStudio
                 .P("from_index", "integer", "רק מהכתובית הזו (מ-1)")
                 .P("to_index", "integer", "עד הכתובית הזו")
                 .P("from_sec", "number", "או: רק כתוביות שמתחילות מהזמן הזה")
-                .P("to_sec", "number", "עד הזמן הזה"));
+                .P("to_sec", "number", "עד הזמן הזה")
+                .P("where", "string", "local - על המחשב (בטא: רק מאנגלית לעברית, בלי אינטרנט, פחות מדויק); google - כל השפות. בלי - מה שהמשתמש בחר בפעם האחרונה בחלון התרגום"));
 
             // אזורי צנזורה לפי זמן (0.8.34, WORKPLAN 2כט)
             t.Add(new AiTool("add_blur_zone", "מוסיף אזור טשטוש או צנזורה בסרט: מקום (באחוזים מהתמונה), זמן (או כל הסרט) ומראה. נראה בנגן ונצרב ביצירת הסרט - גם בלי כתוביות")
@@ -841,7 +842,16 @@ namespace SubtitleStudio
             }
             if (cues.Count == 0) { r["error"] = Lang.T("בקטע הזה אין כתוביות"); return r; }
             bool partial = cues.Count < _doc.Cues.Count;
-            AiRunDlg run = new AiRunDlg(cues, lang, c.Str("context", ""));
+            // **על המחשב** (0.8.46, בטא): רק מאנגלית לעברית. ״where״ מהעוזר, ובלעדיו - מה שנבחר בפעם האחרונה בחלון התרגום
+            string where = c.Str("where", "").Trim().ToLowerInvariant();
+            List<string> texts = new List<string>();
+            foreach (Cue q in cues) texts.Add(q.Text);
+            string ll = lang.Trim().ToLowerInvariant();
+            bool canLocal = (ll == Lang.T("עברית").ToLowerInvariant() || ll.Contains("עברית") || ll.Contains("hebrew")) && LocalTranslator.LooksEnglish(texts);
+            bool local = where == "local" || (where == "" && canLocal && LocalTranslator.ProviderId == "local");
+            if (local && !canLocal) { r["error"] = Lang.T("התרגום על המחשב יודע כרגע רק מאנגלית לעברית."); return r; }
+            if (local && !LocalTranslator.Installed) { r["error"] = Lang.T("המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום."); return r; }
+            AiRunDlg run = new AiRunDlg(cues, lang, c.Str("context", ""), local);
             run.ShowDialog(this);
             if (!run.Ok || run.Translated == null)
             {
@@ -858,6 +868,7 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             AiRefresh();
             r["done"] = partial ? Lang.F("תורגמו ל{0} {1} כתוביות מתוך {2}", lang, cues.Count, _doc.Cues.Count) : Lang.F("הכתוביות תורגמו ל{0}", lang);
+            r["where"] = local ? "local (beta)" : "google";
             if (run.Untranslated > 0) r["untranslated"] = run.Untranslated;
             if (run.Condensed > 0) r["condensed_for_reading_speed"] = run.Condensed;
             if (run.StoppedAt >= 0)
