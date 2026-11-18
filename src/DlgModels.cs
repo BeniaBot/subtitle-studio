@@ -154,6 +154,10 @@ namespace SubtitleStudio
             Row(Hint(bytes > 0
                 ? Lang.F("שוקל {0}, ויורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.", Theme.Ltr(MediaInfo.FormatSize(bytes)))
                 : Lang.T("יורד פעם אחת. אפשר לעצור את ההורדה ולהמשיך אחר כך מאותו מקום.")), 22, 4);
+            // **הורדה גדולה - לומר כמה זמן** (18.11): המודל המדויק, 2.4GB, ירד מגיטהאב ב-17 דקות בקו של 2.5MB לשנייה; בקו של
+            // 0.35MB לשנייה (נמדד אצל בנימין, 8.10) - כשעתיים. מי שלא יודע את זה חושב שההורדה נתקעה
+            if (bytes > 400L * 1024 * 1024)
+                Row(Hint(Lang.F("הורדה גדולה: בקו מהיר בערך {0}, ובקו איטי עד {1}.", Duration(bytes / (2.5 * 1024 * 1024)), Duration(bytes / (0.35 * 1024 * 1024)))), 22, 4);
             if (!string.IsNullOrEmpty(p.Credit)) Row(Hint(p.Credit), 22, 4);
             if (!string.IsNullOrEmpty(p.LicenseNote)) Row(Hint(Lang.F("רישיון: {0}. {1}", Theme.Ltr(p.License), p.LicenseNote)), 22, 4);
             Y += Theme.S(8);
@@ -226,6 +230,19 @@ namespace SubtitleStudio
             _status.Text = s;
             _status.Color = c;
             _status.Invalidate();
+        }
+        /// <summary>זמן הורדה במילים, מעוגל: ״כ-5 דקות״, ״כרבע שעה״, ״כשעה״, ״כשעתיים״, ״כ-3 שעות״.</summary>
+        internal static string Duration(double seconds)
+        {
+            int m = (int)Math.Ceiling(seconds / 60.0);
+            if (m <= 1) return Lang.T("דקה");
+            if (m < 13) return Lang.F("{0} דקות", Theme.Ltr(m.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            if (m < 23) return Lang.T("רבע שעה");
+            if (m < 38) return Lang.T("חצי שעה");
+            if (m < 53) return Lang.T("שלושת רבעי שעה");
+            if (m < 90) return Lang.T("שעה");
+            if (m < 150) return Lang.T("שעתיים");
+            return Lang.F("{0} שעות", Theme.Ltr(((int)Math.Round(m / 60.0)).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
     }
 }
