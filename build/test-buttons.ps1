@@ -20,7 +20,7 @@
 #
 # ‏-Lang en: אותן בדיקות בממשק אנגלי (0.8.1). האנגלית ארוכה מהעברית, ו״טקסט
 # נכנס לכפתור״ הוא בדיוק מה שנשבר בה.
-param([string]$Lang = 'he', [double]$Scale = 1.25)
+param([string]$Lang = 'he', [double]$Scale = 0)
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -64,9 +64,10 @@ function NewOf($n, $argv) { return [Activator]::CreateInstance((TY $n), $IN -bor
 $pass = 0; $fail = 0
 function Check($n, $ok, $d) { if ($ok) { $script:pass++; Write-Host "  ok    $n   $d" } else { $script:fail++; Write-Host "  FAIL  $n   $d" -ForegroundColor Red } }
 
-# 1.25 = Binyamin's screen. -Scale 1.0 on a machine at 100% (the clean test machine, 18.11): with 1.25 forced there the fonts
-# are measured at 96 DPI and the layout at 120 - a mix no real user has
-$scale = $Scale
+# the scale of THIS screen (Binyamin's: 125%). Until 18.11 it was always 1.25 - on the clean test machine (100%) that measured
+# the fonts at 96 DPI and the layout at 120, a mix no real user has, and three buttons "failed"; at its own 1.0 all 14 pass.
+# -Scale forces another one.
+if ($Scale -le 0) { $g0 = [Drawing.Graphics]::FromHwnd([IntPtr]::Zero); $Scale = [Math]::Round($g0.DpiX / 96.0, 2); $g0.Dispose() }
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]$scale)
 [void](TY 'Lang').GetMethod('Set', $ST).Invoke($null, @([string]$Lang))
 

@@ -195,7 +195,7 @@ try {
 
     # -Stages cmd -GuestCommand "...": any PowerShell line in the user's desktop session, from the copied repo, its output kept
     if ($Stages -contains 'cmd' -and $GuestCommand) {
-        $cmd = "-NoProfile -ExecutionPolicy Bypass -Command `"[Console]::OutputEncoding = [Text.Encoding]::UTF8; Set-Location '$guest\repo'; $GuestCommand *> '$guest\cmd.txt'`""
+        $cmd = "-NoProfile -ExecutionPolicy Bypass -Command `"[Console]::OutputEncoding = [Text.Encoding]::UTF8; Set-Location '$guest\repo'; & { $GuestCommand } *> '$guest\cmd.txt'`""
         $r = Desktop 'powershell.exe' $cmd 3600
         Copy-Item "$guest\cmd.txt" (Join-Path $out 'cmd.txt') -FromSession $s -ErrorAction SilentlyContinue
         Log ("cmd: task result " + $r.LastResult)
