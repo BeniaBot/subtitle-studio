@@ -218,13 +218,50 @@ namespace SubtitleStudio
             Dictionary<string, object> kw = new Dictionary<string, object>();
             kw["enable_thinking"] = false;
             body["chat_template_kwargs"] = kw;
+            string reply = Post("/v1/chat/completions", body, canceled, out error);
+            return reply == null ? null : ContentOf(reply, out error);
+        }
+
+        /// <summary>**השלמה גולמית** (``/completion``) - כשהתבנית הרשמית של המודל לא עוברת דרך בקשת שיחה (TranslateGemma: התוכן
+        /// חייב להיות רשימה עם קודי שפות). בחירה ודאית, בלי ״קנס חזרה״ - נמדד 18.11: COMET ‏0.813, מול 0.801 בהגדרות של מודל אחר.</summary>
+        public string Complete(string prompt, int nPredict, string[] stop, Func<bool> canceled, out string error)
+        {
+            error = null;
+            if (!Ensure(canceled, out error)) return null;
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["prompt"] = prompt;
+            body["n_predict"] = nPredict;
+            body["temperature"] = 0;
+            body["top_k"] = 1;
+            body["repeat_penalty"] = 1.0;
+            body["stop"] = stop ?? new string[0];
+            body["cache_prompt"] = true;
+            string reply = Post("/completion", body, canceled, out error);
+            if (reply == null) return null;
+            try
+            {
+                JavaScriptSerializer js = new JavaScriptSerializer();
+                js.MaxJsonLength = 64 * 1024 * 1024;
+                Dictionary<string, object> root = js.DeserializeObject(reply) as Dictionary<string, object>;
+                object c;
+                if (root != null && root.TryGetValue("content", out c)) return ((c as string) ?? "").Trim();
+            }
+            catch { }
+            error = Lang.T("המודל ענה בפורמט לא צפוי.");
+            return null;
+        }
+
+        /// <summary>בקשת POST לשרת, עם עצירה (`StopToken`) והודעות אנושיות. מחזיר את גוף התשובה, או null עם הודעה.</summary>
+        private string Post(string path, Dictionary<string, object> body, Func<bool> canceled, out string error)
+        {
+            error = null;
             JavaScriptSerializer js = new JavaScriptSerializer();
             js.MaxJsonLength = 256 * 1024 * 1024;
             byte[] data = Encoding.UTF8.GetBytes(js.Serialize(body));
             try
             {
                 lock (_lock) _last = DateTime.UtcNow;
-                HttpWebRequest r = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:" + _port.ToString(CultureInfo.InvariantCulture) + "/v1/chat/completions");
+                HttpWebRequest r = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:" + _port.ToString(CultureInfo.InvariantCulture) + path);
                 r.Method = "POST";
                 r.ContentType = "application/json";
                 r.Proxy = null;
@@ -238,7 +275,7 @@ namespace SubtitleStudio
                 using (StreamReader sr = new StreamReader(res.GetResponseStream(), Encoding.UTF8))
                     reply = sr.ReadToEnd();
                 lock (_lock) _last = DateTime.UtcNow;
-                return ContentOf(reply, out error);
+                return reply;
             }
             catch (WebException ex)
             {

@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 137 בדיקות.
+# צפוי: 145 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -406,7 +406,7 @@ $miT.GetField('FakeTotalMB', $SF).SetValue($null, [long]-1); $miT.GetField('Fake
 $ids = @($all | ForEach-Object { $_.Id }); $dup = @($ids | Group-Object | Where-Object { $_.Count -gt 1 })
 $forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Transcribe'))))
 $mtl = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Translate'))))
-Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast' -and $mtl.Count -eq 1 -and $mtl[0].Id -eq 'mt-en-he-quick') (($ids -join ', '))
+Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast' -and $mtl.Count -eq 2 -and $mtl[0].Id -eq 'mt-en-he-quick' -and $mtl[1].Id -eq 'mt-translategemma-4b') (($ids -join ', '))
 $nc = [Activator]::CreateInstance((T 'ModelPack'), $true); $nc.Id = 'test-nc'; $nc.Title = 'מודל לבדיקה'; $nc.Line = 'שורה'; $nc.License = 'CC BY-NC 4.0'; $nc.LicenseNote = 'לשימוש לא מסחרי בלבד.'; $nc.Files = [string[]]@('x.bin'); $nc.Sizes = [long[]]@(10); $nc.GzSizes = [long[]]@(10); $nc.Sha256 = [string[]]@('00')
 $psd = [Activator]::CreateInstance((T 'PackSetupDlg'), $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($nc), $null)
 $psdTexts = @($psd.Controls | ForEach-Object { [string]$_.Text }) -join ' | '
@@ -437,8 +437,14 @@ class P {
       string body;
       if (head.StartsWith("GET /health")) body = "{\"status\":\"ok\"}";
       else {
-        File.WriteAllBytes("fake-llm-req.json", new MemoryStream(all, headEnd + 4, all.Length - headEnd - 4).ToArray());
-        body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"<think>hmm</think>שלום\"}}]}";
+        byte[] req = new MemoryStream(all, headEnd + 4, all.Length - headEnd - 4).ToArray();
+        File.WriteAllBytes("fake-llm-req.json", req);
+        if (head.StartsWith("POST /completion")) {
+          File.AppendAllText("fake-llm-completions.txt", Encoding.UTF8.GetString(req) + "\n", new UTF8Encoding(false));
+          int lines = File.ReadAllLines("fake-llm-completions.txt").Length;
+          body = mode == "nocontent" ? "{\"oops\":1}" : "{\"content\":\" heavy " + lines + " \"}";
+        }
+        else body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"<think>hmm</think>שלום\"}}]}";
       }
       byte[] b = Encoding.UTF8.GetBytes(body);
       byte[] h = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + b.Length + "\r\nConnection: close\r\n\r\n");
@@ -688,12 +694,53 @@ $td = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (TDoc @(@(0, 2000,
 $optL = $td.GetType().GetField('_optLocal', $IF).GetValue($td)
 $conn = $td.GetType().GetField('_connect', $IF).GetValue($td)
 Check 'חלון התרגום: כתוביות באנגלית, בלי מפתח ובלי בחירה קודמת - ״על המחשב״, והורדה בכפתור (החבילה לא ״מותקנת״ בטבלה האמיתית)' ($optL.Enabled -and $td.Local -and [string]$conn.Text -match 'הורדה') ([string]$conn.Text)
+$mdl = $td.GetType().GetField('_model', $IF).GetValue($td)
+Check 'חלון התרגום: שני מודלים לבחירה (קל, מדויק), וכתוביות באנגלית לעברית - הקל' ($mdl.Items.Count -eq 2 -and $td.LocalModelId -eq 'mt-en-he-quick' -and $td.SourceCode -eq 'en' -and $td.TargetCode -eq 'he') ($td.LocalModelId + ' ' + $td.SourceCode + '>' + $td.TargetCode)
+$td.GetType().GetField('_lang', $IF).GetValue($td).SelectedIndex = 2
+Check 'חלון התרגום: יעד שהקל לא יודע (ערבית) - עובר לבד למדויק, ו״על המחשב״ נשאר' ($optL.Enabled -and $td.LocalModelId -eq 'mt-translategemma-4b' -and $td.Local -and $td.TargetCode -eq 'ar') $td.LocalModelId
 $td.GetType().GetField('_lang', $IF).GetValue($td).SelectedIndex = 1
-Check 'חלון התרגום: יעד אחר מעברית - ״על המחשב״ כבוי ואומר ״רק מאנגלית לעברית״, ונבחר גוגל' (-not $optL.Enabled -and [string]$optL.Sub -eq 'רק מאנגלית לעברית' -and -not $td.Local) ([string]$optL.Sub)
+Check 'חלון התרגום: אנגלית לאנגלית - ״על המחשב״ כבוי ואומר ״הכתוביות כבר בשפה הזאת״' (-not $optL.Enabled -and [string]$optL.Sub -eq 'הכתוביות כבר בשפה הזאת' -and -not $td.Local) ([string]$optL.Sub)
 $td.Dispose()
 $td = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (TDoc @(,@(0, 2000, 'האויבים שלנו מתקדמים.'))) ''))
-Check 'חלון התרגום: כתוביות בעברית - רק גוגל' (-not $td.GetType().GetField('_optLocal', $IF).GetValue($td).Enabled -and -not $td.Local) ''
+Check 'חלון התרגום: כתוביות בעברית לאנגלית - על המחשב במודל המדויק' ($td.GetType().GetField('_optLocal', $IF).GetValue($td).Enabled -and $td.LocalModelId -eq 'mt-translategemma-4b' -and $td.SourceCode -eq 'he' -and $td.TargetCode -eq 'en') ($td.LocalModelId + ' ' + $td.SourceCode)
 $td.Dispose()
+$ds = $ltT.GetMethod('DetectSource', $SF)
+function DS([string[]]$xs) { return [string]$ds.Invoke($null, @(,[Collections.Generic.List[string]]$xs)) }
+Check 'שפת הכתוביות: עברית, ערבית, רוסית, צרפתית, ספרדית, גרמנית, אנגלית' ((DS @('שלום לכולם')) -eq 'he' -and (DS @('مرحبا بكم')) -eq 'ar' -and (DS @('Привет всем')) -eq 'ru' -and (DS @("Je ne sais pas ce que vous voulez dans la vie")) -eq 'fr' -and (DS @('No sé lo que quieres para la vida y el amor')) -eq 'es' -and (DS @('Ich weiß nicht, was die Leute wollen, und das ist gut')) -eq 'de' -and (DS @('I do not know what you want')) -eq 'en') ''
+
+# המודל המדויק: TranslateGemma דרך llama-server - ה״שרת״ המדומה בשם ובמקום של האמיתי, ו״השלמה״ בתבנית הרשמית
+$hvP = $catT.GetMethod('ById', $SF).Invoke($null, @('mt-translategemma-4b')); $elP = $catT.GetMethod('ById', $SF).Invoke($null, @('engine-llama'))
+$keepH = @{ hf = $hvP.Files; hs = $hvP.Sizes; ef = $elP.Files; es = $elP.Sizes }
+$hvP.Files = [string[]]@('tg.gguf'); $hvP.Sizes = [long[]]@(4); $elP.Files = [string[]]@('engine-llama-test-1.zip'); $elP.Sizes = [long[]]@(1)
+New-Item -ItemType Directory (Join-Path $ltRoot 'engine-llama'), (Join-Path $ltRoot 'mt-translategemma-4b') -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $ltRoot 'engine-llama\engine-llama-test-1.zip.ok'), 'ok')
+[IO.File]::WriteAllText((Join-Path $ltRoot 'mt-translategemma-4b\tg.gguf'), 'abcd')
+Copy-Item (Join-Path $llDir 'llama-server.exe') (Join-Path $ltRoot 'engine-llama\llama-server.exe')
+function HvRun($cues, [string]$src, [string]$tgt) {
+    $script:ltProg = @()
+    $prog = [Action[int, int]]{ param($d, $n) $script:ltProg += ,@($d, $n) }
+    $argv = New-Object object[] 9; $argv[0] = 'mt-translategemma-4b'; $argv[1] = $src; $argv[2] = $tgt; $argv[3] = $cues; $argv[4] = ''; $argv[5] = $prog; $argv[6] = $null; $argv[7] = $null; $argv[8] = $null
+    $out = $ltT.GetMethod('RunWith', $SF).Invoke($null, $argv)
+    return @{ out = $out; err = [string]$argv[7]; stopped = [int]$argv[8] }
+}
+$r = HvRun (Cues @(@(0, 1500, 'I always loved the Vivobook.'), @(1600, 3000, 'It rarely disappointed me.'), @(8000, 9000, ''))) 'en' 'he'
+$cmpl = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-llm-completions.txt'), [Text.Encoding]::UTF8))
+$hargs = [IO.File]::ReadAllText((Join-Path $ltRoot 'fake-llm-args.txt'), [Text.Encoding]::UTF8)
+$req1 = $cmpl[0] | ConvertFrom-Json
+Check 'מודל מדויק: השרת מתיקיית המנוע, המודל יחסית ל-״models״ (שם עברי), רק 127.0.0.1' ($hargs.StartsWith('-m mt-translategemma-4b' + [char]92 + 'tg.gguf --host 127.0.0.1 --port ') -and $hargs.EndsWith('|cwd=' + $ltRoot)) $hargs
+Check 'מודל מדויק: התבנית הרשמית (קודי שפה, שלוש שורות לפני הטקסט), בחירה ודאית בלי קנס חזרה, עצירה ב-end_of_turn' ($req1.prompt.StartsWith("<start_of_turn>user`nYou are a professional English (en) to Hebrew (he) translator.") -and $req1.prompt.EndsWith(":`n`n`nI always loved the Vivobook. It rarely disappointed me.<end_of_turn>`n<start_of_turn>model`n") -and $req1.temperature -eq 0 -and $req1.top_k -eq 1 -and $req1.repeat_penalty -eq 1 -and $req1.stop[0] -eq '<end_of_turn>') ([string]$req1.prompt).Substring(0, 80)
+Check 'מודל מדויק: חלון של שתי הכתוביות (עם פיסוק, לא מעבר להפסקה), כתובית ריקה לא נשלחת, ההתקדמות עד הסוף' ($cmpl.Count -eq 1 -and $r.out.Count -eq 3 -and $r.out[2] -eq '' -and (($r.out[0] + ' ' + $r.out[1]).Trim()) -eq 'heavy 1' -and $script:ltProg[$script:ltProg.Count - 1][0] -eq 3) (($r.out -join ' | ') + ' / ' + $cmpl.Count)
+Remove-Item (Join-Path $ltRoot 'fake-llm-completions.txt')
+$r = HvRun (Cues @(@(0, 1000, 'שלום לכולם'), @(1100, 2000, 'מה שלומכם'))) 'he' 'ar'
+$cmpl = @([IO.File]::ReadAllLines((Join-Path $ltRoot 'fake-llm-completions.txt'), [Text.Encoding]::UTF8))
+Check 'מודל מדויק: כל זוג שפות (עברית לערבית), ובלי פיסוק - שורה-שורה' ($cmpl.Count -eq 2 -and ($cmpl[0] | ConvertFrom-Json).prompt.Contains('Hebrew (he) to Arabic (ar)') -and $r.out[1] -eq 'heavy 2') ($r.out -join ' | ')
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 400
+[IO.File]::WriteAllText((Join-Path $ltRoot 'fake-llm-mode.txt'), 'nocontent')
+$r = HvRun (Cues @(,@(0, 1000, 'Hello there.'))) 'en' 'he'
+Check 'מודל מדויק: תשובה בלי טקסט - ״פורמט לא צפוי״, לא תרגום ריק בשקט' ($r.out -eq $null -and $r.err -match 'פורמט') $r.err
+$ltT.GetMethod('Stop', $SF).Invoke($null, @()); Start-Sleep -Milliseconds 400
+Remove-Item (Join-Path $ltRoot 'fake-llm-mode.txt')
+$hvP.Files = $keepH.hf; $hvP.Sizes = $keepH.hs; $elP.Files = $keepH.ef; $elP.Sizes = $keepH.es
 
 $engP.Files = $keep.ef; $engP.Sizes = $keep.es; $mtP.Files = $keep.mf; $mtP.Sizes = $keep.ms
 $catT.GetField('RootOverride', $SF).SetValue($null, $null)

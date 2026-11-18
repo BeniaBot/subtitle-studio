@@ -188,8 +188,27 @@ namespace SubtitleStudio
             // בחירה ודאית, בלי ״קנס חזרה״. 7 שנ׳ לשורה על 4 ליבות של Core Ultra 5, ‏5.4GB זיכרון. לכל השפות
             r.Add(Pack("mt-translategemma-4b", ModelTask.Translate, ModelTier.Heavy, Lang.T("תרגום מדויק - כבד"),
                        Lang.T("המתרגם המדויק ביותר על המחשב, לכל השפות. איטי: שעה של כתוביות בכשעה וחצי, במחשב חזק."), "*",
-                       2490, 5400, "Gemma", "", "engine-llama", false));
-            r[r.Count - 1].Credit = "Google TranslateGemma · llama.cpp";
+                       2375, 5400, "Gemma", "", "engine-llama", true));
+            p = r[r.Count - 1];
+            p.Credit = "Google TranslateGemma · mradermacher (GGUF) · llama.cpp";
+            p.LicenseNote = Lang.T("בכפוף לתנאי השימוש של Gemma.");
+            p.Tag = "local-llm-1";
+            p.Files = new string[] { "GEMMA-NOTICE.txt", "translategemma-4b-it.Q4_K_M.gguf" };
+            p.Sizes = new long[] { 812, 2489909760 };
+            p.GzSizes = new long[] { 451, 2489909760 };
+            p.Sha256 = new string[] {
+                "4A54AE1A6D53928CBEA80DADC521095583768C156D1232B5188A6A27878CB2E5",
+                "81200D03E843D2EC1ECE6EEAFE7D13CB6E5211E1FCD336ADE55790B683A08330" };
+            // המנוע של המודלים הכבדים (18.11): llama.cpp build 12074, הבנייה הרשמית לווינדוס בלי כרטיס מסך, + זמן הריצה של ++C. ‏ZIP שנפרס
+            r.Add(Pack("engine-llama", ModelTask.Engine, ModelTier.Heavy, Lang.T("מנוע המודלים הכבדים"), "", "*",
+                       45, 0, "MIT · Apache 2.0", "", "", true));
+            p = r[r.Count - 1];
+            p.Credit = "llama.cpp";
+            p.Tag = "local-llm-1";
+            p.Files = new string[] { "engine-llama-1.zip" };
+            p.Sizes = new long[] { 47272732 };
+            p.GzSizes = new long[] { 19062211 };
+            p.Sha256 = new string[] { "D0C371D99C53892CFDE19D9B5650801001C68A54CEE0FA29CEBB4A107B1ECE78" };
             // 30MB, רבע שנייה לכל התמלול; העלה את התרגום מ-36.4 ל-42.3 על כתוביות בלי פיסוק
             r.Add(Pack("punct-en", ModelTask.Punctuate, ModelTier.Light, Lang.T("פיסוק לאנגלית"),
                        Lang.T("מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר."), "en",

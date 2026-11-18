@@ -1112,7 +1112,7 @@ namespace SubtitleStudio
                 Ui.Info(this, Lang.T("אין מה לתרגם"), Lang.T("בקטע המסומן על הציר אין כתוביות."));
                 return;
             }
-            AiRunDlg run = new AiRunDlg(cues, d.Target, d.Context, d.Local);
+            AiRunDlg run = new AiRunDlg(cues, d.Target, d.Context, d.Local, d.LocalModelId, d.SourceCode, d.TargetCode);
             run.ShowDialog(this);
             if (!run.Ok || run.Translated == null)
             {

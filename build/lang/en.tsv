@@ -2049,3 +2049,12 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 התרגום על המחשב יודע כרגע רק מאנגלית לעברית.	On-device translation currently knows only English to Hebrew.
 תרגום מדויק - כבד	Accurate translation - heavy
 המתרגם המדויק ביותר על המחשב, לכל השפות. איטי: שעה של כתוביות בכשעה וחצי, במחשב חזק.	The most accurate on-device translator, for all languages. Slow: an hour of subtitles in about an hour and a half on a strong computer.
+כל השפות · מדויק ומהיר	All languages · accurate and fast
+קל ומהיר - מאנגלית לעברית	Light and fast - English to Hebrew
+מדויק וכבד - כל השפות	Accurate and heavy - all languages
+הכתוביות כבר בשפה הזאת	The subtitles are already in this language
+בטא, ואיטי: כמה שניות לכל כתובית, גם במחשב חזק. אפשר לעצור באמצע, ומה שתורגם יישמר.	Beta, and slow: a few seconds for each subtitle, even on a strong computer. You can stop midway, and what was translated is kept.
+אם התוכן רגיש, אפשר לתרגם על המחשב, בלי אינטרנט.	If the content is sensitive, you can translate on this computer, without the internet.
+התרגום על המחשב לא יודע לתרגם את הכתוביות האלה לשפה הזאת.	On-device translation cannot translate these subtitles into this language.
+בכפוף לתנאי השימוש של Gemma.	Subject to the Gemma Terms of Use.
+מנוע המודלים הכבדים	Engine for the heavy models

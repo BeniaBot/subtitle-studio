@@ -219,19 +219,39 @@ namespace SubtitleStudio
         private readonly Toggle _range;
         private readonly long _a, _b;
         private readonly Btn _optLocal, _optGoogle, _connect;
+        private readonly Combo _model;
         private readonly Lbl _where, _whereNote;
         private string _choice;
-        private readonly bool _english;
+        /// <summary>שפת הכתוביות (`LocalTranslator.DetectSource`): ״en״, ״he״, ״ar״...</summary>
+        private readonly string _src;
+        private readonly List<string> _modelIds = new List<string>();
 
         public List<Cue> Result;          // הכתוביות המתורגמות
         public bool ReplaceInPlace = true;
         /// <summary>**על המחשב** (0.8.46, בטא): `LocalTranslator`, בלי מפתח ובלי רשת. אחרת - גוגל.</summary>
-        public bool Local { get { return CanLocal && _choice == "local"; } }
+        public bool Local { get { return _choice == "local" && LocalTranslator.CanTranslate(LocalModelId, _src, TargetCode); } }
+        /// <summary>המודל על המחשב: הקל (`LocalTranslator.PackId`) או המדויק (`LocalTranslator.HeavyId`).</summary>
+        public string LocalModelId { get { return _modelIds.Count == 0 ? LocalTranslator.PackId : _modelIds[Math.Max(0, Math.Min(_modelIds.Count - 1, _model.SelectedIndex))]; } }
+        public string SourceCode { get { return _src; } }
+        public string TargetCode { get { return LocalTranslator.Codes[Math.Max(0, _lang.SelectedIndex)]; } }
 
-        private static readonly string[] Langs = new string[]
+        /// <summary>השמות בעברית - הסדר של `LocalTranslator.Codes`. העוזר כותב את שם השפה בעברית גם בממשק האנגלי.</summary>
+        internal static readonly string[] HebrewNames = new string[] { "עברית", "אנגלית", "ערבית", "רוסית", "צרפתית", "ספרדית", "יידיש", "גרמנית", "פורטוגזית", "אמהרית" };
+        internal static readonly string[] Langs = new string[]
         {
             Lang.T("עברית"), Lang.T("אנגלית"), Lang.T("ערבית"), Lang.T("רוסית"), Lang.T("צרפתית"), Lang.T("ספרדית"), Lang.T("יידיש"), Lang.T("גרמנית"), Lang.T("פורטוגזית"), Lang.T("אמהרית")
         };
+
+        /// <summary>קוד השפה לפי שם (בעברית, בשפת הממשק או באנגלית), או ריק.</summary>
+        internal static string CodeOf(string name)
+        {
+            string n = (name ?? "").Trim();
+            for (int i = 0; i < HebrewNames.Length; i++)
+                if (n == HebrewNames[i] || string.Equals(n, Langs[i], StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(n, LocalTranslator.EnglishNames[i], StringComparison.OrdinalIgnoreCase))
+                    return LocalTranslator.Codes[i];
+            return "";
+        }
 
         public AiTranslateDlg(Doc doc) : this(doc, null) { }
 
@@ -256,34 +276,48 @@ namespace SubtitleStudio
             // כתוביות בשפה זרה מתורגמות כמעט תמיד לעברית; עבריות - לאנגלית. עד 0.8.5 החלון נפתח תמיד
             // על ״אנגלית״, וגם מי שתרגם סרטון באנגלית לעברית היה צריך לזכור להחליף
             _lang.SelectedIndex = MostlyHebrew(doc) ? 1 : 0;
-            _lang.SelectedIndexChanged += delegate { Refresh_(); };
+            _lang.SelectedIndexChanged += delegate { PickModel(); Refresh_(); };
             Row(_lang, 40, 12);
 
-            // **איפה לתרגם** (0.8.46): על המחשב - בטא, רק מאנגלית לעברית; גוגל - כל השפות, מדויק יותר. כמו בחלון התמלול: הבחירה
-            // ברגע שמתרגמים, וההורדה או המפתח - בכפתור שמתחת
+            // **איפה לתרגם** (0.8.46): על המחשב - בטא, בלי אינטרנט; גוגל - מהיר ומדויק, צריך מפתח. ועל המחשב - **איזה מודל**: הקל
+            // (מאנגלית לעברית, מאות שורות בדקה) או המדויק (כל השפות, כמה שניות לשורה). כמו בחלון התמלול: ההורדה או המפתח בכפתור שמתחת
             List<string> texts = new List<string>();
             if (doc != null) foreach (Cue c in doc.Cues) texts.Add(c.Text);
-            _english = LocalTranslator.LooksEnglish(texts);
+            _src = LocalTranslator.DetectSource(texts);
             Section(Lang.T("איפה לתרגם"));
             int gapX = Theme.S(10);
             int half = (ContentW - gapX) / 2;
-            _optLocal = Option(Lang.T("על המחשב"), Lang.T("מאנגלית לעברית · בטא"), "local");
+            _optLocal = Option(Lang.T("על המחשב"), Lang.T("בלי אינטרנט · בטא"), "local");
             _optLocal.SetBounds(Pad + half + gapX, Y, ContentW - half - gapX, Theme.S(56));
-            _optGoogle = Option(Lang.T("גוגל"), Lang.T("כל השפות · מדויק יותר"), "gemini");
+            _optGoogle = Option(Lang.T("גוגל"), Lang.T("כל השפות · מדויק ומהיר"), "gemini");
             _optGoogle.SetBounds(Pad, Y, half, Theme.S(56));
             Y += Theme.S(64);
+            _model = new Combo();
+            _modelIds.Add(LocalTranslator.PackId);
+            _model.Items.Add(Lang.T("קל ומהיר - מאנגלית לעברית"));
+            ModelPack heavy = ModelCatalog.ById(LocalTranslator.HeavyId);
+            if (heavy != null && heavy.Available)
+            {
+                _modelIds.Add(LocalTranslator.HeavyId);
+                _model.Items.Add(Lang.T("מדויק וכבד - כל השפות"));
+            }
+            int saved = _modelIds.IndexOf(LocalTranslator.ModelId);
+            _model.SelectedIndex = saved >= 0 ? saved : 0;
+            PickModel();
+            _model.SelectedIndexChanged += delegate { Refresh_(); };
+            Row(_model, 40, 4);
             _connect = new Btn();
             _connect.Kind = BtnKind.Subtle;
             _connect.Click += delegate { Connect(); };
-            Row(_connect, 38, 8);
+            Row(_connect, 38, 4);
             _where = Label("", true, Theme.Good);
-            Row(_where, 24, 2);
+            Row(_where, 22, 2);
             _whereNote = Hint("");
-            Row(_whereNote, 40, 12);
-            bool canLocal = _english && _lang.SelectedIndex == 0;
+            // החלון ב-1080p ב-150% מוגבל ל-693: עם שורת המודל הוא הגיע ל-702 - מרווחים צפופים יותר כאן
+            Row(_whereNote, 36, 8);
             _choice = LocalTranslator.ProviderId;
             if (_choice != "local" && _choice != "gemini")
-                _choice = canLocal && (LocalTranslator.Installed || !Ai.HasKey) ? "local" : "gemini";
+                _choice = CanLocal && (LocalTranslator.IsInstalled(LocalModelId) || !Ai.HasKey) ? "local" : "gemini";
 
             Section(Lang.T("מה לעשות עם התוצאה"));
             _mode = new Combo();
@@ -330,30 +364,52 @@ namespace SubtitleStudio
             return b;
         }
 
-        /// <summary>המתרגם על המחשב יודע רק מאנגלית לעברית: כתוביות בשפה אחרת, או יעד אחר - האפשרות כבויה ואומרת למה.</summary>
-        private bool CanLocal { get { return _english && _lang.SelectedIndex == 0; } }
+        /// <summary>על המחשב אפשר לתרגם את הכתוביות האלה לשפה הזאת - באחד המודלים.</summary>
+        private bool CanLocal
+        {
+            get
+            {
+                foreach (string id in _modelIds) if (LocalTranslator.CanTranslate(id, _src, TargetCode)) return true;
+                return false;
+            }
+        }
+
+        /// <summary>המודל שנבחר לא יודע את זוג השפות (הקל - רק מאנגלית לעברית) - עוברים לזה שכן.</summary>
+        private void PickModel()
+        {
+            if (_model == null || _modelIds.Count == 0 || LocalTranslator.CanTranslate(LocalModelId, _src, TargetCode)) return;
+            for (int i = 0; i < _modelIds.Count; i++)
+                if (LocalTranslator.CanTranslate(_modelIds[i], _src, TargetCode)) { _model.SelectedIndex = i; return; }
+        }
 
         private void Refresh_()
         {
-            if (_optLocal == null) return;
+            if (_optLocal == null || _whereNote == null) return;
             bool can = CanLocal;
             _optLocal.Enabled = can;
-            _optLocal.Sub = can ? Lang.T("מאנגלית לעברית · בטא") : Lang.T("רק מאנגלית לעברית");
+            _optLocal.Sub = can ? Lang.T("בלי אינטרנט · בטא")
+                          : (_src == TargetCode ? Lang.T("הכתוביות כבר בשפה הזאת") : Lang.T("רק מאנגלית לעברית"));
             bool local = can && _choice == "local";
             _optLocal.Checked = local;
             _optGoogle.Checked = !local;
             _optLocal.Invalidate();
             _optGoogle.Invalidate();
+            _model.Visible = local && _modelIds.Count > 1;
             if (local)
             {
-                ModelPack p = LocalTranslator.Pack;
+                ModelPack p = ModelCatalog.ById(LocalModelId);
+                bool heavy = LocalModelId == LocalTranslator.HeavyId;
                 _connect.Text = Lang.F("הורדה של {0}, פעם אחת", Theme.Ltr(MediaInfo.FormatSize(ModelCatalog.DownloadBytes(p))));
                 _connect.Icon = Ico.Download;
                 _connect.Kind = BtnKind.Subtle;
-                _connect.Visible = !LocalTranslator.Installed;
+                _connect.Visible = !LocalTranslator.IsInstalled(LocalModelId);
                 _where.Text = Lang.T("הכתוביות נשארות במחשב. שום דבר לא נשלח.");
                 _where.Color = Theme.Good;
-                _whereNote.Text = Lang.T("בטא: פחות מדויק מגוגל. שם באותיות לועזיות שכתוב ב״רקע על התוכן״ יישאר כמו שהוא.");
+                if (heavy)
+                    _whereNote.Text = Lang.T("בטא, ואיטי: כמה שניות לכל כתובית, גם במחשב חזק. אפשר לעצור באמצע, ומה שתורגם יישמר.") +
+                                      (p.Fits ? "" : " " + ModelCatalog.FitText(p) + ".");
+                else
+                    _whereNote.Text = Lang.T("בטא: פחות מדויק מגוגל. שם באותיות לועזיות שכתוב ב״רקע על התוכן״ יישאר כמו שהוא.");
             }
             else
             {
@@ -363,10 +419,11 @@ namespace SubtitleStudio
                 _connect.Visible = !Ai.HasKey;
                 _where.Text = Lang.T("הכתוביות יישלחו לגוגל לתרגום.");
                 _where.Color = Theme.Warn;
-                _whereNote.Text = Lang.T("אם התוכן רגיש, אפשר לתרגם על המחשב - מאנגלית לעברית, בלי אינטרנט.");
+                _whereNote.Text = Lang.T("אם התוכן רגיש, אפשר לתרגם על המחשב, בלי אינטרנט.");
             }
-            // המשפט על ״על המחשב״ - רק כשזו באמת אפשרות כאן (כתוביות בעברית: האפשרות כבויה ואומרת ״רק מאנגלית לעברית״)
+            // המשפט על ״על המחשב״ - רק כשזו באמת אפשרות כאן
             _whereNote.Visible = local || can;
+            _model.Invalidate();
             _connect.Invalidate();
             _where.Invalidate();
             _whereNote.Invalidate();
@@ -375,9 +432,9 @@ namespace SubtitleStudio
 
         private void Connect()
         {
-            if (Local)
+            if (Local || (_choice == "local" && CanLocal))
             {
-                PackSetupDlg d = new PackSetupDlg(LocalTranslator.Pack);
+                PackSetupDlg d = new PackSetupDlg(ModelCatalog.ById(LocalModelId));
                 d.ShowDialog(this);
                 d.Dispose();
             }
@@ -425,13 +482,18 @@ namespace SubtitleStudio
             ReplaceInPlace = _mode.SelectedIndex == 0;
             if (_doc == null || _doc.Cues.Count == 0) return false;
             if (!CanLocal && _choice == "local") _choice = "gemini";
-            if (Local ? !LocalTranslator.Installed : !Ai.HasKey)
+            if (Local ? !LocalTranslator.IsInstalled(LocalModelId) : !Ai.HasKey)
             {
                 Connect();
-                if (Local ? !LocalTranslator.Installed : !Ai.HasKey) return false;
+                if (Local ? !LocalTranslator.IsInstalled(LocalModelId) : !Ai.HasKey) return false;
             }
-            // נזכר רק כשבאמת הייתה בחירה: בכתוביות בעברית ״גוגל״ הוא היחיד, וזה לא אומר שבפעם הבאה לא ירצו על המחשב
-            if (CanLocal) { LocalTranslator.ProviderId = _choice; Settings.SaveAll(); }
+            // נזכר רק כשבאמת הייתה בחירה: כשאין אף מודל לזוג השפות ״גוגל״ הוא היחיד, וזה לא אומר שבפעם הבאה לא ירצו על המחשב
+            if (CanLocal)
+            {
+                LocalTranslator.ProviderId = _choice;
+                if (Local) LocalTranslator.ModelId = LocalModelId;
+                Settings.SaveAll();
+            }
             return true;
         }
     }
@@ -455,12 +517,21 @@ namespace SubtitleStudio
 
         private const int BatchSize = 40;
         private readonly bool _local;
+        private readonly string _modelId = LocalTranslator.PackId, _srcCode = "en", _tgtCode = "he";
 
         /// <summary><paramref name="local"/> - על המחשב (`LocalTranslator`), בלי מילון שמות ובלי קיצור: אלה בקשות לגוגל.</summary>
         public AiRunDlg(List<Cue> cues, string lang, string context, bool local) : this(cues, lang, context)
         {
             _local = local;
             if (local) Subtitle = Lang.T("על המחשב · בטא");
+        }
+
+        /// <summary>על המחשב, במודל <paramref name="modelId"/>, מ-<paramref name="src"/> ל-<paramref name="tgt"/> (קודי שפה).</summary>
+        public AiRunDlg(List<Cue> cues, string lang, string context, bool local, string modelId, string src, string tgt) : this(cues, lang, context, local)
+        {
+            if (!string.IsNullOrEmpty(modelId)) _modelId = modelId;
+            if (!string.IsNullOrEmpty(src)) _srcCode = src;
+            if (!string.IsNullOrEmpty(tgt)) _tgtCode = tgt;
         }
 
         public AiRunDlg(List<Cue> cues, string lang, string context) : base(Lang.T("מתרגם..."), Ico.Sparkles, 520)
@@ -501,7 +572,7 @@ namespace SubtitleStudio
                 List<string> res = null;
                 try
                 {
-                    res = LocalTranslator.Run(_cues, _context, delegate (int d, int n)
+                    res = LocalTranslator.RunWith(_modelId, _srcCode, _tgtCode, _cues, _context, delegate (int d, int n)
                     {
                         try
                         {

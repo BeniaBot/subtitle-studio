@@ -254,7 +254,11 @@ namespace SubtitleStudio
         /// <summary>סוגר את המתרגם (סגירת התוכנה, מחיקת החבילה).</summary>
         public static void Stop()
         {
-            lock (_lock) { if (_ct != null) _ct.Stop(); }
+            lock (_lock)
+            {
+                if (_ct != null) _ct.Stop();
+                if (_llm != null) _llm.Stop();
+            }
         }
 
         private static readonly HashSet<string> NotNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -387,6 +391,195 @@ namespace SubtitleStudio
                 }
                 return outp;
             };
+        }
+
+        // ---------- המודל המדויק: TranslateGemma 4B דרך llama-server (0.8.46) ----------
+        // נמדד 18.11 (COMET, המדד של WMT): משפטים 0.813, כתוביות 0.783 - מול 0.784 / 0.679 של הקל. כל השפות. איטי: כ-7 שנ׳ לשורה
+        // על 4 ליבות של Core Ultra 5, ו-5.4GB זיכרון. ``docs/RESEARCH-local-models.md`` סעיף 4ב.
+
+        internal const string HeavyId = "mt-translategemma-4b";
+        /// <summary>המודל שנבחר בחלון התרגום (``mtmodel=``): `PackId` או <see cref="HeavyId"/>; ריק - עוד לא נבחר.</summary>
+        public static string ModelId = "";
+        /// <summary>כמה חלונות בכל מנה במודל המדויק - כל בקשה כמה שניות, וההתקדמות צריכה לזוז.</summary>
+        internal static int HeavyChunkWindows = 4;
+        private static LocalLlm _llm;
+        private static string _llmKey;
+
+        /// <summary>הקודים של השפות בחלון התרגום (`AiTranslateDlg.Langs`, באותו סדר), והשם באנגלית שבתבנית של TranslateGemma.</summary>
+        internal static readonly string[] Codes = { "he", "en", "ar", "ru", "fr", "es", "yi", "de", "pt", "am" };
+        internal static readonly string[] EnglishNames = { "Hebrew", "English", "Arabic", "Russian", "French", "Spanish", "Yiddish", "German", "Portuguese", "Amharic" };
+
+        public static bool IsInstalled(string id)
+        {
+            ModelPack p = ModelCatalog.ById(id);
+            return p != null && ModelCatalog.Installed(p);
+        }
+
+        /// <summary>אפשר לתרגם על המחשב מ-<paramref name="src"/> ל-<paramref name="tgt"/> במודל הזה: הקל - רק מאנגלית לעברית;
+        /// המדויק - כל זוג של שתי שפות שונות.</summary>
+        public static bool CanTranslate(string modelId, string src, string tgt)
+        {
+            if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(tgt) || src == tgt) return false;
+            if (modelId == HeavyId)
+            {
+                ModelPack p = ModelCatalog.ById(HeavyId);
+                return p != null && p.Available && Array.IndexOf(Codes, src) >= 0 && Array.IndexOf(Codes, tgt) >= 0;
+            }
+            return src == "en" && tgt == "he";
+        }
+
+        private static readonly string[][] LatinWords =
+        {
+            new string[] { "fr", "le", "la", "les", "et", "est", "une", "des", "que", "pas", "pour", "dans", "je", "vous", "nous", "avec", "qui", "ce" },
+            new string[] { "es", "el", "los", "las", "y", "es", "una", "que", "por", "para", "con", "no", "pero", "del", "se", "lo", "muy" },
+            new string[] { "de", "der", "die", "das", "und", "ist", "nicht", "ich", "ein", "eine", "mit", "auf", "sie", "zu", "den", "wir" },
+            new string[] { "pt", "o", "os", "as", "e", "uma", "que", "para", "com", "do", "da", "em", "um", "você", "não", "mas" },
+        };
+
+        /// <summary>השפה של הכתוביות: לפי הכתב (עברית ויידיש - ״he״, ערבית, קירילית, געז), ובלטינית - לפי מילים נפוצות. לא ברור - ״en״;
+        /// בלי אותיות בכלל - ריק.</summary>
+        public static string DetectSource(IEnumerable<string> texts)
+        {
+            int he = 0, ar = 0, cy = 0, et = 0, la = 0;
+            List<string> all = new List<string>();
+            foreach (string t in texts)
+            {
+                if (string.IsNullOrEmpty(t)) continue;
+                all.Add(t);
+                foreach (char c in t)
+                {
+                    if (c >= '\u05D0' && c <= '\u05EA') he++;
+                    else if (c >= '\u0600' && c <= '\u06FF') ar++;
+                    else if (c >= '\u0400' && c <= '\u04FF') cy++;
+                    else if (c >= '\u1200' && c <= '\u137F') et++;
+                    else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '\u00C0' && c <= '\u024F')) la++;
+                }
+            }
+            int max = Math.Max(Math.Max(he, ar), Math.Max(Math.Max(cy, et), la));
+            if (max == 0) return "";
+            if (max == he) return "he";
+            if (max == ar) return "ar";
+            if (max == cy) return "ru";
+            if (max == et) return "am";
+            if (LooksEnglish(all)) return "en";
+            Dictionary<string, int> hits = new Dictionary<string, int>();
+            foreach (string t in all)
+                foreach (Match m in Regex.Matches(t.ToLowerInvariant(), "[a-z\u00C0-\u024F']+"))
+                    foreach (string[] set in LatinWords)
+                        for (int k = 1; k < set.Length; k++)
+                            if (set[k] == m.Value) { int v; hits.TryGetValue(set[0], out v); hits[set[0]] = v + 1; }
+            string best = "en"; int bn = 0;
+            foreach (KeyValuePair<string, int> kv in hits) if (kv.Value > bn) { bn = kv.Value; best = kv.Key; }
+            return best;
+        }
+
+        private static string NameOf(string code)
+        {
+            int i = Array.IndexOf(Codes, code);
+            return i >= 0 ? EnglishNames[i] : "English";
+        }
+
+        /// <summary>**התבנית הרשמית** של TranslateGemma, כמו שהיא בקובץ המודל (נבדק מול ``tokenizer.chat_template`` של ה-GGUF): קודי
+        /// השפות, שורה חדשה אחרי המשפט הראשון, ושלוש לפני הטקסט.</summary>
+        internal static string HeavyPrompt(string src, string tgt, string text)
+        {
+            string sn = NameOf(src), tn = NameOf(tgt);
+            return "<start_of_turn>user\nYou are a professional " + sn + " (" + src + ") to " + tn + " (" + tgt + ") translator. Your goal is to " +
+                   "accurately convey the meaning and nuances of the original " + sn + " text while adhering to " + tn + " grammar, vocabulary, " +
+                   "and cultural sensitivities.\nProduce only the " + tn + " translation, without any additional explanations or commentary. " +
+                   "Please translate the following " + sn + " text into " + tn + ":\n\n\n" + (text ?? "").Trim() + "<end_of_turn>\n<start_of_turn>model\n";
+        }
+
+        /// <summary>השרת של המודל המדויק (אחד לכל התוכנה). הנתיבים יחסית לתיקיית ``models``.</summary>
+        internal static LocalLlm Llm()
+        {
+            ModelPack p = ModelCatalog.ById(HeavyId);
+            ModelPack eng = ModelCatalog.ById(p.Requires);
+            string root = ModelCatalog.Root;
+            string exe = Path.Combine(ModelCatalog.FolderOf(eng), "llama-server.exe");
+            string gguf = "";
+            foreach (string f in p.Files) if (f.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)) gguf = f;
+            string model = Rel(root, Path.Combine(ModelCatalog.FolderOf(p), gguf));
+            string key = exe + "|" + root + "|" + model;
+            lock (_lock)
+            {
+                if (_llm == null || _llmKey != key)
+                {
+                    if (_llm != null) _llm.Stop();
+                    _llm = new LocalLlm(exe, root, model, null, 2048);
+                    _llmKey = key;
+                }
+                return _llm;
+            }
+        }
+
+        /// <summary>מתרגם במודל שנבחר: הקל (`Run`) או המדויק. ‏<paramref name="src"/>/<paramref name="tgt"/> - קודי שפה (`Codes`).</summary>
+        public static List<string> RunWith(string modelId, string src, string tgt, List<Cue> cues, string context, Action<int, int> progress,
+                                           Func<bool> canceled, out string error, out int stoppedAt)
+        {
+            if (modelId != HeavyId) return Run(cues, context, progress, canceled, out error, out stoppedAt);
+            error = null;
+            stoppedAt = -1;
+            if (cues == null || cues.Count == 0) return new List<string>();
+            if (!IsInstalled(HeavyId)) { error = Lang.T("המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום."); return null; }
+            int n = cues.Count;
+            List<string> lines = new List<string>();
+            double[] gaps = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                lines.Add((cues[i].Text ?? "").Replace("\r", "").Replace('\n', ' ').Trim());
+                gaps[i] = i == 0 ? 0 : Math.Max(0, (cues[i].Start - cues[i - 1].End) / 1000.0);
+            }
+            // מודל שפה מבין גם טקסט בלי פיסוק (נמדד על הכתוביות הגולמיות, שורה-שורה: 0.783); עם פיסוק - חלונות של עד 3 כתוביות
+            bool punct = WindowTranslate.HasPunctuation(string.Join(" ", lines.ToArray()));
+            List<List<int>> wins;
+            if (punct) wins = WindowTranslate.Windows(n, gaps);
+            else
+            {
+                wins = new List<List<int>>();
+                for (int i = 0; i < n; i++) wins.Add(new List<int>(new int[] { i }));
+            }
+            LocalLlm llm = Llm();
+            string[] err = new string[1];
+            Func<List<string>, List<string>> tr = delegate (List<string> texts)
+            {
+                List<string> o = new List<string>();
+                foreach (string t in texts)
+                {
+                    if (string.IsNullOrEmpty((t ?? "").Trim())) { o.Add(""); continue; }
+                    string e;
+                    string r = llm.Complete(HeavyPrompt(src, tgt, t), Math.Min(512, 48 + t.Length * 2), new string[] { "<end_of_turn>" }, canceled, out e);
+                    if (r == null) { err[0] = e; return null; }
+                    o.Add(r.Replace("\r", "").Replace('\n', ' ').Trim());
+                }
+                return o;
+            };
+            List<string> outp = new List<string>();
+            for (int w0 = 0; w0 < wins.Count; w0 += HeavyChunkWindows)
+            {
+                int w1 = Math.Min(wins.Count, w0 + HeavyChunkWindows);
+                int from = wins[w0][0];
+                List<int> lastWin = wins[w1 - 1];
+                int to = lastWin[lastWin.Count - 1];
+                List<string> sub = lines.GetRange(from, to - from + 1);
+                double[] subGaps = new double[sub.Count];
+                Array.Copy(gaps, from, subGaps, 0, sub.Count);
+                List<string> got = null;
+                if (canceled == null || !canceled())
+                    got = punct ? WindowTranslate.Translate(sub, subGaps, tr, null) : tr(sub);
+                if (got == null)
+                {
+                    if (canceled != null && canceled()) return null;
+                    error = err[0] ?? Lang.T("המודל ענה בפורמט לא צפוי.");
+                    if (outp.Count == 0) return null;
+                    stoppedAt = outp.Count;
+                    for (int i = outp.Count; i < n; i++) outp.Add(cues[i].Text);
+                    return outp;
+                }
+                outp.AddRange(got);
+                if (progress != null) progress(outp.Count, n);
+            }
+            return outp;
         }
 
         /// <summary>מתרגם כתוביות מאנגלית לעברית. <paramref name="progress"/>(כמה, מתוך) - אחרי כל מנה. מחזיר תרגום לכל כתובית;

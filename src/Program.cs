@@ -170,6 +170,7 @@ namespace SubtitleStudio
                 sb.AppendLine("groqkey=" + (string.IsNullOrEmpty(Stt.GroqKey) && !GroqKeyTouched ? OnDisk("groqkey") : Ai.Protect(Stt.GroqKey)));
                 sb.AppendLine("stt=" + Stt.ProviderId);
                 sb.AppendLine("mt=" + LocalTranslator.ProviderId);
+                sb.AppendLine("mtmodel=" + LocalTranslator.ModelId);
                 sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
                 sb.AppendLine("aiperms=" + AiPerms.Serialize());
                 sb.AppendLine("aispeak=" + (AiVoice.SpeakOn ? "1" : "0"));
@@ -274,6 +275,7 @@ namespace SubtitleStudio
                         case "groqkey": Stt.GroqKey = Ai.Unprotect(v) ?? ""; break;
                         case "stt": Stt.ProviderId = v; break;
                         case "mt": LocalTranslator.ProviderId = v; break;
+                        case "mtmodel": LocalTranslator.ModelId = v; break;
                         case "spell": Spell.Enabled = v != "0"; break;
                         case "aiperms": AiPerms.Parse(v); break;
                         case "aispeak": AiVoice.SpeakOn = v == "1"; break;
