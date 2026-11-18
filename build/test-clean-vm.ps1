@@ -7,7 +7,8 @@
 #       [-User TESTPC\tester] [-Keep]
 #
 # -Net adds a network adapter on "Default Switch" (the machines have none) - needed for the stage "local" (real GitHub).
-# -Cpu/-MemGB make a weak machine; restoring the checkpoint afterwards puts the old settings back.
+# -Cpu/-MemGB make a weak machine (the machine is turned off for it, and boots cold); -CpuLimit N caps its processors at N
+# percent while it runs (keeps the logged-on session). Restoring the checkpoint afterwards puts the old settings back.
 # The report and the screenshots go to %TEMP%\subtext-vm-<machine>-<time>. ASCII only: PowerShell 5.1 reads a file
 # without a BOM as the ANSI code page. The Hebrew user name comes from vmtools (Get-BenchHebrewName).
 param(
@@ -18,6 +19,7 @@ param(
     [switch]$Net,
     [int]$Cpu = 0,
     [int]$MemGB = 0,
+    [int]$CpuLimit = 0,
     [string]$User = '',
     [switch]$Keep
 )
@@ -50,6 +52,10 @@ if ($Cpu -gt 0 -or $MemGB -gt 0) {
     Log "weak machine: cpu $Cpu, memory $MemGB GB"
 }
 if ((Get-VM $VMName).State -ne 'Running') { Start-VM $VMName; Log "started" }
+if ($CpuLimit -gt 0) {
+    try { Set-VMProcessor -VMName $VMName -Maximum $CpuLimit; Log ("processors capped at $CpuLimit% (" + (Get-VMProcessor $VMName).Count + " of them)") }
+    catch { Log ("could not cap the processors: " + $_.Exception.Message) }
+}
 $s = $null
 $sw = [Diagnostics.Stopwatch]::StartNew()
 while (-not $s -and $sw.Elapsed.TotalMinutes -lt 6) {
@@ -87,6 +93,11 @@ function Desktop([string]$Exe, [string]$Arguments = '', [int]$WaitSeconds = 0) {
 function Shot([string]$name) { Save-BenchScreen -VMName $VMName -Path (Join-Path $out ($name + '.png')) | Out-Null; Log "screenshot $name.png" }
 
 $guest = 'C:\bench'
+# the installer carries the app inside it: one older than dist\Subtext.exe tests an old app (18.11: the accurate model
+# "downloaded" in 0 s - the setup had been built before it was in the catalog)
+if ($Stages -contains 'install' -and (Get-Item (Join-Path $root 'dist\Subtext-Setup.exe')).LastWriteTime -lt (Get-Item (Join-Path $root 'dist\Subtext.exe')).LastWriteTime) {
+    throw 'dist\Subtext-Setup.exe is older than dist\Subtext.exe - run build\make-installer.cmd first'
+}
 try {
     if ($Stages -contains 'pre') {
         $pre = Invoke-Command -Session $s {
@@ -171,6 +182,10 @@ try {
         $r = Desktop 'powershell.exe' $cmd 7200
         Log ("suites: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes)
         Copy-Item "$guest\test-all.txt" (Join-Path $out 'test-all.txt') -FromSession $s -ErrorAction SilentlyContinue
+        # each failing package's whole output (test-all writes it to TEMP) - restoring the checkpoint deletes it
+        $fails = Invoke-Command -Session $s { @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Temp') -Filter 'ss-testall-fail-*.txt' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) }
+        foreach ($f in $fails) { Copy-Item $f $out -FromSession $s -ErrorAction SilentlyContinue }
+        Log ("failure reports copied: " + @($fails).Count)
         if (Test-Path (Join-Path $out 'test-all.txt')) { Get-Content (Join-Path $out 'test-all.txt') -Tail 45 | ForEach-Object { Log ("  " + $_) } }
     }
 
@@ -202,7 +217,8 @@ try {
     if (-not $Keep) {
         Stop-VM $VMName -TurnOff -Force
         if ($Checkpoint) { Restore-VMSnapshot -VMName $VMName -Name $Checkpoint -Confirm:$false; Log "restored $Checkpoint and turned off" }
-        if ($Net) { Get-VMNetworkAdapter -VMName $VMName | Remove-VMNetworkAdapter -ErrorAction SilentlyContinue }
+        # after the restore the adapter may already be gone with the checkpoint - not an error
+        if ($Net) { try { Get-VMNetworkAdapter -VMName $VMName -ErrorAction Stop | Remove-VMNetworkAdapter -ErrorAction Stop } catch { } }
     }
     Log "report: $out"
 }

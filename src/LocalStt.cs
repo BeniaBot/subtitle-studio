@@ -67,7 +67,8 @@ namespace SubtitleStudio
             {
                 if (!string.IsNullOrEmpty(FolderOverride)) return FolderOverride;
                 if (Environment.GetEnvironmentVariable("SUBSTUDIO_TEST") == "1")
-                    return Path.Combine(Path.GetTempPath(), "ss-test-stt");
+                    // תיקייה משלה בתוך TEMP: האב שלה הוא תיקיית ״models״ של הקטלוג (`ModelCatalog.Root`), ועד 18.11 הוא היה TEMP עצמו
+                    return Path.Combine(Path.Combine(Path.GetTempPath(), "ss-test-models"), "stt-he");
                 if (Runtime.PortableMode) return Path.Combine(Path.Combine(Runtime.ExeDir, "models"), "stt-he");
                 return Path.Combine(Path.Combine(Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SubtitleStudio"), "models"), "stt-he");

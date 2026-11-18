@@ -13,6 +13,9 @@ try {
     function T($n) { $asm.GetType("SubtitleStudio.$n") }
     [void](T 'Runtime').GetMethod('Prepare', $SF).Invoke($null, @())
     $lm = T 'LocalModel'; $cat = T 'ModelCatalog'
+    # the REAL models folder of this user (SUBSTUDIO_TEST alone puts it under TEMP - an 8.3 path for a Hebrew user, which
+    # would hide the very thing tested here: engines running from a folder with Hebrew letters in its path)
+    $lm.GetField('FolderOverride', $SF).SetValue($null, [string](Join-Path $env:LOCALAPPDATA 'SubtitleStudio\models\stt-he'))
     Say ("models folder: " + $cat.GetProperty('Root', $SF).GetValue($null, $null))
     Say ("system msvcp140.dll: " + (Test-Path "$env:WINDIR\System32\msvcp140.dll") + ", vcruntime140.dll: " + (Test-Path "$env:WINDIR\System32\vcruntime140.dll"))
 
