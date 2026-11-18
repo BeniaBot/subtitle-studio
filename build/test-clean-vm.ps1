@@ -110,6 +110,9 @@ try {
         $stage = Join-Path $out 'bench'
         New-Item -ItemType Directory -Force (Join-Path $stage 'repo'), (Join-Path $stage 'data') | Out-Null
         foreach ($d in @('build', 'dist', 'src', 'docs')) { Copy-Item (Join-Path $root $d) (Join-Path $stage "repo\$d") -Recurse -Force }
+        # test-release compares the packed engine with its source - a build tool, not something the app needs
+        New-Item -ItemType Directory -Force (Join-Path $stage 'repo\tools') | Out-Null
+        Copy-Item (Join-Path $root 'tools\ffmpeg.exe') (Join-Path $stage 'repo\tools\ffmpeg.exe')
         Get-ChildItem $root -File | Where-Object { $_.Extension -in '.json', '.md', '.cmd' } | Copy-Item -Destination (Join-Path $stage 'repo') -Force
         Copy-Item (Join-Path $root 'dist\Subtext-Setup.exe') $stage
         Copy-Item 'D:\Claude\_research\local-models\data\kan-90.wav' (Join-Path $stage 'data')

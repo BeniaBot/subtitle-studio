@@ -6,7 +6,9 @@ $ErrorActionPreference = 'Stop'
 $dest = Join-Path $env:TEMP 'ss-gallery'
 New-Item -ItemType Directory -Force $dest | Out-Null
 
-$ff = Join-Path $env:LOCALAPPDATA 'SubtitleStudio\runtime\ffmpeg.exe'
+# since 0.8.8 every engine has its own folder (runtime\<id>\ffmpeg.exe); runtime\ffmpeg.exe is the old place
+$ff = @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'SubtitleStudio\runtime') -Recurse -Filter ffmpeg.exe -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | ForEach-Object { $_.FullName }) | Select-Object -First 1
+if (-not $ff) { $ff = Join-Path $env:LOCALAPPDATA 'SubtitleStudio\runtime\ffmpeg.exe' }
 if (-not (Test-Path $ff)) { $ff = Join-Path (Split-Path $PSScriptRoot -Parent) 'tools\ffmpeg.exe' }
 if (-not (Test-Path $ff)) {
     Write-Host 'ffmpeg not found - run the app once so it unpacks its engine, or put ffmpeg.exe in tools\'

@@ -14,6 +14,15 @@ if ($env:TEMP -match '~') {
     $longTemp = Join-Path $env:LOCALAPPDATA 'Temp'
     if (Test-Path -LiteralPath $longTemp) { $env:TEMP = $longTemp; $env:TMP = $longTemp }
 }
+# The packages load dist\Subtext.exe from its bytes - it has no location then, so its engine (the ffmpeg at its end) is
+# found through SUBSTUDIO_EXE; and on a machine where Subtext never ran nothing is unpacked yet: do it once here, the
+# way the app does on its first run (the clean test machine, 18.11: every media package failed without it).
+$env:SUBSTUDIO_EXE = Join-Path (Split-Path $here -Parent) 'dist\Subtext.exe'
+try {
+    $env:SUBSTUDIO_TEST = '1'
+    $asm0 = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($env:SUBSTUDIO_EXE))
+    [void]$asm0.GetType('SubtitleStudio.Runtime').GetMethod('Prepare', [Reflection.BindingFlags]'NonPublic,Public,Static').Invoke($null, @())
+} catch { Write-Host ('the engine was not unpacked: ' + $_.Exception.Message) }
 $expect = [ordered]@{
     'logic' = 224; 'autotime' = 36; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 65; 'layout' = 125; 'project' = 115; 'screens' = 44
@@ -38,7 +47,8 @@ foreach ($n in $names) {
     # ffmpeg children of the package (and only those - never the user's own Subtext) are killed afterwards.
     $log = Join-Path $env:TEMP ('ss-testall-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.txt')
     $job = Start-Job -ArgumentList $file, $lang, $log { param($f, $l, $log)
-        $a = '-NoProfile -ExecutionPolicy Bypass -File "' + $f + '"' + $(if ($l) { ' -Lang ' + $l } else { '' })
+        # UTF-8 out: under a system code page without Hebrew (an English Windows) every Hebrew check name came back as "?"
+        $a = '-NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncoding = [Text.Encoding]::UTF8; & ''' + $f + "'" + $(if ($l) { ' -Lang ' + $l } else { '' }) + '"'
         # stdin from an empty file: otherwise the package (and an ffmpeg without -nostdin in it) inherits the
         # job's own stdin - the pipe PowerShell talks to the job over - and ffmpeg sat reading it (8.10)
         [IO.File]::WriteAllText($log + '.in', '')
@@ -47,7 +57,7 @@ foreach ($n in $names) {
         Get-CimInstance Win32_Process -Filter ("Name='ffmpeg.exe' AND ParentProcessId=" + $p.Id) | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         $o = ''
         foreach ($x in $log, ($log + '.err'), ($log + '.in')) {
-            try { $fs = New-Object IO.FileStream($x, 'Open', 'Read', 'ReadWrite'); $sr = New-Object IO.StreamReader($fs); $o += $sr.ReadToEnd(); $sr.Dispose() } catch { }
+            try { $fs = New-Object IO.FileStream($x, 'Open', 'Read', 'ReadWrite'); $sr = New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8); $o += $sr.ReadToEnd(); $sr.Dispose() } catch { }
             try { [IO.File]::Delete($x) } catch { }
         }
         $o }

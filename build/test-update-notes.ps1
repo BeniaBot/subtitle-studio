@@ -6,7 +6,7 @@ $ST = [Reflection.BindingFlags]'NonPublic,Public,Static'
 $IN = [Reflection.BindingFlags]'NonPublic,Public,Instance'
 $cl = $asm.GetType('SubtitleStudio.Changelog')
 $build = $cl.GetMethod('Build', $ST)
-$json = [IO.File]::ReadAllText('D:\Claude\subtitle-studio\changelog.json', [Text.Encoding]::UTF8)
+$json = [IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'changelog.json'), [Text.Encoding]::UTF8)
 
 $pass=0; $fail=0
 function Check($n,$ok,$d){ if($ok){$script:pass++;Write-Host "  ok    $n   $d"}else{$script:fail++;Write-Host "  FAIL  $n   $d" -ForegroundColor Red} }
