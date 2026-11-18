@@ -54,6 +54,33 @@ try {
         Say ("runtime dlls: " + (($py.Modules | Where-Object { $_.ModuleName -match '^(msvcp140|vcruntime140|vcruntime140_1|onnxruntime)\.dll$' } | ForEach-Object { $_.FileName }) -join ' | '))
     }
     $lt.GetMethod('Stop', $SF).Invoke($null, @())
+
+    # ---- the accurate model (TranslateGemma 4B, 2.4 GB in two parts) ----
+    $hv = $cat.GetMethod('ById', $SF).Invoke($null, @('mt-translategemma-4b'))
+    Say ("heavy fits this machine: " + $hv.Fits + " (" + $cat.GetMethod('FitText', $SF).Invoke($null, @($hv)) + ")")
+    $argv = New-Object object[] 4; $argv[0] = $hv; $argv[1] = $prog; $argv[2] = $null; $argv[3] = $null
+    $sw.Restart()
+    $ok = $cat.GetMethod('Download', $SF).Invoke($null, $argv)
+    Say ("heavy download: ok=$ok err=[" + $argv[3] + "] {0:N1}s" -f $sw.Elapsed.TotalSeconds)
+    $few = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($cueT))
+    for ($k = 0; $k -lt 12 -and $k -lt $list.Count; $k++) { [void]$few.Add($list[$k]) }
+    $a9 = New-Object object[] 9; $a9[0] = 'mt-translategemma-4b'; $a9[1] = 'en'; $a9[2] = 'he'; $a9[3] = $few; $a9[4] = ''; $a9[5] = $null; $a9[6] = $null; $a9[7] = $null; $a9[8] = $null
+    $peak = 0
+    $sw.Restart()
+    $job = [powershell]::Create().AddScript({ param($lt, $SF, $a9) $lt.GetMethod('RunWith', $SF).Invoke($null, $a9) }).AddArgument($lt).AddArgument($SF).AddArgument($a9)
+    $h = $job.BeginInvoke()
+    while (-not $h.IsCompleted) {
+        Start-Sleep -Milliseconds 500
+        $ls = Get-Process llama-server -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($ls -and $ls.WorkingSet64 -gt $peak) { $peak = $ls.WorkingSet64 }
+    }
+    # the List comes back unrolled into its strings
+    $htr = @($job.EndInvoke($h))
+    Say ("heavy run: {0:N1}s for {1} cues, error [{2}], llama-server peak {3} MB" -f $sw.Elapsed.TotalSeconds, $few.Count, $a9[7], [math]::Round($peak / 1MB))
+    for ($k = 0; $k -lt 6 -and $k -lt @($htr).Count; $k++) { Say ("   " + $few[$k].Text + "  =>  " + $htr[$k]) }
+    $ls = Get-Process llama-server -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($ls) { Say ("llama runtime dlls: " + (($ls.Modules | Where-Object { $_.ModuleName -match '^(msvcp140|vcruntime140|vcruntime140_1)\.dll$' } | ForEach-Object { $_.FileName }) -join ' | ')) }
+    $lt.GetMethod('Stop', $SF).Invoke($null, @())
     Say "DONE"
 } catch {
     Say ("EXCEPTION: " + $_.Exception.ToString())

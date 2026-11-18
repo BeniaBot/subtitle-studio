@@ -7,6 +7,13 @@
 param([string]$Only = '', [int]$Timeout = 900)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
+# Under a user with a Hebrew name, %TEMP% can be an 8.3 path (C:\Users\0AC8~1\...) that Windows PowerShell 5.1 cannot
+# resolve: on the clean test machine (18.11) every package crashed in its cleanup ("An object at the specified path
+# C:\Users\0AC8~1 does not exist") after its checks had passed. The same folder by its long name - the packages inherit it.
+if ($env:TEMP -match '~') {
+    $longTemp = Join-Path $env:LOCALAPPDATA 'Temp'
+    if (Test-Path -LiteralPath $longTemp) { $env:TEMP = $longTemp; $env:TMP = $longTemp }
+}
 $expect = [ordered]@{
     'logic' = 224; 'autotime' = 36; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15
     'update-notes' = 30; 'ui' = 65; 'layout' = 125; 'project' = 115; 'screens' = 44
