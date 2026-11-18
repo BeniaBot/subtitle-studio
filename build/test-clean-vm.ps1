@@ -84,14 +84,27 @@ function Desktop([string]$Exe, [string]$Arguments = '', [int]$WaitSeconds = 0) {
         $st = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
         Register-ScheduledTask -TaskName $name -Action $a -Principal $p -Settings $st | Out-Null
         Start-ScheduledTask -TaskName $name
-        $state = 'Running'
+        $state = 'Running'; $note = ''
         if ($wait -gt 0) {
             $w = [Diagnostics.Stopwatch]::StartNew()
-            do { Start-Sleep -Milliseconds 500; $state = (Get-ScheduledTask -TaskName $name).State } while ($state -eq 'Running' -and $w.Elapsed.TotalSeconds -lt $wait)
+            # The scheduler can fail a query now and then (18.11, 8 minutes into test-all: "The system cannot find the
+            # file specified" - and the whole run stopped). One failed query is not the end: keep asking, and only after
+            # a minute of failures in a row wait for the process itself, found by its command line
+            $miss = 0
+            do {
+                Start-Sleep -Milliseconds 500
+                try { $state = [string](Get-ScheduledTask -TaskName $name -ErrorAction Stop).State; $miss = 0 }
+                catch { $miss++; if ($miss -eq 1) { $note = $_.Exception.Message }; if ($miss -ge 120) { $state = 'Lost' } }
+            } while ($state -eq 'Running' -and $w.Elapsed.TotalSeconds -lt $wait)
+            if ($state -eq 'Lost') {
+                $key = if ($arg) { $arg } else { $exe }
+                while ($w.Elapsed.TotalSeconds -lt $wait -and @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($key) }).Count -gt 0) { Start-Sleep -Seconds 2 }
+            }
         } else { Start-Sleep -Seconds 2 }
-        $info = Get-ScheduledTaskInfo -TaskName $name
-        Unregister-ScheduledTask -TaskName $name -Confirm:$false
-        [pscustomobject]@{ LastResult = $info.LastTaskResult; State = [string]$state }
+        $last = $null
+        try { $last = (Get-ScheduledTaskInfo -TaskName $name -ErrorAction Stop).LastTaskResult } catch { }
+        try { Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction Stop } catch { }
+        [pscustomobject]@{ LastResult = $last; State = [string]$state; Note = $note }
     } -ArgumentList $Exe, $Arguments, $WaitSeconds, $userName
 }
 function Shot([string]$name) { Save-BenchScreen -VMName $VMName -Path (Join-Path $out ($name + '.png')) | Out-Null; Log "screenshot $name.png" }
@@ -184,7 +197,7 @@ try {
         $cmd = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$guest\repo\build\test-all.ps1'$only *> '$guest\test-all.txt'`""
         $sw.Restart()
         $r = Desktop 'powershell.exe' $cmd 7200
-        Log ("suites: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes)
+        Log (("suites: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes) + $(if ($r.Note) { " (the scheduler once said: " + $r.Note + ")" } else { '' }))
         Copy-Item "$guest\test-all.txt" (Join-Path $out 'test-all.txt') -FromSession $s -ErrorAction SilentlyContinue
         # each failing package's whole output (test-all writes it to TEMP) - restoring the checkpoint deletes it
         $fails = Invoke-Command -Session $s { @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Temp') -Filter 'ss-testall-fail-*.txt' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) }
@@ -208,7 +221,7 @@ try {
         $cmd = "-NoProfile -ExecutionPolicy Bypass -File `"$guest\guest-local.ps1`" -Exe `"$exe`" -Wav `"$guest\data\kan-90.wav`" -Cues `"$guest\data\cues_en.json`" -Out `"$guest\local.txt`"" + $(if ($Heavy) { ' -Heavy' } else { '' })
         $sw.Restart()
         $r = Desktop 'powershell.exe' $cmd 3600
-        Log ("local: task result " + $r.LastResult + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes)
+        Log (("local: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes) + $(if ($r.Note) { " (the scheduler once said: " + $r.Note + ")" } else { '' }))
         Copy-Item "$guest\local.txt" (Join-Path $out 'local.txt') -FromSession $s -ErrorAction SilentlyContinue
         if (Test-Path (Join-Path $out 'local.txt')) { Get-Content (Join-Path $out 'local.txt') -Encoding UTF8 | ForEach-Object { Log ("  " + $_) } }
     }
