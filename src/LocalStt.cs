@@ -263,11 +263,19 @@ namespace SubtitleStudio
                                           Action<long, long> progress, Func<bool> canceled, out string error)
         {
             long before = done;
-            int tries = 0;
+            int tries = 0, slow = 0;
+            double best = 0;
             while (true)
             {
                 done = before;
-                try { return FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error); }
+                try
+                {
+                    int r = FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error, ref best, slow < SlowRestarts);
+                    if (r != 3) return r;
+                    slow++;
+                    Ai.Log("הורדת מודל: החיבור זחל, מתחבר מחדש מאותה נקודה (" + slow + ")");
+                    continue;
+                }
                 catch (WebException wex)
                 {
                     if (wex.Response != null || ++tries > Retries) throw;
@@ -334,8 +342,24 @@ namespace SubtitleStudio
         /// <summary>מוריד קובץ אחד אל <paramref name="part"/>, וממשיך אותו אם כבר התחיל. <paramref name="gz"/> - הקובץ דחוס (נבדק
         /// שמתחיל כמו gz); אחרת - רק שזה לא דף אינטרנט (חסימה של סינון).
         /// 0 - ירד כולו, 1 - בוטל, 2 - לא מה שביקשנו (ההודעה ב-<paramref name="error"/>).</summary>
+        /// <summary>**חיבור שזוחל - מתחברים מחדש** (18.11): הורדה של 2.4GB מגיטהאב ירדה ב-45KB לשנייה, כשחיבור חדש לאותו קובץ
+        /// באותו רגע קיבל 2,400 (גם curl וגם ‎.NET) - החיבור הארוך ״נתקע״ על נתיב איטי ונשאר שם. כל <see cref="SlowWindowSec"/>
+        /// שניות מודדים; קצב מתחת לחמישית מהטוב ביותר שהקובץ כבר קיבל, או מתחת ל-<see cref="SlowFloor"/> - מנתקים וממשיכים
+        /// מאותה נקודה (Range), עד <see cref="SlowRestarts"/> פעמים לקובץ. בקו שבאמת איטי זה לא מזיק: ההורדה ממשיכה מאיפה שהייתה.</summary>
+        internal static int SlowWindowSec = 20;
+        internal static long SlowFloor = 40 * 1024;
+        internal static int SlowRestarts = 8;
+
         private static int FetchTo(string url, string part, long expect, bool gz, ref long done, long total,
                                    Action<long, long> progress, Func<bool> canceled, out string error)
+        {
+            double best = 0;
+            return FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error, ref best, false);
+        }
+
+        /// <returns>0 ירד, 1 בוטל, 2 לא הקובץ שלנו (דף חסימה), 3 זחל - להתחבר מחדש.</returns>
+        private static int FetchTo(string url, string part, long expect, bool gz, ref long done, long total,
+                                   Action<long, long> progress, Func<bool> canceled, out string error, ref double best, bool mayRestart)
         {
             error = null;
             long have = 0;
@@ -363,11 +387,11 @@ namespace SubtitleStudio
                 if (have > 0 && bad != null && (int)bad.StatusCode == 416)
                 {
                     Kill(part);
-                    return FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error);
+                    return FetchTo(url, part, expect, gz, ref done, total, progress, canceled, out error, ref best, mayRestart);
                 }
                 throw;
             }
-            bool stop = false, notOurs = false;
+            bool stop = false, notOurs = false, crawl = false;
             using (res)
             {
                 bool partial = res.StatusCode == HttpStatusCode.PartialContent;
@@ -380,6 +404,8 @@ namespace SubtitleStudio
                     byte[] buf = new byte[65536];
                     bool first = !partial;
                     int n;
+                    DateTime winStart = DateTime.UtcNow;
+                    long winBytes = 0;
                     while ((n = s.Read(buf, 0, buf.Length)) > 0)
                     {
                         if (canceled != null && canceled()) { stop = true; break; }
@@ -397,11 +423,22 @@ namespace SubtitleStudio
                         fs.Write(buf, 0, n);
                         done += n;
                         if (progress != null) progress(done, total);
+                        winBytes += n;
+                        double sec = (DateTime.UtcNow - winStart).TotalSeconds;
+                        if (sec >= SlowWindowSec)
+                        {
+                            double rate = winBytes / sec;
+                            if (mayRestart && (rate < SlowFloor || rate < best / 5)) { crawl = true; break; }
+                            if (rate > best) best = rate;
+                            winStart = DateTime.UtcNow;
+                            winBytes = 0;
+                        }
                     }
                 }
             }
             if (notOurs) { Kill(part); return 2; }
             if (stop) return 1;
+            if (crawl) return 3;
             // חיבור שנסגר באמצע נגמר לפעמים בלי שגיאה - רק בפחות בייטים. זה ״נקטע״, לא ״ירד״: ממשיכים
             long got = 0;
             try { got = new FileInfo(part).Length; }

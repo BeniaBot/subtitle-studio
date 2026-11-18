@@ -8,7 +8,7 @@
 #
 # **מה לא נבדק כאן:** המנוע והמודל האמיתיים. נמדדו ביד (15.11.2026: WER 10.1%, נתיב עברי, 15 דקות
 # בארבעה קטעים בלי מילה חסרה או כפולה בתפרים) - docs\RESEARCH-local-models.md.
-# צפוי: 145 בדיקות.
+# צפוי: 146 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $root = Split-Path $PSScriptRoot -Parent
@@ -772,11 +772,18 @@ $dlServer = {
                 elseif ($from -gt 0) { $status = '416 Range Not Satisfiable'; $body = New-Object byte[] 0 }
                 else { $body = $all }
                 if ($fault -like 'cut:*') { $send = [int]$fault.Substring(4) }
+                $crawlFrom = -1; if ($fault -like 'slow:*') { $crawlFrom = [int]$fault.Substring(5) }
             }
             $hb = [Text.Encoding]::ASCII.GetBytes("HTTP/1.1 $status`r`nContent-Type: $type`r`nContent-Length: " + $body.Length + "`r`nConnection: close`r`n`r`n")
             try {
                 $ns.Write($hb, 0, $hb.Length)
                 if ($send -ge 0) { $ns.Write($body, 0, [Math]::Min($send, $body.Length)) }
+                elseif ($crawlFrom -ge 0) {
+                    # a connection that crawls: the start at once, then a trickle of 1 KB every 300 ms (until the client hangs up)
+                    $ns.Write($body, 0, [Math]::Min($crawlFrom, $body.Length)); $off = $crawlFrom
+                    $t0 = [DateTime]::UtcNow
+                    while ($off -lt $body.Length -and ([DateTime]::UtcNow - $t0).TotalSeconds -lt 20) { $n = [Math]::Min(1024, $body.Length - $off); $ns.Write($body, $off, $n); $ns.Flush(); $off += $n; Start-Sleep -Milliseconds 300 }
+                }
                 else { $off = 0; while ($off -lt $body.Length) { $n = [Math]::Min(16384, $body.Length - $off); $ns.Write($body, $off, $n); $off += $n } }
                 $ns.Flush()
             } catch { }
@@ -836,6 +843,18 @@ Remove-Item (Join-Path $s.folder 'c.txt')
 $r = Download
 Check 'קובץ אחד חסר: רק הוא יורד שוב' ($r.ok -and @(Reqs).Count -eq 4 -and @(Reqs)[3] -match 'c\.txt\.gz') ("" + @(Reqs).Count)
 StopDl
+
+# חיבור שזוחל (18.11: 2.4GB מגיטהאב ירדו ב-45KB לשנייה, וחיבור חדש באותו רגע קיבל 2,400) - מתחברים מחדש מאותה נקודה
+$lmT.GetField('SlowWindowSec', $SF).SetValue($null, 1)
+$s = StartDl @('', 'slow:100000')
+$sw0 = [Diagnostics.Stopwatch]::StartNew()
+$r = Download
+$secs = $sw0.Elapsed.TotalSeconds
+$reqs = @(Reqs)
+$resumedB = @($reqs | Where-Object { $_ -match 'b\.bin\.gz' -and $_ -match '(?im)^range:\s*bytes=(\d+)-' })
+Check 'חיבור שזוחל: מתחבר מחדש מאותה נקודה (Range) תוך כמה שניות, והקובץ שלם' ($r.ok -and $resumedB.Count -ge 1 -and (Same (Join-Path $s.folder 'b.bin') $rawB) -and $secs -lt 12) ($r.err + ' ' + [int]$secs + 's, reqs ' + $reqs.Count)
+StopDl
+$lmT.GetField('SlowWindowSec', $SF).SetValue($null, 20)
 
 # החיבור נסגר באמצע הקובץ הגדול
 $lmT.GetField('Retries', $SF).SetValue($null, 4)
