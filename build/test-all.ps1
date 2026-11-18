@@ -2,9 +2,11 @@
 # "Green with fewer checks is not green" (CLAUDE.md): a package that passes with
 # fewer checks than expected, times out, or crashes counts as a failure.
 # A stuck package is usually a .NET crash dialog - hang-report.ps1 prints it.
-# ASCII only.  Usage: test-all.ps1 [-Only name,name] [-Timeout 900]
+# ASCII only.  Usage: test-all.ps1 [-Only name,name] [-Timeout 900] [-AllowSkip]
+# -AllowSkip (the clean test machine): a package that SAYS it skipped N checks ("SKIP ... (N ...)" - data that
+# exists only on Binyamin's computer, like the focus-video shots) is green if passed + N reaches the count.
 # A name like buttons@en runs test-buttons.ps1 -Lang en.
-param([string]$Only = '', [int]$Timeout = 900)
+param([string]$Only = '', [int]$Timeout = 900, [switch]$AllowSkip)
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 # Under a user with a Hebrew name, %TEMP% can be an 8.3 path (C:\Users\0AC8~1\...) that Windows PowerShell 5.1 cannot
@@ -78,7 +80,9 @@ foreach ($n in $names) {
     $p = -1; $f = -1
     if ($m.Count -gt 0) { $last = $m[$m.Count - 1]; $p = [int]$last.Groups[1].Value; $f = [int]$last.Groups[2].Value }
     $want = if ($expect.Contains($n)) { $expect[$n] } else { -1 }
-    $ok = ($state -eq 'done') -and ($f -eq 0) -and ($p -ge 0) -and ($want -lt 0 -or $p -ge $want)
+    $skipped = 0
+    if ($AllowSkip) { foreach ($sm in [regex]::Matches($out, '(?m)^\s*SKIP\b.*?\((\d+)\b')) { $skipped += [int]$sm.Groups[1].Value } }
+    $ok = ($state -eq 'done') -and ($f -eq 0) -and ($p -ge 0) -and ($want -lt 0 -or $p + $skipped -ge $want)
     $why = ''
     if ($state -ne 'done') { $why = 'timed out' }
     elseif ($p -lt 0) { $why = 'no summary line (crashed?)' }
@@ -92,7 +96,7 @@ foreach ($n in $names) {
     }
     if ($p -gt 0) { $total += $p }
     $secs = [int]($sw.Elapsed.TotalSeconds - $t0)
-    $line = ('{0,-13} {1,5} / {2,-5} {3,5}s  {4}' -f $n, $p, $want, $secs, $(if ($ok) { 'ok' } else { 'FAIL  ' + $why }))
+    $line = ('{0,-13} {1,5} / {2,-5} {3,5}s  {4}' -f $n, $p, $want, $secs, $(if ($ok) { 'ok' + $(if ($skipped -gt 0 -and $p -lt $want) { " ($skipped skipped - said so)" } else { '' }) } else { 'FAIL  ' + $why }))
     Write-Host $line
 }
 Write-Host ''

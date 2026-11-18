@@ -293,6 +293,8 @@ $g.Close(); $g.Dispose()
 # הבאג: Waveform.Ready נשאר false, הציר צייר "מכין את פס הקול" לנצח
 # ורענן 30 פעמים בשנייה. הקובץ נוצר על ידי build\make-testmedia.ps1.
 $silent = Join-Path $env:TEMP 'ss-gallery\silent.mp4'
+# **ליצור אם חסר** (18.11): על מכונה נקייה test-ui רץ לפני כל חבילה שיוצרת את קובצי הבדיקה, ושלוש הבדיקות כאן דולגו בשקט
+if (-not (Test-Path $silent)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
 if (Test-Path $silent) {
     Write-Host 'סרט בלי קול'
     $q = NewForm 1400 900

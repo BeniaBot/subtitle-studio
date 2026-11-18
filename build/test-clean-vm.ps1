@@ -194,7 +194,7 @@ try {
 
     if ($Stages -contains 'suites') {
         $only = if ($Packages.Count -gt 0) { ' -Only ' + ($Packages -join ',') } else { '' }
-        $cmd = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$guest\repo\build\test-all.ps1'$only *> '$guest\test-all.txt'`""
+        $cmd = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$guest\repo\build\test-all.ps1'$only -AllowSkip *> '$guest\test-all.txt'`""
         $sw.Restart()
         $r = Desktop 'powershell.exe' $cmd 7200
         Log (("suites: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes) + $(if ($r.Note) { " (the scheduler once said: " + $r.Note + ")" } else { '' }))
