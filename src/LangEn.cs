@@ -1931,8 +1931,6 @@ namespace SubtitleStudio
             "פחות טעויות, ועדיין בלי להכביד: שעה של שיעור בכרבע שעה.", "Fewer mistakes, and still light: an hour-long lesson in about a quarter of an hour.",
             "תרגום מאנגלית לעברית - קל ומהיר", "English to Hebrew translation - light and fast",
             "מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים.", "Translates hundreds of lines a minute. Good with whole sentences, less so with names and terms.",
-            "תרגום לכל השפות - מדויק", "Translation for all languages - accurate",
-            "מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק.", "A translation model by Google. Slower, and needs a strong computer.",
             "פיסוק לאנגלית", "English punctuation",
             "מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר.", "Adds periods and commas to English text before translating - the translation comes out better.",
             "לשימוש לא מסחרי בלבד.", "For non-commercial use only.",
@@ -1976,6 +1974,8 @@ namespace SubtitleStudio
             "מעלה את המתרגם...", "Starting the translator...",
             "המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום.", "The on-device translator is not downloaded yet. You can download it in the translation window.",
             "התרגום על המחשב יודע כרגע רק מאנגלית לעברית.", "On-device translation currently knows only English to Hebrew.",
+            "תרגום מדויק - כבד", "Accurate translation - heavy",
+            "המתרגם המדויק ביותר על המחשב, לכל השפות. איטי: שעה של כתוביות בכשעה וחצי, במחשב חזק.", "The most accurate on-device translator, for all languages. Slow: an hour of subtitles in about an hour and a half on a strong computer.",
         };
 
         public static void Fill(Dictionary<string, string> d)

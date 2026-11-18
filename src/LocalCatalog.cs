@@ -183,10 +183,12 @@ namespace SubtitleStudio
                 "38AADFAE3DD591032D6E46DDCC38A7EC706E1F1429236CE9266882DBA6C3CE83",
                 "E1BD37402EA3EA193D7116FA5FAEAEDB182EA7499A239BAD4D74472B8D7F5411",
                 "006E2E0F144AE9425CF7FF6B81EB25DE0165DA5BFA8D220DFB75203AD9CA4EE4" };
-            // לא נמדד עדיין (הקובץ הראשון היה פגום); כ-4.8GB זיכרון בריצה
-            r.Add(Pack("mt-translategemma-4b", ModelTask.Translate, ModelTier.Heavy, Lang.T("תרגום לכל השפות - מדויק"),
-                       Lang.T("מודל תרגום של גוגל. איטי יותר וצריך מחשב חזק."), "*",
-                       2490, 4800, "Gemma", "", "engine-llama", false));
+            // **המדויק ביותר על המחשב** (18.11, COMET - מדד המשמעות של WMT): משפטים 0.813, כתוביות 0.783; המתרגם הקל 0.784 / 0.679.
+            // (chrF++ דירג אותו נמוך - הוא מתגמל תרגום מילולי; בעין הקל כותב ״סלט מילים״ בכתוביות גולמיות.) התבנית הרשמית שבקובץ,
+            // בחירה ודאית, בלי ״קנס חזרה״. 7 שנ׳ לשורה על 4 ליבות של Core Ultra 5, ‏5.4GB זיכרון. לכל השפות
+            r.Add(Pack("mt-translategemma-4b", ModelTask.Translate, ModelTier.Heavy, Lang.T("תרגום מדויק - כבד"),
+                       Lang.T("המתרגם המדויק ביותר על המחשב, לכל השפות. איטי: שעה של כתוביות בכשעה וחצי, במחשב חזק."), "*",
+                       2490, 5400, "Gemma", "", "engine-llama", false));
             r[r.Count - 1].Credit = "Google TranslateGemma · llama.cpp";
             // 30MB, רבע שנייה לכל התמלול; העלה את התרגום מ-36.4 ל-42.3 על כתוביות בלי פיסוק
             r.Add(Pack("punct-en", ModelTask.Punctuate, ModelTier.Light, Lang.T("פיסוק לאנגלית"),
