@@ -2,7 +2,7 @@
 # GitHub into the user's real %LOCALAPPDATA%, transcription of a Hebrew clip, translation of English cues - with the app's
 # own code (the EXE loaded as an assembly), and what the processes loaded. ASCII only (PowerShell 5.1, no BOM).
 #   guest-local.ps1 -Exe <Subtext.exe> -Wav <hebrew clip> -Cues <cues_en.json> -Out <report.txt>
-param([string]$Exe, [string]$Wav, [string]$Cues, [string]$Out)
+param([string]$Exe, [string]$Wav, [string]$Cues, [string]$Out, [switch]$Heavy)
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $log = New-Object Collections.Generic.List[string]
@@ -59,6 +59,8 @@ try {
     $lt.GetMethod('Stop', $SF).Invoke($null, @())
 
     # ---- the accurate model (TranslateGemma 4B, 2.4 GB in two parts) ----
+    # 2.4 GB: on a line of 0.35 MB/s that is two hours - only on request (-Heavy)
+    if (-not $Heavy) { Say 'heavy: skipped (no -Heavy)'; $lt.GetMethod('Stop', $SF).Invoke($null, @()); Say 'DONE'; return }
     $hv = $cat.GetMethod('ById', $SF).Invoke($null, @('mt-translategemma-4b'))
     Say ("heavy fits this machine: " + $hv.Fits + " (" + $cat.GetMethod('FitText', $SF).Invoke($null, @($hv)) + ")")
     $argv = New-Object object[] 4; $argv[0] = $hv; $argv[1] = $prog; $argv[2] = $null; $argv[3] = $null
