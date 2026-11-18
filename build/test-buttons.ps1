@@ -20,7 +20,7 @@
 #
 # ‏-Lang en: אותן בדיקות בממשק אנגלי (0.8.1). האנגלית ארוכה מהעברית, ו״טקסט
 # נכנס לכפתור״ הוא בדיוק מה שנשבר בה.
-param([string]$Lang = 'he')
+param([string]$Lang = 'he', [double]$Scale = 1.25)
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -64,7 +64,9 @@ function NewOf($n, $argv) { return [Activator]::CreateInstance((TY $n), $IN -bor
 $pass = 0; $fail = 0
 function Check($n, $ok, $d) { if ($ok) { $script:pass++; Write-Host "  ok    $n   $d" } else { $script:fail++; Write-Host "  FAIL  $n   $d" -ForegroundColor Red } }
 
-$scale = 1.25
+# 1.25 = Binyamin's screen. -Scale 1.0 on a machine at 100% (the clean test machine, 18.11): with 1.25 forced there the fonts
+# are measured at 96 DPI and the layout at 120 - a mix no real user has
+$scale = $Scale
 (TY 'Theme').GetField('Scale', $ST).SetValue($null, [float]$scale)
 [void](TY 'Lang').GetMethod('Set', $ST).Invoke($null, @([string]$Lang))
 

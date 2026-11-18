@@ -21,7 +21,13 @@ $env:SUBSTUDIO_EXE = Join-Path (Split-Path $here -Parent) 'dist\Subtext.exe'
 try {
     $env:SUBSTUDIO_TEST = '1'
     $asm0 = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($env:SUBSTUDIO_EXE))
-    [void]$asm0.GetType('SubtitleStudio.Runtime').GetMethod('Prepare', [Reflection.BindingFlags]'NonPublic,Public,Static').Invoke($null, @())
+    $rtT = $asm0.GetType('SubtitleStudio.Runtime'); $bf = [Reflection.BindingFlags]'NonPublic,Public,Static'
+    [void]$rtT.GetMethod('Prepare', $bf).Invoke($null, @())
+    # and FIRST on PATH: a package that does not call Prepare finds ffmpeg through PATH (Ff.Locate) - on Binyamin's computer
+    # that was a full 2025 build in Program Files, not the engine users get; on the clean machine there was none at all
+    $ownFf = [string]$rtT.GetProperty('FfmpegPath', $bf).GetValue($null, $null)
+    if ($ownFf -and (Test-Path -LiteralPath $ownFf)) { $env:PATH = (Split-Path $ownFf -Parent) + ';' + $env:PATH }
+    else { Write-Host 'the engine was not unpacked - the packages may find another ffmpeg on PATH' }
 } catch { Write-Host ('the engine was not unpacked: ' + $_.Exception.Message) }
 $expect = [ordered]@{
     'logic' = 224; 'autotime' = 36; 'scenecuts' = 47; 'list' = 12; 'roundtrip' = 15

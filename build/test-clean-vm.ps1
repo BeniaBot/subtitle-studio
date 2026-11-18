@@ -20,6 +20,8 @@ param(
     [int]$Cpu = 0,
     [int]$MemGB = 0,
     [int]$CpuLimit = 0,
+    [switch]$Heavy,
+    [string]$GuestCommand = '',
     [string]$User = '',
     [switch]$Keep
 )
@@ -70,12 +72,14 @@ if ($Net) {
     Log ("network: " + $ok)
 }
 
-# In the user's desktop session (a GUI started straight from PowerShell Direct is invisible), elevated, and wait.
+# In the user's desktop session (a GUI started straight from PowerShell Direct is invisible), not elevated, and wait.
 function Desktop([string]$Exe, [string]$Arguments = '', [int]$WaitSeconds = 0) {
     Invoke-Command -Session $s -ScriptBlock {
         param($exe, $arg, $wait, $user)
         $a = if ($arg) { New-ScheduledTaskAction -Execute $exe -Argument $arg } else { New-ScheduledTaskAction -Execute $exe }
-        $p = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
+        # NOT elevated - like a user double-clicking it (elevated, test-errors could write into C:\Windows and its
+        # "protected folder" check failed)
+        $p = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
         $name = 'bench-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
         $st = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
         Register-ScheduledTask -TaskName $name -Action $a -Principal $p -Settings $st | Out-Null
@@ -189,10 +193,19 @@ try {
         if (Test-Path (Join-Path $out 'test-all.txt')) { Get-Content (Join-Path $out 'test-all.txt') -Tail 45 | ForEach-Object { Log ("  " + $_) } }
     }
 
+    # -Stages cmd -GuestCommand "...": any PowerShell line in the user's desktop session, from the copied repo, its output kept
+    if ($Stages -contains 'cmd' -and $GuestCommand) {
+        $cmd = "-NoProfile -ExecutionPolicy Bypass -Command `"[Console]::OutputEncoding = [Text.Encoding]::UTF8; Set-Location '$guest\repo'; $GuestCommand *> '$guest\cmd.txt'`""
+        $r = Desktop 'powershell.exe' $cmd 3600
+        Copy-Item "$guest\cmd.txt" (Join-Path $out 'cmd.txt') -FromSession $s -ErrorAction SilentlyContinue
+        Log ("cmd: task result " + $r.LastResult)
+        if (Test-Path (Join-Path $out 'cmd.txt')) { Get-Content (Join-Path $out 'cmd.txt') -Encoding UTF8 | Where-Object { $_ -notmatch '^\s*ok ' } | ForEach-Object { Log ("  " + $_) } }
+    }
+
     if ($Stages -contains 'local') {
         $exe = if ($script:installDir) { Join-Path $script:installDir 'Subtext.exe' } else { "$guest\repo\dist\Subtext.exe" }
         Copy-Item (Join-Path $PSScriptRoot 'vm\guest-local.ps1') "$guest\guest-local.ps1" -ToSession $s -Force
-        $cmd = "-NoProfile -ExecutionPolicy Bypass -File `"$guest\guest-local.ps1`" -Exe `"$exe`" -Wav `"$guest\data\kan-90.wav`" -Cues `"$guest\data\cues_en.json`" -Out `"$guest\local.txt`""
+        $cmd = "-NoProfile -ExecutionPolicy Bypass -File `"$guest\guest-local.ps1`" -Exe `"$exe`" -Wav `"$guest\data\kan-90.wav`" -Cues `"$guest\data\cues_en.json`" -Out `"$guest\local.txt`"" + $(if ($Heavy) { ' -Heavy' } else { '' })
         $sw.Restart()
         $r = Desktop 'powershell.exe' $cmd 3600
         Log ("local: task result " + $r.LastResult + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes)
