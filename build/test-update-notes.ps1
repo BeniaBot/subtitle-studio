@@ -118,5 +118,21 @@ Check 'הטקסט שלפני הקו מוצג, בלי סימני עיצוב' (($t
 Check 'מה שאחרי הקו לא מוצג' (-not ($joined -match 'details|summary|6efe9c27|אימות')) $joined
 $nv.Dispose()
 
+# **מספר עם יחידה לועזית בתוך שורה עברית מתהפך** (22.11, השדרוג מ-0.8.45: ״MB 220״, ״GB 2.3״ - מספר ויחידה הם שני רצפים
+# משמאל לימין, והרווח ביניהם מימין לשמאל). כל ״220 MB״ בשורה עברית - בתוך ‎U+202A…U+202C‎ (כמו Theme.Ltr), עם רווח שלא נשבר
+$bad = @()
+$doc = (New-Object Web.Script.Serialization.JavaScriptSerializer -Property @{ MaxJsonLength = 8388608 }).DeserializeObject($json)
+foreach ($v in $doc['versions']) {
+    foreach ($it in $v['items']) {
+        $t = [string]$it['s']
+        foreach ($m in [regex]::Matches($t, '\d[\d.,]*[ \u00a0](MB|GB|KB|kbps)\b')) {
+            $pre = $t.Substring(0, $m.Index)
+            $open = ([regex]::Matches($pre, [string][char]0x202A)).Count - ([regex]::Matches($pre, [string][char]0x202C)).Count
+            if ($open -le 0 -or $m.Value -match ' ') { $bad += ($v['v'] + ': ' + $m.Value) }
+        }
+    }
+}
+Check 'גודל עם יחידה בשורה עברית - עטוף ובלי שבירה' ($bad.Count -eq 0) ($(if ($bad.Count) { $bad -join ' ; ' } else { 'ok' }))
+
 Write-Host ''
 Write-Host ("{0} passed, {1} failed" -f $pass, $fail)
