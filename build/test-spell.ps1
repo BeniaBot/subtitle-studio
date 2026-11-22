@@ -32,7 +32,10 @@ $shas = $spT.GetField('Sha256', $SF).GetValue($null)
 for ($i = 0; $i -lt $files.Count; $i++) {
     $target = Join-Path $dict $files[$i]
     $okHash = (Test-Path $target) -and ((Get-FileHash $target -Algorithm SHA256).Hash -eq $shas[$i])
-    if (-not $okHash -and (Test-Path (Join-Path 'D:\Claude\_ss-dict' $files[$i]))) { Copy-Item (Join-Path 'D:\Claude\_ss-dict' $files[$i]) $target -Force }
+    # a copy on Binyamin's computer saves the download. [IO.Path], not Join-Path: on a machine without a D: drive Join-Path
+    # throws (Windows 10 Home test machine, 22.11 - the whole package crashed)
+    $hostCopy = [IO.Path]::Combine('D:\Claude\_ss-dict', $files[$i])
+    if (-not $okHash -and [IO.File]::Exists($hostCopy)) { Copy-Item -LiteralPath $hostCopy $target -Force }
 }
 $have = $true; for ($i = 0; $i -lt $files.Count; $i++) { if (-not ((Test-Path (Join-Path $dict $files[$i])) -and ((Get-FileHash (Join-Path $dict $files[$i]) -Algorithm SHA256).Hash -eq $shas[$i]))) { $have = $false } }
 if (-not $have) {

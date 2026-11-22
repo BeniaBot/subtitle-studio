@@ -23,7 +23,10 @@ namespace SubtitleStudio
     internal class LocalCt2 : IDisposable
     {
         internal static int IdleSec = 120;
-        internal static int StartTimeoutSec = 120;
+        /// <summary>כמה מחכים ל״מוכן״. בדרך כלל פחות משנייה (נמדד: 0.6-0.8 בווינדוס 10 Home של 4GB). **300, לא 120** (22.11): בסבב על ווינדוס
+        /// 10 Home במכונה עמוסה (35 דקות אחרי ההפעלה, רשת פעילה, מכונה נוספת על אותו מחשב) המתרגם לא הודיע ״מוכן״ תוך 120 שניות, פעמיים -
+        /// והתהליך היה חי כל הזמן; ויתור רק מתחיל אותו מחדש מאפס. במחשב עמוס עדיף לחכות.</summary>
+        internal static int StartTimeoutSec = 300;
 
         private readonly string _python, _runner, _cwd, _model, _tail;
         private Process _proc;
