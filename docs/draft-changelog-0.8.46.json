@@ -1,0 +1,27 @@
+{
+ "_note": "טיוטה לרשומה של 0.8.46 ב-changelog.json - לא לדחוף ל-changelog.json לפני השחרור (CLAUDE.md). נכתבה 22.11; לעבור עליה מול WORKPLAN 2לד לפני השחרור.",
+ "v": "0.8.46",
+ "date": "",
+ "items": [
+  {
+   "t": "major",
+   "s": "בטא: תרגום על המחשב - בלי אינטרנט ובלי מפתח, והכתוביות לא יוצאות מהמחשב. בחלון התרגום בוחרים ״על המחשב״ ומודל: קל ומהיר (מאנגלית לעברית, מאות שורות בדקה), או מדויק וכבד (כל השפות, כמה שניות לכתובית)",
+   "en": "Beta: translation on the PC itself - no internet, no key, and the subtitles never leave the computer. In the translation window choose \"On this PC\" and a model: light and fast (English to Hebrew, hundreds of lines a minute), or accurate and heavy (any language, a few seconds a subtitle)"
+  },
+  {
+   "t": "major",
+   "s": "בטא: תמלול עברית מדויק על המחשב - המודל של ivrit.ai, עם פיסוק ופחות טעויות מהתמלול הקל. בחלון התמלול: ״על המחשב״ ← ״מדויק וכבד״. הורדה חד-פעמית של כ-700 MB; שיעור של שעה מתומלל בחצי שעה עד שעה, והמחשב עמוס בזמן הזה",
+   "en": "Beta: accurate Hebrew transcription on the PC - ivrit.ai's model, with punctuation and fewer mistakes than the light one. In the transcription window: \"On this PC\", then \"Accurate and heavy\". A one-time download of about 700 MB; an hour-long lesson takes half an hour to an hour, and the computer is busy meanwhile"
+  },
+  {
+   "t": "feature",
+   "s": "מודלים על המחשב: חלון אחד לכל מה שאפשר להוריד - לכל מודל כמה הוא שוקל, כמה זמן ההורדה, והאם הוא מתאים למחשב הזה",
+   "en": "Models on this PC: one window for everything that can be downloaded - for each model its size, how long the download takes, and whether it suits this computer"
+  },
+  {
+   "t": "fix",
+   "s": "הורדה של מודל שנתקעת על חיבור איטי מתחדשת לבד וממשיכה מאותו מקום",
+   "en": "A model download stuck on a slow connection restarts by itself and continues from the same place"
+  }
+ ]
+}
