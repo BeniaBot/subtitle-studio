@@ -5,6 +5,9 @@
 param([string]$Exe, [string]$Wav, [string]$Cues, [string]$Out, [switch]$Heavy, [switch]$Accurate)
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
+# loaded from its bytes the EXE has no location: SUBSTUDIO_EXE tells Runtime.Prepare where the video engine is (without the
+# 'run' stage nothing had unpacked it - Windows 10 Home, 22.11: "the video engine is not available", transcription skipped)
+$env:SUBSTUDIO_EXE = $Exe
 $log = New-Object Collections.Generic.List[string]
 function Say($s) { $log.Add([string]$s); [IO.File]::WriteAllLines($Out, $log, (New-Object Text.UTF8Encoding($true))) }
 try {
