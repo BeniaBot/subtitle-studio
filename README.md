@@ -41,7 +41,7 @@
 
 <sub>דורש אינטרנט ומפתח חינמי: מגוגל, או מ-Groq (עד 8 שעות הקלטה ביום). התוכנה מסבירה בדיוק איך משיגים אותו.</sub>
 
-<sub>**חדש, בבטא: תמלול עברית על המחשב** - בלי אינטרנט, בלי מפתח, והקול לא יוצא מהמחשב. הורדה חד-פעמית של כ-62MB מתוך חלון התמלול. מהיר וקל (שיעור של שעה בכמה דקות, בלי להכביד על המחשב), פחות מדויק מהשירותים ברשת.</sub>
+<sub>**חדש, בבטא: תמלול ותרגום על המחשב** - בלי אינטרנט, בלי מפתח, ושום דבר לא יוצא מהמחשב. מורידים פעם אחת מתוך החלון. בתמלול עברית: קל ומהיר (כ-62MB, שיעור של שעה בכמה דקות) או מדויק ועם פיסוק (כ-700MB, איטי ומעמיס על המחשב). בתרגום: קל מאנגלית לעברית (כ-220MB), או מדויק לכל השפות (2.4GB, למחשב חזק).</sub>
 
 ### 🎯 לתקן ולבדוק
 
@@ -124,7 +124,7 @@
 כן, לגמרי. בלי פרסומות ובלי הרשמה.
 
 **צריך אינטרנט?**\
-לא. הכול עובד על המחשב שלכם. אינטרנט נחוץ רק לתרגום האוטומטי, לתמלול דרך שירות ברשת, ולבדיקת עדכונים. תמלול עברית אפשר גם בלי אינטרנט (בטא).
+לא. הכול עובד על המחשב שלכם. אינטרנט נחוץ רק לתמלול ולתרגום דרך שירות ברשת, לעוזר החכם, ולבדיקת עדכונים. תמלול עברית ותרגום אפשר גם בלי אינטרנט, על המחשב (בטא).
 
 **ומה עם אנגלית?**\
 כל התוכנה קיימת גם באנגלית. היא נפתחת בעברית כשהווינדוס בעברית (או כשיש בו מקלדת עברית), ואפשר להחליף בהגדרות.
@@ -168,7 +168,7 @@ Built for Hebrew (right‑to‑left done properly), with a complete English inte
 
 * **Write** subtitles against the waveform; each one shows on the picture as you type.
 * **Open** SRT, VTT, ASS or SUB - or plain text, split into subtitles and timed to the speech. Old Hebrew encodings open correctly.
-* **Transcribe** automatically, with speakers separated and unsure words marked, and **translate** into any language. Online, with a free key from Google or Groq; the audio is sent only after you agree. New, in beta: Hebrew transcription on the PC itself - offline, no key, a one-time 62 MB download.
+* **Transcribe** automatically, with speakers separated and unsure words marked, and **translate** into any language. Online, with a free key from Google or Groq; the audio is sent only after you agree. New, in beta: transcription and translation on the PC itself - offline, no key: Hebrew transcription light (62 MB) or accurate with punctuation (about 700 MB, slow), and translation from English to Hebrew (220 MB) or accurate between any languages (2.4 GB, for a strong PC).
 * **Work on part of the video** - mark a section (`I` / `O`) and transcription, translation, timing and auto‑fix run on it alone.
 * **Fix out‑of‑sync subtitles** by pointing at where a line is actually spoken, and **check** for overlaps, reading speed, long lines and spelling.
 * **Burn** the subtitles into the picture, or add them as a separate track. Font, size, colour, outline and a semi‑transparent box behind the text - what the style window shows is what gets burned.

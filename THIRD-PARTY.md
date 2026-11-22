@@ -10,6 +10,7 @@
 | **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
 | **מילון Hspell** (בדיקת איות, **לא ב‑EXE**, יורד בנפרד רק למי שמבקש) | **AGPLv3** | להשתמש ולהפיץ, עם הרישיון והפניה למקור |
 | **תמלול על המחשב** (בטא; **לא ב‑EXE**, יורד בנפרד רק למי שמבקש): המנוע sherpa-onnx, ‏ONNX Runtime, והמודל העברי zipformer2-66m | **Apache 2.0**, **MIT**, **CC BY 4.0** | להשתמש ולהפיץ, עם הרישיונות והקרדיט ליוצרים |
+| **מודלים נוספים על המחשב** (בטא, מ‑0.8.46; **לא ב‑EXE**, כל אחד יורד בנפרד רק למי שמבקש): תרגום קל (quickmt), תרגום מדויק (TranslateGemma), תמלול מדויק (Whisper של ivrit.ai), והמנועים שלהם | **CC BY 4.0**, **Gemma Terms of Use**, **Apache 2.0**, **MIT** ועוד - הפירוט למטה | להשתמש ולהפיץ, עם הרישיונות והקרדיט; ב‑Gemma - גם לפי תנאי השימוש שלה |
 
 הנוסח המלא של כולם נמצא בתיקייה [`licenses/`](licenses) — **וגם בתוך ה‑EXE עצמו**:
 ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
@@ -178,6 +179,61 @@ and the license texts travel with the pack (`LICENSES.txt`).*
 נוסח הרישיונות של המנוע ושל ONNX Runtime נמצא בקובץ `LICENSES.txt` שיורד עם החבילה
 ונשמר ליד הקבצים. החבילה נארזת בסקריפט `build\make-local-stt.ps1`.
 | ההפצה שלנו · Our copy | המהדורה [`spell-he-1.4`](https://github.com/BeniaBot/subtitle-studio/releases/tag/spell-he-1.4), עם הרישיון וקובץ ה‑README המקורי |
+
+---
+
+## מודלים נוספים על המחשב (בטא, מ‑0.8.46) — תרגום ותמלול מדויק
+
+מגרסה 0.8.46 החלון ״מודלים על המחשב״ מציע עוד שלושה מודלים. כל אחד יורד **פעם אחת ורק
+כשהמשתמש בוחר בו**, ממהדורה ייעודית במאגר הזה (טרום הפצה), לתיקייה משלו תחת
+‏`%LOCALAPPDATA%\SubtitleStudio\models` (או `models` ליד ה‑EXE בגרסה הניידת). **שום דבר
+מהם לא נמצא בתוך ה‑EXE.** התוכנה בודקת את טביעת ה‑SHA‑256 של כל קובץ, ומריצה את המנועים
+כתהליך נפרד - בלי לקשר אליהם קוד. נוסח כל הרישיונות יורד עם כל חבילה (`LICENSES.txt`)
+ונשמר ליד הקבצים. מחיקה בחלון מוחקת את התיקייה כולה.
+
+*From 0.8.46 the "Models on this PC" window offers three more models. Each one is downloaded
+once, only when the user picks it, from a dedicated pre-release in this repository, into its own
+folder. Nothing of it is inside the EXE. Every file's SHA‑256 is verified, the engines run as
+separate processes, and each pack carries the full license texts (`LICENSES.txt`).*
+
+**תרגום קל, מאנגלית לעברית** — המהדורה [`local-mt-1`](https://github.com/BeniaBot/subtitle-studio/releases/tag/local-mt-1)
+
+| רכיב · Component | רישיון · License | מקור · Source |
+|---|---|---|
+| **quickmt-en-he** — מודל תרגום של פרויקט quickmt. ‏`model.bin` נשמר מחדש במשקלים של 8 ביט (אותו כימות ש‑CTranslate2 עושה בטעינה; התרגום זהה), השאר ללא שינוי · weights re-saved as int8, the rest unmodified | Creative Commons Attribution 4.0 (CC BY 4.0) | https://huggingface.co/quickmt/quickmt-en-he |
+| **Edge-Punct-Casing** — מודל פיסוק לאנגלית מאת frankyoujian, כפי שנארז ב‑sherpa-onnx, ללא שינוי · unmodified | Apache License 2.0 | https://huggingface.co/frankyoujian/Edge-Punct-Casing |
+| **Python** 3.12.10 (החבילה הרשמית להטמעה, בלי כמה מודולים שלא נטענים) · the official embeddable package | Python Software Foundation License | https://www.python.org |
+| **CTranslate2** 4.8.3, עם ה‑OpenMP של Intel שמגיע איתו · with the bundled Intel OpenMP runtime | MIT; Intel Simplified Software License | https://github.com/OpenNMT/CTranslate2 |
+| **SentencePiece** 0.2.2 | Apache License 2.0 | https://github.com/google/sentencepiece |
+| **sherpa-onnx** 2.0.1 (המודול לפייתון) ו‑**ONNX Runtime** · Python module and ONNX Runtime | Apache License 2.0; MIT | https://github.com/k2-fsa/sherpa-onnx |
+| **Microsoft Visual C++ runtime** 14.44 — שלושה קבצים מהמתקין הרשמי, ללא שינוי, כדי שהמנוע ירוץ בלי להתקין דבר · three files from the official redistributable, unmodified | Microsoft Visual Studio redistributable files | https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist |
+
+**תרגום מדויק, בין שפות רבות** — המהדורה [`local-llm-1`](https://github.com/BeniaBot/subtitle-studio/releases/tag/local-llm-1)
+
+| רכיב · Component | רישיון · License | מקור · Source |
+|---|---|---|
+| **TranslateGemma 4B** של Google, בכימות Q4_K_M (GGUF) מאת mradermacher, ללא שינוי; יורד בחלקים ומתחבר במחשב · unmodified, downloaded in parts and joined | **Gemma Terms of Use** | https://huggingface.co/google/translategemma-4b-it |
+| **llama.cpp**, בנייה 12074 (`llama-server.exe` והספריות שלו) — המהדורה הרשמית לווינדוס, ללא שינוי · the official Windows CPU build, unmodified | MIT | https://github.com/ggml-org/llama.cpp |
+| **LLVM OpenMP** (`libomp.dll`), כפי שמגיע עם llama.cpp · as shipped with it | Apache License 2.0 with LLVM Exceptions | https://github.com/llvm/llvm-project |
+| **Microsoft Visual C++ runtime** 14.44 (כמו למעלה · as above) | Microsoft Visual Studio redistributable files | — |
+
+Gemma is provided under and subject to the Gemma Terms of Use found at
+[ai.google.dev/gemma/terms](https://ai.google.dev/gemma/terms), and its use is subject to the
+[Gemma Prohibited Use Policy](https://ai.google.dev/gemma/prohibited_use_policy).
+מי שמוריד את המודל מתחייב להשתמש בו לפי התנאים והמדיניות האלה; בחלון ההורדה ובחלון ״מודלים על המחשב״ כתוב שהוא כפוף להם.
+
+**תמלול עברית מדויק** — המהדורה [`local-stt-he-2`](https://github.com/BeniaBot/subtitle-studio/releases/tag/local-stt-he-2) (רץ עם הפייתון ו‑CTranslate2 של התרגום הקל, שיורדים איתו)
+
+| רכיב · Component | רישיון · License | מקור · Source |
+|---|---|---|
+| **whisper-large-v3-turbo-ct2** של **ivrit.ai** — Whisper large-v3-turbo של OpenAI (MIT) שאומן לעברית. ‏`model.bin` נשמר במשקלים של 8 ביט (כמו ש‑CTranslate2 עושה בטעינה; התמלול זהה בבית לבית), השאר ללא שינוי · weights re-saved as int8, the rest unmodified | Apache License 2.0 | https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ct2 |
+| **faster-whisper** 1.2.1 (בלי מודל ה‑VAD שלא בשימוש · without the unused VAD model) | MIT | https://github.com/SYSTRAN/faster-whisper |
+| **NumPy** 2.5.5, עם הספריות שהוא מביא (OpenBLAS ועוד) · with its bundled libraries | BSD 3-Clause, והרישיונות שלהן · and theirs | https://numpy.org |
+| **Tokenizers** 0.23.3 | Apache License 2.0 | https://github.com/huggingface/tokenizers |
+| **tqdm** 4.70.1, ללא שינוי · unmodified | MPL-2.0 AND MIT | https://github.com/tqdm/tqdm |
+
+הקוד שלנו סביב כל אלה (`src\LocalCatalog.cs`, ‏`LocalCt2.cs`, ‏`LocalLlm.cs`, ‏`LocalTranslate.cs`,
+‏`build\local\*.py`) הוא MIT כמו שאר הקוד. החבילות נארזות בסקריפט `build\make-model-pack.ps1`.
 
 ---
 
