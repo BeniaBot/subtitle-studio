@@ -284,6 +284,16 @@ namespace SubtitleStudio
             return string.IsNullOrEmpty(p.Requires) || Installed(ById(p.Requires));
         }
 
+        /// <summary>כמה מודלים של תמלול ותרגום מותקנים - בלי המנועים (22.11, לשורה בהגדרות). כמו בחלון ״מודלים על המחשב״:
+        /// רק מה שזמין להורדה.</summary>
+        public static int InstalledCount()
+        {
+            int n = 0;
+            foreach (ModelPack p in All)
+                if (p.Available && (p.Task == ModelTask.Transcribe || p.Task == ModelTask.Translate) && Installed(p)) n++;
+            return n;
+        }
+
         /// <summary>כמה יורד בפועל, כולל מנוע שעוד לא הורד.</summary>
         public static long DownloadBytes(ModelPack p)
         {

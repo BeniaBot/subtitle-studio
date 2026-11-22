@@ -2001,6 +2001,14 @@ namespace SubtitleStudio
             "התרגום על המחשב לא יודע לתרגם את הכתוביות האלה לשפה הזאת.", "On-device translation cannot translate these subtitles into this language.",
             "בכפוף לתנאי השימוש של Gemma.", "Subject to the Gemma Terms of Use.",
             "מנוע המודלים הכבדים", "Engine for the heavy models",
+            "כללי", "General",
+            "תמלול ותרגום", "Transcription and translation",
+            "לא מוגדר · לתמלול ולתרגום דרך גוגל, ולעוזר", "Not set · for transcription and translation through Google, and for the assistant",
+            "בלי אינטרנט ובלי מפתח · עוד לא הורד אף מודל", "No internet, no key · nothing downloaded yet",
+            "בלי אינטרנט ובלי מפתח · מותקן מודל אחד", "No internet, no key · one model installed",
+            "בלי אינטרנט ובלי מפתח · מותקנים {0} מודלים", "No internet, no key · {0} models installed",
+            "להוריד את המילון · {0}", "Download the dictionary · {0}",
+            "עוד לא הורד - הוא חינמי, ופעם אחת מספיקה.", "Not downloaded yet - it's free, and once is enough.",
         };
 
         public static void Fill(Dictionary<string, string> d)
