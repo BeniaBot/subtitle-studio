@@ -279,7 +279,8 @@ namespace SubtitleStudio
 
         /// <summary>``[start, end, "text", [["word", start, end, prob], ...]]`` - המילים נוספות ל-<paramref name="words"/>. בלי מילים
         /// (לא אמור לקרות) - הטקסט מתחלק שווה על זמן הקטע. מילה שהמודל לא בטוח בה (`LocalStt.WhisperDoubtBelow`) מסומנת ⟦כך⟧.
-        /// מחזיר את סוף הקטע.</summary>
+        /// **חלק בלי רווח לפניו נדבק למילה הקודמת** (22.11): faster-whisper פותח ״מילה״ חדשה בכל סימן פיסוק, והאות שאחריו נדבקת
+        /// אליו - ״בתת-תמודע״ הגיע כ-״ בתת״, ״-ת״, ״ מודע״, ויצא בכתובית ״בתת -ת מודע״. מחזיר את סוף הקטע.</summary>
         internal static double AddSegment(object seg, List<OpenAiStt.SttWord> words)
         {
             object[] a = seg as object[];
@@ -288,21 +289,36 @@ namespace SubtitleStudio
             double s0 = Num(a[0]), s1 = Num(a[1]);
             int before = words.Count;
             System.Collections.IEnumerable list = a.Length > 3 ? a[3] as System.Collections.IEnumerable : null;
+            List<object[]> pieces = new List<object[]>();
             if (list != null)
                 foreach (object x in list)
                 {
                     object[] w = x as object[];
                     if (w == null) { System.Collections.ArrayList wl = x as System.Collections.ArrayList; if (wl != null) w = wl.ToArray(); }
                     if (w == null || w.Length < 3) continue;
-                    string text = ((w[0] as string) ?? "").Trim();
+                    string rawText = (w[0] as string) ?? "";
+                    string text = rawText.Trim();
                     if (text.Length == 0) continue;
-                    OpenAiStt.SttWord sw = new OpenAiStt.SttWord();
-                    sw.Start = Num(w[1]);
-                    sw.End = Math.Max(Num(w[2]), sw.Start + 0.06);
-                    if (w.Length > 3 && Num(w[3]) < LocalStt.WhisperDoubtBelow) text = LocalStt.MarkDoubt(text);
-                    sw.Text = text;
-                    words.Add(sw);
+                    double prob = w.Length > 3 ? Num(w[3]) : 1;
+                    if (pieces.Count > 0 && !char.IsWhiteSpace(rawText[0]))
+                    {
+                        // המשך של המילה הקודמת: ההסתברות - של החלק החלש
+                        int k = pieces.Count - 1;
+                        pieces[k] = new object[] { (string)pieces[k][0] + text, pieces[k][1], Math.Max(Num(w[2]), (double)pieces[k][2]), Math.Min(prob, (double)pieces[k][3]) };
+                        continue;
+                    }
+                    pieces.Add(new object[] { text, Num(w[1]), Num(w[2]), prob });
                 }
+            foreach (object[] pt in pieces)
+            {
+                OpenAiStt.SttWord sw = new OpenAiStt.SttWord();
+                sw.Start = (double)pt[1];
+                sw.End = Math.Max((double)pt[2], sw.Start + 0.06);
+                string text = (string)pt[0];
+                if ((double)pt[3] < LocalStt.WhisperDoubtBelow) text = LocalStt.MarkDoubt(text);
+                sw.Text = text;
+                words.Add(sw);
+            }
             if (words.Count == before)
             {
                 string[] parts = (((a[2] as string) ?? "").Trim()).Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);

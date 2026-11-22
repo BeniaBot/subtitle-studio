@@ -528,6 +528,7 @@ class P {
         say("{\"id\": 1, \"seg\": [0.0, 2.5, \" shalom lekulam.\", [[\" shalom\", 0.2, 0.9, 0.95], [\" lekulam.\", 1.0, 2.4, 0.1]]]}");
         if (mode == "sttdie") return 3;
         say("{\"id\": 1, \"seg\": [3.0, 5.0, \" bli milim\", []]}");
+        say("{\"id\": 1, \"seg\": [5.0, 6.0, \" tat-muda\", [[\" tat\", 5.0, 5.3, 0.9], [\"-muda\", 5.3, 5.9, 0.15]]]}");
         say("{\"id\": 1, \"done\": true, \"sec\": 40.0}");
         continue;
       }
@@ -793,8 +794,8 @@ $sreq = @([IO.File]::ReadAllLines((Join-Path $sttRoot 'fake-py-stt.txt'), [Text.
 $wt = @($words | ForEach-Object { $_.Text + '@' + $_.Start.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture) })
 Check 'מדויק: הפייתון של engine-ct2 עם המריץ של engine-whisper ומודל יחסי, מתוך ״models״ (שם עברי), חצי מהליבות עד ארבע' ($aargs -match ('^-I -s engine-whisper\\stt_runner\.py stt-he-accurate [1-4]\|cwd=') -and $aargs.Contains('|cwd=' + $sttRoot + '|')) $aargs
 Check 'מדויק: הקול בנתיב מלא (פייתון קורא עברית), והמילים מהרקע עוברות' ($sreq.Count -eq 1 -and $sreq[0].Contains('|exists=True') -and $sreq[0].Contains('"hot":"קדאפי"')) $sreq[0]
-Check 'מדויק: שורה שאינה JSON לא עוצרת; מילים עם זמנים; לא בטוחה - ⟦כך⟧ והנקודה בחוץ; קטע בלי מילים מתחלק על הזמן שלו' (($wt -join ' ') -eq ('shalom@0.2 ' + [char]0x27E6 + 'lekulam' + [char]0x27E7 + '.@1.0 bli@3.0 milim@4.0') -and $targv[4] -eq $null) ($wt -join ' ')
-Check 'מדויק: ההתקדמות לפי סוף כל קטע' ((@($script:accProg) -join ',') -eq '2.5,5') (@($script:accProg) -join ',')
+Check 'מדויק: שורה שאינה JSON לא עוצרת; מילים עם זמנים; לא בטוחה - ⟦כך⟧ והנקודה בחוץ; קטע בלי מילים מתחלק על הזמן שלו; חלק בלי רווח נדבק למילה (החלש קובע)' (($wt -join ' ') -eq ('shalom@0.2 ' + [char]0x27E6 + 'lekulam' + [char]0x27E7 + '.@1.0 bli@3.0 milim@4.0 ' + [char]0x27E6 + 'tat-muda' + [char]0x27E7 + '@5.0') -and $targv[4] -eq $null) ($wt -join ' ')
+Check 'מדויק: ההתקדמות לפי סוף כל קטע' ((@($script:accProg) -join ',') -eq '2.5,5,6') (@($script:accProg) -join ',')
 $wsp.Stop(); Start-Sleep -Milliseconds 300
 [IO.File]::WriteAllText((Join-Path $sttRoot 'fake-py-mode.txt'), 'stterror')
 $targv = New-Object object[] 5; $targv[0] = [string]$swav; $targv[1] = ''; $targv[2] = $null; $targv[3] = $null; $targv[4] = $null
