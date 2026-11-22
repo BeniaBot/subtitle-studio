@@ -27,7 +27,7 @@ namespace SubtitleStudio
 
             Lbl machine = Hint(Lang.F("המחשב הזה: {0} זיכרון, {1} ליבות. ליד כל מודל כתוב אם הוא מתאים לו.",
                 Theme.Ltr(Gb(MachineInfo.TotalMB)), Theme.Ltr(MachineInfo.Cores.ToString())));
-            Row(machine, 22, 10);
+            Row(machine, 22, 6);
 
             foreach (ModelTask task in Shown)
             {
