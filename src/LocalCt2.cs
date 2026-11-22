@@ -25,7 +25,7 @@ namespace SubtitleStudio
         internal static int IdleSec = 120;
         internal static int StartTimeoutSec = 120;
 
-        private readonly string _python, _runner, _cwd, _model;
+        private readonly string _python, _runner, _cwd, _model, _tail;
         private Process _proc;
         private StreamWriter _in;
         private readonly Queue<string> _lines = new Queue<string>();
@@ -40,9 +40,12 @@ namespace SubtitleStudio
         /// <param name="runner">המריץ, יחסית ל-<paramref name="cwd"/> (באנגלית).</param>
         /// <param name="cwd">תיקיית ``models``.</param>
         /// <param name="model">תיקיית המודל, יחסית (באנגלית).</param>
-        public LocalCt2(string python, string runner, string cwd, string model)
+        public LocalCt2(string python, string runner, string cwd, string model) : this(python, runner, cwd, model, null) { }
+
+        /// <param name="tail">מה שבא אחרי המודל בשורת הפקודה. null - הליבות ו-4 המסלולים של המתרגם.</param>
+        public LocalCt2(string python, string runner, string cwd, string model, string tail)
         {
-            _python = python; _runner = runner; _cwd = cwd; _model = model;
+            _python = python; _runner = runner; _cwd = cwd; _model = model; _tail = tail;
         }
 
         public bool Running { get { lock (_lock) return _proc != null && !_proc.HasExited; } }
@@ -58,7 +61,7 @@ namespace SubtitleStudio
 
         internal string Arguments()
         {
-            return "-I -s " + _runner + " " + _model + " " + Threads.ToString(CultureInfo.InvariantCulture) + " 4";
+            return "-I -s " + _runner + " " + _model + " " + (_tail ?? Threads.ToString(CultureInfo.InvariantCulture) + " 4");
         }
 
         public bool Ensure(Func<bool> canceled, out string error)
@@ -211,6 +214,115 @@ namespace SubtitleStudio
                 return null;
             }
             return ParseReply(line, texts.Count, out error);
+        }
+
+        /// <summary>כמה שניות לכל היותר בין שתי שורות של התמלול. חלון של 30 שניות לוקח כ-14 שניות במחשב נייד מ-2024 בארבע ליבות;
+        /// במחשב חלש, ועם פענוח חוזר (כשהמודל ״נתקע״ על חזרות), פי כמה.</summary>
+        internal static int SegmentTimeoutSec = 600;
+
+        /// <summary>**תמלול** (0.8.46, ``stt_runner.py`` של חבילת ``engine-whisper``): קובץ WAV של 16kHz מונו - נתיב מלא; פייתון
+        /// קורא גם נתיב עברי (רק הספריות של ++C נשברות עליו, ולכן המודל עצמו יחסי). המריץ שולח שורה לכל קטע, עם המילים והזמנים
+        /// שלהן, ובסוף ``done``. מחזיר את המילים (זמנים מתחילת הקובץ), או null עם הודעה. <paramref name="progress"/> - עד איזו שנייה הגיע.</summary>
+        public List<OpenAiStt.SttWord> Transcribe(string wav, string hot, Action<double> progress, Func<bool> canceled, out string error)
+        {
+            error = null;
+            if (!Ensure(canceled, out error)) return null;
+            int id;
+            lock (_lock) { id = ++_id; _last = DateTime.UtcNow; }
+            Dictionary<string, object> req = new Dictionary<string, object>();
+            req["id"] = id;
+            req["wav"] = wav;
+            if (!string.IsNullOrEmpty(hot)) req["hot"] = hot;
+            JavaScriptSerializer js = new JavaScriptSerializer();
+            js.MaxJsonLength = 64 * 1024 * 1024;
+            try { _in.WriteLine(js.Serialize(req)); }
+            catch (Exception ex)
+            {
+                Ai.Log("התמלול המדויק: הכתיבה נכשלה - " + ex.Message + " " + ErrTail());
+                Stop();
+                error = Lang.T("המודל נסגר באמצע - אולי נגמר הזיכרון. אפשר לבחור מודל קל יותר.");
+                return null;
+            }
+            List<OpenAiStt.SttWord> words = new List<OpenAiStt.SttWord>();
+            while (true)
+            {
+                string line = WaitLine(SegmentTimeoutSec, canceled);
+                lock (_lock) _last = DateTime.UtcNow;
+                if (line == null)
+                {
+                    if ((canceled != null && canceled()) || StopToken.Here) { Stop(); error = Lang.T("נעצר."); return null; }
+                    Ai.Log("התמלול המדויק לא ענה: " + ErrTail());
+                    error = Running ? Lang.T("המודל לא ענה כמו שצריך.") : Lang.T("המודל נסגר באמצע - אולי נגמר הזיכרון. אפשר לבחור מודל קל יותר.");
+                    Stop();
+                    return null;
+                }
+                Dictionary<string, object> r = null;
+                try { r = js.DeserializeObject(line) as Dictionary<string, object>; }
+                catch { }
+                // שורה שאינה JSON (אזהרה של ספרייה שנכתבה לפלט) - לא תשובה
+                if (r == null) continue;
+                object o;
+                if (r.TryGetValue("error", out o))
+                {
+                    Ai.Log("התמלול המדויק: " + o);
+                    error = Lang.T("התמלול המדויק לא הצליח לקרוא את הקטע הזה.");
+                    return null;
+                }
+                if (r.ContainsKey("done")) return words;
+                if (r.TryGetValue("seg", out o))
+                {
+                    double at = AddSegment(o, words);
+                    if (progress != null && at > 0) progress(at);
+                }
+            }
+        }
+
+        /// <summary>``[start, end, "text", [["word", start, end, prob], ...]]`` - המילים נוספות ל-<paramref name="words"/>. בלי מילים
+        /// (לא אמור לקרות) - הטקסט מתחלק שווה על זמן הקטע. מילה שהמודל לא בטוח בה (`LocalStt.WhisperDoubtBelow`) מסומנת ⟦כך⟧.
+        /// מחזיר את סוף הקטע.</summary>
+        internal static double AddSegment(object seg, List<OpenAiStt.SttWord> words)
+        {
+            object[] a = seg as object[];
+            if (a == null) { System.Collections.ArrayList al = seg as System.Collections.ArrayList; if (al != null) a = al.ToArray(); }
+            if (a == null || a.Length < 3) return 0;
+            double s0 = Num(a[0]), s1 = Num(a[1]);
+            int before = words.Count;
+            System.Collections.IEnumerable list = a.Length > 3 ? a[3] as System.Collections.IEnumerable : null;
+            if (list != null)
+                foreach (object x in list)
+                {
+                    object[] w = x as object[];
+                    if (w == null) { System.Collections.ArrayList wl = x as System.Collections.ArrayList; if (wl != null) w = wl.ToArray(); }
+                    if (w == null || w.Length < 3) continue;
+                    string text = ((w[0] as string) ?? "").Trim();
+                    if (text.Length == 0) continue;
+                    OpenAiStt.SttWord sw = new OpenAiStt.SttWord();
+                    sw.Start = Num(w[1]);
+                    sw.End = Math.Max(Num(w[2]), sw.Start + 0.06);
+                    if (w.Length > 3 && Num(w[3]) < LocalStt.WhisperDoubtBelow) text = LocalStt.MarkDoubt(text);
+                    sw.Text = text;
+                    words.Add(sw);
+                }
+            if (words.Count == before)
+            {
+                string[] parts = (((a[2] as string) ?? "").Trim()).Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                double step = parts.Length > 0 ? Math.Max(0.06, (s1 - s0) / parts.Length) : 0;
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    OpenAiStt.SttWord sw = new OpenAiStt.SttWord();
+                    sw.Start = s0 + i * step;
+                    sw.End = sw.Start + step;
+                    sw.Text = parts[i];
+                    words.Add(sw);
+                }
+            }
+            return s1;
+        }
+
+        private static double Num(object o)
+        {
+            try { return Convert.ToDouble(o, CultureInfo.InvariantCulture); }
+            catch { return 0; }
         }
 
         internal static List<string> ParseReply(string line, int count, out string error)

@@ -406,7 +406,7 @@ $miT.GetField('FakeTotalMB', $SF).SetValue($null, [long]-1); $miT.GetField('Fake
 $ids = @($all | ForEach-Object { $_.Id }); $dup = @($ids | Group-Object | Where-Object { $_.Count -gt 1 })
 $forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Transcribe'))))
 $mtl = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Translate'))))
-Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 1 -and $stt[0].Id -eq 'stt-he-fast' -and $mtl.Count -eq 2 -and $mtl[0].Id -eq 'mt-en-he-quick' -and $mtl[1].Id -eq 'mt-translategemma-4b') (($ids -join ', '))
+Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 2 -and $stt[0].Id -eq 'stt-he-fast' -and $stt[1].Id -eq 'stt-he-accurate' -and $mtl.Count -eq 2 -and $mtl[0].Id -eq 'mt-en-he-quick' -and $mtl[1].Id -eq 'mt-translategemma-4b') (($ids -join ', '))
 $nc = [Activator]::CreateInstance((T 'ModelPack'), $true); $nc.Id = 'test-nc'; $nc.Title = 'מודל לבדיקה'; $nc.Line = 'שורה'; $nc.License = 'CC BY-NC 4.0'; $nc.LicenseNote = 'לשימוש לא מסחרי בלבד.'; $nc.Files = [string[]]@('x.bin'); $nc.Sizes = [long[]]@(10); $nc.GzSizes = [long[]]@(10); $nc.Sha256 = [string[]]@('00')
 $psd = [Activator]::CreateInstance((T 'PackSetupDlg'), $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($nc), $null)
 $psdTexts = @($psd.Controls | ForEach-Object { [string]$_.Text }) -join ' | '
@@ -516,6 +516,20 @@ class P {
         string parr = line.Substring(p0, p1 - p0 + 1);
         parr = System.Text.RegularExpressions.Regex.Replace(parr, "\"([a-z])([^\"]*)\"", m => "\"" + m.Groups[1].Value.ToUpper() + m.Groups[2].Value + ".\"");
         say("{\"id\": 1, \"out\": " + parr + "}"); continue;
+      }
+      if (line.Contains("\"wav\":")) {
+        // the accurate transcription (stt_runner.py): a stray non-JSON line, a segment with words (one unsure),
+        // a segment without words, done. The wav path is a full path - recorded with whether it exists and its size
+        int w0 = line.IndexOf("\"wav\":\"") + 7; int w1 = line.IndexOf("\"", w0);
+        string wav = line.Substring(w0, w1 - w0).Replace("\\\\", "\\");
+        File.AppendAllText("fake-py-stt.txt", line + "|exists=" + File.Exists(wav) + "|size=" + (File.Exists(wav) ? new FileInfo(wav).Length : -1) + "\n", new UTF8Encoding(false));
+        if (mode == "stterror") { say("{\"id\": 1, \"error\": \"ValueError: expected 16 kHz mono 16-bit WAV\"}"); continue; }
+        say("Warning: a library printed this");
+        say("{\"id\": 1, \"seg\": [0.0, 2.5, \" shalom lekulam.\", [[\" shalom\", 0.2, 0.9, 0.95], [\" lekulam.\", 1.0, 2.4, 0.1]]]}");
+        if (mode == "sttdie") return 3;
+        say("{\"id\": 1, \"seg\": [3.0, 5.0, \" bli milim\", []]}");
+        say("{\"id\": 1, \"done\": true, \"sec\": 40.0}");
+        continue;
       }
       if (mode == "wrongcount") { say("{\"id\": 1, \"out\": [\"x\"]}"); continue; }
       if (mode == "echo" || mode == "lose" || mode == "nopunct") {
@@ -743,6 +757,68 @@ Remove-Item (Join-Path $ltRoot 'fake-llm-mode.txt')
 $hvP.Files = $keepH.hf; $hvP.Sizes = $keepH.hs; $elP.Files = $keepH.ef; $elP.Sizes = $keepH.es
 
 $engP.Files = $keep.ef; $engP.Sizes = $keep.es; $mtP.Files = $keep.mf; $mtP.Sizes = $keep.ms
+$catT.GetField('RootOverride', $SF).SetValue($null, $null)
+
+# ---------------- התמלול המדויק (0.8.46): Whisper של ivrit.ai דרך הפייתון של engine-ct2 - על ה״פייתון״ המדומה ----------------
+Write-Host "`n--- accurate transcription (fake python)"
+$sttRoot = Join-Path $work 'מודלים לתמלול מדויק'
+$catT.GetField('RootOverride', $SF).SetValue($null, [string]$sttRoot)
+$e1 = $catT.GetMethod('ById', $SF).Invoke($null, @('engine-ct2')); $e2 = $catT.GetMethod('ById', $SF).Invoke($null, @('engine-whisper')); $acc = $catT.GetMethod('ById', $SF).Invoke($null, @('stt-he-accurate'))
+Check 'קטלוג: התמלול המדויק צריך את התוספת, והתוספת את מנוע הפייתון; ההורדה מהמהדורה שלנו' ($acc.Requires -eq 'engine-whisper' -and $e2.Requires -eq 'engine-ct2' -and $acc.Tag -eq 'local-stt-he-2' -and $e2.Tag -eq 'local-stt-he-2' -and $acc.Files -contains 'model.bin' -and $acc.Files -contains 'tokenizer.json' -and $e2.Files[0] -match '^engine-whisper-\d+\.zip$') ''
+$keepS = @{ f1 = $e1.Files; s1 = $e1.Sizes; f2 = $e2.Files; s2 = $e2.Sizes; f3 = $acc.Files; s3 = $acc.Sizes }
+$e1.Files = [string[]]@('engine-test-1.zip'); $e1.Sizes = [long[]]@(1)
+$e2.Files = [string[]]@('engine-whisper-test.zip'); $e2.Sizes = [long[]]@(1)
+$acc.Files = [string[]]@('model.bin'); $acc.Sizes = [long[]]@(4)
+$fieldModel = $lsT.GetField('ModelId', $SF)
+$keepModel = [string]$fieldModel.GetValue($null)
+$fieldModel.SetValue($null, [string]'stt-he-accurate')
+Check 'מדויק שנבחר ולא הורד: ״אפשר לתמלל?״ - לא (גם כשהקל מותקן)' (-not [bool]$loc.HasKey) ''
+New-Item -ItemType Directory (Join-Path $sttRoot 'engine-ct2\py'), (Join-Path $sttRoot 'engine-whisper'), (Join-Path $sttRoot 'stt-he-accurate') -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $sttRoot 'engine-ct2\engine-test-1.zip.ok'), 'ok')
+[IO.File]::WriteAllText((Join-Path $sttRoot 'engine-whisper\engine-whisper-test.zip.ok'), 'ok')
+[IO.File]::WriteAllText((Join-Path $sttRoot 'engine-whisper\stt_runner.py'), '# fake')
+[IO.File]::WriteAllText((Join-Path $sttRoot 'stt-he-accurate\model.bin'), 'four')
+Copy-Item (Join-Path $pyDir 'python.exe') (Join-Path $sttRoot 'engine-ct2\py\python.exe')
+Check 'מדויק שהורד (מנוע, תוספת, מודל): ״אפשר לתמלל?״ - כן' ([bool]$loc.HasKey) ''
+function AccProcs { return @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.ExecutablePath -like ($sttRoot + '*') }) }
+$wsp = $lsT.GetMethod('Whisper', $SF).Invoke($null, @())
+$swav = Join-Path $work 'שקט קצר.wav'
+& $ff -y -hide_banner -v error -f lavfi -i "anullsrc=r=16000:cl=mono" -t 6 -c:a pcm_s16le $swav
+$script:accProg = New-Object Collections.ArrayList
+$pr = [Action[double]]{ param($at) [void]$script:accProg.Add($at) }
+$targv = New-Object object[] 5; $targv[0] = [string]$swav; $targv[1] = [string]'קדאפי'; $targv[2] = $pr; $targv[3] = $null; $targv[4] = $null
+$words = $wsp.GetType().GetMethod('Transcribe').Invoke($wsp, $targv)
+$aargs = [IO.File]::ReadAllText((Join-Path $sttRoot 'fake-py-args.txt'), [Text.Encoding]::UTF8)
+$sreq = @([IO.File]::ReadAllLines((Join-Path $sttRoot 'fake-py-stt.txt'), [Text.Encoding]::UTF8))
+$wt = @($words | ForEach-Object { $_.Text + '@' + $_.Start.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture) })
+Check 'מדויק: הפייתון של engine-ct2 עם המריץ של engine-whisper ומודל יחסי, מתוך ״models״ (שם עברי), חצי מהליבות עד ארבע' ($aargs -match ('^-I -s engine-whisper\\stt_runner\.py stt-he-accurate [1-4]\|cwd=') -and $aargs.Contains('|cwd=' + $sttRoot + '|')) $aargs
+Check 'מדויק: הקול בנתיב מלא (פייתון קורא עברית), והמילים מהרקע עוברות' ($sreq.Count -eq 1 -and $sreq[0].Contains('|exists=True') -and $sreq[0].Contains('"hot":"קדאפי"')) $sreq[0]
+Check 'מדויק: שורה שאינה JSON לא עוצרת; מילים עם זמנים; לא בטוחה - ⟦כך⟧ והנקודה בחוץ; קטע בלי מילים מתחלק על הזמן שלו' (($wt -join ' ') -eq ('shalom@0.2 ' + [char]0x27E6 + 'lekulam' + [char]0x27E7 + '.@1.0 bli@3.0 milim@4.0') -and $targv[4] -eq $null) ($wt -join ' ')
+Check 'מדויק: ההתקדמות לפי סוף כל קטע' ((@($script:accProg) -join ',') -eq '2.5,5') (@($script:accProg) -join ',')
+$wsp.Stop(); Start-Sleep -Milliseconds 300
+[IO.File]::WriteAllText((Join-Path $sttRoot 'fake-py-mode.txt'), 'stterror')
+$targv = New-Object object[] 5; $targv[0] = [string]$swav; $targv[1] = ''; $targv[2] = $null; $targv[3] = $null; $targv[4] = $null
+$words = $wsp.GetType().GetMethod('Transcribe').Invoke($wsp, $targv)
+Check 'מדויק: שגיאה מהמריץ - null והודעה, בלי מילים חלקיות' ($words -eq $null -and [string]$targv[4] -match 'לא הצליח') ([string]$targv[4])
+$wsp.Stop(); Start-Sleep -Milliseconds 300
+[IO.File]::WriteAllText((Join-Path $sttRoot 'fake-py-mode.txt'), 'sttdie')
+$targv = New-Object object[] 5; $targv[0] = [string]$swav; $targv[1] = ''; $targv[2] = $null; $targv[3] = $null; $targv[4] = $null
+$words = $wsp.GetType().GetMethod('Transcribe').Invoke($wsp, $targv)
+Check 'מדויק: התהליך נסגר באמצע (זיכרון) - null, ונאמר' ($words -eq $null -and [string]$targv[4] -match 'נסגר באמצע') ([string]$targv[4])
+$wsp.Stop(); Start-Sleep -Milliseconds 300
+Remove-Item (Join-Path $sttRoot 'fake-py-mode.txt'); Remove-Item (Join-Path $sttRoot 'fake-py-stt.txt')
+# מקצה לקצה דרך התוכנה: קובץ של 40 שניות, קטע אחד, בלי שקט מסביב
+$script:ctx = 'שיעור על קדאפי'
+$res = RunFile $short 40000 $null 0 0
+$script:ctx = $null
+$sreq = @([IO.File]::ReadAllLines((Join-Path $sttRoot 'fake-py-stt.txt'), [Text.Encoding]::UTF8))
+$size = if ($sreq.Count -gt 0) { [long]($sreq[0] -replace '^.*\|size=', '') } else { -1 }
+$wavPath = if ($sreq.Count -gt 0) { (($sreq[0] | ForEach-Object { ($_ -split '\|exists=')[0] }) | ConvertFrom-Json).wav } else { '' }
+Check 'מדויק מקצה לקצה: קטע אחד, הכתוביות מהמילים, שום כישלון' ([int]$res.Chunks -eq 1 -and [int]$res.Failed -eq 0 -and -not $res.Error -and (CueText $res) -match 'shalom' -and (CueText $res) -match 'milim') ((CueText $res) + ' / ' + $res.Error)
+Check 'מדויק מקצה לקצה: 16kHz מונו בלי השקט של הקל (40 שניות בדיוק), בתיקייה הזמנית של התוכנה - ונמחק' ($size -ge 1279000 -and $size -le 1281000 -and $wavPath -like '*SubStudio*' -and -not (Test-Path $wavPath)) ("" + $size + ' ' + $wavPath)
+Check 'מדויק מקצה לקצה: בסוף התהליך נסגר מיד (הוא תופס 1.6GB)' (@(AccProcs).Count -eq 0) ("" + @(AccProcs).Count)
+$fieldModel.SetValue($null, [string]$keepModel)
+$e1.Files = $keepS.f1; $e1.Sizes = $keepS.s1; $e2.Files = $keepS.f2; $e2.Sizes = $keepS.s2; $acc.Files = $keepS.f3; $acc.Sizes = $keepS.s3
 $catT.GetField('RootOverride', $SF).SetValue($null, $null)
 
 # ---------------- ההורדה ----------------

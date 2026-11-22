@@ -245,7 +245,7 @@ namespace SubtitleStudio
             }
         }
 
-        private static string Rel(string root, string path)
+        internal static string Rel(string root, string path)
         {
             string r = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             return path.StartsWith(r, StringComparison.OrdinalIgnoreCase) ? path.Substring(r.Length) : path;

@@ -150,12 +150,42 @@ namespace SubtitleStudio
                        Lang.T("פחות טעויות, ועדיין בלי להכביד: שעה של שיעור בכרבע שעה."), "he",
                        673, 1400, "CC BY 4.0", "", "engine-sherpa", false));
             r[r.Count - 1].Credit = "Yakov Kolani · ivrit.ai · NVIDIA Parakeet · sherpa-onnx";
+            // **התמלול המדויק** (22.11, RESEARCH 3ב): ‏Whisper large-v3-turbo של ivrit.ai, ב-CTranslate2 עם המשקלים ב-8 ביט, דרך faster-whisper
+            // בניחוש מיידי. על ״כאן״: 7.9% בקטעים (whisper.cpp ‏7.15% - שקול), ובחמש דקות רצופות פי 2.2 מזמן אמת בארבע ליבות כולל זמני
+            // מילים (whisper.cpp: פי 0.57, ועם OpenBLAS פי 1.2); 1.6GB זיכרון. עם פיסוק
+            r.Add(Pack(LocalStt.AccurateId, ModelTask.Transcribe, ModelTier.Heavy, Lang.T("תמלול עברית - מדויק, כבד"),
+                       Lang.T("פחות טעויות, ועם פיסוק. איטי: שעה של שיעור בחצי שעה עד שעה, והמחשב עמוס בזמן הזה."), "he",
+                       785, 1700, "Apache 2.0", "", "engine-whisper", true));
+            ModelPack p = r[r.Count - 1];
+            p.Credit = "ivrit.ai · OpenAI Whisper · CTranslate2 · faster-whisper";
+            p.Tag = "local-stt-he-2";
+            p.Files = new string[] { "config.json", "ivrit-ai-whisper-LICENSE.txt", "model.bin", "preprocessor_config.json", "tokenizer.json", "vocabulary.json" };
+            p.Sizes = new long[] { 1405, 12157, 819450972, 357, 2710337, 1068114 };
+            p.GzSizes = new long[] { 311, 4355, 685506124, 221, 651685, 257568 };
+            p.Sha256 = new string[] {
+                "C805EFF43FC2A1D00D5CFA315E4B2230895F34994257C185959808A116E7C4F0",
+                "8AED2ADF19D04F7F8DDDE1586699B6178B3141E041499C95ED3C234F0E30A039",
+                "DF694666FB1D382A9E5EE7DC6A576FDFC0F057CDE9C978C00DD2DDD0FDD7A6B1",
+                "654CF18D3E163B948CEAF9766DA56CE0B52DE265D58673CF61C9376F126BD499",
+                "297B13372AC43916285644FB9687ADD3CC62EE2A1ADB60DA3DC25CC94C1871FD",
+                "C69260F2AB26D659B7C398F9A2B2B48ED0DF16C3B47D7326782FD9CBA71690C1" };
+            // התוספת למנוע של התמלול המדויק (22.11): faster-whisper, ‏NumPy, ‏Tokenizers ו-tqdm, ליד הפייתון של ``engine-ct2`` - מי שכבר
+            // הוריד את המתרגם הקל לא מוריד פייתון שוב. ‏``stt_runner.py`` בתוכה. **גרסה חדשה = שם חדש לקובץ**
+            r.Add(Pack("engine-whisper", ModelTask.Engine, ModelTier.Heavy, Lang.T("מנוע התמלול המדויק"), "", "he",
+                       41, 0, "MIT · BSD · Apache 2.0", "", "engine-ct2", true));
+            p = r[r.Count - 1];
+            p.Credit = "faster-whisper · NumPy · Tokenizers";
+            p.Tag = "local-stt-he-2";
+            p.Files = new string[] { "engine-whisper-1.zip" };
+            p.Sizes = new long[] { 42614000 };
+            p.GzSizes = new long[] { 13364826 };
+            p.Sha256 = new string[] { "F51B88EBCADC543D3EEF09AC7F35ED7DD0FBF388F35F881B77AAFB68B5782A62" };
             // המנוע של המתרגם הקל (17.11): פייתון מוטמע רשמי + CTranslate2 + SentencePiece + זמן הריצה של ++C, ב-ZIP אחד שנפרס.
             // לא מוצג בחלון - יורד לבד לפני מודל שצריך אותו. **גרסה חדשה = שם חדש לקובץ**: הסימן ``.ok`` לא יודע גרסה.
             // גרסה 2 (17.11): גם sherpa-onnx (המודול לפייתון, עם ONNX Runtime) - לפיסוק של אנגלית לפני התרגום, באותו תהליך
             r.Add(Pack("engine-ct2", ModelTask.Engine, ModelTier.Light, Lang.T("מנוע התרגום הקל"), "", "*",
                        103, 0, "PSF · MIT · Apache 2.0", "", "", true));
-            ModelPack p = r[r.Count - 1];
+            p = r[r.Count - 1];
             p.Credit = "Python · CTranslate2 · SentencePiece";
             p.Tag = "local-mt-1";
             p.Files = new string[] { "engine-ct2-2.zip" };

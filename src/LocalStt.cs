@@ -531,6 +531,52 @@ namespace SubtitleStudio
         /// <summary>המודל שירוץ בפועל: המדויק רק אם נבחר והוא מוצע; אחרת הקל.</summary>
         internal static string ActiveId { get { return ModelId == AccurateId && AccurateOffered ? AccurateId : ModelCatalog.LegacyId; } }
         internal static bool IsInstalled(string id) { return ModelCatalog.Installed(ModelCatalog.ById(id)); }
+
+        /// <summary>מילה שהמודל המדויק נתן לה הסתברות נמוכה מזה (הממוצע של חלקיה, faster-whisper) מסומנת ⟦לא בטוחה⟧.</summary>
+        internal const double WhisperDoubtBelow = 0.22;
+
+        /// <summary>המודל המדויק כבד: חצי מהליבות, עד ארבע (נמדד 22.11: פי 2.2 מזמן אמת בארבע). הבחירה בו היא בחירה במחשב עמוס.</summary>
+        internal static int WhisperThreads
+        {
+            get
+            {
+                int n = Environment.ProcessorCount / 2;
+                return n < 1 ? 1 : n > 4 ? 4 : n;
+            }
+        }
+
+        private static LocalCt2 _whisper;
+        private static string _whisperKey;
+        private static readonly object _whisperLock = new object();
+
+        /// <summary>התהליך של המודל המדויק: הפייתון של ``engine-ct2``, המריץ של ``engine-whisper``, מתוך תיקיית ``models``.</summary>
+        internal static LocalCt2 Whisper()
+        {
+            ModelPack p = ModelCatalog.ById(AccurateId);
+            ModelPack add = ModelCatalog.ById(p.Requires);
+            ModelPack eng = ModelCatalog.ById(add.Requires);
+            string root = ModelCatalog.Root;
+            string python = Path.Combine(Path.Combine(ModelCatalog.FolderOf(eng), "py"), "python.exe");
+            string runner = LocalTranslator.Rel(root, Path.Combine(ModelCatalog.FolderOf(add), "stt_runner.py"));
+            string model = LocalTranslator.Rel(root, ModelCatalog.FolderOf(p));
+            string key = python + "|" + root + "|" + model + "|" + WhisperThreads;
+            lock (_whisperLock)
+            {
+                if (_whisper == null || _whisperKey != key)
+                {
+                    if (_whisper != null) _whisper.Stop();
+                    _whisper = new LocalCt2(python, runner, root, model, WhisperThreads.ToString(CultureInfo.InvariantCulture));
+                    _whisperKey = key;
+                }
+                return _whisper;
+            }
+        }
+
+        /// <summary>סוגר את המודל המדויק (סוף תמלול - הוא תופס כ-1.6GB, מחיקת החבילה).</summary>
+        internal static void StopWhisper()
+        {
+            lock (_whisperLock) { if (_whisper != null) _whisper.Stop(); }
+        }
         public bool SendsAudioOut { get { return false; } }
         public int ChunkSec { get { return 300; } }
         public int MinGapMs { get { return 0; } }
@@ -554,8 +600,8 @@ namespace SubtitleStudio
 
         /// <summary>כמה שניות קול מתומללות בשנייה, להערכת הזמן בחלון. זהיר: במחשב שנמדד (נייד מ-2024) זה 15.</summary>
         internal const double SpeedGuess = 8;
-        /// <summary>אותו דבר לכל מודל. המדויק: נמדד פי 0.7 מזמן אמת ב-4 ליבות (3.11, whisper.cpp) - ההערכה זהירה, עד שיימדד במנוע שייבחר.</summary>
-        internal static double SpeedOf(string id) { return id == AccurateId ? 0.6 : SpeedGuess; }
+        /// <summary>אותו דבר לכל מודל. המדויק: נמדד 22.11 פי 2.2 מזמן אמת בארבע ליבות של מחשב נייד מ-2024 - ההערכה זהירה (מחשב חלש, שתי ליבות).</summary>
+        internal static double SpeedOf(string id) { return id == AccurateId ? 1.0 : SpeedGuess; }
 
         // ---------- קטע בודד (הממשק הכללי) ----------
 
@@ -730,7 +776,9 @@ namespace SubtitleStudio
         {
             Transcribe.Result res = new Transcribe.Result();
             res.ProviderName = Name;
-            if (!LocalModel.Installed) { res.Error = NotInstalled; return res; }
+            // **המודל המדויק** (0.8.46): אותו מסלול - קטעים של חמש דקות, חפיפה ותפר לפי מילים - עם מנוע אחר (``AccurateChunk``)
+            bool accurate = ActiveId == AccurateId;
+            if (!IsInstalled(ActiveId)) { res.Error = NotInstalled; return res; }
             if (!Ff.Available) { res.Error = Lang.T("מנוע הווידאו לא זמין."); return res; }
             if (durationMs <= 0) { res.Error = Lang.T("לא הצלחתי לקרוא את אורך הקובץ."); return res; }
 
@@ -749,13 +797,19 @@ namespace SubtitleStudio
             res.Chunks = starts.Count;
 
             string work;
-            try { work = WorkDir(); }
+            // המדויק - בתיקייה הזמנית של התוכנה: תיקיית העבודה של הקל יושבת בתוך התיקייה שלו, ויצירה שלה בלי שהקל הורד הייתה
+            // נראית בהגדרות כ״הורדה שלא הסתיימה״
+            try { work = accurate ? Ff.TempDir() : WorkDir(); }
             catch (Exception ex) { res.Error = ErrorText.Of(ex); return res; }
-            CleanWork();
+            if (!accurate) CleanWork();
             string tag = Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) + "_" + NextId();
             string hot = null;
-            try { hot = WriteHotwords(work, tag, context); }
-            catch (Exception ex) { Ai.Log("רשימת המילים לתמלול המקומי לא נכתבה: " + ex.Message); }
+            string hotText = accurate ? string.Join(" ", Hotwords(context).ToArray()) : null;
+            if (!accurate)
+            {
+                try { hot = WriteHotwords(work, tag, context); }
+                catch (Exception ex) { Ai.Log("רשימת המילים לתמלול המקומי לא נכתבה: " + ex.Message); }
+            }
 
             List<OpenAiStt.SttWord> all = new List<OpenAiStt.SttWord>();
             int failStreak = 0;
@@ -773,17 +827,31 @@ namespace SubtitleStudio
                 string name = "c" + tag + "_" + i.ToString(CultureInfo.InvariantCulture) + ".wav";
                 string wav = Path.Combine(work, name);
                 Kill(wav);
+                // המדויק בלי שקט מסביב: הוא לא מודל זורם, ולא חותך את המילה האחרונה
                 string args = "-y -hide_banner -v error -ss " + s.ToString("0.###", CultureInfo.InvariantCulture) +
                               " -t " + len.ToString("0.###", CultureInfo.InvariantCulture) +
                               " -i " + Ff.Q(mediaPath) +
-                              " -vn -ac 1 -ar 16000 -c:a pcm_s16le -af " + PadFilter + " " + Ff.Q(wav);
+                              " -vn -ac 1 -ar 16000 -c:a pcm_s16le" + (accurate ? "" : " -af " + PadFilter) + " " + Ff.Q(wav);
                 string so, se;
                 Ff.RunSync(Ff.Exe, args, out so, out se, work);
 
                 string err = null;
                 List<OpenAiStt.SttWord> words = null;
                 if (File.Exists(wav) && new FileInfo(wav).Length > 1000)
-                    words = RunEngine("work\\" + name, len + HeadPadSec + TailPadSec, hot, canceled, out err);
+                {
+                    if (accurate)
+                    {
+                        int ci = i, cn = starts.Count;
+                        double cs = s, cl = len;
+                        words = Whisper().Transcribe(wav, hotText, delegate (double at)
+                        {
+                            if (progress != null)
+                                progress((ci + Math.Min(1.0, at / Math.Max(1.0, cl))) / cn,
+                                         Lang.F("מתמלל {0} מתוך {1}", Tc.Short((long)((cs + Math.Min(at, cl)) * 1000)), Tc.Short(endMs)));
+                        }, canceled, out err);
+                    }
+                    else words = RunEngine("work\\" + name, len + HeadPadSec + TailPadSec, hot, canceled, out err);
+                }
                 else err = Lang.T("לא הצלחתי להכין את הקול לתמלול.");
                 Kill(wav);
 
@@ -826,6 +894,8 @@ namespace SubtitleStudio
             }
 
             if (hot != null) Kill(Path.Combine(LocalModel.Folder, hot));
+            // 1.6GB - לא מחכים שתי דקות של חוסר פעילות כדי לשחרר אותם
+            if (accurate) StopWhisper();
             foreach (Ai.TrLine ln in OpenAiStt.FromWords(all))
             {
                 long a = (long)Math.Round(ln.Start * 1000.0), b = (long)Math.Round(ln.End * 1000.0);

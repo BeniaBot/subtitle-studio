@@ -1968,7 +1968,7 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 התמלול על המחשב בבטא: הוא יודע עברית בלבד, ופחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.	On-device transcription is in beta: it knows Hebrew only, and is less accurate than the online services - mostly with names and terms.\r\nThe result goes into the editor like any subtitle, and it is worth going over it and fixing.
 קל ומהיר	Light and fast
 מדויק וכבד - עם פיסוק	Accurate and heavy - with punctuation
-התמלול המדויק בבטא: עברית בלבד, עם פיסוק, ומדויק יותר מהקל - אבל איטי: שעה של שיעור בשעה ויותר, ובזמן הזה המחשב עמוס.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.	Accurate transcription is in beta: Hebrew only, with punctuation, and more accurate than the light one - but slow: an hour of a lecture takes an hour or more, and the computer is busy meanwhile.\r\nThe result goes into the editor like any subtitle - worth going over it and fixing.
+התמלול המדויק בבטא: עברית בלבד, עם פיסוק, ומדויק יותר מהקל - אבל איטי: שעה של שיעור בחצי שעה עד שעה, ובזמן הזה המחשב עמוס.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן.	Accurate transcription is in beta: Hebrew only, with punctuation, and more accurate than the light one - but slow: an hour of a lecture takes half an hour to an hour, and the computer is busy meanwhile.\r\nThe result goes into the editor like any subtitle - worth going over it and fixing.
 שמות, מקומות ומונחים בעברית שכתובים כאן ייכתבו נכון יותר. הרקע עובר גם לתרגום.	Names, places and terms in Hebrew written here come out more accurately. This carries over to the translation too.
 הורדה של {0}, פעם אחת	A one-time download of {0}
 הקול נשאר במחשב. שום דבר לא נשלח.	The audio stays on this PC. Nothing is sent.
@@ -2060,6 +2060,10 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום.	The on-device translator is not downloaded yet. You can download it in the translation window.
 התרגום על המחשב יודע כרגע רק מאנגלית לעברית.	On-device translation currently knows only English to Hebrew.
 תרגום מדויק - כבד	Accurate translation - heavy
+תמלול עברית - מדויק, כבד	Hebrew transcription - accurate, heavy
+פחות טעויות, ועם פיסוק. איטי: שעה של שיעור בחצי שעה עד שעה, והמחשב עמוס בזמן הזה.	Fewer mistakes, and with punctuation. Slow: an hour of a lecture in half an hour to an hour, and the computer is busy meanwhile.
+מנוע התמלול המדויק	Accurate transcription engine
+התמלול המדויק לא הצליח לקרוא את הקטע הזה.	Accurate transcription could not read this part.
 המתרגם המדויק ביותר על המחשב, לכל השפות. איטי: שעה של כתוביות בכשעה וחצי, במחשב חזק.	The most accurate on-device translator, for all languages. Slow: an hour of subtitles in about an hour and a half on a strong computer.
 כל השפות · מדויק ומהיר	All languages · accurate and fast
 קל ומהיר - מאנגלית לעברית	Light and fast - English to Hebrew

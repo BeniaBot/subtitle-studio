@@ -75,20 +75,21 @@ namespace SubtitleStudio
             int saved = _modelIds.IndexOf(LocalStt.ModelId);
             _model.SelectedIndex = saved >= 0 ? saved : 0;
             _model.SelectedIndexChanged += delegate { Refresh_(); };
-            Row(_model, 40, 4);
+            // שורת המודל הוסיפה גובה: החלון ב-1080p ב-150% מוגבל ל-693, והגיע ל-704 - מרווחים צפופים יותר כאן (כמו בחלון התרגום)
+            Row(_model, 38, 4);
 
             _connect = new Btn();
             _connect.Kind = BtnKind.Ghost;
             _connect.Icon = Ico.Key;
             _connect.Click += delegate { Connect(); };
-            Row(_connect, 38, 12);
+            Row(_connect, 38, 6);
 
             // האזהרה היא העיקר כאן, ולכן היא בולטת ולא הערת שוליים
             Section(Lang.T("לפני שמתחילים"));
             _warn = Label("", true, Theme.Warn);
             Row(_warn, 24, 2);
             _warn2 = Hint(CloudNote);
-            Row(_warn2, 44, 8);
+            Row(_warn2, 44, 6);
 
             _info = Hint("");
             // רק חלק מהסרט: הקטע שסומן על הציר (״תחילת קטע״ / ״סוף קטע״), כמו בהטמעה ובכלים. בלי סימון
@@ -119,7 +120,7 @@ namespace SubtitleStudio
             {
                 Row(_replace, 28, 6);
                 Lbl rh = Hint(Lang.T("אם לא - הכתוביות החדשות יתווספו לקיימות."));
-                Row(rh, 22, 10);
+                Row(rh, 22, 8);
             }
 
             Section(Lang.T("רקע על התוכן (לא חובה)"));
@@ -129,7 +130,7 @@ namespace SubtitleStudio
             Row(_context, 40, 4);
             // שם שהמודל לא מכיר יוצא משובש או נעלם. כאן אפשר להגיד לו מראש - וזה עובר גם לתרגום
             _ctxHint = Hint(CloudContext);
-            Row(_ctxHint, 22, 6);
+            Row(_ctxHint, 22, 4);
 
             Buttons(Lang.T("להתחיל בתמלול"), Ico.Sparkles, Lang.T("ביטול"));
             Refresh_();
@@ -137,7 +138,7 @@ namespace SubtitleStudio
 
         private static string CloudNote { get { return Lang.T("הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל על המחשב - בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
         private static string LocalNote { get { return Lang.T("התמלול על המחשב בבטא: הוא יודע עברית בלבד, ופחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
-        private static string AccurateNote { get { return Lang.T("התמלול המדויק בבטא: עברית בלבד, עם פיסוק, ומדויק יותר מהקל - אבל איטי: שעה של שיעור בשעה ויותר, ובזמן הזה המחשב עמוס.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
+        private static string AccurateNote { get { return Lang.T("התמלול המדויק בבטא: עברית בלבד, עם פיסוק, ומדויק יותר מהקל - אבל איטי: שעה של שיעור בחצי שעה עד שעה, ובזמן הזה המחשב עמוס.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
         private static string CloudContext { get { return Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."); } }
         private static string LocalContext { get { return Lang.T("שמות, מקומות ומונחים בעברית שכתובים כאן ייכתבו נכון יותר. הרקע עובר גם לתרגום."); } }
 
