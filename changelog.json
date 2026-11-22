@@ -7,12 +7,12 @@
       "items": [
         {
           "t": "major",
-          "s": "בטא: תרגום על המחשב - בלי אינטרנט ובלי מפתח, והכתוביות לא יוצאות מהמחשב. בחלון התרגום בוחרים ״על המחשב״ ומודל: קל ומהיר (מאנגלית לעברית, מאות שורות בדקה, הורדה של כ-220 MB), או מדויק וכבד (כל השפות, כמה שניות לכתובית, הורדה של 2.3 GB - למחשב חזק)",
+          "s": "בטא: תרגום על המחשב - בלי אינטרנט ובלי מפתח, והכתוביות לא יוצאות מהמחשב. בחלון התרגום בוחרים ״על המחשב״ ומודל: קל ומהיר (מאנגלית לעברית, מאות שורות בדקה, הורדה של כ-\u202a220\u00a0MB\u202c), או מדויק וכבד (כל השפות, כמה שניות לכתובית, הורדה של \u202a2.3\u00a0GB\u202c - למחשב חזק)",
           "en": "Beta: translation on the PC itself - no internet, no key, and the subtitles never leave the computer. In the translation window choose \"On this PC\" and a model: light and fast (English to Hebrew, hundreds of lines a minute, a download of about 220 MB), or accurate and heavy (any language, a few seconds a subtitle, a 2.3 GB download - for a strong PC)"
         },
         {
           "t": "major",
-          "s": "בטא: תמלול עברית מדויק על המחשב - המודל של ivrit.ai, עם פיסוק ופחות טעויות מהתמלול הקל. בחלון התמלול: ״על המחשב״ ← ״מדויק וכבד״. הורדה חד-פעמית של כ-700 MB; שיעור של שעה מתומלל בחצי שעה עד שעה, והמחשב עמוס בזמן הזה",
+          "s": "בטא: תמלול עברית מדויק על המחשב - המודל של ivrit.ai, עם פיסוק ופחות טעויות מהתמלול הקל. בחלון התמלול: ״על המחשב״ ← ״מדויק וכבד״. הורדה חד-פעמית של כ-\u202a700\u00a0MB\u202c; שיעור של שעה מתומלל בחצי שעה עד שעה, והמחשב עמוס בזמן הזה",
           "en": "Beta: accurate Hebrew transcription on the PC - ivrit.ai's model, with punctuation and fewer mistakes than the light one. In the transcription window: \"On this PC\", then \"Accurate and heavy\". A one-time download of about 700 MB; an hour-long lesson takes half an hour to an hour, and the computer is busy meanwhile"
         },
         {
@@ -38,7 +38,7 @@
       "items": [
         {
           "t": "major",
-          "s": "בטא: תמלול עברית על המחשב - בלי אינטרנט, בלי מפתח, והקול לא יוצא מהמחשב. בחלון התמלול בוחרים ״על המחשב״: הורדה חד-פעמית של כ-62 MB (אפשר לעצור ולהמשיך), ואחריה שיעור של שעה מתומלל בכמה דקות, בלי להכביד על המחשב. פחות מדויק מהשירותים ברשת, ועדיין בפיתוח",
+          "s": "בטא: תמלול עברית על המחשב - בלי אינטרנט, בלי מפתח, והקול לא יוצא מהמחשב. בחלון התמלול בוחרים ״על המחשב״: הורדה חד-פעמית של כ-\u202a62\u00a0MB\u202c (אפשר לעצור ולהמשיך), ואחריה שיעור של שעה מתומלל בכמה דקות, בלי להכביד על המחשב. פחות מדויק מהשירותים ברשת, ועדיין בפיתוח",
           "en": "Beta: Hebrew transcription on the PC itself - no internet, no key, and the audio never leaves the computer. In the transcription window choose \"On this PC\": a one-time download of about 62 MB (you can stop and continue), and after it an hour-long lesson is transcribed in a few minutes, without weighing the computer down. Less accurate than the online services, and still in development"
         },
         {
