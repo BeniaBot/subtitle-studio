@@ -16,6 +16,8 @@ namespace SubtitleStudio
         List<AiTool> AiTools();
         /// <summary>מצב נוכחי בטקסט - נשלח כרקע בכל שיחה.</summary>
         string AiStateLine();
+        /// <summary>המצב לעוזר על המחשב - קצר ובאנגלית (`LocalAssist`).</summary>
+        string AiStateLocal();
         /// <summary>הפעולה האחרונה נשלחה לתור ההודעות (פותחת חלון) - הצ׳אט ממשיך רק אחריה. מתאפס בקריאה.</summary>
         bool AiTakeDeferred();
         /// <summary>אחרי שהפעולה שנדחתה רצה: מוסיף לתוצאה שלה מה יש עכשיו על המסך (החלון שנפתח).</summary>
@@ -250,9 +252,42 @@ namespace SubtitleStudio
                 delegate { AiPermsDlg d = new AiPermsDlg(); d.ShowDialog(this); }));
             items.Add(MenuItem.Make(Lang.T("המפתח של גוגל"), Lang.T("המפתח שהעוזר עובד איתו"), Ico.Key,
                 delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); }));
+            // **איפה העוזר עובד** (22.11, `LocalAssist`): דרך גוגל, או על המחשב (בטא). המעבר מתחיל שיחה חדשה - השיחה של אחד לא מתאימה לשני
+            items.Add(LocalAssist.On
+                ? MenuItem.Make(Lang.T("לעבור לעוזר של גוגל"), Lang.T("חכם יותר, רואה ושומע את הסרט; צריך אינטרנט ומפתח"), Ico.Sparkles,
+                    delegate { SwitchWhere(""); })
+                : MenuItem.Make(Lang.T("לעבור לעוזר על המחשב (בטא)"), Lang.T("בלי אינטרנט ובלי מפתח; פשוט יותר, ולא רואה ולא שומע את הסרט"), Ico.Download,
+                    delegate { SwitchWhere("local"); }));
             PopupMenu m = new PopupMenu(items, 300);
             m.ShowUnder(_more);
         }
+        /// <summary>מעבר בין העוזר של גוגל לעוזר על המחשב. על המחשב בלי מודל - חלון ההורדה קודם; בלי הורדה - לא עוברים.
+        /// לגוגל בלי מפתח - חלון המפתח. **שיחה חדשה** בכל מעבר.</summary>
+        private void SwitchWhere(string where)
+        {
+            if (where == "local" && !LocalAssist.Installed)
+            {
+                PackSetupDlg d = new PackSetupDlg(ModelCatalog.ById(LocalAssist.PackId));
+                d.ShowDialog(this);
+                d.Dispose();
+                if (!LocalAssist.Installed) return;
+            }
+            if (where != "local" && !Ai.HasKey)
+            {
+                AiSetupDlg d = new AiSetupDlg();
+                d.ShowDialog(this);
+                if (!Ai.HasKey) return;
+            }
+            if (_busy) StopRequest();
+            LocalAssist.Where = where;
+            if (where != "local") LocalAssist.Stop();
+            Settings.SaveAll();
+            _history.Clear();
+            _view.Clear();
+            Greet();
+            Invalidate();
+        }
+
         private MicRecorder _rec;
         private System.Windows.Forms.Timer _recTimer;
         /// <summary>הקלטה שנשלחה כתשובה לשאלה עם אפשרויות - נכנסת לשיחה מיד אחרי התשובה לפעולה.</summary>
@@ -805,7 +840,9 @@ namespace SubtitleStudio
             _view.Thinking = true;
             Invalidate();
 
-            string sys = SystemPrompt();
+            bool local = LocalAssist.On;
+            string sys = local ? "" : SystemPrompt();
+            string localState = local ? _host.AiStateLocal() : null;
             List<AiTool> tools = _host.AiTools();
             List<AiMsg> snapshot = new List<AiMsg>(Trimmed(_history));
 
@@ -830,6 +867,9 @@ namespace SubtitleStudio
                 // **גוגל איטי - גם דגם אחר, במקביל** (`Ai.Race`, 0.8.14): אותה בקשה לוקחת פעם 3 שניות ופעם 33
                 try
                 {
+                    // **העוזר על המחשב** (22.11, `LocalAssist`): בלי מרוץ ובלי דגמים - שרת אחד על המחשב, ההנחיה שלו, המצב בהודעה
+                    if (local) reply = LocalAssist.Send(localState, snapshot, tools);
+                    else
                     reply = Ai.Race<AiReply>(2, HedgeMs, false,
                         delegate (int i)
                         {

@@ -444,6 +444,8 @@ class P {
           int lines = File.ReadAllLines("fake-llm-completions.txt").Length;
           body = mode == "nocontent" ? "{\"oops\":1}" : "{\"content\":\" heavy " + lines + " \"}";
         }
+        else if (mode == "toolcall") body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"delete_cues\",\"arguments\":\"{\\\"from_index\\\":6}\"}}]}}]}";
+        else if (mode == "replycall") body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"\",\"tool_calls\":[{\"id\":\"c2\",\"type\":\"function\",\"function\":{\"name\":\"reply\",\"arguments\":\"{\\\"text\\\":\\\"מחקתי את הכתובית\\\"}\"}}]}}]}";
         else body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"<think>hmm</think>שלום\"}}]}";
       }
       byte[] b = Encoding.UTF8.GetBytes(body);
@@ -492,6 +494,63 @@ $ll = NewLlm 'caspi\model.gguf' $null
 $r = Ask $ll ($llT.GetMethod('TextMessage', $SF).Invoke($null, @([string]'user', [string]'x')))
 Check 'llama-server: נסגר בזמן הטעינה - ״אולי אין מספיק זיכרון״ והצעה למודל קל' ($r.out -eq $null -and $r.err -match 'זיכרון' -and $r.err -match 'קל יותר') $r.err
 Remove-Item (Join-Path $llModels 'fake-llm-mode.txt')
+
+# ---------------- העוזר על המחשב (LocalAssist, 22.11) - הרתמה, ושרת מדומה ----------------
+Write-Host "`n--- local assistant"
+$laT = T 'LocalAssist'; $toolT = T 'AiTool'; $msgT2 = T 'AiMsg'
+$ser2 = New-Object Web.Script.Serialization.JavaScriptSerializer; $ser2.MaxJsonLength = 67108864
+$tl = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($toolT))
+$t1 = [Activator]::CreateInstance($toolT, @([string]'delete_cues', [string]'מוחק טווח כתוביות')); [void]$t1.Req('from_index', 'integer', 'מספר'); [void]$t1.P('to_index', 'integer', 'עד'); $tl.Add($t1)
+$t2 = [Activator]::CreateInstance($toolT, @([string]'watch_video', [string]'צופה בסרט')); [void]$t2.Req('question', 'string', 'שאלה'); $tl.Add($t2)
+$tools = $laT.GetMethod('Tools', $SF).Invoke($null, [object[]](,$tl))
+$tj = $ser2.Serialize($tools)
+Check 'עוזר מקומי: הפקודות - reply ראשון, תיאור קצר באנגלית, החובה מהתוכנה; בלי מה שצריך את גוגל' ($tools.Count -eq 2 -and $tools[0]['function']['name'] -eq 'reply' -and $tj -match '"description":"Delete subtitles\."' -and $tj -match '"required":\["from_index"\]' -and $tj -notmatch 'watch_video') $tj.Substring(0, [Math]::Min(300, $tj.Length))
+$hist = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($msgT2))
+$u = [Activator]::CreateInstance($msgT2); $msgT2.GetField('Role').SetValue($u, 'user'); $msgT2.GetField('Text').SetValue($u, 'תמחק את האחרונה'); $hist.Add($u)
+# החלקים של התור של המודל - בקוד של חלון השיחה עצמו (`AiChatForm.PartsOf`), מתשובה שפוענחה (`Parse`); מילון שנבנה ב-PowerShell
+# נעטף ב-PSObject, והקוד לא מזהה אותו כמילון
+$parse = $laT.GetMethod('Parse', $SF); $partsOf = (T 'AiChatForm').GetMethod('PartsOf', $SF)
+function ModelMsg([string]$json) {
+    $rp = $parse.Invoke($null, @([string]$json, $null))
+    $mm = [Activator]::CreateInstance($msgT2); $msgT2.GetField('Role').SetValue($mm, 'model')
+    $msgT2.GetField('Parts').SetValue($mm, $partsOf.Invoke($null, [object[]](,$rp)))
+    return ,$mm
+}
+$jDel = '{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"c1","type":"function","function":{"name":"delete_cues","arguments":"{\"from_index\":6}"}}]}}]}'
+$jList = '{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"c3","type":"function","function":{"name":"list_cues","arguments":"{}"}}]}}]}'
+$m = ModelMsg $jDel; $hist.Add($m)
+$msgs = $laT.GetMethod('Messages', $SF).Invoke($null, @([string]'6 subtitles.', $hist))
+$mj = $ser2.Serialize($msgs)
+Check 'עוזר מקומי: המצב בהודעה של המשתמש (לא בהנחיה), והפעולה כ-tool_calls עם הארגומנטים' ($msgs[0]['role'] -eq 'system' -and ([string]$msgs[1]['content']).StartsWith('[STATE] 6 subtitles.') -and ([string]$msgs[1]['content']).Contains('[REQUEST] תמחק') -and $mj -match '"tool_calls":\[\{"id":"c1"' -and ([string]$msgs[2]['tool_calls'][0]['function']['arguments']) -eq '{"from_index":6}') $mj.Substring(0, [Math]::Min(400, $mj.Length))
+$acted = $laT.GetMethod('ActedSinceUser', $SF)
+$a0 = $acted.Invoke($null, [object[]](,$hist)); Check 'עוזר מקומי: השער - אחרי פעולה שמשנה, יודע שכבר נעשתה' ($a0 -eq 'delete_cues') ('[' + [string]$a0 + '] hist=' + $hist.Count)
+$histQ = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($msgT2)); $histQ.Add($u); $histQ.Add((ModelMsg $jList))
+$q = $acted.Invoke($null, [object[]](,$histQ))
+$u2 = [Activator]::CreateInstance($msgT2); $msgT2.GetField('Role').SetValue($u2, 'user'); $msgT2.GetField('Text').SetValue($u2, 'עוד משהו'); $hist.Add($u2)
+Check 'עוזר מקומי: השער - פקודה שרק קוראת לא נועלת, ובקשה חדשה מתחילה מחדש' ($q -eq $null -and $acted.Invoke($null, [object[]](,$hist)) -eq $null) ''
+$tc = '{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"x9","type":"function","function":{"name":"shift_cues","arguments":"{\"seconds\":1.5}"}}]}}]}'
+$r1 = $parse.Invoke($null, @([string]$tc, $null))
+$r2 = $parse.Invoke($null, @([string]$tc, [string]'delete_cues'))
+$r3 = $parse.Invoke($null, @([string]'{"choices":[{"message":{"role":"assistant","content":"הכתובית נמחקה."}}]}', [string]'delete_cues'))
+$r4 = $parse.Invoke($null, @([string]'{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"r","type":"function","function":{"name":"reply","arguments":"{\"text\":\"שלום\"}"}}]}}]}', $null))
+Check 'עוזר מקומי: פקודה ← פעולה עם הארגומנטים; reply ← טקסט' ($r1.Calls.Count -eq 1 -and $r1.Calls[0].Name -eq 'shift_cues' -and [double]$r1.Calls[0].Args['seconds'] -eq 1.5 -and $r1.Calls[0].Id -eq 'x9' -and $r4.Text -eq 'שלום' -and $r4.Calls.Count -eq 0) ''
+Check 'עוזר מקומי: אחרי פעולה - פקודה נוספת לא מתבצעת (״בוצע״), והסיכום שלו כן מוצג' ($r2.Calls.Count -eq 0 -and $r2.Text.Length -gt 0 -and $r3.Text -eq 'הכתובית נמחקה.' -and $r3.Calls.Count -eq 0) ($r2.Text + ' | ' + $r3.Text)
+# מקצה לקצה מול השרת המדומה: הבקשה (חובה של פקודה, בלי חשיבה, הפקודות) והתשובה
+$laT.GetField('LlmOverride', $SF).SetValue($null, (NewLlm 'assist\model.gguf' $null))
+[IO.File]::WriteAllText((Join-Path $llModels 'fake-llm-mode.txt'), 'toolcall')
+$hist1 = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($msgT2)); $hist1.Add($u)
+$rr = $laT.GetMethod('Send', $SF).Invoke($null, @([string]'6 subtitles.', $hist1, $tl))
+$sent = [IO.File]::ReadAllText((Join-Path $llModels 'fake-llm-req.json'), [Text.Encoding]::UTF8)
+Check 'עוזר מקומי: מקצה לקצה - ״required״, בלי חשיבה, הפקודות נשלחות, ופעולה חוזרת' ($rr.Error -eq $null -and $rr.Calls.Count -eq 1 -and $rr.Calls[0].Name -eq 'delete_cues' -and [int]$rr.Calls[0].Args['from_index'] -eq 6 -and $sent -match '"tool_choice":"required"' -and $sent -match '"enable_thinking":false' -and $sent -match '"name":"reply"') ([string]$rr.Error + ' ' + $sent.Substring(0, [Math]::Min(200, $sent.Length)))
+$laT.GetField('LlmOverride', $SF).GetValue($null).Stop()   # השרת המדומה קורא את המצב כשהוא עולה
+[IO.File]::WriteAllText((Join-Path $llModels 'fake-llm-mode.txt'), 'replycall')
+$hist.RemoveAt($hist.Count - 1)
+$rr3 = $laT.GetMethod('Send', $SF).Invoke($null, @([string]'6 subtitles.', $hist, $tl))
+$sent3 = [IO.File]::ReadAllText((Join-Path $llModels 'fake-llm-req.json'), [Text.Encoding]::UTF8)
+Check 'עוזר מקומי: אחרי פעולה - הבקשה מחייבת את reply בשם, והתשובה היא טקסט' ($rr3.Text -eq 'מחקתי את הכתובית' -and $sent3 -match '"tool_choice":\{"type":"function","function":\{"name":"reply"\}\}') ('text=[' + [string]$rr3.Text + '] err=[' + [string]$rr3.Error + '] choice=' + [regex]::Match($sent3, '"tool_choice":.{0,60}').Value)
+Remove-Item (Join-Path $llModels 'fake-llm-mode.txt')
+$ov = $laT.GetField('LlmOverride', $SF).GetValue($null); if ($ov) { $ov.Stop() }
+$laT.GetField('LlmOverride', $SF).SetValue($null, $null)
 
 # ---------------- המתרגם הקל דרך פייתון מוטמע (LocalCt2, 0.8.46) - ״פייתון״ מדומה ----------------
 Write-Host "`n--- ct2 runner (fake python)"

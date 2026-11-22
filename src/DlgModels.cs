@@ -9,13 +9,13 @@ namespace SubtitleStudio
     ///
     /// בנימין (16.11): ״שכל אחד יוכל לבחור אם להוריד רק את המודלים הקטנים ביותר, או... את כל סוגי המודלים... תראה את
     /// הסוגים השונים, תסביר בקצרצרה על ההבדלים״. לכל מודל: שם, שורה אחת, גודל, והאם הוא מתאים **למחשב הזה**
-    /// (`ModelCatalog.FitText` - רוב המשתמשים עם מחשב חלש). מודל שעוד בבדיקה מוצג כ״בקרוב״ - רואים מה בדרך.
+    /// (`ModelCatalog.FitText` - רוב המשתמשים עם מחשב חלש). מודל שעוד בבדיקה לא מוצג (מ-22.11 - בשביל המקום של העוזר).
     ///
     /// **הגובה חייב להישאר מתחת ל-693** (test-screens): לכן רק תמלול ותרגום (הפיסוק הוא חלק מהתרגום, לא בחירה
     /// של המשתמש), ושתי שורות לכל מודל.</summary>
     internal class ModelsDlg : Dlg
     {
-        private static readonly ModelTask[] Shown = { ModelTask.Transcribe, ModelTask.Translate };
+        private static readonly ModelTask[] Shown = { ModelTask.Transcribe, ModelTask.Translate, ModelTask.Assistant };
 
         private readonly List<ModelPack> _packs = new List<ModelPack>();
         private readonly List<Lbl> _info = new List<Lbl>();
@@ -34,7 +34,8 @@ namespace SubtitleStudio
                 Section(TaskName(task));
                 foreach (ModelPack p in ModelCatalog.All)
                 {
-                    if (p.Task != task) continue;
+                    // **״בקרוב״ יצא מהחלון** (22.11): העוזר על המחשב תפס את המקום, והגובה חייב להישאר מתחת ל-693. מה שזמין - מוצג
+                    if (p.Task != task || !p.Available) continue;
                     Lbl title = Label(p.Title, true, Theme.Text);
                     Row(title, 22, 0);
                     int bw = Theme.S(170);
@@ -64,6 +65,7 @@ namespace SubtitleStudio
             {
                 case ModelTask.Transcribe: return Lang.T("תמלול");
                 case ModelTask.Translate: return Lang.T("תרגום");
+                case ModelTask.Assistant: return Lang.T("העוזר החכם");
                 default: return "";
             }
         }

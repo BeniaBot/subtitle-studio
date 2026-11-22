@@ -172,6 +172,7 @@ namespace SubtitleStudio
                 sb.AppendLine("sttmodel=" + LocalStt.ModelId);
                 sb.AppendLine("mt=" + LocalTranslator.ProviderId);
                 sb.AppendLine("mtmodel=" + LocalTranslator.ModelId);
+                sb.AppendLine("aiwhere=" + LocalAssist.Where);
                 sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
                 sb.AppendLine("aiperms=" + AiPerms.Serialize());
                 sb.AppendLine("aispeak=" + (AiVoice.SpeakOn ? "1" : "0"));
@@ -278,6 +279,7 @@ namespace SubtitleStudio
                         case "sttmodel": LocalStt.ModelId = v; break;
                         case "mt": LocalTranslator.ProviderId = v; break;
                         case "mtmodel": LocalTranslator.ModelId = v; break;
+                        case "aiwhere": LocalAssist.Where = v; break;
                         case "spell": Spell.Enabled = v != "0"; break;
                         case "aiperms": AiPerms.Parse(v); break;
                         case "aispeak": AiVoice.SpeakOn = v == "1"; break;

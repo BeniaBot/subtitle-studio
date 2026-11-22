@@ -271,7 +271,8 @@ namespace SubtitleStudio
             _groq.Sub = string.IsNullOrEmpty(Stt.GroqKey)
                 ? Lang.T("לא מוגדר · נותן עד 8 שעות תמלול ביום, בחינם")
                 : Lang.T("מוגדר · עד 8 שעות תמלול ביום");
-            _perms.Sub = AiPerms.Summary();
+            // איפה העוזר עובד (22.11): על המחשב - כתוב ראשון בשורה
+            _perms.Sub = (LocalAssist.On ? Lang.T("על המחשב (בטא)") + " · " : "") + AiPerms.Summary();
             _google.Invalidate();
             _perms.Invalidate();
             _groq.Invalidate();

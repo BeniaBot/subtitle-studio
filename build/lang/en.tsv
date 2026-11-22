@@ -2082,3 +2082,15 @@ MKV לא מקבל את התמונה של RealMedia כמו שהיא. ״MP4 - נפ
 בלי אינטרנט ובלי מפתח · מותקנים {0} מודלים	No internet, no key · {0} models installed
 להוריד את המילון · {0}	Download the dictionary · {0}
 עוד לא הורד - הוא חינמי, ופעם אחת מספיקה.	Not downloaded yet - it's free, and once is enough.
+איפה העוזר יעבוד?	Where should the assistant work?
+בלי אינטרנט ובלי מפתח: מבין בקשות ועושה אותן. פחות חכם מהעוזר של גוגל, ולא רואה ולא שומע את הסרט.	No internet, no key: understands requests and does them. Less smart than Google's assistant, and it does not see or hear the video.
+בלי אינטרנט ובלי מפתח; פשוט יותר, ולא רואה ולא שומע את הסרט	No internet, no key; simpler, and it does not see or hear the video
+דרך גוגל - חכם יותר, רואה ושומע את הסרט, וצריך אינטרנט ומפתח חינמי. על המחשב (בטא) - בלי אינטרנט ובלי מפתח, פשוט יותר, והורדה חד-פעמית של כ-{0}.	Through Google - smarter, sees and hears the video, and needs internet and a free key. On this PC (beta) - no internet and no key, simpler, and a one-time download of about {0}.
+העוזר החכם על המחשב	The smart assistant on this PC
+חכם יותר, רואה ושומע את הסרט; צריך אינטרנט ומפתח	Smarter, sees and hears the video; needs internet and a key
+לעבור לעוזר על המחשב (בטא)	Switch to the assistant on this PC (beta)
+לעבור לעוזר של גוגל	Switch to Google's assistant
+העוזר על המחשב עוד לא הורד. אפשר להוריד אותו בהגדרות, ב״מודלים על המחשב״.	The assistant on this PC is not downloaded yet. You can download it in Settings, under "Models on this computer".
+בוצע.	Done.
+מפתח של גוגל	A Google key
+על המחשב (בטא)	On this PC (beta)

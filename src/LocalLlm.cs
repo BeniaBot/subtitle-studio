@@ -52,6 +52,10 @@ namespace SubtitleStudio
         public bool Running { get { lock (_lock) return _proc != null && !_proc.HasExited; } }
         public int Port { get { return _port; } }
 
+        /// <summary>ארגומנטים נוספים למנוע (העוזר על המחשב, 22.11): ``--jinja`` לקריאה לפונקציות, ראש הניחוש של Gemma 4
+        /// (``--spec-type draft-mtp -md``), ובמחשב עם מעט זיכרון ``--no-repack -lzm on``. **שמות יחסיים באנגלית בלבד**.</summary>
+        public string Extra;
+
         internal static int Threads
         {
             get
@@ -79,6 +83,7 @@ namespace SubtitleStudio
             string t = Threads.ToString(CultureInfo.InvariantCulture);
             a.Append(" -t ").Append(t).Append(" -tb ").Append(t);
             a.Append(" --no-webui");
+            if (!string.IsNullOrEmpty(Extra)) a.Append(' ').Append(Extra);
             return a.ToString();
         }
 
@@ -220,6 +225,22 @@ namespace SubtitleStudio
             body["chat_template_kwargs"] = kw;
             string reply = Post("/v1/chat/completions", body, canceled, out error);
             return reply == null ? null : ContentOf(reply, out error);
+        }
+
+        /// <summary>בקשת שיחה **עם הגוף כמו שהוא** (פקודות, ``tool_choice``) - מחזיר את התשובה הגולמית (JSON), או null עם הודעה.
+        /// לעוזר על המחשב (`LocalAssist`), שקורא ממנה ``tool_calls``.</summary>
+        public string ChatRaw(Dictionary<string, object> body, Func<bool> canceled, out string error)
+        {
+            error = null;
+            if (!Ensure(canceled, out error)) return null;
+            body["cache_prompt"] = true;
+            if (!body.ContainsKey("chat_template_kwargs"))
+            {
+                Dictionary<string, object> kw = new Dictionary<string, object>();
+                kw["enable_thinking"] = false;
+                body["chat_template_kwargs"] = kw;
+            }
+            return Post("/v1/chat/completions", body, canceled, out error);
         }
 
         /// <summary>**השלמה גולמית** (``/completion``) - כשהתבנית הרשמית של המודל לא עוברת דרך בקשת שיחה (TranslateGemma: התוכן

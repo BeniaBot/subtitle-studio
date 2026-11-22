@@ -775,6 +775,51 @@ namespace SubtitleStudio
         // ---------- המצב ----------
         /// <summary>המצב המלא, למודל. **עד 0.8.12, בלי סרט פתוח נאמר לו ״לא פתוח קובץ״** - גם כשהיו כתוביות בעורך,
         /// והוא ענה ״אין כתוביות״ (נמדד).</summary>
+        /// <summary>**המצב לעוזר על המחשב** (22.11, `LocalAssist`): קצר ובאנגלית - מודל של 2B קורא אותו בכל בקשה, והוא נכנס
+        /// להודעה של המשתמש ולא להנחיה (ההנחיה והפקודות קבועות, והשרת לא קורא אותן שוב). הכתוביות כמו ב-`AiStateFull`:
+        /// כולן עד 30, אחרת 12 סביב הנגן. זמנים בשניות - כך הפקודות מקבלות אותם.</summary>
+        public string AiStateLocal()
+        {
+            StringBuilder sb = new StringBuilder();
+            CultureInfo ci = CultureInfo.InvariantCulture;
+            try
+            {
+                if (_mi != null)
+                {
+                    sb.Append(_mi.HasVideo ? "Video: " : "Audio: ").Append(Path.GetFileName(_mi.Path)).Append(", ").Append(Tc.Clock(_mi.DurationMs)).Append(" long. ");
+                    sb.Append("Player at ").Append((_engine.Position / 1000.0).ToString("0.#", ci)).Append(" s").Append(_engine.IsPlaying ? ", playing. " : ". ");
+                }
+                else sb.Append("No video open. ");
+                if (_tl != null && _tl.InPoint >= 0 && _tl.OutPoint > _tl.InPoint)
+                    sb.Append("Marked range ").Append((_tl.InPoint / 1000.0).ToString("0.#", ci)).Append("-").Append((_tl.OutPoint / 1000.0).ToString("0.#", ci)).Append(" s. ");
+                int n = _doc.Cues.Count;
+                if (n == 0) { sb.Append("No subtitles."); return sb.ToString(); }
+                sb.Append(n).Append(n == 1 ? " subtitle" : " subtitles").Append(_doc.Dirty ? " (unsaved changes)" : "").Append(". ");
+                List<Cue> sel = _doc.SelectedCues();
+                if (sel.Count == 1) sb.Append("Selected: ").Append(_doc.IndexOf(sel[0]) + 1).Append(". ");
+                int from = 0, to = n;
+                if (n > 30)
+                {
+                    int at = 0;
+                    long pos = _engine.Position;
+                    for (int i = 0; i < n; i++) if (_doc.Cues[i].Start <= pos) at = i;
+                    from = Math.Max(0, at - 5);
+                    to = Math.Min(n, from + 12);
+                    sb.Append("Only ").Append(from + 1).Append("-").Append(to).Append(" shown (find_text searches all)");
+                }
+                sb.Append("\nSubtitles (number, start-end seconds, text):");
+                for (int i = from; i < to; i++)
+                {
+                    Cue c = _doc.Cues[i];
+                    sb.Append('\n').Append(i + 1).Append(") ").Append((c.Start / 1000.0).ToString("0.#", ci)).Append('-').Append((c.End / 1000.0).ToString("0.#", ci));
+                    if (c.Untimed) sb.Append(" (not timed)");
+                    sb.Append(' ').Append(Short(c.PlainText, 120));
+                }
+            }
+            catch (Exception ex) { sb.Append(" (state error: ").Append(ex.Message).Append(')'); }
+            return sb.ToString();
+        }
+
         internal string AiStateFull()
         {
             StringBuilder sb = new StringBuilder();

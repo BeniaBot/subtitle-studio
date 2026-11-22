@@ -23,7 +23,27 @@ namespace SubtitleStudio
                 _chat.RefreshChips();
                 return;
             }
-            if (!EnsureAiKey()) return;
+            // **בלי מפתח של גוגל - לשאול איפה** (22.11): עד כאן נפתח רק חלון המפתח, ומי שאין לו מפתח לא הגיע לעוזר בכלל
+            if (!LocalAssist.On && !Ai.HasKey)
+            {
+                int pick = Ui.Msg(this, Lang.T("איפה העוזר יעבוד?"),
+                    Lang.F("דרך גוגל - חכם יותר, רואה ושומע את הסרט, וצריך אינטרנט ומפתח חינמי. על המחשב (בטא) - בלי אינטרנט ובלי מפתח, פשוט יותר, והורדה חד-פעמית של כ-{0}.", Theme.Ltr("2.8 GB")),
+                    Ico.Sparkles, Lang.T("מפתח של גוגל"), Lang.T("על המחשב (בטא)"), Lang.T("ביטול"));
+                if (pick == 2 || pick < 0) return;
+                if (pick == 1) { LocalAssist.Where = "local"; Settings.SaveAll(); }
+            }
+            // העוזר על המחשב (22.11) - בלי מפתח; בלי המודל - קודם ההורדה
+            if (LocalAssist.On)
+            {
+                if (!LocalAssist.Installed)
+                {
+                    PackSetupDlg d = new PackSetupDlg(ModelCatalog.ById(LocalAssist.PackId));
+                    d.ShowDialog(this);
+                    d.Dispose();
+                    if (!LocalAssist.Installed) return;
+                }
+            }
+            else if (!EnsureAiKey()) return;
             _chat = new AiChatForm(this);
             _chat.Owner = this;
             try

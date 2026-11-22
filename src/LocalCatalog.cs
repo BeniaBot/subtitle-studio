@@ -239,6 +239,22 @@ namespace SubtitleStudio
             p.Sizes = new long[] { 47272732 };
             p.GzSizes = new long[] { 19062211 };
             p.Sha256 = new string[] { "D0C371D99C53892CFDE19D9B5650801001C68A54CEE0FA29CEBB4A107B1ECE78" };
+            // **העוזר על המחשב** (22.11, `LocalAssist`, RESEARCH 4ג): Gemma 4 E2B ב-Q4_0 של ggml-org וראש הניחוש שלו (MTP), Apache 2.0.
+            // ברתמה למודל קטן: 38 מתוך 40 בקשות, 1-3 שניות לבקשה על ארבע ליבות; זיכרון פרטי 1.6GB, ובמחשב עם מעט זיכרון (``--no-repack``)
+            // 0.6GB ו-2.7 שניות על שתי ליבות. ``engine-llama`` - אותו מנוע של המתרגם המדויק
+            r.Add(Pack(LocalAssist.PackId, ModelTask.Assistant, ModelTier.Balanced, Lang.T("העוזר החכם על המחשב"),
+                       Lang.T("בלי אינטרנט ובלי מפתח: מבין בקשות ועושה אותן. פחות חכם מהעוזר של גוגל, ולא רואה ולא שומע את הסרט."), "he",
+                       2770, 3000, "Apache 2.0", "", "engine-llama", true));
+            p = r[r.Count - 1];
+            p.Credit = "Google Gemma 4 · ggml-org (GGUF) · llama.cpp";
+            p.Tag = "local-assist-1";
+            p.Files = new string[] { "GEMMA4-LICENSE.txt", "gemma-4-E2B-it-Q4_0.gguf", "mtp-gemma-4-E2B-it-Q4_0.gguf" };
+            p.Sizes = new long[] { 11988, 2841481184, 59235872 };
+            p.GzSizes = new long[] { 4237, 2841481184, 45603457 };
+            p.Sha256 = new string[] {
+                "974190512A61CDFB74B1695102F460320E106E321D2DE01E78A493F90C79E330",
+                "8E30DFF3AC4C8434C49A7036FA15564BDBB6044E42BF04550BF1A096AD7E6A52",
+                "718D3A44057924D5840C65A0AEEDF7929366ADEEDA92A2006955CCABAF645EF4" };
             // 30MB, רבע שנייה לכל התמלול; העלה את התרגום מ-36.4 ל-42.3 על כתוביות בלי פיסוק
             r.Add(Pack("punct-en", ModelTask.Punctuate, ModelTier.Light, Lang.T("פיסוק לאנגלית"),
                        Lang.T("מוסיף נקודות ופסיקים לטקסט אנגלי לפני התרגום - התרגום יוצא טוב יותר."), "en",
@@ -290,7 +306,7 @@ namespace SubtitleStudio
         {
             int n = 0;
             foreach (ModelPack p in All)
-                if (p.Available && (p.Task == ModelTask.Transcribe || p.Task == ModelTask.Translate) && Installed(p)) n++;
+                if (p.Available && (p.Task == ModelTask.Transcribe || p.Task == ModelTask.Translate || p.Task == ModelTask.Assistant) && Installed(p)) n++;
             return n;
         }
 
