@@ -532,8 +532,10 @@ namespace SubtitleStudio
         internal static string ActiveId { get { return ModelId == AccurateId && AccurateOffered ? AccurateId : ModelCatalog.LegacyId; } }
         internal static bool IsInstalled(string id) { return ModelCatalog.Installed(ModelCatalog.ById(id)); }
 
-        /// <summary>מילה שהמודל המדויק נתן לה הסתברות נמוכה מזה (הממוצע של חלקיה, faster-whisper) מסומנת ⟦לא בטוחה⟧.</summary>
-        internal const double WhisperDoubtBelow = 0.22;
+        /// <summary>מילה שהמודל המדויק נתן לה הסתברות נמוכה מזה (faster-whisper) מסומנת ⟦לא בטוחה⟧. **כויל 22.11** על חמש דקות של ״כאן״
+        /// (``calib_doubt.py``): Whisper בטוח בעצמו - אף מילה מתחת ל-0.22 (הסף של הקל). ב-0.7 מסומנות 22 מ-773 (3%), שתיים משלוש מהן
+        /// באמת שגויות, ורבע מהשגיאות מסומנות; ב-0.8 כבר חצי מהסימונים מיותרים.</summary>
+        internal const double WhisperDoubtBelow = 0.7;
 
         /// <summary>המודל המדויק כבד: חצי מהליבות, עד ארבע (נמדד 22.11: פי 2.2 מזמן אמת בארבע). הבחירה בו היא בחירה במחשב עמוס.</summary>
         internal static int WhisperThreads
