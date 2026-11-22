@@ -2,6 +2,37 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.46",
+      "date": "2026-11-22",
+      "items": [
+        {
+          "t": "major",
+          "s": "בטא: תרגום על המחשב - בלי אינטרנט ובלי מפתח, והכתוביות לא יוצאות מהמחשב. בחלון התרגום בוחרים ״על המחשב״ ומודל: קל ומהיר (מאנגלית לעברית, מאות שורות בדקה, הורדה של כ-220 MB), או מדויק וכבד (כל השפות, כמה שניות לכתובית, הורדה של 2.4 GB - למחשב חזק)",
+          "en": "Beta: translation on the PC itself - no internet, no key, and the subtitles never leave the computer. In the translation window choose \"On this PC\" and a model: light and fast (English to Hebrew, hundreds of lines a minute, a download of about 220 MB), or accurate and heavy (any language, a few seconds a subtitle, a 2.4 GB download - for a strong PC)"
+        },
+        {
+          "t": "major",
+          "s": "בטא: תמלול עברית מדויק על המחשב - המודל של ivrit.ai, עם פיסוק ופחות טעויות מהתמלול הקל. בחלון התמלול: ״על המחשב״ ← ״מדויק וכבד״. הורדה חד-פעמית של כ-700 MB; שיעור של שעה מתומלל בחצי שעה עד שעה, והמחשב עמוס בזמן הזה",
+          "en": "Beta: accurate Hebrew transcription on the PC - ivrit.ai's model, with punctuation and fewer mistakes than the light one. In the transcription window: \"On this PC\", then \"Accurate and heavy\". A one-time download of about 700 MB; an hour-long lesson takes half an hour to an hour, and the computer is busy meanwhile"
+        },
+        {
+          "t": "feature",
+          "s": "״מודלים על המחשב״ (הגדרות ← אחסון ← פירוט ומחיקה): כל מודלי התמלול והתרגום במקום אחד - כמה כל אחד שוקל, האם הוא מתאים למחשב הזה, הורדה ומחיקה. לפני הורדה גדולה נאמר כמה זמן היא עשויה לקחת",
+          "en": "\"Models on this PC\" (Settings, Storage, Details): every transcription and translation model in one place - how much each weighs, whether it suits this computer, download and delete. Before a big download it says how long it may take"
+        },
+        {
+          "t": "feature",
+          "s": "העוזר החכם מתרגם גם על המחשב (״תתרגם על המחשב״)",
+          "en": "The smart assistant can translate on the PC too (\"translate it on the computer\")"
+        },
+        {
+          "t": "fix",
+          "s": "הורדה של מודל שנתקעת על חיבור איטי מתחדשת לבד וממשיכה מאותו מקום",
+          "en": "A model download stuck on a slow connection restarts by itself and continues from the same place"
+        }
+      ]
+    },
+    {
       "v": "0.8.45",
       "date": "2026-11-16",
       "items": [
