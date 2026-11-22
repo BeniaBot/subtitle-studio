@@ -2,7 +2,7 @@
 # GitHub into the user's real %LOCALAPPDATA%, transcription of a Hebrew clip, translation of English cues - with the app's
 # own code (the EXE loaded as an assembly), and what the processes loaded. ASCII only (PowerShell 5.1, no BOM).
 #   guest-local.ps1 -Exe <Subtext.exe> -Wav <hebrew clip> -Cues <cues_en.json> -Out <report.txt>
-param([string]$Exe, [string]$Wav, [string]$Cues, [string]$Out, [switch]$Heavy)
+param([string]$Exe, [string]$Wav, [string]$Cues, [string]$Out, [switch]$Heavy, [switch]$Accurate)
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 $log = New-Object Collections.Generic.List[string]
@@ -57,6 +57,41 @@ try {
         Say ("runtime dlls: " + (($py.Modules | Where-Object { $_.ModuleName -match '^(msvcp140|vcruntime140|vcruntime140_1|onnxruntime)\.dll$' } | ForEach-Object { $_.FileName }) -join ' | '))
     }
     $lt.GetMethod('Stop', $SF).Invoke($null, @())
+
+    # ---- accurate transcription (0.8.46): engine-whisper (faster-whisper, NumPy, Tokenizers) on the Python of engine-ct2,
+    # and ivrit.ai's Whisper turbo - about 700 MB, so only with -Accurate. What matters here: NumPy's OpenBLAS and the Rust
+    # Tokenizers module load on a Windows without the Visual C++ runtime, from a folder with Hebrew letters in its path
+    if ($Accurate) {
+        $ap = $cat.GetMethod('ById', $SF).Invoke($null, @('stt-he-accurate'))
+        $argv = New-Object object[] 4; $argv[0] = $ap; $argv[1] = $prog; $argv[2] = $null; $argv[3] = $null
+        $sw.Restart()
+        $ok = $cat.GetMethod('Download', $SF).Invoke($null, $argv)
+        Say ("accurate download: ok=$ok err=[" + $argv[3] + "] {0:N1}s" -f $sw.Elapsed.TotalSeconds)
+        (T 'LocalStt').GetField('ModelId', $SF).SetValue($null, [string]'stt-he-accurate')
+        Say ("accurate HasKey: " + $loc.HasKey)
+        $peakA = 0; $mods = ''
+        $sw.Restart()
+        $job = [powershell]::Create().AddScript({ param($mm, $o, $a) $mm.Invoke($o, $a) }).AddArgument($m).AddArgument($loc).AddArgument($a7)
+        $h = $job.BeginInvoke()
+        while (-not $h.IsCompleted) {
+            Start-Sleep -Milliseconds 500
+            $pa = Get-Process python -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($pa) {
+                if ($pa.WorkingSet64 -gt $peakA) { $peakA = $pa.WorkingSet64 }
+                try {
+                    $ml = @($pa.Modules | Where-Object { $_.ModuleName -match '^(msvcp140|vcruntime140|vcruntime140_1|libscipy_openblas|tokenizers|_multiarray_umath)' } | ForEach-Object { $_.FileName })
+                    if ($ml.Count -gt @($mods -split ' \| ' | Where-Object { $_ }).Count) { $mods = $ml -join ' | ' }
+                } catch { }
+            }
+        }
+        $resA = @($job.EndInvoke($h))[0]
+        $clA = $rt.GetField('Cues').GetValue($resA)
+        Say ("accurate run: {0:N1}s for {1:N0}s of audio, cues {2}, error [{3}], python peak {4} MB" -f $sw.Elapsed.TotalSeconds, ($mi.DurationMs / 1000.0), $clA.Count, $rt.GetField('Error').GetValue($resA), [math]::Round($peakA / 1MB))
+        $i = 0; foreach ($c in $clA) { if ($i++ -ge 6) { break }; Say ("   " + $c.Text) }
+        Say ("accurate dlls: " + $mods)
+        Say ("accurate python left: " + @(Get-Process python -ErrorAction SilentlyContinue).Count)
+        (T 'LocalStt').GetField('ModelId', $SF).SetValue($null, [string]'stt-he-fast')
+    } else { Say 'accurate: skipped (no -Accurate)' }
 
     # ---- the accurate model (TranslateGemma 4B, 2.4 GB in two parts) ----
     # 2.4 GB: on a line of 0.35 MB/s that is two hours - only on request (-Heavy)

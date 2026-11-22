@@ -3,7 +3,7 @@
 # restored to its clean checkpoint: the installer, the first run, the test packages, the local models for real, removal.
 #
 #   build\test-clean-vm.ps1 -VMName winapps-w11 -Checkpoint clean-hebrew-user
-#       [-Stages pre,copy,install,run,suites,local,uninstall] [-Packages logic,subs,...] [-Net] [-Cpu 2] [-MemGB 4]
+#       [-Stages pre,copy,install,run,suites,local,uninstall] [-Packages logic,subs,...] [-Net] [-Cpu 2] [-MemGB 4] [-Heavy] [-Accurate]
 #       [-User TESTPC\tester] [-Keep]
 #
 # -Net adds a network adapter on "Default Switch" (the machines have none) - needed for the stage "local" (real GitHub).
@@ -21,6 +21,7 @@ param(
     [int]$MemGB = 0,
     [int]$CpuLimit = 0,
     [switch]$Heavy,
+    [switch]$Accurate,
     [string]$GuestCommand = '',
     [string]$User = '',
     [switch]$Keep
@@ -218,11 +219,11 @@ try {
     if ($Stages -contains 'local') {
         $exe = if ($script:installDir) { Join-Path $script:installDir 'Subtext.exe' } else { "$guest\repo\dist\Subtext.exe" }
         Copy-Item (Join-Path $PSScriptRoot 'vm\guest-local.ps1') "$guest\guest-local.ps1" -ToSession $s -Force
-        $cmd = "-NoProfile -ExecutionPolicy Bypass -File `"$guest\guest-local.ps1`" -Exe `"$exe`" -Wav `"$guest\data\kan-90.wav`" -Cues `"$guest\data\cues_en.json`" -Out `"$guest\local.txt`"" + $(if ($Heavy) { ' -Heavy' } else { '' })
+        $cmd = "-NoProfile -ExecutionPolicy Bypass -File `"$guest\guest-local.ps1`" -Exe `"$exe`" -Wav `"$guest\data\kan-90.wav`" -Cues `"$guest\data\cues_en.json`" -Out `"$guest\local.txt`"" + $(if ($Heavy) { ' -Heavy' } else { '' }) + $(if ($Accurate) { ' -Accurate' } else { '' })
         $sw.Restart()
         # -Heavy: 2.4 GB more. Through the machine's network the light models came down at ~0.4 MB/s (18.11: 90 MB in
         # 294 s, 230 MB in 513 s), so the hour ran out in the middle of the accurate model - four hours for it
-        $r = Desktop 'powershell.exe' $cmd $(if ($Heavy) { 4 * 3600 } else { 3600 })
+        $r = Desktop 'powershell.exe' $cmd $(if ($Heavy -or $Accurate) { 4 * 3600 } else { 3600 })
         Log (("local: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes) + $(if ($r.Note) { " (the scheduler once said: " + $r.Note + ")" } else { '' }))
         Copy-Item "$guest\local.txt" (Join-Path $out 'local.txt') -FromSession $s -ErrorAction SilentlyContinue
         if (Test-Path (Join-Path $out 'local.txt')) { Get-Content (Join-Path $out 'local.txt') -Encoding UTF8 | ForEach-Object { Log ("  " + $_) } }
