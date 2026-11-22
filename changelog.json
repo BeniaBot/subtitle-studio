@@ -2,6 +2,27 @@
   "_comment": "יומן שינויים קריא-למכונה. כל פריט מתויג major/feature/fix, וכך אפשר לנסח תקציר שמתקצר ככל שהקפיצה גדולה יותר. נקרא ע\"י Updater.Changelog דרך raw.githubusercontent.com. סדר יורד.",
   "versions": [
     {
+      "v": "0.8.47",
+      "date": "2026-11-22",
+      "items": [
+        {
+          "t": "feature",
+          "s": "הגדרות בסדר ברור: כללי (מצב כהה, שפה, עדכונים), תמלול ותרגום, העוזר החכם, בדיקת איות ואחסון. ״מודלים על המחשב״ נמצאים עכשיו ישר בהגדרות, תחת ״תמלול ותרגום״, ואומרים כמה מודלים מותקנים",
+          "en": "Settings in a clear order: General (dark mode, language, updates), Transcription and translation, The smart assistant, Spell check and Storage. \"Models on this computer\" is now right in Settings, under \"Transcription and translation\", and says how many models are installed"
+        },
+        {
+          "t": "fix",
+          "s": "בהגדרות כבר לא כתוב שבלי המפתח של גוגל אין תרגום - יש, על המחשב",
+          "en": "Settings no longer say there is no translation without the Google key - there is, on this PC"
+        },
+        {
+          "t": "fix",
+          "s": "העוזר החכם יודע על שני המודלים של התמלול ושל התרגום על המחשב, ואיפה נמצא החלון שלהם",
+          "en": "The smart assistant knows about both on-PC models for transcription and for translation, and where their window is"
+        }
+      ]
+    },
+    {
       "v": "0.8.46",
       "date": "2026-11-22",
       "items": [
