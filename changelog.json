@@ -7,8 +7,8 @@
       "items": [
         {
           "t": "major",
-          "s": "בטא: תרגום על המחשב - בלי אינטרנט ובלי מפתח, והכתוביות לא יוצאות מהמחשב. בחלון התרגום בוחרים ״על המחשב״ ומודל: קל ומהיר (מאנגלית לעברית, מאות שורות בדקה, הורדה של כ-220 MB), או מדויק וכבד (כל השפות, כמה שניות לכתובית, הורדה של 2.4 GB - למחשב חזק)",
-          "en": "Beta: translation on the PC itself - no internet, no key, and the subtitles never leave the computer. In the translation window choose \"On this PC\" and a model: light and fast (English to Hebrew, hundreds of lines a minute, a download of about 220 MB), or accurate and heavy (any language, a few seconds a subtitle, a 2.4 GB download - for a strong PC)"
+          "s": "בטא: תרגום על המחשב - בלי אינטרנט ובלי מפתח, והכתוביות לא יוצאות מהמחשב. בחלון התרגום בוחרים ״על המחשב״ ומודל: קל ומהיר (מאנגלית לעברית, מאות שורות בדקה, הורדה של כ-220 MB), או מדויק וכבד (כל השפות, כמה שניות לכתובית, הורדה של 2.3 GB - למחשב חזק)",
+          "en": "Beta: translation on the PC itself - no internet, no key, and the subtitles never leave the computer. In the translation window choose \"On this PC\" and a model: light and fast (English to Hebrew, hundreds of lines a minute, a download of about 220 MB), or accurate and heavy (any language, a few seconds a subtitle, a 2.3 GB download - for a strong PC)"
         },
         {
           "t": "major",
@@ -18,7 +18,7 @@
         {
           "t": "feature",
           "s": "״מודלים על המחשב״ (הגדרות ← אחסון ← פירוט ומחיקה): כל מודלי התמלול והתרגום במקום אחד - כמה כל אחד שוקל, האם הוא מתאים למחשב הזה, הורדה ומחיקה. לפני הורדה גדולה נאמר כמה זמן היא עשויה לקחת",
-          "en": "\"Models on this PC\" (Settings, Storage, Details): every transcription and translation model in one place - how much each weighs, whether it suits this computer, download and delete. Before a big download it says how long it may take"
+          "en": "\"Models on this computer\" (Settings, Storage, Details and delete): every transcription and translation model in one place - how much each weighs, whether it suits this computer, download and delete. Before a big download it says how long it may take"
         },
         {
           "t": "feature",
