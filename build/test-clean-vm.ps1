@@ -220,7 +220,9 @@ try {
         Copy-Item (Join-Path $PSScriptRoot 'vm\guest-local.ps1') "$guest\guest-local.ps1" -ToSession $s -Force
         $cmd = "-NoProfile -ExecutionPolicy Bypass -File `"$guest\guest-local.ps1`" -Exe `"$exe`" -Wav `"$guest\data\kan-90.wav`" -Cues `"$guest\data\cues_en.json`" -Out `"$guest\local.txt`"" + $(if ($Heavy) { ' -Heavy' } else { '' })
         $sw.Restart()
-        $r = Desktop 'powershell.exe' $cmd 3600
+        # -Heavy: 2.4 GB more. Through the machine's network the light models came down at ~0.4 MB/s (18.11: 90 MB in
+        # 294 s, 230 MB in 513 s), so the hour ran out in the middle of the accurate model - four hours for it
+        $r = Desktop 'powershell.exe' $cmd $(if ($Heavy) { 4 * 3600 } else { 3600 })
         Log (("local: task result " + $r.LastResult + ", state " + $r.State + " after {0:N0} min" -f $sw.Elapsed.TotalMinutes) + $(if ($r.Note) { " (the scheduler once said: " + $r.Note + ")" } else { '' }))
         Copy-Item "$guest\local.txt" (Join-Path $out 'local.txt') -FromSession $s -ErrorAction SilentlyContinue
         if (Test-Path (Join-Path $out 'local.txt')) { Get-Content (Join-Path $out 'local.txt') -Encoding UTF8 | ForEach-Object { Log ("  " + $_) } }
