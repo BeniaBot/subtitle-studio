@@ -20,6 +20,10 @@ namespace SubtitleStudio
         private readonly Btn _optLocal, _optGoogle, _optGroq, _connect;
         private readonly Lbl _warn, _warn2, _info, _ctxHint;
         private string _choice;
+        /// <summary>**איזה מודל על המחשב** (0.8.46): הקל, או המדויק והכבד - רק כשהוא מוצע (`LocalStt.AccurateOffered`).</summary>
+        private readonly Combo _model;
+        private readonly List<string> _modelIds = new List<string>();
+        public string LocalModelId { get { return _modelIds.Count == 0 ? ModelCatalog.LegacyId : _modelIds[Math.Max(0, Math.Min(_modelIds.Count - 1, _model.SelectedIndex))]; } }
 
         public string Context { get { return _context.Text.Trim(); } }
         /// <summary>**לא `_replace.Visible`** - זה נקרא אחרי שהחלון נסגר, וחלון סגור מוסתר: כל פקד בו ״לא גלוי״. מ-0.6.0 עד 0.8.40 המתג
@@ -60,6 +64,18 @@ namespace SubtitleStudio
             _optGroq = Option("Groq", Lang.T("עד 8 שעות ביום"), "groq");
             _optGroq.SetBounds(Pad, Y, third, Theme.S(56));
             Y += Theme.S(64);
+            _model = new Combo();
+            _modelIds.Add(ModelCatalog.LegacyId);
+            _model.Items.Add(Lang.T("קל ומהיר"));
+            if (LocalStt.AccurateOffered)
+            {
+                _modelIds.Add(LocalStt.AccurateId);
+                _model.Items.Add(Lang.T("מדויק וכבד - עם פיסוק"));
+            }
+            int saved = _modelIds.IndexOf(LocalStt.ModelId);
+            _model.SelectedIndex = saved >= 0 ? saved : 0;
+            _model.SelectedIndexChanged += delegate { Refresh_(); };
+            Row(_model, 40, 4);
 
             _connect = new Btn();
             _connect.Kind = BtnKind.Ghost;
@@ -121,6 +137,7 @@ namespace SubtitleStudio
 
         private static string CloudNote { get { return Lang.T("הקול נשלח לשירות שבחרתם רק כדי לתמלל אותו. אם ההקלטה רגישה, עדיף לתמלל על המחשב - בלי אינטרנט.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
         private static string LocalNote { get { return Lang.T("התמלול על המחשב בבטא: הוא יודע עברית בלבד, ופחות מדויק מהשירותים ברשת - בעיקר בשמות ובמונחים.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
+        private static string AccurateNote { get { return Lang.T("התמלול המדויק בבטא: עברית בלבד, עם פיסוק, ומדויק יותר מהקל - אבל איטי: שעה של שיעור בשעה ויותר, ובזמן הזה המחשב עמוס.\r\nהתוצאה נכנסת לעורך כמו כל כתובית, וכדאי לעבור עליה ולתקן."); } }
         private static string CloudContext { get { return Lang.T("שמות של אנשים, מקומות וחברות שכתובים כאן ייכתבו נכון - בלי זה המודל מנחש. הרקע עובר גם לתרגום."); } }
         private static string LocalContext { get { return Lang.T("שמות, מקומות ומונחים בעברית שכתובים כאן ייכתבו נכון יותר. הרקע עובר גם לתרגום."); } }
 
@@ -148,6 +165,11 @@ namespace SubtitleStudio
         {
             ISttProvider p = Provider;
             bool local = p.Id == "local";
+            if (_model == null) return;
+            _model.Visible = local && _modelIds.Count > 1;
+            _model.Invalidate();
+            ModelPack mp = ModelCatalog.ById(LocalModelId);
+            bool accurate = LocalModelId == LocalStt.AccurateId;
             _optLocal.Checked = local;
             _optGoogle.Checked = p.Id == "gemini";
             _optGroq.Checked = p.Id == "groq";
@@ -158,10 +180,10 @@ namespace SubtitleStudio
             if (local)
             {
                 // הורדה פעם אחת, באותו מקום שבו השירותים ברשת מבקשים מפתח. אחרי שהורד - אין מה ללחוץ כאן
-                _connect.Text = Lang.F("הורדה של {0}, פעם אחת", LocalModel.DownloadText);
+                _connect.Text = Lang.F("הורדה של {0}, פעם אחת", Theme.Ltr(MediaInfo.FormatSize(ModelCatalog.DownloadBytes(mp))));
                 _connect.Icon = Ico.Download;
                 _connect.Kind = BtnKind.Subtle;
-                _connect.Visible = !p.HasKey;
+                _connect.Visible = !LocalStt.IsInstalled(LocalModelId);
                 // **האזהרה נעלמת כשהיא לא נכונה** (ISttProvider.SendsAudioOut): אחרת היא מאבדת משמעות גם כשהיא נכונה
                 _warn.Text = Lang.T("הקול נשאר במחשב. שום דבר לא נשלח.");
                 _warn.Color = Theme.Good;
@@ -182,7 +204,7 @@ namespace SubtitleStudio
             }
             _connect.Invalidate();
             _warn.Invalidate();
-            _warn2.Text = local ? LocalNote : CloudNote;
+            _warn2.Text = !local ? CloudNote : accurate ? AccurateNote + (mp.Fits ? "" : "\r\n" + ModelCatalog.FitText(mp) + ".") : LocalNote;
             _warn2.Invalidate();
             _ctxHint.Text = local ? LocalContext : CloudContext;
             _ctxHint.Invalidate();
@@ -201,7 +223,7 @@ namespace SubtitleStudio
                 double perChunk = p.Id == "groq" ? 6 : 13;
                 int mins = Math.Max(1, (int)Math.Ceiling(chunks * perChunk / 60.0));
                 // על המחשב: לפי אורך הקול. נמדד פי 20-30 מזמן אמת על מחשב נייד; ההערכה זהירה (מחשב איטי)
-                if (local) mins = Math.Max(1, (int)Math.Ceiling(dur / 1000.0 / LocalStt.SpeedGuess / 60.0));
+                if (local) mins = Math.Max(1, (int)Math.Ceiling(dur / 1000.0 / LocalStt.SpeedOf(LocalModelId) / 60.0));
                 // המספר בסוף המשפט ולא באמצעו: ‏Ltr באמצע טקסט עברי הפך את
                 // "40 שניות · 1 קטעים" ל-"1 · 40 שניות קטעים"
                 _info.Text = Lang.F("אורך: {0}\r\n{1}אפשר לעצור באמצע, ומה שכבר תומלל יישמר.", Theme.Ltr(Tc.Length(dur)), (mins == 1 ? Lang.T("לוקח בערך דקה. ") : Lang.F("לוקח בערך {0} דקות. ", Theme.Ltr(mins.ToString()))));
@@ -212,7 +234,13 @@ namespace SubtitleStudio
 
         private void Connect()
         {
-            if (Provider.Id == "local")
+            if (Provider.Id == "local" && LocalModelId != ModelCatalog.LegacyId)
+            {
+                PackSetupDlg d = new PackSetupDlg(ModelCatalog.ById(LocalModelId));
+                d.ShowDialog(this);
+                d.Dispose();
+            }
+            else if (Provider.Id == "local")
             {
                 LocalSetupDlg d = new LocalSetupDlg();
                 d.ShowDialog(this);
@@ -240,6 +268,8 @@ namespace SubtitleStudio
                 Ui.Error(this, Lang.T("אין סרט"), Lang.T("צריך לפתוח קודם סרט או קובץ קול."));
                 return false;
             }
+            // לפני HasKey: ״מותקן?״ של התמלול המקומי שואל על המודל שנבחר
+            if (Provider.Id == "local") LocalStt.ModelId = LocalModelId;
             if (!Provider.HasKey)
             {
                 Connect();

@@ -169,6 +169,7 @@ namespace SubtitleStudio
                 if (Ai.ChatFastToday != null) sb.AppendLine("aifast=" + Ai.ChatFast + "|" + Ai.ChatFastDay);
                 sb.AppendLine("groqkey=" + (string.IsNullOrEmpty(Stt.GroqKey) && !GroqKeyTouched ? OnDisk("groqkey") : Ai.Protect(Stt.GroqKey)));
                 sb.AppendLine("stt=" + Stt.ProviderId);
+                sb.AppendLine("sttmodel=" + LocalStt.ModelId);
                 sb.AppendLine("mt=" + LocalTranslator.ProviderId);
                 sb.AppendLine("mtmodel=" + LocalTranslator.ModelId);
                 sb.AppendLine("spell=" + (Spell.Enabled ? "1" : "0"));
@@ -274,6 +275,7 @@ namespace SubtitleStudio
                             }
                         case "groqkey": Stt.GroqKey = Ai.Unprotect(v) ?? ""; break;
                         case "stt": Stt.ProviderId = v; break;
+                        case "sttmodel": LocalStt.ModelId = v; break;
                         case "mt": LocalTranslator.ProviderId = v; break;
                         case "mtmodel": LocalTranslator.ModelId = v; break;
                         case "spell": Spell.Enabled = v != "0"; break;

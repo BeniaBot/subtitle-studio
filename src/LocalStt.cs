@@ -516,8 +516,21 @@ namespace SubtitleStudio
 
         public string Id { get { return "local"; } }
         public string Name { get { return Lang.T("התמלול על המחשב"); } }
-        /// <summary>״מפתח״ כאן = המנוע והמודל במקום. כך כל מי ששואל ״אפשר לתמלל?״ מקבל תשובה נכונה.</summary>
-        public bool HasKey { get { return LocalModel.Installed; } }
+        /// <summary>״מפתח״ כאן = המנוע והמודל **שנבחר** במקום. כך כל מי ששואל ״אפשר לתמלל?״ מקבל תשובה נכונה.</summary>
+        public bool HasKey { get { return IsInstalled(ActiveId); } }
+
+        // ---------- איזה מודל (0.8.46) ----------
+
+        /// <summary>**תמלול עברית - מדויק, כבד** (WORKPLAN 2לד): Whisper large-v3-turbo של ivrit.ai. הקל (0.8.45) הוא
+        /// ``ModelCatalog.LegacyId``.</summary>
+        internal const string AccurateId = "stt-he-accurate";
+        /// <summary>המודל שנבחר בחלון התמלול - ``sttmodel=`` בהגדרות.</summary>
+        internal static string ModelId = ModelCatalog.LegacyId;
+        /// <summary>המדויק מוצע - יש לו חבילה בגיטהאב (``Available`` בקטלוג).</summary>
+        internal static bool AccurateOffered { get { ModelPack p = ModelCatalog.ById(AccurateId); return p != null && p.Available; } }
+        /// <summary>המודל שירוץ בפועל: המדויק רק אם נבחר והוא מוצע; אחרת הקל.</summary>
+        internal static string ActiveId { get { return ModelId == AccurateId && AccurateOffered ? AccurateId : ModelCatalog.LegacyId; } }
+        internal static bool IsInstalled(string id) { return ModelCatalog.Installed(ModelCatalog.ById(id)); }
         public bool SendsAudioOut { get { return false; } }
         public int ChunkSec { get { return 300; } }
         public int MinGapMs { get { return 0; } }
@@ -541,6 +554,8 @@ namespace SubtitleStudio
 
         /// <summary>כמה שניות קול מתומללות בשנייה, להערכת הזמן בחלון. זהיר: במחשב שנמדד (נייד מ-2024) זה 15.</summary>
         internal const double SpeedGuess = 8;
+        /// <summary>אותו דבר לכל מודל. המדויק: נמדד פי 0.7 מזמן אמת ב-4 ליבות (3.11, whisper.cpp) - ההערכה זהירה, עד שיימדד במנוע שייבחר.</summary>
+        internal static double SpeedOf(string id) { return id == AccurateId ? 0.6 : SpeedGuess; }
 
         // ---------- קטע בודד (הממשק הכללי) ----------
 
