@@ -64,6 +64,7 @@ $sum = (TY 'Changelog').GetMethod('Build', $ST).Invoke($null, @([string]$json, [
 $dialogs = @(
     @{ n = 'ImportText';  make = { NewOf 'ImportTextDlg' @([int64]0, $true) } },
     @{ n = 'Transcribe';  make = { NewOf 'TranscribeDlg' @($mi, [int]3) } },
+    @{ n = 'TranscribeAcc'; make = { $f = (TY 'LocalStt').GetField('ModelId', $ST); $f.SetValue($null, [string]'stt-he-accurate'); $d = NewOf 'TranscribeDlg' @($mi, [int]3); $f.SetValue($null, [string]'stt-he-fast'); $d } },
     @{ n = 'Sync';        make = { NewOf 'SyncDlg' @($doc, [int64]7900, (NewOf 'SyncState' @())) } },
     @{ n = 'Fps';         make = { NewOf 'FpsDlg' @($doc) } },
     @{ n = 'Shift';       make = { NewOf 'ShiftDlg' @($doc, [int64]5000) } },
