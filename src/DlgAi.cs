@@ -231,7 +231,23 @@ namespace SubtitleStudio
         /// <summary>**על המחשב** (0.8.46, בטא): `LocalTranslator`, בלי מפתח ובלי רשת. אחרת - גוגל.</summary>
         public bool Local { get { return _choice == "local" && LocalTranslator.CanTranslate(LocalModelId, _src, TargetCode); } }
         /// <summary>המודל על המחשב: הקל (`LocalTranslator.PackId`) או המדויק (`LocalTranslator.HeavyId`).</summary>
-        public string LocalModelId { get { return _modelIds.Count == 0 ? LocalTranslator.PackId : _modelIds[Math.Max(0, Math.Min(_modelIds.Count - 1, _model.SelectedIndex))]; } }
+        public string LocalModelId
+        {
+            get
+            {
+                string id = _modelIds.Count == 0 ? LocalTranslator.PackId : _modelIds[Math.Max(0, Math.Min(_modelIds.Count - 1, _model.SelectedIndex))];
+                // **״קל ומהיר״ הוא פריט אחד לשני הכיוונים** (23.11): החבילה לפי זוג השפות - אנגלית←עברית או עברית←אנגלית
+                if (LocalTranslator.IsLight(id)) id = LocalTranslator.LightFor(_src, TargetCode) ?? LocalTranslator.PackId;
+                return id;
+            }
+        }
+
+        /// <summary>השם של ״קל ומהיר״ לפי הכיוון שהוא יתרגם בו עכשיו.</summary>
+        private string LightLabel()
+        {
+            return LocalTranslator.LightFor(_src, TargetCode) == LocalTranslator.PackHeEnId
+                ? Lang.T("קל ומהיר - מעברית לאנגלית") : Lang.T("קל ומהיר - מאנגלית לעברית");
+        }
         public string SourceCode { get { return _src; } }
         public string TargetCode { get { return LocalTranslator.Codes[Math.Max(0, _lang.SelectedIndex)]; } }
 
@@ -294,14 +310,14 @@ namespace SubtitleStudio
             Y += Theme.S(64);
             _model = new Combo();
             _modelIds.Add(LocalTranslator.PackId);
-            _model.Items.Add(Lang.T("קל ומהיר - מאנגלית לעברית"));
+            _model.Items.Add(LightLabel());
             ModelPack heavy = ModelCatalog.ById(LocalTranslator.HeavyId);
             if (heavy != null && heavy.Available)
             {
                 _modelIds.Add(LocalTranslator.HeavyId);
                 _model.Items.Add(Lang.T("מדויק וכבד - כל השפות"));
             }
-            int saved = _modelIds.IndexOf(LocalTranslator.ModelId);
+            int saved = LocalTranslator.IsLight(LocalTranslator.ModelId) ? 0 : _modelIds.IndexOf(LocalTranslator.ModelId);
             _model.SelectedIndex = saved >= 0 ? saved : 0;
             PickModel();
             _model.SelectedIndexChanged += delegate { Refresh_(); };
@@ -369,9 +385,15 @@ namespace SubtitleStudio
         {
             get
             {
-                foreach (string id in _modelIds) if (LocalTranslator.CanTranslate(id, _src, TargetCode)) return true;
+                foreach (string id in _modelIds) if (LocalTranslator.CanTranslate(Resolve(id), _src, TargetCode)) return true;
                 return false;
             }
+        }
+
+        /// <summary>״קל ומהיר״ ← החבילה של הכיוון הנוכחי; כל מודל אחר - כמו שהוא.</summary>
+        private string Resolve(string id)
+        {
+            return LocalTranslator.IsLight(id) ? (LocalTranslator.LightFor(_src, TargetCode) ?? id) : id;
         }
 
         /// <summary>המודל שנבחר לא יודע את זוג השפות (הקל - רק מאנגלית לעברית) - עוברים לזה שכן.</summary>
@@ -379,7 +401,7 @@ namespace SubtitleStudio
         {
             if (_model == null || _modelIds.Count == 0 || LocalTranslator.CanTranslate(LocalModelId, _src, TargetCode)) return;
             for (int i = 0; i < _modelIds.Count; i++)
-                if (LocalTranslator.CanTranslate(_modelIds[i], _src, TargetCode)) { _model.SelectedIndex = i; return; }
+                if (LocalTranslator.CanTranslate(Resolve(_modelIds[i]), _src, TargetCode)) { _model.SelectedIndex = i; return; }
         }
 
         private void Refresh_()
@@ -388,7 +410,8 @@ namespace SubtitleStudio
             bool can = CanLocal;
             _optLocal.Enabled = can;
             _optLocal.Sub = can ? Lang.T("בלי אינטרנט · בטא")
-                          : (_src == TargetCode ? Lang.T("הכתוביות כבר בשפה הזאת") : Lang.T("רק מאנגלית לעברית"));
+                          : (_src == TargetCode ? Lang.T("הכתוביות כבר בשפה הזאת") : Lang.T("רק בין אנגלית לעברית"));
+            if (_model.Items.Count > 0) _model.Items[0] = LightLabel();
             bool local = can && _choice == "local";
             _optLocal.Checked = local;
             _optGoogle.Checked = !local;

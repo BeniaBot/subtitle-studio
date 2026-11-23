@@ -406,7 +406,7 @@ $miT.GetField('FakeTotalMB', $SF).SetValue($null, [long]-1); $miT.GetField('Fake
 $ids = @($all | ForEach-Object { $_.Id }); $dup = @($ids | Group-Object | Where-Object { $_.Count -gt 1 })
 $forT = $catT.GetMethod('For', $SF); $stt = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Transcribe'))))
 $mtl = @($forT.Invoke($null, @([Enum]::Parse((T 'ModelTask'), 'Translate'))))
-Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 2 -and $stt[0].Id -eq 'stt-he-fast' -and $stt[1].Id -eq 'stt-he-accurate' -and $mtl.Count -eq 2 -and $mtl[0].Id -eq 'mt-en-he-quick' -and $mtl[1].Id -eq 'mt-translategemma-4b') (($ids -join ', '))
+Check 'הקטלוג: מזהים שונים, ולכל חבילה שם, שורה, גודל וזיכרון (מנוע - בלי שורה וזיכרון: לא מוצג); זמין היום - רק מה שעלה' ($dup.Count -eq 0 -and @($all | Where-Object { -not $_.Title -or $_.DiskMB -le 0 -or ([string]$_.Task -ne 'Engine' -and (-not $_.Line -or $_.RamMB -le 0)) }).Count -eq 0 -and $stt.Count -eq 2 -and $stt[0].Id -eq 'stt-he-fast' -and $stt[1].Id -eq 'stt-he-accurate' -and $mtl.Count -eq 3 -and @($mtl[0].Id, $mtl[1].Id) -contains 'mt-en-he-quick' -and @($mtl[0].Id, $mtl[1].Id) -contains 'mt-he-en-quick' -and $mtl[2].Id -eq 'mt-translategemma-4b') (($ids -join ', '))
 $nc = [Activator]::CreateInstance((T 'ModelPack'), $true); $nc.Id = 'test-nc'; $nc.Title = 'מודל לבדיקה'; $nc.Line = 'שורה'; $nc.License = 'CC BY-NC 4.0'; $nc.LicenseNote = 'לשימוש לא מסחרי בלבד.'; $nc.Files = [string[]]@('x.bin'); $nc.Sizes = [long[]]@(10); $nc.GzSizes = [long[]]@(10); $nc.Sha256 = [string[]]@('00')
 $psd = [Activator]::CreateInstance((T 'PackSetupDlg'), $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @($nc), $null)
 $psdTexts = @($psd.Controls | ForEach-Object { [string]$_.Text }) -join ' | '
@@ -776,7 +776,8 @@ $td.GetType().GetField('_lang', $IF).GetValue($td).SelectedIndex = 1
 Check 'חלון התרגום: אנגלית לאנגלית - ״על המחשב״ כבוי ואומר ״הכתוביות כבר בשפה הזאת״' (-not $optL.Enabled -and [string]$optL.Sub -eq 'הכתוביות כבר בשפה הזאת' -and -not $td.Local) ([string]$optL.Sub)
 $td.Dispose()
 $td = [Activator]::CreateInstance((T 'AiTranslateDlg'), (Pack (TDoc @(,@(0, 2000, 'האויבים שלנו מתקדמים.'))) ''))
-Check 'חלון התרגום: כתוביות בעברית לאנגלית - על המחשב במודל המדויק' ($td.GetType().GetField('_optLocal', $IF).GetValue($td).Enabled -and $td.LocalModelId -eq 'mt-translategemma-4b' -and $td.SourceCode -eq 'he' -and $td.TargetCode -eq 'en') ($td.LocalModelId + ' ' + $td.SourceCode)
+$mdl2 = $td.GetType().GetField('_model', $IF).GetValue($td)
+Check 'חלון התרגום: כתוביות בעברית לאנגלית - על המחשב, בקל מעברית לאנגלית (23.11), ו״קל ומהיר״ אומר את הכיוון' ($td.GetType().GetField('_optLocal', $IF).GetValue($td).Enabled -and $td.LocalModelId -eq 'mt-he-en-quick' -and [string]$mdl2.Items[0] -eq 'קל ומהיר - מעברית לאנגלית' -and $td.SourceCode -eq 'he' -and $td.TargetCode -eq 'en') ($td.LocalModelId + ' ' + $td.SourceCode)
 $td.Dispose()
 $ds = $ltT.GetMethod('DetectSource', $SF)
 function DS([string[]]$xs) { return [string]$ds.Invoke($null, @(,[Collections.Generic.List[string]]$xs)) }

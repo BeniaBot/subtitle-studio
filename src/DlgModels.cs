@@ -23,9 +23,9 @@ namespace SubtitleStudio
 
         public ModelsDlg() : base(Lang.T("מודלים על המחשב (בטא)"), Ico.Download, 620)
         {
-            Subtitle = Lang.T("תמלול ותרגום בלי אינטרנט. מורידים פעם אחת, ומוחקים מתי שרוצים.");
+            Subtitle = Lang.T("תמלול, תרגום ועוזר בלי אינטרנט. מורידים פעם אחת, ומוחקים מתי שרוצים.");
 
-            Lbl machine = Hint(Lang.F("המחשב הזה: {0} זיכרון, {1} ליבות. ליד כל מודל כתוב אם הוא מתאים לו.",
+            Lbl machine = Hint(Lang.F("המחשב הזה: {0} זיכרון, {1} ליבות. מודל שכבד לו - כתוב לידו.",
                 Theme.Ltr(Gb(MachineInfo.TotalMB)), Theme.Ltr(MachineInfo.Cores.ToString())));
             Row(machine, 22, 6);
 
@@ -50,7 +50,9 @@ namespace SubtitleStudio
                     Controls.Add(act);
 
                     Lbl info = Hint("");
-                    Row(info, 40, 8);
+                    // **שורה אחת, וגדלה רק כשצריך** (23.11): ״מתאים למחשב הזה״ ליד כל מודל היה אותו משפט שש פעמים, והחלון באנגלית הגיע
+                    // ל-693. עכשיו כתוב רק ליד מודל שכבד למחשב, והגודל של מודל מותקן - על כפתור המחיקה
+                    Row(info, 22, 8);
                     _packs.Add(p); _info.Add(info); _act.Add(act);
                 }
             }
@@ -81,18 +83,14 @@ namespace SubtitleStudio
             {
                 ModelPack p = _packs[i];
                 bool inst = ModelCatalog.Installed(p);
-                string state;
-                if (!p.Available) state = Lang.T("בבדיקה - יגיע בקרוב");
-                else if (inst) state = Lang.F("מותקן · {0}", Theme.Ltr(MediaInfo.FormatSize(ModelCatalog.SizeOnDisk(p))));
-                else state = ModelCatalog.FitText(p);
                 string extra = string.IsNullOrEmpty(p.LicenseNote) ? "" : " " + p.LicenseNote;
-                _info[i].Text = p.Line + extra + "\r\n" + state;
+                _info[i].Text = p.Line + extra + (!inst && !p.Fits ? "\r\n" + ModelCatalog.FitText(p) : "");
                 _info[i].Color = !p.Available ? Theme.TextFaint : (!inst && !p.Fits ? Theme.Warn : Theme.TextDim);
                 _info[i].Invalidate();
 
                 Btn a = _act[i];
                 if (!p.Available) { a.Text = Lang.T("בקרוב"); a.Icon = Ico.Clock; a.Enabled = false; }
-                else if (inst) { a.Text = Lang.T("מחיקה"); a.Icon = Ico.Trash; a.Enabled = true; }
+                else if (inst) { a.Text = Lang.F("מחיקה · {0}", Theme.Ltr(MediaInfo.FormatSize(ModelCatalog.SizeOnDisk(p)))); a.Icon = Ico.Trash; a.Enabled = true; }
                 else { a.Text = Lang.F("הורדה · {0}", Theme.Ltr(MediaInfo.FormatSize(ModelCatalog.DownloadBytes(p)))); a.Icon = Ico.Download; a.Enabled = true; }
                 a.Invalidate();
             }

@@ -10,7 +10,7 @@
 | **ידע מ‑Subtitle Edit** (רשימת חריגות בקריאת חותמות זמן) | **MIT** | הכול; שורת זכויות היוצרים נשמרת |
 | **מילון Hspell** (בדיקת איות, **לא ב‑EXE**, יורד בנפרד רק למי שמבקש) | **AGPLv3** | להשתמש ולהפיץ, עם הרישיון והפניה למקור |
 | **תמלול על המחשב** (בטא; **לא ב‑EXE**, יורד בנפרד רק למי שמבקש): המנוע sherpa-onnx, ‏ONNX Runtime, והמודל העברי zipformer2-66m | **Apache 2.0**, **MIT**, **CC BY 4.0** | להשתמש ולהפיץ, עם הרישיונות והקרדיט ליוצרים |
-| **מודלים נוספים על המחשב** (בטא, מ‑0.8.46; **לא ב‑EXE**, כל אחד יורד בנפרד רק למי שמבקש): תרגום קל (quickmt), תרגום מדויק (TranslateGemma), תמלול מדויק (Whisper של ivrit.ai), והמנועים שלהם | **CC BY 4.0**, **Gemma Terms of Use**, **Apache 2.0**, **MIT** ועוד - הפירוט למטה | להשתמש ולהפיץ, עם הרישיונות והקרדיט; ב‑Gemma - גם לפי תנאי השימוש שלה |
+| **מודלים נוספים על המחשב** (בטא, מ‑0.8.46; **לא ב‑EXE**, כל אחד יורד בנפרד רק למי שמבקש): תרגום קל בשני הכיוונים (quickmt), תרגום מדויק (TranslateGemma), תמלול מדויק (Whisper של ivrit.ai), העוזר על המחשב (Gemma 4), והמנועים שלהם | **CC BY 4.0**, **Gemma Terms of Use**, **Apache 2.0**, **MIT** ועוד - הפירוט למטה | להשתמש ולהפיץ, עם הרישיונות והקרדיט; ב‑Gemma - גם לפי תנאי השימוש שלה |
 
 הנוסח המלא של כולם נמצא בתיקייה [`licenses/`](licenses) — **וגם בתוך ה‑EXE עצמו**:
 ״על התוכנה ← שמירת נוסח הרישיונות לתיקייה״.
@@ -231,6 +231,18 @@ Gemma is provided under and subject to the Gemma Terms of Use found at
 | **NumPy** 2.5.5, עם הספריות שהוא מביא (OpenBLAS ועוד) · with its bundled libraries | BSD 3-Clause, והרישיונות שלהן · and theirs | https://numpy.org |
 | **Tokenizers** 0.23.3 | Apache License 2.0 | https://github.com/huggingface/tokenizers |
 | **tqdm** 4.70.1, ללא שינוי · unmodified | MPL-2.0 AND MIT | https://github.com/tqdm/tqdm |
+
+**תרגום קל מעברית לאנגלית** (מ‑0.8.48) — המהדורה [`local-mt-2`](https://github.com/BeniaBot/subtitle-studio/releases/tag/local-mt-2) (רץ עם המנוע של התרגום הקל, מ‑`local-mt-1`)
+
+| רכיב · Component | רישיון · License | מקור · Source |
+|---|---|---|
+| **quickmt-he-en** — מודל תרגום של פרויקט quickmt. ‏`model.bin` נשמר מחדש במשקלים של 8 ביט (התרגום זהה), השאר ללא שינוי · weights re-saved as int8, the rest unmodified | Creative Commons Attribution 4.0 (CC BY 4.0) | https://huggingface.co/quickmt/quickmt-he-en |
+
+**העוזר החכם על המחשב** (מ‑0.8.48) — המהדורה [`local-assist-1`](https://github.com/BeniaBot/subtitle-studio/releases/tag/local-assist-1) (רץ עם llama.cpp, מ‑`local-llm-1`)
+
+| רכיב · Component | רישיון · License | מקור · Source |
+|---|---|---|
+| **Gemma 4 E2B** של Google — ההמרה ל‑GGUF של ggml-org (Q4_0), ללא שינוי, וראש הניחוש שלה (MTP) · the ggml-org GGUF conversion, unmodified, and its multi-token-prediction head | Apache License 2.0 | https://huggingface.co/google/gemma-4-E2B-it · https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF |
 
 הקוד שלנו סביב כל אלה (`src\LocalCatalog.cs`, ‏`LocalCt2.cs`, ‏`LocalLlm.cs`, ‏`LocalTranslate.cs`,
 ‏`build\local\*.py`) הוא MIT כמו שאר הקוד. החבילות נארזות בסקריפט `build\make-model-pack.ps1`.

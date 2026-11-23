@@ -872,7 +872,7 @@ namespace SubtitleStudio
             if (!LocalTranslator.CanTranslate(model, src, tgt))
             {
                 model = "";
-                foreach (string id in new string[] { LocalTranslator.PackId, LocalTranslator.HeavyId })
+                foreach (string id in new string[] { LocalTranslator.LightFor(src, tgt) ?? LocalTranslator.PackId, LocalTranslator.HeavyId })
                     if (LocalTranslator.CanTranslate(id, src, tgt) && (model == "" || LocalTranslator.IsInstalled(id))) model = id;
             }
             bool local = where == "local" || (where == "" && model != "" && LocalTranslator.ProviderId == "local");

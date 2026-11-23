@@ -213,6 +213,25 @@ namespace SubtitleStudio
                 "38AADFAE3DD591032D6E46DDCC38A7EC706E1F1429236CE9266882DBA6C3CE83",
                 "E1BD37402EA3EA193D7116FA5FAEAEDB182EA7499A239BAD4D74472B8D7F5411",
                 "006E2E0F144AE9425CF7FF6B81EB25DE0165DA5BFA8D220DFB75203AD9CA4EE4" };
+            // **מעברית לאנגלית, קל** (23.11, quickmt-he-en ב-8 ביט - זהה ב-255/255): COMET ‏0.8125 / 0.735 (משפטים / כתוביות) - כמו
+            // TranslateGemma (0.811 / 0.732), ופי 100 מהיר (0.06 שנ׳ לשורה). אותו מנוע; בלי מודל פיסוק (הוא לאנגלית)
+            r.Add(Pack(LocalTranslator.PackHeEnId, ModelTask.Translate, ModelTier.Light, Lang.T("תרגום מעברית לאנגלית - קל ומהיר"),
+                       Lang.T("מתרגם מאות שורות בדקה. טוב במשפטים שלמים, פחות בשמות ובמונחים."), "he-en",
+                       205, 400, "CC BY 4.0", "", "engine-ct2", true));
+            p = r[r.Count - 1];
+            p.Credit = "quickmt · CTranslate2";
+            p.Tag = "local-mt-2";
+            p.Files = new string[] { "config.json", "model.bin", "quickmt-he-en-LICENSE.txt", "source_vocabulary.json", "src.spm.model", "target_vocabulary.json", "tgt.spm.model" };
+            p.Sizes = new long[] { 223, 210822299, 674, 1157365, 882724, 545941, 802664 };
+            p.GzSizes = new long[] { 145, 188978149, 408, 165968, 403529, 144716, 404210 };
+            p.Sha256 = new string[] {
+                "66EDC5D58CEB812A41B4B784497001F815C35400884F40984B19DE29E1BC3D69",
+                "D183EC45C0E64BAE8171469D54E47FE2DCB524E2F65FD860BA836B0D2EC652A5",
+                "04B1F838066B2BA277EB19F0C0865A3D5CFEED52E2D09AEED179859A7F804670",
+                "E1BD37402EA3EA193D7116FA5FAEAEDB182EA7499A239BAD4D74472B8D7F5411",
+                "006E2E0F144AE9425CF7FF6B81EB25DE0165DA5BFA8D220DFB75203AD9CA4EE4",
+                "FF81562987774EABA94282D8737A4754322512995E909206BB19198D4267681C",
+                "38AADFAE3DD591032D6E46DDCC38A7EC706E1F1429236CE9266882DBA6C3CE83" };
             // **המדויק ביותר על המחשב** (18.11, COMET - מדד המשמעות של WMT): משפטים 0.813, כתוביות 0.783; המתרגם הקל 0.784 / 0.679.
             // (chrF++ דירג אותו נמוך - הוא מתגמל תרגום מילולי; בעין הקל כותב ״סלט מילים״ בכתוביות גולמיות.) התבנית הרשמית שבקובץ,
             // בחירה ודאית, בלי ״קנס חזרה״. 7 שנ׳ לשורה על 4 ליבות של Core Ultra 5, ‏5.4GB זיכרון. לכל השפות

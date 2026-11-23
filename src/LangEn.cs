@@ -2021,6 +2021,12 @@ namespace SubtitleStudio
             "בוצע.", "Done.",
             "מפתח של גוגל", "A Google key",
             "על המחשב (בטא)", "On this PC (beta)",
+            "קל ומהיר - מעברית לאנגלית", "Light and fast - Hebrew to English",
+            "רק בין אנגלית לעברית", "Only between English and Hebrew",
+            "תרגום מעברית לאנגלית - קל ומהיר", "Hebrew to English translation - light and fast",
+            "תמלול, תרגום ועוזר בלי אינטרנט. מורידים פעם אחת, ומוחקים מתי שרוצים.", "Offline transcription, translation and assistant - download once.",
+            "המחשב הזה: {0} זיכרון, {1} ליבות. מודל שכבד לו - כתוב לידו.", "This computer: {0} of memory, {1} cores. A model too heavy for it says so.",
+            "מחיקה · {0}", "Delete · {0}",
         };
 
         public static void Fill(Dictionary<string, string> d)

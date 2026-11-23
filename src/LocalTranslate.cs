@@ -170,6 +170,20 @@ namespace SubtitleStudio
     internal static class LocalTranslator
     {
         internal const string PackId = "mt-en-he-quick";
+        /// <summary>**המתרגם הקל מעברית לאנגלית** (23.11, quickmt-he-en, ``local-mt-2``): נמדד ב-COMET - 0.8125 במשפטים ו-0.735 בכתוביות,
+        /// כמו TranslateGemma (0.811 / 0.732) - ומהיר ממנו פי 100 (0.06 שנ׳ לשורה). אותו מנוע (``engine-ct2``), בלי מודל פיסוק.</summary>
+        internal const string PackHeEnId = "mt-he-en-quick";
+
+        /// <summary>המתרגם הקל לזוג השפות: אנגלית←עברית או עברית←אנגלית; אחרת null.</summary>
+        internal static string LightFor(string src, string tgt)
+        {
+            if (src == "en" && tgt == "he") return PackId;
+            if (src == "he" && tgt == "en") return PackHeEnId;
+            return null;
+        }
+
+        /// <summary>מזהה של אחד המתרגמים הקלים.</summary>
+        internal static bool IsLight(string id) { return id == PackId || id == PackHeEnId; }
         /// <summary>כמה חלונות בכל בקשה למתרגם - בשביל ההתקדמות והעצירה (נמדד: כ-0.1 שנייה לחלון על 2 ליבות).</summary>
         internal static int ChunkWindows = 16;
 
@@ -223,9 +237,12 @@ namespace SubtitleStudio
         }
 
         /// <summary>המתרגם (תהליך אחד לכל התוכנה). הנתיבים יחסית לתיקיית ``models`` - המנוע נשבר על נתיב עם עברית.</summary>
-        internal static LocalCt2 Engine()
+        internal static LocalCt2 Engine() { return Engine(PackId); }
+
+        /// <summary>המתרגם של חבילה קלה מסוימת - מעבר בין הכיוונים מחליף את התהליך (אחד בכל פעם).</summary>
+        internal static LocalCt2 Engine(string packId)
         {
-            ModelPack p = Pack;
+            ModelPack p = ModelCatalog.ById(packId) ?? Pack;
             ModelPack eng = ModelCatalog.ById(p.Requires);
             string root = ModelCatalog.Root;
             string engDir = ModelCatalog.FolderOf(eng);
@@ -425,7 +442,8 @@ namespace SubtitleStudio
                 ModelPack p = ModelCatalog.ById(HeavyId);
                 return p != null && p.Available && Array.IndexOf(Codes, src) >= 0 && Array.IndexOf(Codes, tgt) >= 0;
             }
-            return src == "en" && tgt == "he";
+            // הקלים - כל אחד בכיוון שלו (23.11: גם מעברית לאנגלית)
+            return LightFor(src, tgt) == modelId;
         }
 
         private static readonly string[][] LatinWords =
@@ -517,7 +535,7 @@ namespace SubtitleStudio
         public static List<string> RunWith(string modelId, string src, string tgt, List<Cue> cues, string context, Action<int, int> progress,
                                            Func<bool> canceled, out string error, out int stoppedAt)
         {
-            if (modelId != HeavyId) return Run(cues, context, progress, canceled, out error, out stoppedAt);
+            if (modelId != HeavyId) return RunLight(modelId == PackHeEnId ? PackHeEnId : PackId, cues, context, progress, canceled, out error, out stoppedAt);
             error = null;
             stoppedAt = -1;
             if (cues == null || cues.Count == 0) return new List<string>();
@@ -586,10 +604,17 @@ namespace SubtitleStudio
         /// **נכשל באמצע** - מה שתורגם, והשאר במקור (<paramref name="stoppedAt"/> = כמה תורגמו; ‎-1 = הכול); נכשל בהתחלה או נעצר - null.</summary>
         public static List<string> Run(List<Cue> cues, string context, Action<int, int> progress, Func<bool> canceled, out string error, out int stoppedAt)
         {
+            return RunLight(PackId, cues, context, progress, canceled, out error, out stoppedAt);
+        }
+
+        /// <summary>המתרגם הקל של כיוון מסוים (23.11): ``mt-en-he-quick`` או ``mt-he-en-quick``. **שם אחר ולא עומס נוסף של `Run`** - בדיקות
+        /// מחפשות אותה לפי השם. פיסוק לפני התרגום - רק באנגלית (רק בחבילה של אנגלית←עברית יש מודל פיסוק).</summary>
+        internal static List<string> RunLight(string packId, List<Cue> cues, string context, Action<int, int> progress, Func<bool> canceled, out string error, out int stoppedAt)
+        {
             error = null;
             stoppedAt = -1;
             if (cues == null || cues.Count == 0) return new List<string>();
-            if (!Installed) { error = Lang.T("המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום."); return null; }
+            if (!IsInstalled(packId)) { error = Lang.T("המתרגם על המחשב עוד לא הורד. אפשר להוריד אותו בחלון התרגום."); return null; }
             int n = cues.Count;
             List<string> lines = new List<string>();
             double[] gaps = new double[n];
@@ -602,7 +627,7 @@ namespace SubtitleStudio
             // ״I״, נקודה) 38.3; שלוש מחוברות בלי פיסוק 35.2; **שלוש מחוברות אחרי מודל הפיסוק - 42.3**; פיסוק של כל התמלול בבת אחת
             // וחלונות אחריו - 34.7 (המודל צריך את החלון עצמו). לכן: מודל הפיסוק לכל חלון, ובלעדיו (חבילה ישנה, או שנכשל) - שורה-שורה כמשפט
             bool punct = WindowTranslate.HasPunctuation(string.Join(" ", lines.ToArray()));
-            bool canPunct = !punct && HasPunctModel;
+            bool canPunct = !punct && packId == PackId && HasPunctModel;
             List<List<int>> wins;
             if (punct || canPunct) wins = WindowTranslate.Windows(n, gaps);
             else
@@ -611,7 +636,7 @@ namespace SubtitleStudio
                 for (int i = 0; i < n; i++) wins.Add(new List<int>(new int[] { i }));
             }
             List<string> names = NamesFrom(context);
-            LocalCt2 ct = Engine();
+            LocalCt2 ct = Engine(packId);
             string[] err = new string[1];
             Func<List<string>, List<string>> tr = Translator(ct, names, canceled, err);
             bool[] punctFailed = new bool[1];

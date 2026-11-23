@@ -876,7 +876,7 @@ namespace SubtitleStudio
     {
         private readonly System.Collections.Generic.List<object> _list = new System.Collections.Generic.List<object>();
         public int Count { get { return _list.Count; } }
-        public object this[int i] { get { return _list[i]; } }
+        public object this[int i] { get { return _list[i]; } set { _list[i] = value; } }
         public void Add(object o) { _list.Add(o); }
         public void AddRange(object[] arr) { if (arr != null) _list.AddRange(arr); }
         public void Clear() { _list.Clear(); }
