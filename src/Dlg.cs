@@ -365,6 +365,14 @@ namespace SubtitleStudio
         }
 
         /// <summary>שדה בחירת קובץ יעד.</summary>
+        /// <summary>שדה נתיב והכפתור שלו - להציג או להסתיר יחד (ואז Restack).</summary>
+        protected static void ShowPicker(Field f, bool on)
+        {
+            f.Visible = on;
+            Control b = f.Tag as Control;
+            if (b != null) b.Visible = on;
+        }
+
         protected Field FilePicker(string placeholder, string initial, string filter, bool save)
         {
             Field f = new Field();
@@ -399,6 +407,7 @@ namespace SubtitleStudio
             };
             Controls.Add(f);
             Controls.Add(b);
+            f.Tag = b;
             Y += fh + Theme.S(12);
             return f;
         }

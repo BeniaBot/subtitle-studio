@@ -119,7 +119,8 @@ namespace SubtitleStudio
             StringBuilder sb = new StringBuilder();
             sb.Append(Tc.Length(DurationMs));
             if (Width > 0) sb.Append("  ·  ").Append(Width).Append("×").Append(Height);
-            if (Fps > 0) sb.Append("  ·  ").Append(Fps.ToString("0.##")).Append(" fps");
+            // ‏Fps הוא 25 גם כשאין תמונה: עד 0.8.48 קובץ קול הוצג עם ״25 fps״
+            if (Fps > 0 && Width > 0) sb.Append("  ·  ").Append(Fps.ToString("0.##")).Append(" fps");
             sb.Append("  ·  ").Append(FormatSize(SizeBytes));
             return Theme.Ltr(sb.ToString());
         }
