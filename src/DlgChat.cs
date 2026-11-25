@@ -45,7 +45,7 @@ namespace SubtitleStudio
         private const int MaxRounds = 12;
         private static readonly string[] Chips = new string[]
         {
-            Lang.T("אני רוצה כתוביות לסרט"),
+            Lang.T("אני רוצה כתוביות"),
             Lang.T("תרגם את הכתוביות לאנגלית"),
             Lang.T("כל הכתוביות מאחרות בחצי שנייה"),
             Lang.T("תגדיל את הכתוביות ותשים למעלה"),
@@ -254,9 +254,9 @@ namespace SubtitleStudio
                 delegate { AiSetupDlg d = new AiSetupDlg(); d.ShowDialog(this); }));
             // **איפה העוזר עובד** (22.11, `LocalAssist`): דרך גוגל, או על המחשב (בטא). המעבר מתחיל שיחה חדשה - השיחה של אחד לא מתאימה לשני
             items.Add(LocalAssist.On
-                ? MenuItem.Make(Lang.T("לעבור לעוזר של גוגל"), Lang.T("חכם יותר, רואה ושומע את הסרט; צריך אינטרנט ומפתח"), Ico.Sparkles,
+                ? MenuItem.Make(Lang.T("לעבור לעוזר של גוגל"), Lang.T("חכם יותר, רואה ושומע את הקובץ; צריך אינטרנט ומפתח"), Ico.Sparkles,
                     delegate { SwitchWhere(""); })
-                : MenuItem.Make(Lang.T("לעבור לעוזר על המחשב (בטא)"), Lang.T("בלי אינטרנט ובלי מפתח; פשוט יותר, ולא רואה ולא שומע את הסרט"), Ico.Download,
+                : MenuItem.Make(Lang.T("לעבור לעוזר על המחשב (בטא)"), Lang.T("בלי אינטרנט ובלי מפתח; פשוט יותר, ולא רואה ולא שומע את הקובץ"), Ico.Download,
                     delegate { SwitchWhere("local"); }));
             PopupMenu m = new PopupMenu(items, 300);
             m.ShowUnder(_more);
@@ -1356,7 +1356,7 @@ namespace SubtitleStudio
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("אתה העוזר של ״Subtext״ (אולפן הכתוביות), תוכנת ווינדוס לכתוביות בעברית: כתיבה, תמלול, תזמון, תרגום, ");
-            sb.Append("עיצוב, הטמעה בסרט, חיתוך וכלים לסרט ולקול. ");
+            sb.Append("עיצוב, הטמעה בסרט, חיתוך וכלים לקובץ - סרט או קול. ");
             sb.Append("המשתמש הוא לרוב לא טכני. ענה קצר וברור, בעברית פשוטה, בלי ז׳רגון ובלי מרקדאון (בלי כוכביות וסולמיות).\n");
             sb.Append("הודעה שמתחילה ב-🎤 נאמרה בקול ותומללה אוטומטית - ייתכנו בה שגיאות שמיעה (״איי״ במקום ״היי״, מילה דומה בצליל). ");
             sb.Append("הבן לפי ההקשר; שאל רק אם באמת לא ברור. לבקשה כזו התשובה מוקראת לו בקול - כתוב אותה כך שתישמע טוב: קצרה, בלי רשימות ארוכות.\n\n");

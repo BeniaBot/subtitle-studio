@@ -141,7 +141,7 @@ Check 'לכל נושא ברשימה יש טקסט' $ok ''
 $res = Call 'list_commands' @{}
 $names = @($res['commands'] | ForEach-Object { $_['name'] })
 Check 'list_commands: התפריטים והסרגל' ($names -contains 'עיצוב הכתוביות' -and $names -contains 'חיתוך קטעים' -and $names -contains 'יצירת סרט עם כתוביות') ("" + $names.Count + " פקודות")
-$res = Call 'run_command' @{ name = 'שליפת כתוביות מהסרט' }
+$res = Call 'run_command' @{ name = 'שליפת כתוביות מהקובץ' }
 Check 'פקודה לא זמינה (אין סרט) - לא מופעלת, ואומר למה' (('' + $res['error']).Contains('לא זמינה')) ('' + $res['error'])
 [void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
 $res = Call 'run_command' @{ name = 'עיצוב הכתוביות' }
@@ -228,7 +228,7 @@ $bodyT = $ai.GetMethod('BuildBody', $ST).Invoke($null, (Pack 'sys' $hist $tools 
 Check 'הגדרות הפעולות נבנות לסכמה תקינה' ($ser.DeserializeObject($bodyT)['tools'][0]['functionDeclarations'].Count -eq $tools.Count) ''
 
 $sugg = @($mfT.GetMethod('AiSuggestions').Invoke($mf, @()))
-Check 'הצעות לפתיחה בלי סרט ועם כתוביות - לתרגם, לא ״תמלל״' (($sugg -contains 'תרגם את הכתוביות לאנגלית') -and -not ($sugg -contains 'אני רוצה כתוביות לסרט')) ($sugg -join ' | ')
+Check 'הצעות לפתיחה בלי סרט ועם כתוביות - לתרגם, לא ״תמלל״' (($sugg -contains 'תרגם את הכתוביות לאנגלית') -and -not ($sugg -contains 'אני רוצה כתוביות')) ($sugg -join ' | ')
 
 # ---------- 12. עם סרט: להקשיב, להסתכל, למצוא סצנה; הכתוביות במצב; שעת האיפוס ----------
 $tmpDir = Join-Path $env:TEMP ('ss-asst-' + [guid]::NewGuid().ToString('N').Substring(0, 6)); New-Item -ItemType Directory $tmpDir | Out-Null
