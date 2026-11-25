@@ -27,7 +27,7 @@ namespace SubtitleStudio
             if (!LocalAssist.On && !Ai.HasKey)
             {
                 int pick = Ui.Msg(this, Lang.T("איפה העוזר יעבוד?"),
-                    Lang.F("דרך גוגל - חכם יותר, רואה ושומע את הסרט, וצריך אינטרנט ומפתח חינמי. על המחשב (בטא) - בלי אינטרנט ובלי מפתח, פשוט יותר, והורדה חד-פעמית של כ-{0}.", Theme.Ltr("2.8 GB")),
+                    Lang.F("דרך גוגל - חכם יותר, רואה ושומע את הקובץ, וצריך אינטרנט ומפתח חינמי. על המחשב (בטא) - בלי אינטרנט ובלי מפתח, פשוט יותר, והורדה חד-פעמית של כ-{0}.", Theme.Ltr("2.8 GB")),
                     Ico.Sparkles, Lang.T("מפתח של גוגל"), Lang.T("על המחשב (בטא)"), Lang.T("ביטול"));
                 if (pick == 2 || pick < 0) return;
                 if (pick == 1) { LocalAssist.Where = "local"; Settings.SaveAll(); }
@@ -138,7 +138,7 @@ namespace SubtitleStudio
             // ואת הקובץ הרלוונטי, או אפילו להעתיק... של הקובץ האחרון שיצרת, או קבצים שהוא כבר מכיר״ (`AiFiles.cs`)
             t.Add(new AiTool("get_log", "**קורא יומן של התוכנה** - כשהמשתמש אומר שמשהו נכשל, נתקע או לא עבד, או מבקש ״לוג״ / ״יומן״ / ״פרטי התקלה״. " +
                     "קרא אותו לפני שאתה מנחש מה קרה, ואז הסבר במילים פשוטות מה קרה ומה אפשר לעשות - בלי לצטט שורות טכניות. " +
-                    "בחר לפי ההקשר: error - הפעולה האחרונה שנכשלה (יצירת סרט, חיתוך, כלי - מה שמנוע הווידאו אמר); " +
+                    "בחר לפי ההקשר: error - הפעולה האחרונה שנכשלה (יצירת סרט, חיתוך, כלי - מה שמנוע העיבוד אמר); " +
                     "assistant - תמלול, תרגום, השיחה איתך והרשת; crash - תקלה בלתי צפויה שסגרה את התוכנה. בלי which - היומן האחרון שנכתב")
                 .P("which", "string", "error / assistant / crash"));
             t.Add(new AiTool("copy_log", "מעתיק יומן ללוח, מוכן להדבקה בהודעה - כשהמשתמש רוצה לשלוח את פרטי התקלה למישהו (למפתח, לפורום). " +
@@ -278,10 +278,10 @@ namespace SubtitleStudio
             // **השמות עצמם בהגדרה** (0.8.15): ״תקטין לוואטסאפ״ ניחש ״דחיסה לוואטסאפ״, נכשל, וביקש את הרשימה - סבב נוסף (נמדד 12.10, 56 שניות)
             List<string> toolNames = new List<string>();
             foreach (MediaTool mt in MediaTools.All()) toolNames.Add(mt.Name);
-            t.Add(new AiTool("run_media_tool", "מפעיל כלי על קובץ הווידאו: עוצמה, המרה, דחיסה, מהירות, סיבוב, היפוך, GIF, חילוץ פס קול ועוד")
+            t.Add(new AiTool("run_media_tool", "מפעיל כלי על הקובץ הפתוח - סרט או קובץ קול: הקטנה, דחיסה, עוצמה, המרה, דחיסה, מהירות, סיבוב, היפוך, GIF, חילוץ פס קול ועוד")
                 .P("tool", "string", "שם הכלי, בדיוק אחד מאלה: " + string.Join(" | ", toolNames.ToArray()) + ". בלי שם - נפתחת רשימת הכלים"));
 
-            t.Add(new AiTool("list_media_tools", "מחזיר את שמות כל הכלים שאפשר להפעיל על הסרט"));
+            t.Add(new AiTool("list_media_tools", "מחזיר את שמות כל הכלים שאפשר להפעיל על הקובץ הפתוח"));
 
             // ---------- קבצים ויבוא ----------
             t.Add(new AiTool("open_file", "פותח בתוכנה קובץ וידאו, אודיו או כתוביות")
@@ -995,7 +995,7 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiAddZone(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין סרט פתוח"; return r; }
+            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין וידאו פתוח"; return r; }
             string[] p = c.Str("area", "").Split(',');
             double[] v = new double[4];
             bool ok = p.Length == 4;
@@ -1019,7 +1019,7 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             r["done"] = Lang.F("נוסף אזור {0}", _style.Zones.Count);
             r["zones"] = ZonesList();
-            r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב בכפתור הירוק - ״יצירת סרט עם כתוביות״, או ״יצירת סרט עם טשטוש״ כשאין כתוביות";
+            r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב בכפתור הירוק - ״יצירת וידאו עם כתוביות״, או ״יצירת וידאו עם טשטוש״ כשאין כתוביות";
             return r;
         }
 
@@ -1027,8 +1027,8 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiFindFaces(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין סרט פתוח"; return r; }
-            if (!Faces.Available) { r["error"] = "בווינדוס הזה אין גלאי פנים מובנה - מסמנים ביד: ״הסרט ▾ ← טשטוש וצנזורה״ או add_blur_zone"; return r; }
+            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין וידאו פתוח"; return r; }
+            if (!Faces.Available) { r["error"] = "בווינדוס הזה אין גלאי פנים מובנה - מסמנים ביד: ״כלים ▾ ← טשטוש וצנזורה״ או add_blur_zone"; return r; }
             double fs = c.Num("from_sec", -1), ts = c.Num("to_sec", -1);
             long from = fs > 0 ? (long)Math.Round(fs * 1000) : 0, to = ts > 0 ? Math.Min(_mi.DurationMs, (long)Math.Round(ts * 1000)) : _mi.DurationMs;
             if (to <= from) { r["error"] = "to_sec חייב להיות אחרי from_sec"; return r; }
@@ -1184,7 +1184,7 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiExport(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             // אזורי טשטוש בלי כתוביות - נצרבים לבד, כמו בתפריט (`ExportVideo`). עד 23.10 העוזר ענה ״אין כתוביות״
             if (_doc.Cues.Count == 0 && !HasZones) { r["error"] = Lang.T("אין כתוביות"); return r; }
             if (HasZones || _style.BlurOn) r["note"] = "הטשטוש ואזורי הצנזורה נכנסים לסרט רק ב״צריבה בתמונה״ - לא ב״ערוץ כתוביות נפרד״";
@@ -1192,14 +1192,14 @@ namespace SubtitleStudio
             // לא יכול היה לבחור בו כלום - ובניסוי ״תצרוב את הכתוביות בסרט״ נתקע. עכשיו הוא ממלא ולוחץ, לפי ההרשאות
             _aiLastWinCat = AiPerms.Media;
             AiDefer(delegate { ExportVideo(); });
-            r["done"] = Lang.T("נפתח חלון יצירת הסרט");
+            r["done"] = Lang.T("נפתח חלון יצירת הווידאו");
             return r;
         }
 
         private Dictionary<string, object> AiTrim(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             // **קטעים מוכנים (0.8.13):** ״תחתוך את הדקה הראשונה״ - בחלון החיתוך יוצרים קטע בגרירה על פס הקול, ואת זה העוזר
             // לא יכול לעשות בלחיצות. כאן הוא נותן את הקטעים, והחלון נפתח איתם
             string spec = c.Str("sections", "").Trim();
@@ -1244,6 +1244,8 @@ namespace SubtitleStudio
                 foreach (MediaTool t in MediaTools.All())
                 {
                     if (!string.Equals(t.Name, want, StringComparison.OrdinalIgnoreCase)) continue;
+                    string no1 = ToolsDlg.Unfit(t, _mi);
+                    if (no1 != null) { r["error"] = no1; return r; }
                     string name = t.Name;
                     long a = _tl.InPoint, b = _tl.OutPoint, pos = _engine.Position;
                     MediaInfo mi = _mi;
@@ -1256,6 +1258,8 @@ namespace SubtitleStudio
                 foreach (MediaTool t in MediaTools.All())
                 {
                     if (t.Name.IndexOf(want, StringComparison.OrdinalIgnoreCase) < 0 && want.IndexOf(t.Name, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    string no2 = ToolsDlg.Unfit(t, _mi);
+                    if (no2 != null) { r["error"] = no2; return r; }
                     string name2 = t.Name; long a2 = _tl.InPoint, b2 = _tl.OutPoint, pos2 = _engine.Position; MediaInfo mi2 = _mi;
                     _aiLastWinCat = AiPerms.Media;
                     AiDefer(delegate { ToolsDlg.RunNamed(this, name2, mi2, a2, b2, pos2); });
@@ -1275,6 +1279,8 @@ namespace SubtitleStudio
                 }
                 if (best != null && ties == 0)
                 {
+                    string no3 = ToolsDlg.Unfit(best, _mi);
+                    if (no3 != null) { r["error"] = no3; return r; }
                     string name3 = best.Name; long a3 = _tl.InPoint, b3 = _tl.OutPoint, pos3 = _engine.Position; MediaInfo mi3 = _mi;
                     _aiLastWinCat = AiPerms.Media;
                     AiDefer(delegate { ToolsDlg.RunNamed(this, name3, mi3, a3, b3, pos3); });
@@ -1396,7 +1402,7 @@ namespace SubtitleStudio
         {
             refused = false;
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             double minutes = c.Num("minutes", 2);
             if (minutes <= 0) minutes = 2;
             if (minutes > 30) minutes = 30;
@@ -1414,7 +1420,7 @@ namespace SubtitleStudio
             }
             string path = _mi.Path; long dur = _mi.DurationMs; bool video = _mi.HasVideo; int sh = _mi.Height;
             string mins = minutes.ToString("0.#", CultureInfo.InvariantCulture);
-            r["done"] = fromCues ? Lang.F("בוחר קטעים לתקציר של {0} דקות, מהכתוביות", mins) : Lang.F("צופה בסרט ובוחר קטעים לתקציר של {0} דקות", mins);
+            r["done"] = fromCues ? Lang.F("בוחר קטעים לתקציר של {0} דקות, מהכתוביות", mins) : (video ? Lang.F("צופה בווידאו ובוחר קטעים לתקציר של {0} דקות", mins) : Lang.F("בוחר קטעים לתקציר של {0} דקות", mins));
             r["_work"] = (Func<Dictionary<string, object>>)delegate
             {
                 Dictionary<string, object> w = new Dictionary<string, object>();
@@ -1560,13 +1566,13 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiExtract()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             int before = _doc.Cues.Count;
             ExtractSubs();
             int now = _doc.Cues.Count;
             r["done"] = now == before
                 ? Lang.T("חלון השליפה נסגר בלי לטעון כתוביות")
-                : Lang.F("נשלפו כתוביות מתוך הסרט. סך הכול {0}", now);
+                : Lang.F("נשלפו כתוביות מתוך הקובץ. סך הכול {0}", now);
             r["cue_count"] = now;
             return r;
         }
@@ -1823,7 +1829,7 @@ namespace SubtitleStudio
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
             if (_mi == null || string.IsNullOrEmpty(_mediaPath))
-            { r["error"] = Lang.T("אין סרט פתוח - צריך לפתוח קודם קובץ"); return r; }
+            { r["error"] = Lang.T("אין קובץ פתוח - צריך לפתוח קודם קובץ"); return r; }
             if (!_mi.HasAudio)
             { r["error"] = Lang.T("אין פס קול בקובץ הזה, אז אין מה לתמלל"); return r; }
 
@@ -1901,7 +1907,7 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiStartTap()
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח"); return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח"); return r; }
             int left = UntimedCount();
             if (left == 0)
             {
@@ -1926,7 +1932,7 @@ namespace SubtitleStudio
             }
             AutoTime.Result res = RunAutoTime(all, Lang.T("תזמון אוטומטי מהצ'אט"));
             if (res.Timed == 0) { r["error"] = res.Error ?? Lang.T("לא נמצא דיבור ברור"); return r; }
-            r["done"] = Lang.F("תוזמנו {0} כתוביות לפי השתיקות בסרט. כדאי שהמשתמש יעבור ויבדוק; Ctrl+Z מבטל", res.Timed);
+            r["done"] = Lang.F("תוזמנו {0} כתוביות לפי השתיקות בקול. כדאי שהמשתמש יעבור ויבדוק; Ctrl+Z מבטל", res.Timed);
             if (res.Noisy) r["approximate"] = "background music or noise with almost no pauses - times are approximate. To be precise: undo, timing mode, Enter on about one sentence in 20, then auto-time again";
             return r;
         }
@@ -1940,7 +1946,7 @@ namespace SubtitleStudio
             r["scene_cuts"] = _cuts.Count;
             if (_cuts.Count == 0)
             {
-                r["done"] = Lang.T("לא נמצאו מעברי סצנה - הסרט מצולם ברצף. לא שונה כלום");
+                r["done"] = Lang.T("לא נמצאו מעברי סצנה - הווידאו מצולם ברצף. לא שונה כלום");
                 return r;
             }
             SceneCuts.SnapResult s = ApplySceneSnap();

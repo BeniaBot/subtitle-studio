@@ -28,6 +28,8 @@ namespace SubtitleStudio
         public int SampleRate;          // קול: הרץ. ‏0 = לא ידוע
         public long BitRate;
         public bool Default;
+        /// <summary>תמונת עטיפה (``attached pic``), לא וידאו.</summary>
+        public bool AttachedPic;
         public int Rotation;
 
         public bool IsTextSubtitle
@@ -101,6 +103,11 @@ namespace SubtitleStudio
         public MediaStream FirstVideo()
         {
             foreach (MediaStream s in Streams) if (s.Type == "video" && s.Codec != "mjpeg" && s.Codec != "png") return s;
+            // **וידאו של תמונות JPEG** (MJPEG - מצלמות ישנות, AVI ו-MOV; 0.8.48). ‏mjpeg ו-png נחשבו תמיד לתמונת עטיפה, וסרטון כזה נפתח כקובץ קול.
+            // שלושה תנאים יחד: לא מסומן כעטיפה, יש לו קצב פריימים (לעטיפה אין, גם כשאינה מסומנת - WMA), והקובץ בסיומת של וידאו
+            if (FileTypes.Is(FileTypes.Video, Path))
+                foreach (MediaStream s in Streams)
+                    if (s.Type == "video" && !s.AttachedPic && s.Fps > 0 && s.Fps <= 240) return s;
             return null;
         }
         public MediaStream FirstAudio()
@@ -119,7 +126,8 @@ namespace SubtitleStudio
             StringBuilder sb = new StringBuilder();
             sb.Append(Tc.Length(DurationMs));
             if (Width > 0) sb.Append("  ·  ").Append(Width).Append("×").Append(Height);
-            if (Fps > 0) sb.Append("  ·  ").Append(Fps.ToString("0.##")).Append(" fps");
+            // ‏Fps הוא 25 גם כשאין תמונה: עד 0.8.48 קובץ קול הוצג עם ״25 fps״
+            if (Fps > 0 && Width > 0) sb.Append("  ·  ").Append(Fps.ToString("0.##")).Append(" fps");
             sb.Append("  ·  ").Append(FormatSize(SizeBytes));
             return Theme.Ltr(sb.ToString());
         }
@@ -385,6 +393,7 @@ namespace SubtitleStudio
                         case "tags.LANGUAGE": if (st.Language == "") st.Language = v; break;
                         case "tags.TITLE": if (st.Title == "") st.Title = v; break;
                         case "disposition.default": st.Default = v == "1"; break;
+                        case "disposition.attached_pic": st.AttachedPic = v == "1"; break;
                         case "tags.rotate": st.Rotation = (int)D(v); break;
                         case "avg_frame_rate":
                         case "r_frame_rate":
@@ -482,6 +491,7 @@ namespace SubtitleStudio
                         }
                     }
                     cur.Default = tail.Contains("(default)");
+                    cur.AttachedPic = tail.Contains("(attached pic)");
                     mi.Streams.Add(cur);
                     continue;
                 }

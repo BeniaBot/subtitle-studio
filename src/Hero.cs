@@ -32,9 +32,9 @@ namespace SubtitleStudio
 
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { Lang.T("פותחים סרט"), Lang.T("גרירה לחלון או ״עיון בקבצים״") },
+            new string[] { Lang.T("פותחים וידאו או קובץ קול"), Lang.T("גרירה לחלון או ״עיון בקבצים״") },
             new string[] { Lang.T("כותבים כתוביות"), Lang.T("או טוענים קובץ כתוביות קיים") },
-            new string[] { Lang.T("שומרים סרט חדש"), Lang.T("עם הכתוביות בפנים, מוכן לשליחה") }
+            new string[] { Lang.T("שומרים וידאו חדש"), Lang.T("עם הכתוביות בפנים, מוכן לשליחה") }
         };
 
         public HeroPanel()
@@ -173,7 +173,7 @@ namespace SubtitleStudio
                 string tip = "";
                 if (l == 0) tip = Lang.T("איך עובדים כאן - מדריך קצר וקיצורי מקלדת (F1)");
                 else if (l == 1) tip = Theme.Dark ? Lang.T("מעבר למצב בהיר") : Lang.T("מעבר למצב כהה");
-                else if (l == 2) tip = Lang.T("על התוכנה, מנוע הווידאו ועדכונים");
+                else if (l == 2) tip = Lang.T("על התוכנה, מנוע העיבוד ועדכונים");
                 else if (l == 3) tip = Lang.T("העוזר החכם - מבקשים במילים רגילות, והוא עושה בתוכנה (Ctrl+K)");
                 Ui.Tip.SetToolTip(this, tip);
                 Invalidate();
@@ -244,7 +244,7 @@ namespace SubtitleStudio
             Icons.Draw(g, Ico.Upload,
                 new RectangleF(z.X + (z.Width - iconSize) / 2f, z.Y + Theme.S(30), iconSize, iconSize),
                 DropHover ? Theme.Accent : Theme.TextDim, 1.7f);
-            Theme.Str(g, Lang.T("גררו לכאן סרט או קובץ כתוביות"), Theme.F(14f, FontStyle.Bold), Theme.Text,
+            Theme.Str(g, Lang.T("גררו לכאן וידאו, קובץ קול או כתוביות"), Theme.F(14f, FontStyle.Bold), Theme.Text,
                 new RectangleF(z.X, z.Y + Theme.S(88), z.Width, Theme.S(30)), Theme.SfCenter);
             Theme.Str(g, "MP4 · MKV · AVI · MOV · MP3 · SRT · ASS · VTT", Theme.Small, Theme.TextFaint,
                 new RectangleF(z.X, z.Y + Theme.S(116), z.Width, Theme.S(20)), Theme.SfCenter);

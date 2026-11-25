@@ -377,7 +377,7 @@ namespace SubtitleStudio
             t.Tick += delegate
             {
                 long tot = tr.Total, got = tr.Got;
-                dlg.Note = tr.Slim ? Lang.T("רק התוכנה - מנוע הווידאו כבר אצלכם") : "";
+                dlg.Note = tr.Slim ? Lang.T("רק התוכנה - מנוע העיבוד כבר אצלכם") : "";
                 dlg.SetProgress(tot > 0 ? got / (double)tot : 0, got, tot);
                 if (done) { t.Stop(); dlg.Close(); }
             };
@@ -868,7 +868,7 @@ namespace SubtitleStudio
             Row(copy, 30, 16);
 
             Section(Lang.T("רישיון"));
-            Lbl lic = Hint(Lang.F("הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע הווידאו {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.", Theme.Ltr("MIT"), Theme.Ltr("FFmpeg"), Theme.Ltr("GPLv3"), Theme.Ltr("IBM Plex Sans Hebrew"), Theme.Ltr("OFL"), Theme.Ltr("AGPLv3")));
+            Lbl lic = Hint(Lang.F("הקוד של התוכנה חופשי (רישיון {0}) - מותר לקחת אותו,\r\nלשנות ולבנות ממנו מה שרוצים. מנוע העיבוד {1} מגיע ברישיון {2},\r\nהגופן {3} ברישיון {4}, ומילון האיות (יורד בנפרד) ברישיון {5}.\r\nהנוסח המלא של כולם נמצא בתוך הקובץ.", Theme.Ltr("MIT"), Theme.Ltr("FFmpeg"), Theme.Ltr("GPLv3"), Theme.Ltr("IBM Plex Sans Hebrew"), Theme.Ltr("OFL"), Theme.Ltr("AGPLv3")));
             Row(lic, 84, 6);
 
             Btn save = Small(Lang.T("שמירת נוסח הרישיונות לתיקייה"), Ico.Save);
@@ -964,7 +964,7 @@ namespace SubtitleStudio
         /// מציע את זה, ואין סיבה לשתי הודעות שונות לאותה פעולה.</summary>
         public static void RemoveEngine(Form owner)
         {
-            if (!Ui.Confirm(owner, Lang.T("למחוק את מנוע הווידאו?"),
+            if (!Ui.Confirm(owner, Lang.T("למחוק את מנוע העיבוד?"),
                 Lang.T("התוכנה תפרוס אותו מחדש בהפעלה הבאה (כמה שניות)."), Lang.T("למחוק"), Lang.T("ביטול"))) return;
             string msg;
             bool ok = Runtime.Remove(out msg);

@@ -332,7 +332,7 @@ namespace SubtitleStudio
                     Unpack(SelfPath, temp, delegate (long written) { if (total > 0) progress = Math.Min(0.999, written / (double)total); });
                     // מה שנפרס הוא בדיוק מה שנארז: באורך (והפענוח עצמו בודק את עצמו)
                     if (total > 0 && new FileInfo(temp).Length != total)
-                        throw new InvalidDataException(Lang.T("מנוע הווידאו שבתוך התוכנה פגום."));
+                        throw new InvalidDataException(Lang.T("מנוע העיבוד שבתוך התוכנה פגום."));
                     if (Valid(target, id, total))
                     {
                         // עותק אחר של התוכנה פרס את אותו מנוע בינתיים
@@ -376,7 +376,7 @@ namespace SubtitleStudio
             if (error != null)
             {
                 MessageBox.Show(
-                    Lang.F("לא הצלחתי להכין את מנוע הווידאו:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.", error, dir),
+                    Lang.F("לא הצלחתי להכין את מנוע העיבוד:\n\n{0}\n\nהתיקייה: {1}\n\nאפשר גם פשוט להניח קובץ ffmpeg.exe ליד התוכנה.", error, dir),
                     "Subtext", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1,
                     Lang.Rtl ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : 0);
                 return;
@@ -390,7 +390,7 @@ namespace SubtitleStudio
         {
             string id;
             long[] r = ReadTrailer(exeFile, out id);
-            if (r == null) throw new InvalidDataException(Lang.T("אין מנוע וידאו בתוך התוכנה."));
+            if (r == null) throw new InvalidDataException(Lang.T("אין מנוע עיבוד בתוך התוכנה."));
             // **קודם הטביעה של החבילה** מול הזהות שבסוף הקובץ: פענוח של חבילה פגומה עם אורך ידוע לא נכשל - הוא כותב
             // מנוע פגום באורך הנכון. קובץ תוכנה שנפגם (הורדה חלקית, דיסק) מקבל הודעה ברורה במקום מנוע שבור.
             using (FileStream hs = new FileStream(exeFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20))
@@ -574,7 +574,7 @@ namespace SubtitleStudio
             Theme.Str(g, Lang.T("אולפן הכתוביות"), Theme.Small, Theme.TextDim,
                 Theme.Mir(all, new RectangleF(pad, logo.Y + Theme.S(26), right - pad, Theme.S(18))), Theme.SfUi);
 
-            Theme.Str(g, Lang.T("מכין את מנוע הווידאו · פעם אחת בלבד, כמה שניות"), Theme.Ui, Theme.Text,
+            Theme.Str(g, Lang.T("מכין את מנוע העיבוד · פעם אחת בלבד, כמה שניות"), Theme.Ui, Theme.Text,
                 new RectangleF(pad, Theme.S(96), Width - pad * 2, Theme.S(22)), Theme.SfUi);
 
             RectangleF bar = new RectangleF(pad, Theme.S(126), Width - pad * 2, Theme.S(8));

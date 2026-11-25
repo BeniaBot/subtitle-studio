@@ -79,6 +79,14 @@ namespace SubtitleStudio
             return BlurGraph(w, h, cues, shiftMs, null, null);
         }
 
+        /// <summary>**כמה עוד, אחרי סוף של אזור, הוא מוסתר בצריבה** (אלפיות; 0.8.48) - כמעט פריים אחד. בעצירה הנגן מראה את הפריים הראשון **מהמקום
+        /// שלו והלאה**, ו״סוף כאן״ נרשם במקום עצמו: הפריים שהמשתמש ראה מוסתר הוא עד פריים אחד אחריו, ובצריבה יצא גלוי (נמדד: עצירה ב-2.51 בסרט
+        /// של 25 פריימים מראה את 2.52). קצת פחות מפריים שלם - כדי שסוף שנופל בדיוק על פריים לא יסתיר גם את הבא. נקבע לפני צריבה לפי קצב
+        /// הפריימים (`TailFor`); ‏0 - בדיוק לפי הזמן.</summary>
+        internal double ZoneTailMs;
+
+        internal static double TailFor(double fps) { return fps > 1 && fps <= 120 ? 1000.0 / fps - 0.1 : 39.9; }
+
         /// <param name="dir">תיקיית הצריבה, ו-<paramref name="prefix"/> לשמות - הרבה אזורים נצרבים שם עם קובצי פקודות (`BlurZone.SlotBoxes`).</param>
         internal string BlurGraph(int w, int h, System.Collections.Generic.List<Cue> cues, long shiftMs, string dir, string prefix)
         {
@@ -89,7 +97,7 @@ namespace SubtitleStudio
             // ושכבה אחת דרך המסכה. עיגולים נשארים בשרשרת (המסכה מלבנים בלבד).
             if (Zones.Count <= ChainMax)
             {
-                for (int i = 0; i < Zones.Count; i++) sb.Append(Zones[i].Graph(w, h, shiftMs, "z" + i));
+                for (int i = 0; i < Zones.Count; i++) sb.Append(Zones[i].GraphTail(w, h, shiftMs, "z" + i, ZoneTailMs));
                 return sb.ToString();
             }
             Dictionary<string, List<BlurZone>> groups = new Dictionary<string, List<BlurZone>>();
@@ -97,12 +105,12 @@ namespace SubtitleStudio
             for (int i = 0; i < Zones.Count; i++)
             {
                 BlurZone z = Zones[i];
-                if (z.Ellipse) { sb.Append(z.Graph(w, h, shiftMs, "z" + i)); continue; }
+                if (z.Ellipse) { sb.Append(z.GraphTail(w, h, shiftMs, "z" + i, ZoneTailMs)); continue; }
                 string key = z.Look == BlurZone.Black ? "black" : z.Look + ":" + z.Pct;
                 if (!groups.ContainsKey(key)) { groups[key] = new List<BlurZone>(); order.Add(key); }
                 groups[key].Add(z);
             }
-            for (int g = 0; g < order.Count; g++) sb.Append(BlurZone.MaskGraph(groups[order[g]], w, h, shiftMs, "m" + g, dir, prefix));
+            for (int g = 0; g < order.Count; g++) sb.Append(BlurZone.MaskGraph(groups[order[g]], w, h, shiftMs, "m" + g, dir, prefix, ZoneTailMs));
             return sb.ToString();
         }
 
@@ -172,12 +180,16 @@ namespace SubtitleStudio
 
         /// <summary>**אזורי הצנזורה בתצוגה** (0.8.34), לפי הזמן - כמו בצריבה (`BlurZone.Graph`): טשטוש (`GaussBlur`, אותה סיגמה יחסית), פיקסלים
         /// (הקטנה ממוצעת והגדלה בלי החלקה, אותה משבצת יחסית), או שחור; עיגול - חיתוך באליפסה.</summary>
-        public void RenderZones(Graphics g, RectangleF video, Bitmap frame, long posMs)
+        public void RenderZones(Graphics g, RectangleF video, Bitmap frame, long posMs) { RenderZonesWith(g, video, frame, posMs, -1); }
+
+        /// <param name="always">אזור (לפי מספרו) שמצויר גם מחוץ לזמן שלו - זה שעורכים עכשיו בחלון ״טשטוש וצנזורה״. ‏-1 - אין.</param>
+        public void RenderZonesWith(Graphics g, RectangleF video, Bitmap frame, long posMs, int always)
         {
             if (frame == null || video.Width < 4 || video.Height < 4) return;
-            foreach (BlurZone z in Zones)
+            for (int zi = 0; zi < Zones.Count; zi++)
             {
-                if (!z.ActiveAt(posMs)) continue;
+                BlurZone z = Zones[zi];
+                if (zi != always && !z.ActiveAt(posMs)) continue;
                 Rectangle src = z.PixelsAt(posMs, frame.Width, frame.Height);
                 if (src.IsEmpty) continue;
                 float kx = video.Width / frame.Width, ky = video.Height / frame.Height;
@@ -579,7 +591,9 @@ namespace SubtitleStudio
             return z;
         }
 
-        public bool ActiveAt(long ms) { return (FromMs < 0 || ms >= FromMs) && (ToMs < 0 || ms < ToMs); }
+        /// <summary>**הסוף בפנים** (0.8.48), כמו בצריבה (``between`` כולל את שני הקצוות). עד אז ״סוף כאן״ כיבה בתצוגה את האזור באותו רגע:
+        /// התמונה שעליה לחצו הוצגה גלויה, עם ״האזור שנבחר לא מוסתר בזמן הזה״.</summary>
+        public bool ActiveAt(long ms) { return (FromMs < 0 || ms >= FromMs) && (ToMs < 0 || ms <= ToMs); }
 
         /// <summary>הגודל של המלבן הזז - הגדול במסלול (יחסי).</summary>
         internal SizeF MaxSize()
@@ -630,7 +644,10 @@ namespace SubtitleStudio
 
         /// <summary>קטע בשרשרת: ``split`` ← ``crop`` ← המראה ← (עיגול: שקיפות מחוץ לאליפסה) ← ``overlay`` עם ``enable`` לפי הזמן. ריק כשהאזור
         /// קטן מדי, או כשכולו לפני הקטע שנצרב (<paramref name="shiftMs"/>).</summary>
-        internal string Graph(int w, int h, long shiftMs, string tag)
+        internal string Graph(int w, int h, long shiftMs, string tag) { return GraphTail(w, h, shiftMs, tag, 0); }
+
+        /// <param name="tail">כמה עוד אחרי הסוף (`SubStyle.ZoneTailMs`).</param>
+        internal string GraphTail(int w, int h, long shiftMs, string tag, double tail)
         {
             Rectangle px = Pixels_(w, h);
             string posX = null, posY = null;
@@ -652,13 +669,13 @@ namespace SubtitleStudio
                 posY = PathExpr(ts, ys, 0, h - bh);
             }
             if (px.IsEmpty) return "";
-            long a = FromMs < 0 ? -1 : FromMs - shiftMs, b = ToMs < 0 ? -1 : ToMs - shiftMs;
+            double a = FromMs < 0 ? -1 : FromMs - shiftMs, b = ToMs < 0 ? -1 : ToMs - shiftMs + tail;
             // נגמר לפני הקטע שנצרב (או בתחילתו) - לא נכנס. בלי זה ``b`` שלילי נקרא ״עד הסוף״, והאזור טשטש את כל הקטע (23.10)
             if (ToMs >= 0 && b <= 0) return "";
             if (a >= 0 && b >= 0 && b <= a) return "";
             string enable = "";
             if (a > 0 || b >= 0)
-                enable = string.Format(CultureInfo.InvariantCulture, ":enable='between(t,{0:0.###},{1:0.###})'",
+                enable = string.Format(CultureInfo.InvariantCulture, ":enable='between(t,{0:0.###},{1:0.#####})'",
                     Math.Max(0, a) / 1000.0, b >= 0 ? b / 1000.0 : 1e7);
             // **הזמן גם למסננים הכבדים** (gblur, ‏geq, ‏drawbox): מחוץ לזמן שלהם הם מעבירים את הפריים כמו שהוא. בלי זה כל אזור עיגול
             // הריץ geq על כל פריים בסרט - 98 אזורי פנים ב-clip.mp4 לא סיימו 20 שניות של צריבה בעשר דקות
@@ -706,11 +723,11 @@ namespace SubtitleStudio
         /// דרכה (alphamerge ← overlay). העומק קבוע - לא תלוי במספר האזורים.</summary>
         internal static string MaskGraph(List<BlurZone> zones, int w, int h, long shiftMs, string tag)
         {
-            return MaskGraph(zones, w, h, shiftMs, tag, null, null);
+            return MaskGraph(zones, w, h, shiftMs, tag, null, null, 0);
         }
 
         /// <param name="dir">תיקיית העבודה של הצריבה (עם <paramref name="prefix"/>) - לקובצי הפקודות של ״מלבנים נודדים״ (`SlotBoxes`); null - בלי.</param>
-        internal static string MaskGraph(List<BlurZone> zones, int w, int h, long shiftMs, string tag, string dir, string prefix)
+        internal static string MaskGraph(List<BlurZone> zones, int w, int h, long shiftMs, string tag, string dir, string prefix, double tail)
         {
             CultureInfo ic = CultureInfo.InvariantCulture;
             System.Text.StringBuilder boxes = new System.Text.StringBuilder();
@@ -720,11 +737,13 @@ namespace SubtitleStudio
             foreach (BlurZone z in zones)
                 foreach (ZoneSeg sg in z.Segments())
                 {
-                    double from = Math.Max(0, (sg.From - shiftMs) / 1000.0), to = Math.Min(1e7, (sg.To - shiftMs) / 1000.0);
+                    // התוספת רק לחלק האחרון של האזור (זה שנגמר בסוף שלו)
+                    double more = z.ToMs >= 0 && sg.To == z.ToMs ? tail : 0;
+                    double from = Math.Max(0, (sg.From - shiftMs) / 1000.0), to = Math.Min(1e7, (sg.To - shiftMs + more) / 1000.0);
                     if (to <= from) continue;
                     Rectangle px = PixelsOf(sg.Area, w, h);
                     if (px.IsEmpty) continue;
-                    string en = string.Format(ic, "between(t,{0:0.###},{1:0.###})", from, to);
+                    string en = string.Format(ic, "between(t,{0:0.###},{1:0.#####})", from, to);
                     boxes.AppendFormat(ic, "drawbox=x={0}:y={1}:w={2}:h={3}:color={4}:t=fill:enable='{5}',", px.X, px.Y, px.Width, px.Height, black ? "black" : "white", en);
                     when.Add(en);
                     segs.Add(new double[] { from, to, px.X, px.Y, px.Width, px.Height });

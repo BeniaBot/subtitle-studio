@@ -119,8 +119,8 @@ namespace SubtitleStudio
             if (ms < 0) foreach (Cue c in t) if (c.Start + ms < 0) before++;
             if (before > 0)
                 s += before == 1
-                    ? Lang.T("\nשימו לב: כתובית אחת תגיע לפני תחילת הסרט ותיצמד להתחלה.")
-                    : Lang.F("\nשימו לב: {0} כתוביות יגיעו לפני תחילת הסרט ויצטופפו בהתחלה.", before);
+                    ? Lang.T("\nשימו לב: כתובית אחת תגיע לפני תחילת הקובץ ותיצמד להתחלה.")
+                    : Lang.F("\nשימו לב: {0} כתוביות יגיעו לפני תחילת הקובץ ויצטופפו בהתחלה.", before);
             else if (t.Count > 0)
             {
                 Cue f = t[0];
@@ -220,14 +220,14 @@ namespace SubtitleStudio
             Row(_preview, 40, 6);
 
             _tapLater = new Toggle();
-            _tapLater.Text = Lang.T("לתזמן אותן לפי הסרט, בלחיצה על כל משפט");
+            _tapLater.Text = Lang.T("לתזמן אותן תוך כדי ניגון, בלחיצה על כל משפט");
             _tapLater.Checked = hasVideo;
             _tapLater.Enabled = hasVideo;
             Row(_tapLater, 28, 2);
 
             Lbl why = Hint(hasVideo
                 ? Lang.T("אחרי היצירה יופיע כפתור גדול: מנגנים, ולוחצים עליו בכל פעם שמשפט מתחיל.")
-                : Lang.T("אין סרט פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד."));
+                : Lang.T("אין וידאו או קובץ קול פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד."));
             Row(why, 34, 10);
 
             // ---------- מכאן ומטה: מוסתר עד שמבקשים ----------
@@ -382,7 +382,7 @@ namespace SubtitleStudio
         /// <summary>ערוץ של תמונות (PGS/VobSub) שהעוזר יקרא - המספר שלו בקובץ; ‏-1 - לא.</summary>
         public int ReadImageStream = -1;
 
-        public ExtractSubsDlg(MainForm main, MediaInfo mi) : base(Lang.T("כתוביות מתוך הסרט"), Ico.Layers, 560)
+        public ExtractSubsDlg(MainForm main, MediaInfo mi) : base(Lang.T("כתוביות מתוך הקובץ"), Ico.Layers, 560)
         {
             _main = main; _mi = mi;
             _subs = mi.Subtitles();
@@ -510,7 +510,7 @@ namespace SubtitleStudio
         {
             _style = style.Clone();
             _frame = frame;
-            Subtitle = Lang.T("כך ייראו הכתוביות בסרט הסופי");
+            Subtitle = Lang.T("כך ייראו הכתוביות בווידאו הסופי");
 
             // **זוגות בשורה אחת, לא שורה לכל פקד.** בפריסה הקודמת החלון היה 769
             // פיקסלים לוגיים: גבוה ממסך 1080p ב-150% וממחשב נייד 1366x768, ושם
@@ -625,7 +625,7 @@ namespace SubtitleStudio
 
             // **טשטוש אזור** (0.8.31): טקסט צרוב בסרט (פס כותרת של ערוץ, כתוביות מקור) מתחת לכתוביות שלנו. האזור - בגרירה על התמונה
             // למעלה; העוצמה והזמן כאן. נגיעה בכל אחד מהם מדליקה את הטשטוש - מי שמזיז אותם רוצה טשטוש
-            Section(Lang.T("טשטוש אזור בסרט"));
+            Section(Lang.T("טשטוש אזור בווידאו"));
             string[] bcaps = { "", Lang.T("מתי"), Lang.T("עוצמת הטשטוש") };
             for (int i = 1; i < 3; i++)
             {
@@ -670,7 +670,7 @@ namespace SubtitleStudio
             Y += Theme.S(38);
 
             // ההפניה לחלון האזורים (0.8.36): מי שמגיע לכאן לא יודע שיש מקום לכמה אזורים בזמנים שונים
-            Lbl how = Label(Lang.T("גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״הסרט ▾ ← טשטוש וצנזורה״"), false, Theme.TextDim);
+            Lbl how = Label(Lang.T("גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״כלים ▾ ← טשטוש וצנזורה״"), false, Theme.TextDim);
             how.Font = Theme.Small;
             how.SetBounds(Pad, Y, ContentW, Theme.S(20));
             Controls.Add(how);
@@ -739,7 +739,7 @@ namespace SubtitleStudio
                 {
                     sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-                    g.DrawString(Lang.T("טקסט שצרוב בסרט"), f, Brushes.White, new RectangleF(0, 268, 640, 62), sf);
+                    g.DrawString(Lang.T("טקסט שצרוב בווידאו"), f, Brushes.White, new RectangleF(0, 268, 640, 62), sf);
                 }
             }
             _sampleFrame = b;

@@ -45,6 +45,8 @@ foreach ($c in @(@(1000, 4000, 'שלום לכולם, וברוכים הבאים')
 $style = NewOf 'SubStyle' @()
 $media = Join-Path $env:TEMP 'ss-gallery\test.mp4'
 if (-not (Test-Path $media)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
+# קובץ אחר, למשל קובץ קול: SHOT_MEDIA=נתיב, עם -Tools או -Only Tools,FitSize,Export (0.8.48)
+if ($env:SHOT_MEDIA) { $media = $env:SHOT_MEDIA }
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
 $mi = (TY 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$media))
 # לפי השם המלא בעברית, דרך התרגום. עם תבנית עברית הצילום באנגלית לא מצא את הכלי
@@ -96,8 +98,8 @@ function MenuSample
     $list = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($mt))
     # פריטים אמיתיים מתפריט הכתוביות (MainForm.SubtitleMenuItems), עם כותרת קטע
     $list.Add($mt.GetMethod('Group', $ST).Invoke($null, @((L 'קובץ'))))
-    $list.Add($mk.Invoke($null, @((L 'פרויקט חדש'), (L 'סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)'), [Enum]::Parse((TY 'Ico'), 'Plus'), $null)))
-    $list.Add($mk.Invoke($null, @((L 'שמירת הפרויקט'), (L 'הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך'), [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
+    $list.Add($mk.Invoke($null, @((L 'פרויקט חדש'), (L 'סוגר את הקובץ והכתוביות וחוזר למסך הפתיחה (Ctrl+N)'), [Enum]::Parse((TY 'Ico'), 'Plus'), $null)))
+    $list.Add($mk.Invoke($null, @((L 'שמירת הפרויקט'), (L 'קובץ המקור, הכתוביות והעיצוב יחד - כדי להמשיך אחר כך'), [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
     $list.Add($mt.GetMethod('Sep', $ST).Invoke($null, @()))
     $list.Add($mk.Invoke($null, @((L 'חיפוש בכתוביות'), (L 'לקפוץ לכתובית שמכילה מילה (Ctrl+F)'), [Enum]::Parse((TY 'Ico'), 'Search'), $null)))
     $list.Add($mk.Invoke($null, @((L 'תרגום אוטומטי עם AI'), (L 'בוחרים שפה והכתוביות מתורגמות במקום - התזמונים נשמרים'), [Enum]::Parse((TY 'Ico'), 'Sparkles'), $null)))
@@ -151,7 +153,7 @@ $forms = @(
     # חלונות עבודה: מתחילים לעבוד רק ב-Shown, ומחוץ למסך אין Shown - שום דבר לא נשלח
     @{ n = 'AiRun';       make = { NewOf 'AiRunDlg' @($dcues, [string]'English', [string]'') } },
     @{ n = 'TrRun';       make = { NewOf 'TranscribeRunDlg' @([string]$media, [int64]40000, [string]'') } },
-    @{ n = 'Download';    make = { $d = NewOf 'DownloadDlg' @([string]'Subtext 0.9.9'); $d.Note = [string](TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null).Invoke($null, @([string]'רק התוכנה - מנוע הווידאו כבר אצלכם')); $d.SetProgress(0.4, [int64]15000000, [int64]38000000); $d } },
+    @{ n = 'Download';    make = { $d = NewOf 'DownloadDlg' @([string]'Subtext 0.9.9'); $d.Note = [string](TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null).Invoke($null, @([string]'רק התוכנה - מנוע העיבוד כבר אצלכם')); $d.SetProgress(0.4, [int64]15000000, [int64]38000000); $d } },
     @{ n = 'Chat';        make = { $ch = NewOf 'AiChatForm' @((MainWith 1200 800 $false)); [void]$ch.GetType().GetMethod('Greet', $IN).Invoke($ch, @()); $ch } },
     @{ n = 'ChatWork';    make = { $ch = NewOf 'AiChatForm' @((MainWith 1200 800 $false)); $v = $ch.GetType().GetField('_view', $IN).GetValue($ch); $vt = $v.GetType(); $lt = (TY 'Lang').GetMethod('T', $ST, $null, [Type[]]@([string]), $null); $lf = (TY 'Lang').GetMethod('F', $ST); [void]$vt.GetMethod('AddUser').Invoke($v, @([string]$lt.Invoke($null, @('תוסיף בסוף כתובית ״תודה שצפיתם״ ואז תזיז הכול חצי שנייה')))); [void]$vt.GetMethod('AddAction').Invoke($v, @([string]$lf.Invoke($null, @([string]'נוספה כתובית ב-{0}', [object[]]@('00:09.2'))), $true)); [void]$vt.GetMethod('AddAction').Invoke($v, @([string]$lf.Invoke($null, @([string]'הוזזו {0} כתוביות: {1} שניות מאוחר יותר', [object[]]@('5', '0.5'))), $true)); [void]$vt.GetMethod('AddBot').Invoke($v, @([string]$lt.Invoke($null, @('הוספתי את הכתובית בסוף, והזזתי את כל חמש הכתוביות חצי שנייה קדימה.')))); [void]$vt.GetMethod('AddUser').Invoke($v, @([string]$lt.Invoke($null, @('תראה לי את הקטע עם דף הגמרא')))); $vt.GetProperty('Thinking').SetValue($v, $true); $vt.GetProperty('Status').SetValue($v, [string](($lf.Invoke($null, @([string]'מסתכל על {0} תמונות מהסרט', [object[]]@('38')))) + '...')); $ch } },
     # הודעות קוליות (0.8.14): המילים שנשמעו בבועה, ואחת שעוד מתמללים
@@ -164,6 +166,7 @@ $forms = @(
 if ($Tools) {
     $allTools = @((TY 'MediaTools').GetMethod('All', $ST).Invoke($null, @()))
     for ($k = 0; $k -lt $allTools.Count; $k++) {
+        if ((TY 'ToolsDlg').GetMethod('Unfit', $ST).Invoke($null, @($allTools[$k], $mi))) { continue }      # בקובץ קול - רק מה שעובד עליו
         $forms += @{ n = ('Tool' + ($k + 1).ToString('00')); idx = $k; make = { NewOf 'ToolRunDlg' @($null, $allTools[$f.idx], $mi, [int64]1000, [int64]6000, [int64]0) } }
     }
 }

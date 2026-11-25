@@ -33,6 +33,8 @@ $tag = $(if ($Light) { 'light' } else { 'dark' }) + '-' + $Lang
 $media = Join-Path $env:TEMP 'ss-gallery\test.mp4'
 if (-not (Test-Path $media)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
 
+if ($env:SHOT_MEDIA) { $media = $env:SHOT_MEDIA }
+
 function Pump([int]$ms) { $sw = [Diagnostics.Stopwatch]::StartNew(); while ($sw.ElapsedMilliseconds -lt $ms) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 15 } }
 
 function Snap($f, $file) {

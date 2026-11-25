@@ -57,7 +57,7 @@ namespace SubtitleStudio
         /// <summary>בלי נגן (בדיקות וצילומים).</summary>
         public SyncDlg(Doc doc, long position, SyncState state) : this(null, null, doc, position, state) { }
 
-        public SyncDlg(MainForm main, MediaInfo mi, Doc doc, long position, SyncState state) : base(Lang.T("סנכרון לפי הסרט"), Ico.Sync, 600)
+        public SyncDlg(MainForm main, MediaInfo mi, Doc doc, long position, SyncState state) : base(Lang.T("סנכרון לפי הקול"), Ico.Sync, 600)
         {
             _main = main; _mi = mi; _doc = doc; _state = state ?? new SyncState();
             _state.DropIfStale(doc);
@@ -132,7 +132,7 @@ namespace SubtitleStudio
             Controls.Add(_whatCap); _p2.Add(_whatCap);
             _stretch = Action2(Lang.T("מתיחה לפי שתי הנקודות"), "", Ico.Sync, delegate { ApplyStretch(); });
             _all = Action2(Lang.T("להזיז את כל הכתוביות"), "", Ico.ShiftLR, delegate { ApplyShift(_doc.Cues); });
-            _fromHere = Action2(Lang.T("רק מהכתובית הזאת והלאה"), Lang.T("כשהתקלה מתחילה באמצע הסרט"), Lang.Rtl ? Ico.ChevronLeft : Ico.ChevronRight, delegate
+            _fromHere = Action2(Lang.T("רק מהכתובית הזאת והלאה"), Lang.T("כשהתקלה מתחילה באמצע"), Lang.Rtl ? Ico.ChevronLeft : Ico.ChevronRight, delegate
             {
                 List<Cue> from = new List<Cue>();
                 foreach (Cue c in _doc.Cues) if (c.Start >= _cue.Start) from.Add(c);
@@ -143,7 +143,7 @@ namespace SubtitleStudio
             int sx = Pad + W, sh = Theme.S(30);
             _again = SmallBtn(Lang.T("לסמן מחדש"), Ico.Undo, Lang.T("חזרה לנגן - לסמן שוב את הרגע"), ref sx, sh);
             // הרוחב לפי הטקסט הארוך מהשניים (״בתחילת״ / ״בסוף״ - נקבע ב-`LayoutPhase2`)
-            _second = SmallBtn(Lang.T("עוד נקודה בתחילת הסרט"), Ico.Plus, Lang.T("כשהפער גדל עם הזמן: מסמנים עוד משפט בצד השני של הסרט, והתזמון כולו נמתח לפי שתי הנקודות"), ref sx, sh);
+            _second = SmallBtn(Lang.T("עוד נקודה בהתחלה"), Ico.Plus, Lang.T("כשהפער גדל עם הזמן: מסמנים עוד משפט בקצה השני, והתזמון כולו נמתח לפי שתי הנקודות"), ref sx, sh);
             _fps = SmallBtn(Lang.T("קצב פריימים…"), Ico.Film, Lang.T("המרת קצב פריימים (למי שיודע מה זה)"), ref sx, sh);
             _again.Click += delegate { ShowPhase(false); };
             _second.Click += delegate { SecondPoint(); };
@@ -241,11 +241,11 @@ namespace SubtitleStudio
             _gap.Invalidate();
             bool canStretch = _state.HasA && Math.Abs(_cue.Start - _state.OldA) > 1000;
             _stretch.Visible = canStretch;
-            _stretch.Sub = canStretch ? Lang.F("מתקן את כל הסרט, גם כשהפער גדל עם הזמן · הנקודה הראשונה: {0}", Theme.Ltr(_state.LabelA)) : "";
+            _stretch.Sub = canStretch ? Lang.F("מתקן את כל הכתוביות, גם כשהפער גדל עם הזמן · הנקודה הראשונה: {0}", Theme.Ltr(_state.LabelA)) : "";
             _stretch.Kind = BtnKind.Primary;
             _all.Kind = canStretch ? BtnKind.Subtle : BtnKind.Primary;
             _all.Sub = Lang.F("{0} · מתאים כשכל הקובץ מוסט באותה מידה", DeltaText(delta));
-            _second.Text = FarCue() == _doc.Cues[0] ? Lang.T("עוד נקודה בתחילת הסרט") : Lang.T("עוד נקודה בסוף הסרט");
+            _second.Text = FarCue() == _doc.Cues[0] ? Lang.T("עוד נקודה בהתחלה") : Lang.T("עוד נקודה בסוף");
             _second.Invalidate();
             int y = _gap.Bottom + Theme.S(12);
             _whatCap.SetBounds(Pad, y, ContentW, Theme.S(18)); y += Theme.S(24);
@@ -337,7 +337,7 @@ namespace SubtitleStudio
             long delta = _now - _cue.Start;
             if (delta == 0)
             {
-                Ui.Info(this, Lang.T("אין מה לתקן"), Lang.T("הכתובית כבר מתחילה בדיוק במקום שבו הסרט נמצא."));
+                Ui.Info(this, Lang.T("אין מה לתקן"), Lang.T("הכתובית כבר מתחילה בדיוק במקום שבו הנגן עומד."));
                 return;
             }
             _doc.Push(Lang.T("סנכרון"));
@@ -491,7 +491,7 @@ namespace SubtitleStudio
                 float px = MapX(Playhead, mid, span, left, right);
 
                 DrawMarker(g, cx, lineY, Theme.Purple, Lang.T("הכתובית"), Tc.Short(CueStart), true);
-                DrawMarker(g, px, lineY, Theme.Bad, Lang.T("הסרט"), Tc.Short(Playhead), false);
+                DrawMarker(g, px, lineY, Theme.Bad, Lang.T("הנגן"), Tc.Short(Playhead), false);
             }
 
             private static float MapX(long t, long mid, long span, float left, float right)
@@ -538,7 +538,7 @@ namespace SubtitleStudio
             _from.SelectedIndex = 2;
             Row(_from, 32, 12);
 
-            Section(Lang.T("הסרט שלכם בקצב"));
+            Section(Lang.T("הווידאו שלכם בקצב"));
             _to = new Combo();
             _to.Items.AddRange(List);
             // **הקצב של הסרט הפתוח - כבר בחור** (0.8.26): התוכנה יודעת אותו (Formats.VideoFps), ועד כאן נפתח תמיד 23.976
@@ -553,7 +553,7 @@ namespace SubtitleStudio
             _to.SelectedIndexChanged += delegate { UpdatePreview(); };
             UpdatePreview();
 
-            Row(Hint(Lang.T("אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הסרט.")), 34, 6);
+            Row(Hint(Lang.T("אם אתם לא בטוחים - עדיף להשתמש בסנכרון לפי הקול.")), 34, 6);
             Buttons(Lang.T("להמיר"), Ico.Sync, Lang.T("ביטול"));
         }
 

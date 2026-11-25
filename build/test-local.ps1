@@ -501,7 +501,7 @@ $laT = T 'LocalAssist'; $toolT = T 'AiTool'; $msgT2 = T 'AiMsg'
 $ser2 = New-Object Web.Script.Serialization.JavaScriptSerializer; $ser2.MaxJsonLength = 67108864
 $tl = [Activator]::CreateInstance([Collections.Generic.List``1].MakeGenericType($toolT))
 $t1 = [Activator]::CreateInstance($toolT, @([string]'delete_cues', [string]'מוחק טווח כתוביות')); [void]$t1.Req('from_index', 'integer', 'מספר'); [void]$t1.P('to_index', 'integer', 'עד'); $tl.Add($t1)
-$t2 = [Activator]::CreateInstance($toolT, @([string]'watch_video', [string]'צופה בסרט')); [void]$t2.Req('question', 'string', 'שאלה'); $tl.Add($t2)
+$t2 = [Activator]::CreateInstance($toolT, @([string]'watch_video', [string]'צופה בווידאו')); [void]$t2.Req('question', 'string', 'שאלה'); $tl.Add($t2)
 $tools = $laT.GetMethod('Tools', $SF).Invoke($null, [object[]](,$tl))
 $tj = $ser2.Serialize($tools)
 Check 'עוזר מקומי: הפקודות - reply ראשון, תיאור קצר באנגלית, החובה מהתוכנה; בלי מה שצריך את גוגל' ($tools.Count -eq 2 -and $tools[0]['function']['name'] -eq 'reply' -and $tj -match '"description":"Delete subtitles\."' -and $tj -match '"required":\["from_index"\]' -and $tj -notmatch 'watch_video') $tj.Substring(0, [Math]::Min(300, $tj.Length))

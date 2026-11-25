@@ -145,7 +145,7 @@ Pump 1500
 Snap $dlg (Join-Path $Out "cut-$tag.png")
 $dlg.Close(); $m.Close(); $m.Dispose()
 
-# ---- חלון העיצוב (0.8.33): רקע חצי שקוף, וטשטוש של ״טקסט שצרוב בסרט״ - התמונה לדוגמה של החלון כשאין סרט ----
+# ---- חלון העיצוב (0.8.33): רקע חצי שקוף, וטשטוש של ״טקסט שצרוב בווידאו״ - התמונה לדוגמה של החלון כשאין סרט ----
 $sty = [Activator]::CreateInstance((TY 'SubStyle'))
 $sty.OpaqueBox = $true; $sty.BlurOn = $true; $sty.FontPct = 7.0; $sty.MarginVPct = 11.0
 $argv = New-Object object[] 3; $argv[0] = $sty; $argv[1] = $null; $argv[2] = [bool]($Lang -ne 'en')

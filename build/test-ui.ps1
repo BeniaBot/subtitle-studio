@@ -448,14 +448,14 @@ $askT.Add_Tick({ foreach ($w in @([Windows.Forms.Application]::OpenForms)) { if 
 $env:SUBSTUDIO_TEST = $null; $askT.Start(); $go2 = Call $bf 'OfferTidyBeforeBurn' (Pack); $askT.Stop(); $askT.Dispose(); $env:SUBSTUDIO_TEST = '1'
 Check 'וכשהכול מתוזמן - בלי השאלה הזאת' ($script:askTitle -notlike '*לתזמן*') "title=[$($script:askTitle)] go=$go2"
 $bf.Close(); $bf.Dispose()
-# **הכפתור הירוק כשיש רק טשטוש** (0.8.44): בלי כתוביות ועם אזור - ״יצירת סרט עם טשטוש״, והחלון שנפתח לא מדבר על כתוביות (עד כאן
-# ״יצירת סרט עם כתוביות״ ← ״הטמעת הכתוביות בסרט · 0 כתוביות״ עם בחירה בין צריבה לערוץ כתוביות)
+# **הכפתור הירוק כשיש רק טשטוש** (0.8.44): בלי כתוביות ועם אזור - ״יצירת וידאו עם טשטוש״, והחלון שנפתח לא מדבר על כתוביות (עד כאן
+# ״יצירת וידאו עם כתוביות״ ← ״הטמעת הכתוביות בסרט · 0 כתוביות״ עם בחירה בין צריבה לערוץ כתוביות)
 $gf = NewForm 1493 997
 $gsty = Fld $gf '_style'; $gsty.Zones.Add([Activator]::CreateInstance($asm.GetType('SubtitleStudio.BlurZone')))
 $labBlur = [string]$formT.GetMethod('ExportLabel', $NP).Invoke($gf, @())
 $gdoc2 = Fld $gf '_doc'; AddCue $gdoc2 1000 3000 'כתובית' | Out-Null
 $labSubs = [string]$formT.GetMethod('ExportLabel', $NP).Invoke($gf, @())
-Check 'הכפתור הירוק: רק טשטוש - ״יצירת סרט עם טשטוש״; עם כתובית - ״עם כתוביות״' ($labBlur -eq 'יצירת סרט עם טשטוש' -and $labSubs -eq 'יצירת סרט עם כתוביות') "blur=[$labBlur] subs=[$labSubs]"
+Check 'הכפתור הירוק: רק טשטוש - ״יצירת וידאו עם טשטוש״; עם כתובית - ״עם כתוביות״' ($labBlur -eq 'יצירת וידאו עם טשטוש' -and $labSubs -eq 'יצירת וידאו עם כתוביות') "blur=[$labBlur] subs=[$labSubs]"
 $exT = $asm.GetType('SubtitleStudio.ExportVideoDlg'); $docT2 = $asm.GetType('SubtitleStudio.Doc')
 $emptyDoc = [Activator]::CreateInstance($docT2)
 $tmpV = Join-Path $env:TEMP 'ss-gallery\test.mp4'; if (-not (Test-Path $tmpV)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
@@ -465,7 +465,7 @@ $exDlg = [Activator]::CreateInstance($exT, $exArgs)
 $exTitle = [string]$exT.GetProperty('TitleText', $NP).GetValue($exDlg, $null); $exSub = [string]$exT.GetProperty('SubtitleText', $NP).GetValue($exDlg, $null)
 $modeShown = $exT.GetField('_modeSoft', $NP).GetValue($exDlg).Parent -ne $null
 $exJob = $exT.GetMethod('BuildJob', $NP).Invoke($exDlg, @([string](Join-Path $env:TEMP 'ss-blur-only.mp4'))); $exDlg.Dispose()
-Check 'חלון היצירה בלי כתוביות: ״יצירת סרט עם טשטוש״, בלי ״0 כתוביות״, בלי הבחירה בערוץ כתוביות' ($exTitle -eq 'יצירת סרט עם טשטוש' -and -not $exSub.Contains('כתוביות') -and -not $modeShown -and ([string]$exJob.Title).Contains('טשטוש')) "title=[$exTitle] sub=[$exSub] mode=$modeShown job=[$($exJob.Title)]"
+Check 'חלון היצירה בלי כתוביות: ״יצירת וידאו עם טשטוש״, בלי ״0 כתוביות״, בלי הבחירה בערוץ כתוביות' ($exTitle -eq 'יצירת וידאו עם טשטוש' -and -not $exSub.Contains('כתוביות') -and -not $modeShown -and ([string]$exJob.Title).Contains('טשטוש')) "title=[$exTitle] sub=[$exSub] mode=$modeShown job=[$($exJob.Title)]"
 $gf.Close(); $gf.Dispose()
 Check 'תמלול: ״למחוק את הקיימות״ נקרא נכון אחרי שהחלון נסגר' ($rOn -eq $true -and $rOff -eq $false) "on=$rOn off=$rOff"
 
