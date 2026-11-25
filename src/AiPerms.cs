@@ -43,9 +43,9 @@ namespace SubtitleStudio
             switch (cat)
             {
                 case Edit: return Lang.T("לערוך את הכתוביות והעיצוב");
-                case Media: return Lang.T("ליצור קבצים חדשים מהסרט");
+                case Media: return Lang.T("ליצור קבצים חדשים מהקובץ");
                 case Files: return Lang.T("לפתוח ולשמור קבצים");
-                case Send: return Lang.T("לשלוח את הקול או תמונות מהסרט");
+                case Send: return Lang.T("לשלוח את הקול או תמונות מהקובץ");
                 case Prefs: return Lang.T("לשנות הגדרות");
             }
             return "";

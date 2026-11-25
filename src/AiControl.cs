@@ -80,7 +80,7 @@ namespace SubtitleStudio
             }
             if (n == 0)
             {
-                s.Add(Lang.T("אני רוצה כתוביות לסרט"));
+                s.Add(Lang.T("אני רוצה כתוביות"));
                 s.Add(Lang.T("יש לי טקסט מוכן - איך מכניסים אותו?"));
                 if (_mi.HasVideo) s.Add(Lang.T("מה רואים בסרט?"));
                 s.Add(Lang.T("מה אתה יודע לעשות?"));
@@ -177,7 +177,7 @@ namespace SubtitleStudio
         {
             List<AiCmd> list = new List<AiCmd>();
             AddMenu(list, Lang.T("כתוביות"), SubtitleMenuItems());
-            AddMenu(list, Lang.T("הסרט"), VideoMenuItems());
+            AddMenu(list, Lang.T("עריכת הקובץ"), VideoMenuItems());
             bool media = _mi != null, cues = _doc.Cues.Count > 0;
             Bar(list, Lang.T("פתיחה"), Lang.T("פתיחת סרט, קובץ קול או כתוביות (Ctrl+O)"), AiPerms.Files, true, delegate { OpenAnyDialog(); });
             Bar(list, Lang.T("שמירה"), Lang.T("שמירת הכתוביות (Ctrl+S)"), AiPerms.Files, cues, delegate { SaveSubtitles(false); });
@@ -252,7 +252,7 @@ namespace SubtitleStudio
             if (hit == null)
                 foreach (AiCmd c in all) if (c.Name.IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0 || want.IndexOf(c.Name, StringComparison.OrdinalIgnoreCase) >= 0) { hit = c; break; }
             if (hit == null) { r["error"] = "אין פקודה בשם הזה. list_commands מחזיר את כולן"; return r; }
-            if (!hit.Enabled) { r["error"] = Lang.F("״{0}״ לא זמינה עכשיו (למשל: אין סרט פתוח, או אין כתוביות)", hit.Name); return r; }
+            if (!hit.Enabled) { r["error"] = Lang.F("״{0}״ לא זמינה עכשיו (למשל: אין קובץ פתוח, או אין כתוביות)", hit.Name); return r; }
             string why = AiGate(hit.Cat, Lang.F("להפעיל את ״{0}״ - {1}", hit.Name, hit.Desc), hit.Cat == AiPerms.Media || hit.Cat == AiPerms.Send, out refused);
             if (why != null) { r["error"] = why; return r; }
             _aiLastWinCat = hit.Cat < 0 ? AiPerms.Edit : hit.Cat;
@@ -410,15 +410,15 @@ namespace SubtitleStudio
                 case "look_at":
                     return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי שהעוזר יראה מה יש בה?");
                 case "watch_video":
-                    return Lang.T("לשלוח לגוגל עותק מוקטן של הסרט (תמונה וקול), כדי שהעוזר יצפה בו ויענה על השאלה?");
+                    return Lang.T("לשלוח לגוגל עותק מוקטן של הקובץ, כדי שהעוזר יצפה בו או יאזין לו ויענה על השאלה?");
                 case "read_text_on_screen":
                     return Lang.T("לשלוח לגוגל תמונה מהסרט, כדי לקרוא את הטקסט שבה?");
                 case "extract_burned_subtitles":
                     return Lang.T("לשלוח לגוגל רצועות מהתחתית של הסרט (רק איפה שיש כתובית), כדי לקרוא את הכתוביות הצרובות?");
                 case "listen":
-                    return Lang.T("לשלוח לגוגל קטע קול מהסרט, כדי שהעוזר ישמע מה נאמר?");
+                    return Lang.T("לשלוח לגוגל קטע קול מהקובץ, כדי שהעוזר ישמע מה נאמר?");
                 case "transcribe_media":
-                    return Lang.T("לשלוח את הקול של הסרט לתמלול באינטרנט?");
+                    return Lang.T("לשלוח את הקול לתמלול באינטרנט?");
             }
             string desc = call.Name;
             foreach (AiTool t in AiTools()) if (t.Name == call.Name) { desc = t.Desc; break; }
@@ -545,7 +545,7 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiWatchVideo(AiCall call)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null) { r["error"] = Lang.T("אין סרט פתוח - אין במה לצפות"); return r; }
+            if (_mi == null) { r["error"] = Lang.T("אין קובץ פתוח - אין במה לצפות"); return r; }
             string q = call.Str("question", "").Trim();
             if (q.Length == 0) { r["error"] = "חסרה שאלה (question)"; return r; }
             long from = (long)(Math.Max(0, call.Num("from_sec", 0)) * 1000);
@@ -560,8 +560,8 @@ namespace SubtitleStudio
             if (parts.Count == 1 && from == 0 && to >= _mi.DurationMs - 500) parts[0][1] = 0;
             string path = _mi.Path; bool video = _mi.HasVideo; int sh = _mi.Height;
             long fa = from, fb = parts[parts.Count - 1][1], dur = _mi.DurationMs;
-            r["done"] = fb == 0 ? Lang.T("צופה בסרט")
-                : parts.Count > 1 ? Lang.F("צופה בסרט, ב-{0} חלקים", parts.Count)
+            r["done"] = fb == 0 ? (video ? Lang.T("צופה בסרט") : Lang.T("מאזין לקובץ"))
+                : parts.Count > 1 ? (video ? Lang.F("צופה בסרט, ב-{0} חלקים", parts.Count) : Lang.F("מאזין לקובץ, ב-{0} חלקים", parts.Count))
                 : Lang.F("צופה בקטע {0}", Theme.Ltr(Tc.Short(from) + "-" + Tc.Short(fb)));
             r["_work"] = (Func<Dictionary<string, object>>)delegate
             {

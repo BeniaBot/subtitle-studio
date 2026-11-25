@@ -284,7 +284,7 @@ namespace SubtitleStudio
         {
             _doc = doc;
             // עד 0.8.5: ״התזמונים נשארים בדיוק כמו שהם״ - אבל מ-0.8.2 תרגום ארוך מקבל עוד זמן קריאה
-            Subtitle = Lang.T("כל כתובית נשארת במקומה בסרט");
+            Subtitle = Lang.T("כל כתובית נשארת בזמן שלה");
 
             Section(Lang.T("לאיזו שפה לתרגם"));
             _lang = new Combo();
@@ -356,7 +356,7 @@ namespace SubtitleStudio
             _range.Enabled = marked;
             _range.Text = marked
                 ? Lang.F("רק הכתוביות שבקטע המסומן: {0}", Theme.Ltr(Tc.Short(_a) + " – " + Tc.Short(_b)))
-                : Lang.T("רק חלק מהסרט? מסמנים אותו קודם על הציר");
+                : Lang.T("רק חלק מהקובץ? מסמנים אותו קודם על הציר");
             _range.CheckedChanged += delegate { UpdateInfo(); };
             Row(_range, 26, 8);
 

@@ -9,10 +9,10 @@ namespace SubtitleStudio
     {
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { Lang.T("פותחים סרט"), Lang.T("כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון") },
+            new string[] { Lang.T("פותחים סרט או קובץ קול"), Lang.T("כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון") },
             new string[] { Lang.T("עוצרים איפה שהדיבור מתחיל"), Lang.T("מקש הרווח מנגן ועוצר. אפשר להאט את ההשמעה כדי לדייק") },
             new string[] { Lang.T("לוחצים ״כתובית חדשה כאן״ וכותבים"), Lang.T("הכפתור הכחול הגדול. ואז שוב, ושוב") },
-            new string[] { Lang.T("יוצרים את הסרט"), Lang.T("הכפתור הירוק - הסרט המקורי שלכם לא משתנה") }
+            new string[] { Lang.T("יוצרים את הסרט"), Lang.T("הכפתור הירוק - הקובץ המקורי שלכם לא משתנה") }
         };
 
         private static readonly string[][] Keys = new string[][]
