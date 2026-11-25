@@ -722,6 +722,7 @@ namespace SubtitleStudio
             else if (_burn)
             {
                 string dir;
+                _style.ZoneTailMs = SubStyle.TailFor(_mi.Fps);
                 string ass = Burn.WriteTempAss(cues, _style, _mi.Width, _mi.Height, a, out dir);
                 string video;
                 switch (_quality.SelectedIndex)

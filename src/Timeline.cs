@@ -649,6 +649,7 @@ namespace SubtitleStudio
             DrawRangeShade(g, waveTop, Height - ScrollH);
             DrawWave(g, waveTop, waveBottom);
             DrawTrackBg(g);
+            DrawZones(g, waveBottom);
             if (DurationMs > 1) DrawRuler(g);
             else
             {
@@ -684,6 +685,39 @@ namespace SubtitleStudio
                 Theme.Str(g, Lang.T("אפשר גם לגרור כאן"), Theme.Small, Theme.TextFaint,
                     new RectangleF(0, hy - Theme.S(9), Width, Theme.S(18)), Theme.SfCenter);
             }
+        }
+
+        /// <summary>**אזורי הטשטוש והצנזורה על הציר** (0.8.48): פסים דקים בתחתית פס הקול, בצבע של כל אזור - כמו בחלון ״טשטוש וצנזורה״ ובשלושה
+        /// נתיבים כמוהו. עד אז במסך הראשי לא היה שום סימן איפה משהו מוסתר. הרבה אזורים (חיפוש פנים): פסים שנוגעים באותו נתיב ובאותו צבע מצוירים
+        /// יחד, כי הציר מצויר בכל עדכון של הנגן.</summary>
+        private void DrawZones(Graphics g, int bottom)
+        {
+            if (Style == null || Style.Zones.Count == 0 || DurationMs <= 1) return;
+            float lane = Theme.S(3), gap = Theme.S(1);
+            System.Drawing.Drawing2D.SmoothingMode old = g.SmoothingMode;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            bool merge = Style.Zones.Count > 200;
+            float[] a = { -1, -1, -1 }, b = new float[3];
+            int[] who = new int[3];
+            for (int i = 0; i < Style.Zones.Count; i++)
+            {
+                BlurZone z = Style.Zones[i];
+                float x1 = MsToX(Math.Max(0, z.FromMs)), x2 = MsToX(z.ToMs < 0 ? DurationMs : z.ToMs);
+                if (x2 < 0 || x1 > Width) continue;
+                x1 = Math.Max(0, x1); x2 = Math.Min(Width, Math.Max(x2, x1 + 2));
+                int ln = i % 3;
+                if (!merge) { ZoneBar(g, i, x1, x2, bottom - (ln + 1) * (lane + gap), lane); continue; }
+                if (a[ln] >= 0 && x1 <= b[ln] + 1) { b[ln] = Math.Max(b[ln], x2); continue; }
+                if (a[ln] >= 0) ZoneBar(g, who[ln], a[ln], b[ln], bottom - (ln + 1) * (lane + gap), lane);
+                a[ln] = x1; b[ln] = x2; who[ln] = i;
+            }
+            for (int ln = 0; merge && ln < 3; ln++) if (a[ln] >= 0) ZoneBar(g, who[ln], a[ln], b[ln], bottom - (ln + 1) * (lane + gap), lane);
+            g.SmoothingMode = old;
+        }
+
+        private static void ZoneBar(Graphics g, int i, float x1, float x2, float y, float h)
+        {
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(215, ZonesDlg.ColorOf(i)))) g.FillRectangle(br, x1, y, Math.Max(1, x2 - x1), h);
         }
 
         private void DrawRangeShade(Graphics g, int top, int bottom)

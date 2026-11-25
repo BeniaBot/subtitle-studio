@@ -1899,6 +1899,8 @@ namespace SubtitleStudio
 
         // ================= לוגיקה =================
         private long _lastShownDuration = -1;
+        /// <summary>כמה אזורי טשטוש צוירו על הציר (`TimelineControl.DrawZones`).</summary>
+        private int _tlZones;
 
         // ---------- לחלון החיתוך: הנגן של התוכנה, והתמונה שהוא מקבל ----------
         /// <summary>כל פריים חדש מהנגן. מי שרוצה לשמור אותו - מעתיק.</summary>
@@ -1940,6 +1942,8 @@ namespace SubtitleStudio
 
             string cueText = CurrentCueText(pos);
             if (cueText != _video.CueText) { _video.CueText = cueText; _video.Invalidate(); }
+            int zoneCount = _style != null ? _style.Zones.Count : 0;
+            if (zoneCount != _tlZones) { _tlZones = zoneCount; _tl.Invalidate(); }
             // אזורי צנזורה (0.8.34): מציירים מחדש רק כשאחד מהם נדלק או נכבה
             if (_style != null && _style.Zones.Count > 0)
             {
@@ -3567,6 +3571,7 @@ namespace SubtitleStudio
                 _style.Zones.Clear();
                 _style.Zones.AddRange(d.Result);
                 _video.Invalidate();
+                _tl.Invalidate();
                 if (d.Changed) _doc.Dirty = true;
             }
             d.Dispose();

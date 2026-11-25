@@ -20,6 +20,8 @@ namespace SubtitleStudio
         public string Placeholder2 = Lang.T("או לחצו למעלה על ״פתיחה״");
         public double AspectW = 16, AspectH = 9;
         public event EventHandler Clicked;
+        /// <summary>אזור צנזורה שמצויר גם מחוץ לזמן שלו (`ZoneCanvas`: זה שעורכים); ‏-1 - אין.</summary>
+        protected virtual int AlwaysZone { get { return -1; } }
 
         public VideoPreview()
         {
@@ -121,7 +123,7 @@ namespace SubtitleStudio
             // הטשטוש מתחת לכתובית, כמו בצריבה (0.8.31): ״רק כשיש כתובית״ - רק כשיש כתובית על המסך
             if (Style != null && Style.BlurOn && _frame != null && (!Style.BlurOnlyWithCue || !string.IsNullOrEmpty(CueText)))
                 Style.RenderBlur(g, vr, _frame);
-            if (Style != null && _frame != null && Style.Zones.Count > 0) Style.RenderZones(g, vr, _frame, PosMs);
+            if (Style != null && _frame != null && Style.Zones.Count > 0) Style.RenderZonesWith(g, vr, _frame, PosMs, AlwaysZone);
 
             if (!string.IsNullOrEmpty(CueText) && Style != null)
                 Style.Render(g, vr, CueText);

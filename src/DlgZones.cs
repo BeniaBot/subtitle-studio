@@ -25,7 +25,7 @@ namespace SubtitleStudio
         private readonly Field _posF, _fromF, _toF;
         private SpeedPicker _speedPick;
         private bool _typedPushed;
-        private readonly Lbl _clock, _zoneTitle, _when, _none, _pctCap;
+        private readonly Lbl _clock, _zoneTitle, _when, _none, _pctCap, _listCap;
         private readonly Combo _look, _shape;
         private readonly Slider _pct;
         private readonly Timer _timer;
@@ -126,16 +126,18 @@ namespace SubtitleStudio
             y += Theme.S(40) + Theme.S(14);
 
             // ---- למטה: רשימת האזורים (מימין), והאזור שנבחר (משמאל) ----
-            int listW = Theme.S(290), gap = Theme.S(20);
+            // 312: עם פס הגלילה (0.8.48), ״Black box · from 00:30.0 to 00:40.0״ נחתך ב-290
+            int listW = Theme.S(312), gap = Theme.S(20);
             int listX = Pad + W - listW, colW = W - listW - gap;
-            Lbl cap = Label(Lang.T("האזורים"), true, Theme.TextDim); cap.Font = Theme.SmallBold;
-            cap.SetBounds(listX, y, listW, Theme.S(18));
-            Controls.Add(cap);
+            _listCap = Label(Lang.T("האזורים"), true, Theme.TextDim); _listCap.Font = Theme.SmallBold;
+            _listCap.SetBounds(listX, y, listW, Theme.S(18));
+            Controls.Add(_listCap);
             _list = new ZoneList();
             _list.Zones = _work.Zones;
             _list.Describe = Describe;
             _list.SetBounds(listX, y + Theme.S(22), listW, Theme.S(142));
             _list.SelectionChanged += delegate { Select(_list.Selected); };
+            _list.Picked += delegate (int i) { GoTo(i); };
             _list.RemoveClicked += delegate (int i) { RemoveZone(i); };
             _list.MenuFor += delegate (int i, Point p) { ShowMenu(i, p); };
             Controls.Add(_list);
@@ -463,6 +465,7 @@ namespace SubtitleStudio
                 else _bar.ZoomAt(e.Delta > 0 ? 0.5 : 2, _bar.TimeAt(p.X));
                 return;
             }
+            if (_list.ClientRectangle.Contains(_list.PointToClient(Cursor.Position))) { _list.ScrollRows(e.Delta > 0 ? -2 : 2); return; }
             if (_main != null && _speed.ClientRectangle.Contains(_speed.PointToClient(Cursor.Position)))
             {
                 _main.PlayerSpeed = SpeedPicker.StepFrom(_main.PlayerSpeed, e.Delta > 0 ? 1 : -1);
@@ -505,9 +508,21 @@ namespace SubtitleStudio
             RefreshAll();
         }
 
+        /// <summary>**נבחר אזור ברשימה - הנגן עובר אליו** (0.8.48), כשהוא לא מוסתר ברגע הזה. בנימין: ״אם אני מסמן הרבה אזורים - כל אחד מטוטש
+        /// בפרק זמן אחר... מתוך התוכנה אני לא אראה כלום״. עד אז הבחירה סימנה אותו, והתמונה נשארה ברגע אחר - קו מקווקו בלי כלום בתוכו.</summary>
+        internal void GoTo(int i)
+        {
+            if (i < 0 || i >= _work.Zones.Count) return;
+            BlurZone z = _work.Zones[i];
+            if (z.ActiveAt(_pos)) return;
+            Seek(z.FromMs >= 0 ? z.FromMs : 0);
+        }
+
         private void RefreshAll()
         {
             BlurZone z = Cur;
+            string cap = _work.Zones.Count > 1 ? Lang.F("האזורים ({0})", Theme.Ltr(_work.Zones.Count.ToString())) : Lang.T("האזורים");
+            if (_listCap.Text != cap) { _listCap.Text = cap; _listCap.Invalidate(); }
             bool has = z != null;
             foreach (Control c in new Control[] { _zoneTitle, _when, _markIn, _markOut, _whole, _fromF, _toF, _look, _shape, _trackBtn, _pctCap, _pct }) c.Visible = has;
             _none.Visible = !has;
@@ -759,6 +774,7 @@ namespace SubtitleStudio
             if (t != _pos) ShowPos(t);
             else if (_flashUntil != DateTime.MinValue && DateTime.UtcNow > _flashUntil) { _flashUntil = DateTime.MinValue; RefreshAll(); }
             bool playing = _main.PlayerIsPlaying;
+            if (_canvas.Playing != playing) { _canvas.Playing = playing; _canvas.Invalidate(); }
             if (_play.Icon != (playing ? Ico.Pause : Ico.Play)) { _play.Icon = playing ? Ico.Pause : Ico.Play; _play.Invalidate(); }
         }
 
@@ -965,11 +981,20 @@ namespace SubtitleStudio
     }
 
     /// <summary>התמונה עם האזורים: מה שמוסתר עכשיו מצויר כמו בצריבה (`VideoPreview` ← `RenderZones`), ומעליו קו לכל אזור שפעיל בזמן הזה,
-    /// ולאזור שנבחר - פינות לגרירה (גם כשהוא לא פעיל עכשיו, מקווקו).</summary>
+    /// ולאזור שנבחר - פינות לגרירה (גם כשהוא לא פעיל עכשיו, מקווקו).
+    ///
+    /// **כל מה שסומן נראה** (0.8.48). בנימין: ״האזור שסומן לטשטוש לא מוצג מתוך התוכנה... אם אני מסמן הרבה אזורים - כל אחד מטוטש בפרק זמן אחר -
+    /// אני לא אראה כלום״. כשהנגן עומד: האזור שנבחר מצויר מוסתר **גם מחוץ לזמן שלו** (עם שורה שאומרת שזו תצוגה), ושאר האזורים של זמנים אחרים -
+    /// קו דק ומספר. בזמן ניגון רואים רק מה שבאמת מוסתר - כך בודקים את הזמנים.</summary>
     internal class ZoneCanvas : VideoPreview
     {
         public List<BlurZone> Zones = new List<BlurZone>();
         public int Selected = -1;
+        /// <summary>הנגן מנגן - בלי תצוגה של מה שלא מוסתר עכשיו.</summary>
+        public bool Playing;
+        protected override int AlwaysZone { get { return Playing ? -1 : Selected; } }
+        /// <summary>כמה קווים של אזורים מזמנים אחרים לכל היותר (הקרובים בזמן); אזורי פנים אוטומטיים - אף פעם (הם מאות).</summary>
+        internal const int GhostMax = 24;
         /// <summary>שורה על התמונה בזמן עבודה (חיפוש פנים); null - בלי.</summary>
         public string Status;
         public event Action<RectangleF> CreateZone;
@@ -1138,6 +1163,7 @@ namespace SubtitleStudio
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            foreach (int i in Ghosts()) DrawGhost(g, i);
             for (int i = 0; i < Zones.Count; i++)
             {
                 if (!Shown_(i) || i == Selected) continue;
@@ -1153,6 +1179,44 @@ namespace SubtitleStudio
             else if (Zones.Count == 0 && Status == null)
                 Pill(g, Lang.T("גוררים על התמונה כדי לסמן אזור להסתרה"), Height - Theme.S(40));
             if (Status != null) Pill(g, Status, Theme.S(12));
+        }
+
+        /// <summary>האזורים מזמנים אחרים, שמצוירים כקו דק: רק כשהנגן עומד, רק מה שסומן ביד (או במעקב), והקרובים בזמן.</summary>
+        internal List<int> Ghosts()
+        {
+            List<int> r = new List<int>();
+            if (Playing) return r;
+            for (int i = 0; i < Zones.Count; i++)
+                if (i != Selected && Zones[i].Kind != "face" && !Zones[i].ActiveAt(PosMs)) r.Add(i);
+            if (r.Count > GhostMax)
+            {
+                r.Sort(delegate (int a, int b) { int c = Away(a).CompareTo(Away(b)); return c != 0 ? c : a.CompareTo(b); });
+                r.RemoveRange(GhostMax, r.Count - GhostMax);
+            }
+            return r;
+        }
+
+        /// <summary>כמה זמן עד האזור (או מאז שנגמר).</summary>
+        private long Away(int i)
+        {
+            BlurZone z = Zones[i];
+            return z.FromMs >= 0 && PosMs < z.FromMs ? z.FromMs - PosMs : z.ToMs >= 0 ? Math.Max(0, PosMs - z.ToMs) : 0;
+        }
+
+        private void DrawGhost(Graphics g, int i)
+        {
+            BlurZone z = Zones[i];
+            RectangleF r = ToScreen(z.AreaAt(PosMs));
+            Color c = Color.FromArgb(120, ZonesDlg.ColorOf(i));
+            using (Pen p = new Pen(c, 1.2f))
+            {
+                p.DashStyle = DashStyle.Dot;
+                if (z.Ellipse) g.DrawEllipse(p, r); else g.DrawRectangle(p, r.X, r.Y, r.Width, r.Height);
+            }
+            float d = Theme.S(16);
+            RectangleF badge = new RectangleF(r.X + Theme.S(4), r.Y + Theme.S(4), d, d);
+            using (SolidBrush b = new SolidBrush(c)) g.FillEllipse(b, badge);
+            Theme.Str(g, (i + 1).ToString(), Theme.Small, Color.FromArgb(20, 20, 24), badge, Theme.SfCenter);
         }
 
         private void DrawZone(Graphics g, int i, bool sel)
@@ -1182,7 +1246,7 @@ namespace SubtitleStudio
                 g.FillRectangle(Brushes.White, h);
                 using (Pen p = new Pen(c, 1.2f)) g.DrawRectangle(p, h.X, h.Y, h.Width, h.Height);
             }
-            if (!live) Pill(g, Lang.T("האזור שנבחר לא מוסתר בזמן הזה"), Height - Theme.S(40));
+            if (!live) Pill(g, Playing ? Lang.T("האזור שנבחר לא מוסתר בזמן הזה") : Lang.F("תצוגה בלבד - האזור מוסתר {0}", ZonesDlg.WhenWords(z)), Height - Theme.S(40));
         }
 
         /// <summary>הודעה קטנה על התמונה, על רקע כהה שקוף.</summary>
@@ -1343,7 +1407,37 @@ namespace SubtitleStudio
         public event Action SelectionChanged;
         public event Action<int> RemoveClicked;
         public event Action<int, Point> MenuFor;
+        /// <summary>המשתמש בחר אזור (לחיצה או חצים) - גם כשהוא כבר נבחר.</summary>
+        public event Action<int> Picked;
         private int _hover = -1, _scroll;
+        // **פס גלילה** (0.8.48). בנימין: ״רשימת האזורים לא מופיעה כרשימת גלילה. בשביל לעבור ביניהם צריך למחוק חלק״ - היא נגללה רק בגלגלת,
+        // ורק כשהמיקוד עליה, ובלי שום פס: ארבע שורות נראו כמו כל הרשימה
+        private bool _dragBar, _hoverBar;
+        private int _dragY, _dragScroll;
+        private int BarW { get { return Theme.S(8); } }
+        private int TotalH { get { return Zones.Count * RowH; } }
+        internal bool Scrollable { get { return TotalH > ViewH; } }
+        internal int ScrollPos { get { return _scroll; } }
+
+        private void ClampScroll() { _scroll = Math.Max(0, Math.Min(_scroll, Math.Max(0, TotalH - ViewH))); }
+
+        internal void ScrollRows(int rows) { _scroll += rows * RowH; ClampScroll(); Invalidate(); }
+
+        /// <summary>הידית של הפס - בצד השמאלי בעברית, בימני באנגלית.</summary>
+        internal RectangleF BarThumb()
+        {
+            float th = Math.Max(Theme.S(24), ViewH * (float)ViewH / Math.Max(1, TotalH));
+            float ty = PadV + (ViewH - th) * (_scroll / (float)Math.Max(1, TotalH - ViewH));
+            return new RectangleF(Lang.Rtl ? Theme.S(4) : Width - Theme.S(4) - BarW, ty, BarW, th);
+        }
+
+        /// <summary>האזור שלוכד את העכבר - רחב מהידית, שיהיה קל לתפוס.</summary>
+        private bool InBar(Point p)
+        {
+            if (!Scrollable) return false;
+            int w = BarW + Theme.S(8);
+            return Lang.Rtl ? p.X < w : p.X >= Width - w;
+        }
         private bool _hoverTrash;
 
         public ZoneList()
@@ -1365,7 +1459,7 @@ namespace SubtitleStudio
             int top = i * RowH, bottom = top + RowH;
             if (top < _scroll) _scroll = top;
             else if (bottom > _scroll + ViewH) _scroll = bottom - ViewH;
-            _scroll = Math.Max(0, Math.Min(_scroll, Math.Max(0, Zones.Count * RowH - ViewH)));
+            ClampScroll();
             Invalidate();
         }
 
@@ -1381,7 +1475,9 @@ namespace SubtitleStudio
         {
             int s = Theme.S(26);
             int y = PadV + row * RowH - _scroll + (RowH - s) / 2;
-            return Lang.Rtl ? new Rectangle(Theme.S(8), y, s, s) : new Rectangle(Width - Theme.S(8) - s, y, s, s);
+            // כשיש פס גלילה - הפח זז פנימה, שלא יהיו זה על זה
+            int edge = Theme.S(8) + (Scrollable ? BarW + Theme.S(4) : 0);
+            return Lang.Rtl ? new Rectangle(edge, y, s, s) : new Rectangle(Width - edge - s, y, s, s);
         }
 
         private void Pick(int i)
@@ -1395,45 +1491,85 @@ namespace SubtitleStudio
         protected override bool IsInputKey(Keys k)
         {
             Keys c = k & Keys.KeyCode;
-            return c == Keys.Up || c == Keys.Down || base.IsInputKey(k);
+            return c == Keys.Up || c == Keys.Down || c == Keys.Home || c == Keys.End || c == Keys.PageUp || c == Keys.PageDown || base.IsInputKey(k);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Up && Zones.Count > 0) { Pick(Math.Max(0, Selected - 1)); e.Handled = true; }
-            else if (e.KeyCode == Keys.Down && Zones.Count > 0) { Pick(Math.Min(Zones.Count - 1, Selected + 1)); e.Handled = true; }
-            base.OnKeyDown(e);
+            int page = Math.Max(1, ViewH / RowH - 1), to = -1;
+            switch (e.KeyCode)
+            {
+                case Keys.Up: to = Selected - 1; break;
+                case Keys.Down: to = Selected + 1; break;
+                case Keys.Home: to = 0; break;
+                case Keys.End: to = Zones.Count - 1; break;
+                case Keys.PageUp: to = Selected - page; break;
+                case Keys.PageDown: to = Selected + page; break;
+                default: base.OnKeyDown(e); return;
+            }
+            e.Handled = true;
+            if (Zones.Count == 0) return;
+            to = Math.Max(0, Math.Min(Zones.Count - 1, to));
+            Pick(to);
+            if (Picked != null) Picked(to);
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            int h = RowAt(e.Y);
+            if (_dragBar)
+            {
+                RectangleF th = BarThumb();
+                float room = Math.Max(1, ViewH - th.Height);
+                _scroll = _dragScroll + (int)Math.Round((e.Y - _dragY) / room * Math.Max(0, TotalH - ViewH));
+                ClampScroll();
+                Invalidate();
+                return;
+            }
+            bool bar = InBar(e.Location);
+            int h = bar ? -1 : RowAt(e.Y);
             bool t = h >= 0 && TrashRect(h).Contains(e.Location);
-            if (h != _hover || t != _hoverTrash) { _hover = h; _hoverTrash = t; Cursor = t ? Cursors.Hand : Cursors.Default; Invalidate(); }
+            if (h != _hover || t != _hoverTrash || bar != _hoverBar) { _hover = h; _hoverTrash = t; _hoverBar = bar; Cursor = t ? Cursors.Hand : Cursors.Default; Invalidate(); }
             base.OnMouseMove(e);
         }
 
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hover = -1; _hoverTrash = false; Invalidate();
+            _hover = -1; _hoverTrash = false; _hoverBar = false; Invalidate();
             base.OnMouseLeave(e);
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            if (_dragBar) { _dragBar = false; Invalidate(); }
+            base.OnMouseUp(e);
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             Focus();
+            if (e.Button == MouseButtons.Left && InBar(e.Location))
+            {
+                RectangleF th = BarThumb();
+                // לחיצה מעל הידית או מתחתיה - עמוד; על הידית - גרירה
+                if (e.Y < th.Top) ScrollRows(-Math.Max(1, ViewH / RowH));
+                else if (e.Y > th.Bottom) ScrollRows(Math.Max(1, ViewH / RowH));
+                else { _dragBar = true; _dragY = e.Y; _dragScroll = _scroll; }
+                Invalidate();
+                return;
+            }
             int r = RowAt(e.Y);
             if (r < 0) return;
             if (e.Button == MouseButtons.Left && TrashRect(r).Contains(e.Location)) { if (RemoveClicked != null) RemoveClicked(r); return; }
             Pick(r);
+            if (e.Button == MouseButtons.Left && Picked != null) Picked(r);
             if (e.Button == MouseButtons.Right && MenuFor != null) MenuFor(r, PointToScreen(e.Location));
         }
 
         protected override void OnMouseWheel(MouseEventArgs e)
         {
-            _scroll = Math.Max(0, Math.Min(_scroll - e.Delta / 120 * RowH, Math.Max(0, Zones.Count * RowH - ViewH)));
-            Invalidate();
-            base.OnMouseWheel(e);
+            ScrollRows(e.Delta > 0 ? -2 : 2);
+            HandledMouseEventArgs hm = e as HandledMouseEventArgs;
+            if (hm != null) hm.Handled = true;
         }
 
         protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
@@ -1451,13 +1587,15 @@ namespace SubtitleStudio
                     new RectangleF(Theme.S(12), 0, Width - Theme.S(24), Height), Theme.SfCenter);
                 return;
             }
+            ClampScroll();
             Region old = g.Clip;
             g.SetClip(new Rectangle(0, PadV, Width, ViewH));
+            int side = Scrollable ? BarW + Theme.S(4) : 0;
             for (int i = 0; i < Zones.Count; i++)
             {
                 int y = PadV + i * RowH - _scroll;
                 if (y + RowH < 0 || y > Height) continue;
-                RectangleF pill = new RectangleF(Theme.S(5), y + Theme.S(2), Width - Theme.S(10), RowH - Theme.S(4));
+                RectangleF pill = new RectangleF(Theme.S(5) + (Lang.Rtl ? side : 0), y + Theme.S(2), Width - Theme.S(10) - side, RowH - Theme.S(4));
                 if (i == Selected) Theme.FillRound(g, pill, Theme.S(7), Focused ? Theme.AccentSoft : Theme.Mix(Theme.PanelAlt, Theme.Hover, 0.9f));
                 else if (i == _hover) Theme.FillRound(g, pill, Theme.S(7), Theme.Mix(Theme.PanelAlt, Theme.Hover, 0.75f));
                 // המספר בעיגול בצבע של האזור - בתחילת השורה (מימין בעברית)
@@ -1479,6 +1617,8 @@ namespace SubtitleStudio
                     hot ? Theme.Bad : (i == _hover || i == Selected ? Theme.TextDim : Theme.TextFaint), 1.6f);
             }
             g.Clip = old;
+            if (Scrollable)
+                Theme.FillRound(g, BarThumb(), BarW / 2f, Theme.Mix(Theme.PanelAlt, Theme.TextDim, _dragBar || _hoverBar ? 0.9f : 0.6f));
         }
     }
 }
