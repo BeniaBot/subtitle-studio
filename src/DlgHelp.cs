@@ -9,10 +9,10 @@ namespace SubtitleStudio
     {
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { Lang.T("פותחים סרט או קובץ קול"), Lang.T("כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון") },
+            new string[] { Lang.T("פותחים וידאו או קובץ קול"), Lang.T("כפתור ״פתיחה״, או פשוט גוררים קובץ לחלון") },
             new string[] { Lang.T("עוצרים איפה שהדיבור מתחיל"), Lang.T("מקש הרווח מנגן ועוצר. אפשר להאט את ההשמעה כדי לדייק") },
             new string[] { Lang.T("לוחצים ״כתובית חדשה כאן״ וכותבים"), Lang.T("הכפתור הכחול הגדול. ואז שוב, ושוב") },
-            new string[] { Lang.T("יוצרים את הסרט"), Lang.T("הכפתור הירוק - הקובץ המקורי שלכם לא משתנה") }
+            new string[] { Lang.T("יוצרים את הווידאו"), Lang.T("הכפתור הירוק - הקובץ המקורי שלכם לא משתנה") }
         };
 
         private static readonly string[][] Keys = new string[][]
@@ -38,7 +38,7 @@ namespace SubtitleStudio
             new string[] { "Ctrl+H", Lang.T("הזזת תזמון") },
             new string[] { "Ctrl+Z", Lang.T("ביטול פעולה") },
             new string[] { "Ctrl+K", Lang.T("העוזר החכם") },
-            new string[] { "F5", Lang.T("יצירת הסרט עם הכתוביות") }
+            new string[] { "F5", Lang.T("יצירת הווידאו עם הכתוביות") }
         };
 
         /// <summary>הקיצורים, גם למדריך של העוזר (`AiKnow`).</summary>

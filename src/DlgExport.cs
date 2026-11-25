@@ -449,8 +449,8 @@ namespace SubtitleStudio
         internal bool Down1080 { get { return _burn && _big && _down.Checked; } }
 
         public ExportVideoDlg(MainForm main, Doc doc, MediaInfo mi, SubStyle style, long inMs, long outMs)
-            : base(MediaTools.AudioOnly(mi) ? Lang.T("יצירת סרט מקובץ הקול")
-                   : doc != null && doc.Cues.Count == 0 ? Lang.T("יצירת סרט עם טשטוש") : Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
+            : base(MediaTools.AudioOnly(mi) ? Lang.T("יצירת וידאו מקובץ הקול")
+                   : doc != null && doc.Cues.Count == 0 ? Lang.T("יצירת וידאו עם טשטוש") : Lang.T("הטמעת הכתוביות בווידאו"), Ico.Flame, 560)
         {
             _main = main; _doc = doc; _mi = mi; _style = style;
             _inMs = inMs; _outMs = outMs;
@@ -547,7 +547,7 @@ namespace SubtitleStudio
             Row(_note, 34, 4);
             UpdateNote();
 
-            Buttons(blurOnly || _audio ? Lang.T("יצירת הסרט") : Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
+            Buttons(blurOnly || _audio ? Lang.T("יצירת הווידאו") : Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
             SetMode(true);
             ShowBgFile();
         }
@@ -596,18 +596,18 @@ namespace SubtitleStudio
         private void UpdateNote()
         {
             _note.Color = Theme.TextFaint;
-            if (_audio) { _note.Text = Lang.T("נוצר סרט חדש: הקול של הקובץ, והכתוביות על הרקע שבחרתם. עובד בכל מקום, כולל וואטסאפ ויוטיוב."); _note.Invalidate(); return; }
+            if (_audio) { _note.Text = Lang.T("נוצר קובץ וידאו חדש: הקול של הקובץ, והכתוביות על הרקע שבחרתם. עובד בכל מקום, כולל וואטסאפ ויוטיוב."); _note.Invalidate(); return; }
             // **ערוץ נפרד לא מסתיר כלום** (23.10): הטשטוש ואזורי הצנזורה נעשים רק בצריבה. עד כאן הערוץ הנפרד יצא בשקט בלי הטשטוש -
             // ומי שבחר את הדרך המהירה בסרט עם פנים לטשטש קיבל אותן גלויות
             if (!_burn && _style != null && (_style.Zones.Count > 0 || _style.BlurOn))
             {
-                _note.Text = Lang.T("שימו לב: הטשטוש ואזורי הצנזורה לא נכנסים לערוץ נפרד - רק לצריבה. כדי שיוסתרו בסרט, בוחרים ״צריבה בתמונה״.");
+                _note.Text = Lang.T("שימו לב: הטשטוש ואזורי הצנזורה לא נכנסים לערוץ נפרד - רק לצריבה. כדי שיוסתרו בווידאו, בוחרים ״צריבה בתמונה״.");
                 _note.Color = Theme.Warn;
             }
             else if (_burn)
                 _note.Text = _quality.SelectedIndex == 0
-                    ? Lang.T("הסרט נשמר מחדש באיכות מקסימלית - זה לוקח זמן, והתוצאה עובדת בכל מקום, כולל וואטסאפ ויוטיוב.")
-                    : Lang.T("הסרט נשמר מחדש - זה לוקח זמן (בערך כאורך הסרט), אבל התוצאה עובדת בכל מקום.");
+                    ? Lang.T("הווידאו נשמר מחדש באיכות מקסימלית - זה לוקח זמן, והתוצאה עובדת בכל מקום, כולל וואטסאפ ויוטיוב.")
+                    : Lang.T("הווידאו נשמר מחדש - זה לוקח זמן (בערך כאורך הווידאו), אבל התוצאה עובדת בכל מקום.");
             else
                 _note.Text = Lang.T("מהיר מאוד (שניות): הקובץ נשאר באותה איכות והכתוביות נוספות כערוץ. שימו לב שלא כל נגן מציג ערוץ כתוביות.");
             _note.Invalidate();
@@ -717,7 +717,7 @@ namespace SubtitleStudio
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                job.Title = Lang.T("יוצר סרט מקובץ הקול");
+                job.Title = Lang.T("יוצר וידאו מקובץ הקול");
             }
             else if (_burn)
             {
@@ -745,7 +745,7 @@ namespace SubtitleStudio
                 sb.Append(Ff.Q(outPath));
                 job.Args = sb.ToString();
                 job.WorkDir = dir;
-                job.Title = cues.Count == 0 ? Lang.T("צורב את הטשטוש בסרט") : Lang.T("צורב כתוביות בווידאו");
+                job.Title = cues.Count == 0 ? Lang.T("צורב את הטשטוש בווידאו") : Lang.T("צורב כתוביות בווידאו");
             }
             else
             {

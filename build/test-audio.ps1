@@ -60,7 +60,7 @@ Check 'בסרט - כל 20 הכלים; בסרט בלי קול - כלי הקול �
 $td = NewOf 'ToolsDlg' @($null, $mp3, [int64]-1, [int64]-1, [int64]0)
 function AllBtns($c) { foreach ($x in $c.Controls) { if ($x.GetType().Name -eq 'Btn') { $x }; AllBtns $x } }
 $btns = @(AllBtns $td | Where-Object { $_.Sub })
-$badT = @($btns | Where-Object { ($_.Text + ' ' + $_.Sub).Replace('סרט או קול', '') -match 'סרט|וידאו' } | ForEach-Object { $_.Text + ' - ' + $_.Sub })
+$badT = @($btns | Where-Object { ($_.Text + ' ' + $_.Sub).Replace('וידאו או קול', '') -match 'סרט|וידאו' } | ForEach-Object { $_.Text + ' - ' + $_.Sub })
 Check 'חלון הכלים על קובץ קול: 13 כפתורים, כולם פעילים, ואף אחד לא מדבר על ״הסרט״' ($btns.Count -eq 13 -and @($btns | Where-Object { -not $_.Enabled }).Count -eq 0 -and $badT.Count -eq 0) ("n=" + $btns.Count + ' ' + ($badT -join ' | '))
 $td.Dispose()
 
@@ -156,7 +156,7 @@ $style = NewOf 'SubStyle' @()
 function Shot($p, [double]$t, $png) { Ffm ('-ss ' + $t.ToString([Globalization.CultureInfo]::InvariantCulture) + ' -i "' + $p + '" -frames:v 1 -vf scale=480:270 "' + $png + '"'); $b = [Drawing.Bitmap]::FromFile($png); $lit = 0; for ($y = 190; $y -lt 270; $y += 2) { for ($x = 0; $x -lt 480; $x += 2) { if ($b.GetPixel($x, $y).GetBrightness() -gt 0.75) { $lit++ } } }; $mid = $b.GetPixel(240, 100); $b.Dispose(); return @{ Lit = $lit; Mid = $mid } }
 $ed = NewOf 'ExportVideoDlg' @($null, $doc, $mp3, $style, [int64]-1, [int64]-1)
 $bg = Fld $ed '_bg'
-Check 'החלון: ״יצירת סרט מקובץ הקול״, בוחרים רקע (עטיפה - כשיש), ובלי צריבה/ערוץ נפרד' ((PropOf $ed 'TitleText') -eq 'יצירת סרט מקובץ הקול' -and $bg.Items.Count -eq 3 -and $bg.SelectedIndex -eq 1 -and (PropOf $ed 'SubtitleText') -notmatch 'fps') ((PropOf $ed 'TitleText') + ' / ' + (PropOf $ed 'SubtitleText') + ' / ' + $bg.Items.Count)
+Check 'החלון: ״יצירת וידאו מקובץ הקול״, בוחרים רקע (עטיפה - כשיש), ובלי צריבה/ערוץ נפרד' ((PropOf $ed 'TitleText') -eq 'יצירת וידאו מקובץ הקול' -and $bg.Items.Count -eq 3 -and $bg.SelectedIndex -eq 1 -and (PropOf $ed 'SubtitleText') -notmatch 'fps') ((PropOf $ed 'TitleText') + ' / ' + (PropOf $ed 'SubtitleText') + ' / ' + $bg.Items.Count)
 $res = @()
 for ($i = 0; $i -lt 3; $i++) {
     $bg.SelectedIndex = $i

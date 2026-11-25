@@ -138,7 +138,7 @@ namespace SubtitleStudio
             // ואת הקובץ הרלוונטי, או אפילו להעתיק... של הקובץ האחרון שיצרת, או קבצים שהוא כבר מכיר״ (`AiFiles.cs`)
             t.Add(new AiTool("get_log", "**קורא יומן של התוכנה** - כשהמשתמש אומר שמשהו נכשל, נתקע או לא עבד, או מבקש ״לוג״ / ״יומן״ / ״פרטי התקלה״. " +
                     "קרא אותו לפני שאתה מנחש מה קרה, ואז הסבר במילים פשוטות מה קרה ומה אפשר לעשות - בלי לצטט שורות טכניות. " +
-                    "בחר לפי ההקשר: error - הפעולה האחרונה שנכשלה (יצירת סרט, חיתוך, כלי - מה שמנוע הווידאו אמר); " +
+                    "בחר לפי ההקשר: error - הפעולה האחרונה שנכשלה (יצירת סרט, חיתוך, כלי - מה שמנוע העיבוד אמר); " +
                     "assistant - תמלול, תרגום, השיחה איתך והרשת; crash - תקלה בלתי צפויה שסגרה את התוכנה. בלי which - היומן האחרון שנכתב")
                 .P("which", "string", "error / assistant / crash"));
             t.Add(new AiTool("copy_log", "מעתיק יומן ללוח, מוכן להדבקה בהודעה - כשהמשתמש רוצה לשלוח את פרטי התקלה למישהו (למפתח, לפורום). " +
@@ -995,7 +995,7 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiAddZone(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין סרט פתוח"; return r; }
+            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין וידאו פתוח"; return r; }
             string[] p = c.Str("area", "").Split(',');
             double[] v = new double[4];
             bool ok = p.Length == 4;
@@ -1019,7 +1019,7 @@ namespace SubtitleStudio
             _doc.Dirty = true;
             r["done"] = Lang.F("נוסף אזור {0}", _style.Zones.Count);
             r["zones"] = ZonesList();
-            r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב בכפתור הירוק - ״יצירת סרט עם כתוביות״, או ״יצירת סרט עם טשטוש״ כשאין כתוביות";
+            r["note"] = "האזור שייך לסרט ונשמר בפרויקט. נראה בנגן בזמן שלו, ונצרב בכפתור הירוק - ״יצירת וידאו עם כתוביות״, או ״יצירת וידאו עם טשטוש״ כשאין כתוביות";
             return r;
         }
 
@@ -1027,8 +1027,8 @@ namespace SubtitleStudio
         private Dictionary<string, object> AiFindFaces(AiCall c)
         {
             Dictionary<string, object> r = new Dictionary<string, object>();
-            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין סרט פתוח"; return r; }
-            if (!Faces.Available) { r["error"] = "בווינדוס הזה אין גלאי פנים מובנה - מסמנים ביד: ״עריכת הקובץ ▾ ← טשטוש וצנזורה״ או add_blur_zone"; return r; }
+            if (_mi == null || !_mi.HasVideo) { r["error"] = "אין וידאו פתוח"; return r; }
+            if (!Faces.Available) { r["error"] = "בווינדוס הזה אין גלאי פנים מובנה - מסמנים ביד: ״כלים ▾ ← טשטוש וצנזורה״ או add_blur_zone"; return r; }
             double fs = c.Num("from_sec", -1), ts = c.Num("to_sec", -1);
             long from = fs > 0 ? (long)Math.Round(fs * 1000) : 0, to = ts > 0 ? Math.Min(_mi.DurationMs, (long)Math.Round(ts * 1000)) : _mi.DurationMs;
             if (to <= from) { r["error"] = "to_sec חייב להיות אחרי from_sec"; return r; }
@@ -1192,7 +1192,7 @@ namespace SubtitleStudio
             // לא יכול היה לבחור בו כלום - ובניסוי ״תצרוב את הכתוביות בסרט״ נתקע. עכשיו הוא ממלא ולוחץ, לפי ההרשאות
             _aiLastWinCat = AiPerms.Media;
             AiDefer(delegate { ExportVideo(); });
-            r["done"] = Lang.T("נפתח חלון יצירת הסרט");
+            r["done"] = Lang.T("נפתח חלון יצירת הווידאו");
             return r;
         }
 
@@ -1420,7 +1420,7 @@ namespace SubtitleStudio
             }
             string path = _mi.Path; long dur = _mi.DurationMs; bool video = _mi.HasVideo; int sh = _mi.Height;
             string mins = minutes.ToString("0.#", CultureInfo.InvariantCulture);
-            r["done"] = fromCues ? Lang.F("בוחר קטעים לתקציר של {0} דקות, מהכתוביות", mins) : (video ? Lang.F("צופה בסרט ובוחר קטעים לתקציר של {0} דקות", mins) : Lang.F("בוחר קטעים לתקציר של {0} דקות", mins));
+            r["done"] = fromCues ? Lang.F("בוחר קטעים לתקציר של {0} דקות, מהכתוביות", mins) : (video ? Lang.F("צופה בווידאו ובוחר קטעים לתקציר של {0} דקות", mins) : Lang.F("בוחר קטעים לתקציר של {0} דקות", mins));
             r["_work"] = (Func<Dictionary<string, object>>)delegate
             {
                 Dictionary<string, object> w = new Dictionary<string, object>();
@@ -1946,7 +1946,7 @@ namespace SubtitleStudio
             r["scene_cuts"] = _cuts.Count;
             if (_cuts.Count == 0)
             {
-                r["done"] = Lang.T("לא נמצאו מעברי סצנה - הסרט מצולם ברצף. לא שונה כלום");
+                r["done"] = Lang.T("לא נמצאו מעברי סצנה - הווידאו מצולם ברצף. לא שונה כלום");
                 return r;
             }
             SceneCuts.SnapResult s = ApplySceneSnap();

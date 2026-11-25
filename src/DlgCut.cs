@@ -742,7 +742,7 @@ namespace SubtitleStudio
             // לצידו: כמה מוקדם יתחיל קטע בחיתוך מהיר (פריים המפתח שלפניו, נמדד ברקע) - כמו בחלון הישן
             _kfNote = new Lbl(); _kfNote.Font = Theme.Small; _kfNote.Color = Theme.Warn; _kfNote.Align = StringAlignment.Far;
             _kfNote.SetBounds(Pad, bottom, W - sumW - s10, Theme.S(24));
-            Ui.Tip.SetToolTip(_kfNote, Lang.T("חיתוך מהיר יכול להתחיל רק בנקודות מסוימות בסרט. לדיוק מלא - לכבות את ״חיתוך מהיר״."));
+            Ui.Tip.SetToolTip(_kfNote, Lang.T("חיתוך מהיר יכול להתחיל רק בנקודות מסוימות בווידאו. לדיוק מלא - לכבות את ״חיתוך מהיר״."));
             Controls.Add(_kfNote);
             Y = _summary.Bottom + Theme.S(4);
             Buttons(Lang.T("לחתוך ולשמור"), Ico.Scissors, Lang.T("סגירה"));

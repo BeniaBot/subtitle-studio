@@ -538,7 +538,7 @@ namespace SubtitleStudio
             _from.SelectedIndex = 2;
             Row(_from, 32, 12);
 
-            Section(Lang.T("הסרט שלכם בקצב"));
+            Section(Lang.T("הווידאו שלכם בקצב"));
             _to = new Combo();
             _to.Items.AddRange(List);
             // **הקצב של הסרט הפתוח - כבר בחור** (0.8.26): התוכנה יודעת אותו (Formats.VideoFps), ועד כאן נפתח תמיד 23.976

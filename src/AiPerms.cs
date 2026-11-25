@@ -58,7 +58,7 @@ namespace SubtitleStudio
                 case Edit: return Lang.T("טקסט, זמנים, תרגום, סידור ועיצוב · הכול ניתן לביטול");
                 case Media: return Lang.T("צריבה, חיתוך, המרה, דחיסה וכל הכלים · המקור לא משתנה");
                 case Files: return Lang.T("פתיחה של קובץ אחר, שמירת הכתוביות והפרויקט");
-                case Send: return Lang.T("תמלול, והסתכלות על הסרט כדי למצוא סצנה · נשלח לגוגל או ל-Groq");
+                case Send: return Lang.T("תמלול, והסתכלות על הווידאו כדי למצוא סצנה · נשלח לגוגל או ל-Groq");
                 case Prefs: return Lang.T("מראה, שפה, בדיקת איות ועדכונים");
             }
             return "";

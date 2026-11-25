@@ -140,7 +140,7 @@ Check 'לכל נושא ברשימה יש טקסט' $ok ''
 # ---------- 8. הפקודות ----------
 $res = Call 'list_commands' @{}
 $names = @($res['commands'] | ForEach-Object { $_['name'] })
-Check 'list_commands: התפריטים והסרגל' ($names -contains 'עיצוב הכתוביות' -and $names -contains 'חיתוך קטעים' -and $names -contains 'יצירת סרט עם כתוביות') ("" + $names.Count + " פקודות")
+Check 'list_commands: התפריטים והסרגל' ($names -contains 'עיצוב הכתוביות' -and $names -contains 'חיתוך קטעים' -and $names -contains 'יצירת וידאו עם כתוביות') ("" + $names.Count + " פקודות")
 $res = Call 'run_command' @{ name = 'שליפת כתוביות מהקובץ' }
 Check 'פקודה לא זמינה (אין סרט) - לא מופעלת, ואומר למה' (('' + $res['error']).Contains('לא זמינה')) ('' + $res['error'])
 [void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
@@ -269,7 +269,7 @@ Check 'listen נחשבת שליחה החוצה' ($cat.Invoke($null, @('listen'))
 $tn2 = @($mfT.GetMethod('AiTools').Invoke($mf, @()) | ForEach-Object { $_.Name })
 Check 'listen ברשימת הפעולות' ($tn2 -contains 'listen') ''
 $sugg = @($mfT.GetMethod('AiSuggestions').Invoke($mf, @()))
-Check 'הצעות עם סרט וכתוביות - גם ליצור את הסרט' ($sugg -contains 'תיצור סרט עם הכתוביות') ($sugg -join ' | ')
+Check 'הצעות עם סרט וכתוביות - גם ליצור את הסרט' ($sugg -contains 'תיצור וידאו עם הכתוביות') ($sugg -join ' | ')
 [void]$mfT.GetMethod('AiTakeDeferred').Invoke($mf, @())
 $res = Call 'trim_video' @{ sections = '0-2 remove; 0:03-end keep' }
 $secs = $mfT.GetField('_cutSections', $IN).GetValue($mf)

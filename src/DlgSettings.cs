@@ -460,12 +460,12 @@ namespace SubtitleStudio
         private static string EngineLine()
         {
             string ff = Ff.Exe;
-            if (string.IsNullOrEmpty(ff)) return Lang.T("מנוע הווידאו · ייפרס בהפעלה הבאה");
-            if (!Ff.IsOwnEngine) return Lang.F("מנוע הווידאו · מותקן במחשב: {0}", Theme.Ltr(ff));
+            if (string.IsNullOrEmpty(ff)) return Lang.T("מנוע העיבוד · ייפרס בהפעלה הבאה");
+            if (!Ff.IsOwnEngine) return Lang.F("מנוע העיבוד · מותקן במחשב: {0}", Theme.Ltr(ff));
             long size = 0;
             try { size = new FileInfo(ff).Length; }
             catch { }
-            return Lang.F("מנוע הווידאו · {0}", (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff)));
+            return Lang.F("מנוע העיבוד · {0}", (size > 0 ? Theme.Ltr(MediaInfo.FormatSize(size)) : Theme.Ltr(ff)));
         }
     }
 }

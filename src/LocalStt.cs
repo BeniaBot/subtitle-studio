@@ -781,7 +781,7 @@ namespace SubtitleStudio
             // **המודל המדויק** (0.8.46): אותו מסלול - קטעים של חמש דקות, חפיפה ותפר לפי מילים - עם מנוע אחר (``AccurateChunk``)
             bool accurate = ActiveId == AccurateId;
             if (!IsInstalled(ActiveId)) { res.Error = NotInstalled; return res; }
-            if (!Ff.Available) { res.Error = Lang.T("מנוע הווידאו לא זמין."); return res; }
+            if (!Ff.Available) { res.Error = Lang.T("מנוע העיבוד לא זמין."); return res; }
             if (durationMs <= 0) { res.Error = Lang.T("לא הצלחתי לקרוא את אורך הקובץ."); return res; }
 
             long endMs = toMs > 0 ? Math.Min(toMs, durationMs) : durationMs;

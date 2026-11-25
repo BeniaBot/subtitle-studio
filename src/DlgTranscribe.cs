@@ -266,7 +266,7 @@ namespace SubtitleStudio
         {
             if (_mi == null || _mi.DurationMs <= 0)
             {
-                Ui.Error(this, Lang.T("אין קובץ פתוח"), Lang.T("צריך לפתוח קודם סרט או קובץ קול."));
+                Ui.Error(this, Lang.T("אין קובץ פתוח"), Lang.T("צריך לפתוח קודם וידאו או קובץ קול."));
                 return false;
             }
             // לפני HasKey: ״מותקן?״ של התמלול המקומי שואל על המודל שנבחר

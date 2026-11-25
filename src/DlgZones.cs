@@ -92,7 +92,7 @@ namespace SubtitleStudio
             _posF = new Field(); _posF.Ltr = true; _posF.Box.TextAlign = HorizontalAlignment.Center; _posF.Box.Font = Theme.UiBold;
             int posW = Theme.S(108);
             _posF.SetBounds(far.Left - s10 - posW, y + Theme.S(1), posW, rowH - Theme.S(2));
-            Ui.Tip.SetToolTip(_posF.Box, Lang.T("המיקום בסרט. אפשר להקליד זמן מדויק - למשל 1:23.45 - והנגן עובר לשם"));
+            Ui.Tip.SetToolTip(_posF.Box, Lang.T("המיקום בווידאו. אפשר להקליד זמן מדויק - למשל 1:23.45 - והנגן עובר לשם"));
             Controls.Add(_posF);
             WirePosition();
             _clock = new Lbl(); _clock.Font = Theme.UiBold; _clock.Numeric = true; _clock.Color = Theme.TextDim;
@@ -144,7 +144,7 @@ namespace SubtitleStudio
 
             // ״כל הסרט״ - בקצה של שורת הכותרת (0.8.44: המקום שלו בשורה שמתחת עבר לשדות הזמן)
             int wx = Pad + Theme.S(92);
-            _whole = SmallBtn(Lang.T("כל הסרט"), Lang.T("האזור מוסתר מההתחלה ועד הסוף"), ref wx, y - Theme.S(5), Theme.S(28));
+            _whole = SmallBtn(Lang.T("כל הווידאו"), Lang.T("האזור מוסתר מההתחלה ועד הסוף"), ref wx, y - Theme.S(5), Theme.S(28));
             _whole.Left = Pad;
             _zoneTitle = Label("", true, Theme.Text);
             _zoneTitle.SetBounds(_whole.Right + s8, y, colW - _whole.Width - s8, Theme.S(20));
@@ -157,11 +157,11 @@ namespace SubtitleStudio
             // ״כאן״ לפי הנגן, ברזולוציה של הגרירה): משפיע תוך כדי הקלדה, Esc מחזיר, ריק = פתוח (מההתחלה / עד הסוף)
             int bx = Pad + colW, bh = Theme.S(32), by = y + Theme.S(46), fw = Theme.S(92);
             _markIn = SmallBtn(Lang.T("התחלה כאן"), Lang.T("האזור מתחיל איפה שהנגן עומד (המקש I)"), ref bx, by, bh);
-            _fromF = TimeField(Lang.T("מההתחלה"), Lang.T("מתי האזור מתחיל להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:23.450. ריק - מתחילת הסרט"));
+            _fromF = TimeField(Lang.T("מההתחלה"), Lang.T("מתי האזור מתחיל להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:23.450. ריק - מתחילת הווידאו"));
             _fromF.SetBounds(bx + s4 - fw, by, fw, bh);
             bx = _fromF.Left - Theme.S(12);
             _markOut = SmallBtn(Lang.T("סוף כאן"), Lang.T("האזור נגמר איפה שהנגן עומד (המקש O)"), ref bx, by, bh);
-            _toF = TimeField(Lang.T("עד הסוף"), Lang.T("מתי האזור מפסיק להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:45.000. ריק - עד סוף הסרט"));
+            _toF = TimeField(Lang.T("עד הסוף"), Lang.T("מתי האזור מפסיק להיות מוסתר. אפשר להקליד זמן מדויק, למשל 1:45.000. ריק - עד סוף הווידאו"));
             _toF.SetBounds(bx + s4 - fw, by, fw, bh);
             WireZoneTime(_fromF, true);
             WireZoneTime(_toF, false);
@@ -207,7 +207,7 @@ namespace SubtitleStudio
             Buttons(Lang.T("שמירה"), Ico.Check, Lang.T("ביטול"));
             // **פנים אוטומטית** (2כט ה): הגלאי של ווינדוס, בלי אינטרנט ובלי הורדה - אזור שזז לכל פנים
             _faceBtn = BottomButton(Lang.T("למצוא פנים"), Ico.Sparkles, delegate { FindFaces(); });
-            Ui.Tip.SetToolTip(_faceBtn, Lang.T("מחפש את כל הפנים בסרט (או רק בקטע שסימנתם על הציר) ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס"));
+            Ui.Tip.SetToolTip(_faceBtn, Lang.T("מחפש את כל הפנים בווידאו (או רק בקטע שסימנתם על הציר) ומוסיף לכל אחת אזור שזז איתה - בלי אינטרנט, בגלאי של ווינדוס"));
 
             _pos = main != null ? main.PlayerPosition : 0;
             // הפריים שעל המסך; אין (הנגן עוד לא צייר, או בבדיקה בלי נגן) - צילום אחד מהקובץ, כדי שיהיה על מה לסמן
@@ -485,7 +485,7 @@ namespace SubtitleStudio
         /// <summary>מתי, במילים: ״כל הסרט״, ״מ-0:12.4 עד הסוף״, ״מההתחלה עד 0:45.0״, ״מ-0:12.4 עד 0:45.0״.</summary>
         internal static string WhenWords(BlurZone z)
         {
-            if (z.FromMs < 0 && z.ToMs < 0) return Lang.T("כל הסרט");
+            if (z.FromMs < 0 && z.ToMs < 0) return Lang.T("כל הווידאו");
             if (z.ToMs < 0) return Lang.F("מ-{0} עד הסוף", Theme.Ltr(Tc.Short(z.FromMs)));
             if (z.FromMs < 0) return Lang.F("מההתחלה עד {0}", Theme.Ltr(Tc.Short(z.ToMs)));
             return Lang.F("מ-{0} עד {1}", Theme.Ltr(Tc.Short(z.FromMs)), Theme.Ltr(Tc.Short(z.ToMs)));
@@ -795,7 +795,7 @@ namespace SubtitleStudio
             long from = 0, to = _mi.DurationMs, ma, mb;
             bool part = _main != null && _main.MarkedRangeFor(out ma, out mb) && (from = ma) >= 0 && (to = mb) > from;
             if (!part) { from = 0; to = _mi.DurationMs; }
-            _canvas.Status = part ? Lang.T("מחפש פנים בקטע המסומן...") : Lang.T("מחפש פנים בסרט..."); _canvas.Invalidate();
+            _canvas.Status = part ? Lang.T("מחפש פנים בקטע המסומן...") : Lang.T("מחפש פנים בווידאו..."); _canvas.Invalidate();
             string path = _mi.Path; MediaInfo mi = _mi;
             System.Threading.Thread th = new System.Threading.Thread(delegate ()
             {
@@ -813,7 +813,7 @@ namespace SubtitleStudio
             if (DateTime.UtcNow - _lastProg < TimeSpan.FromMilliseconds(250)) return;
             _lastProg = DateTime.UtcNow;
             string eta = Eta(f);
-            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בסרט... {0}%", ((int)(f * 100)).ToString()) + eta; _canvas.Invalidate(); } }); }
+            try { BeginInvoke((Action)delegate { if (_scanning) { _canvas.Status = Lang.F("מחפש פנים בווידאו... {0}%", ((int)(f * 100)).ToString()) + eta; _canvas.Invalidate(); } }); }
             catch { }
         }
 
@@ -841,7 +841,7 @@ namespace SubtitleStudio
             List<BlurZone> found = Faces.ToZones(hits ?? new List<Faces.Hit>(), _mi.DurationMs);
             if (found.Count == 0)
             {
-                if (!stopped) Ui.Info(this, Lang.T("לא נמצאו פנים"), Lang.T("הגלאי לא מצא פנים בסרט. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד."));
+                if (!stopped) Ui.Info(this, Lang.T("לא נמצאו פנים"), Lang.T("הגלאי לא מצא פנים בווידאו. פנים קטנות מאוד, מהצד או בחושך הוא עלול לפספס - אותן מסמנים ביד."));
                 return;
             }
             Push("faces");
@@ -856,8 +856,8 @@ namespace SubtitleStudio
             Seek(found[0].FromMs + 300);
             Ui.Info(this, Lang.T("נמצאו פנים"), (stopped ? Lang.T("החיפוש נעצר באמצע - נוספו רק הפנים שנמצאו עד שם.") + "\n" : "") +
                 (found.Count == 1
-                    ? Lang.T("נוסף אזור פנים אחד, והוא זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.")
-                    : Lang.F("נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הסרט ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", Theme.Ltr(found.Count.ToString()))) +
+                    ? Lang.T("נוסף אזור פנים אחד, והוא זז עם הפנים. כדאי לעבור על הווידאו ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.")
+                    : Lang.F("נוספו {0} אזורים של פנים, וכל אחד זז עם הפנים. כדאי לעבור על הווידאו ולוודא שלא פוספס אף אחד: גלאי פנים מפספס לפעמים פנים קטנות, מהצד או בחושך - אותן מסמנים ביד.", Theme.Ltr(found.Count.ToString()))) +
                 (replaced > 0 ? "\n" + Lang.F("הם במקום {0} אזורי הפנים מהחיפוש הקודם בקטע הזה (Ctrl+Z מחזיר).", Theme.Ltr(replaced.ToString())) : ""));
         }
 

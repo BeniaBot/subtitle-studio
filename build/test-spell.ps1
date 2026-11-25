@@ -416,7 +416,7 @@ $dictLine = [string]($stT.GetField('_dictLine', $IF).GetValue($stDlg)).Text
 $engLine = [string]($stT.GetField('_engineLine', $IF).GetValue($stDlg)).Text
 $stDlg.Dispose()
 $sumLine = [string]($setT.GetField('_storageLine', $IF).GetValue($setDlg)).Text
-Check 'הגדרות: ״אחסון״ אומר כמה תופסים המנוע והמילון' ($dictLine.Contains('מילון האיות') -and $dictLine -match '\d' -and $engLine.Contains('מנוע הווידאו') -and $sumLine -match '\d') ($engLine + ' | ' + $dictLine + ' | ' + $sumLine)
+Check 'הגדרות: ״אחסון״ אומר כמה תופסים המנוע והמילון' ($dictLine.Contains('מילון האיות') -and $dictLine -match '\d' -and $engLine.Contains('מנוע העיבוד') -and $sumLine -match '\d') ($engLine + ' | ' + $dictLine + ' | ' + $sumLine)
 $setDlg.Dispose()
 $sttT.GetField('GroqKey', $SF).SetValue($null, 'gsk_test')
 $aiT.GetField('Key', $SF).SetValue($null, 'AIza_test')

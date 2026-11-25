@@ -227,7 +227,7 @@ namespace SubtitleStudio
 
             Lbl why = Hint(hasVideo
                 ? Lang.T("אחרי היצירה יופיע כפתור גדול: מנגנים, ולוחצים עליו בכל פעם שמשפט מתחיל.")
-                : Lang.T("אין סרט או קובץ קול פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד."));
+                : Lang.T("אין וידאו או קובץ קול פתוח, אז התזמון יחושב לפי אורך הטקסט בלבד."));
             Row(why, 34, 10);
 
             // ---------- מכאן ומטה: מוסתר עד שמבקשים ----------
@@ -510,7 +510,7 @@ namespace SubtitleStudio
         {
             _style = style.Clone();
             _frame = frame;
-            Subtitle = Lang.T("כך ייראו הכתוביות בסרט הסופי");
+            Subtitle = Lang.T("כך ייראו הכתוביות בווידאו הסופי");
 
             // **זוגות בשורה אחת, לא שורה לכל פקד.** בפריסה הקודמת החלון היה 769
             // פיקסלים לוגיים: גבוה ממסך 1080p ב-150% וממחשב נייד 1366x768, ושם
@@ -625,7 +625,7 @@ namespace SubtitleStudio
 
             // **טשטוש אזור** (0.8.31): טקסט צרוב בסרט (פס כותרת של ערוץ, כתוביות מקור) מתחת לכתוביות שלנו. האזור - בגרירה על התמונה
             // למעלה; העוצמה והזמן כאן. נגיעה בכל אחד מהם מדליקה את הטשטוש - מי שמזיז אותם רוצה טשטוש
-            Section(Lang.T("טשטוש אזור בסרט"));
+            Section(Lang.T("טשטוש אזור בווידאו"));
             string[] bcaps = { "", Lang.T("מתי"), Lang.T("עוצמת הטשטוש") };
             for (int i = 1; i < 3; i++)
             {
@@ -670,7 +670,7 @@ namespace SubtitleStudio
             Y += Theme.S(38);
 
             // ההפניה לחלון האזורים (0.8.36): מי שמגיע לכאן לא יודע שיש מקום לכמה אזורים בזמנים שונים
-            Lbl how = Label(Lang.T("גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״עריכת הקובץ ▾ ← טשטוש וצנזורה״"), false, Theme.TextDim);
+            Lbl how = Label(Lang.T("גוררים על התמונה למעלה. כמה אזורים בזמנים שונים: ״כלים ▾ ← טשטוש וצנזורה״"), false, Theme.TextDim);
             how.Font = Theme.Small;
             how.SetBounds(Pad, Y, ContentW, Theme.S(20));
             Controls.Add(how);
@@ -739,7 +739,7 @@ namespace SubtitleStudio
                 {
                     sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-                    g.DrawString(Lang.T("טקסט שצרוב בסרט"), f, Brushes.White, new RectangleF(0, 268, 640, 62), sf);
+                    g.DrawString(Lang.T("טקסט שצרוב בווידאו"), f, Brushes.White, new RectangleF(0, 268, 640, 62), sf);
                 }
             }
             _sampleFrame = b;

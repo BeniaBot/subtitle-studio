@@ -116,7 +116,7 @@ namespace SubtitleStudio
                 // וזה סותר. עדיף להגיד מה כן לעשות.
                 return Lang.F("הקובץ כבר קטן מהגודל הזה ({0}). כדי להקטין אותו באמת - לבחור גודל קטן יותר.", Mb(SourceMb));
             if (TooSmall)
-                return Lang.F("הגודל הזה קטן מדי לסרט באורך {0} - התוצאה תהיה מטושטשת מאוד. כדאי לבחור גודל גדול יותר או לחתוך קטע.", Tc.Short((long)(DurationSec * 1000)));
+                return Lang.F("הגודל הזה קטן מדי לווידאו באורך {0} - התוצאה תהיה מטושטשת מאוד. כדאי לבחור גודל גדול יותר או לחתוך קטע.", Tc.Short((long)(DurationSec * 1000)));
             // בנימין (11.10): ״תחפש עוד מה לשפר בקטנה בכלי ההקטנת קבצים שיהיה יותר נוח״ - מה שקורה, במילים
             // מתחיל במילה, לא בקידומת: ״מ-9.2 MB״ בתחילת שורה יצא ״מ-MB 9.2״
             string s = SourceMb > 0 ? Lang.F("יוצא {0} במקום {1}", Mb(TargetMb), Mb(SourceMb)) : Mb(TargetMb);
@@ -424,8 +424,8 @@ namespace SubtitleStudio
 
             MediaTool mute = new MediaTool();
             mute.Group = Lang.T("קול");
-            mute.Name = Lang.T("הסרת הקול מהסרט");
-            mute.Desc = Lang.T("משאיר את הסרט בלי פסקול, בלי פגיעה באיכות");
+            mute.Name = Lang.T("הסרת הקול מהווידאו");
+            mute.Desc = Lang.T("משאיר את הווידאו בלי פסקול, בלי פגיעה באיכות");
             mute.Icon = Ico.SpeakerOff;
             mute.NeedsVideo = true;
             mute.NeedsAudio = true;
@@ -501,7 +501,7 @@ namespace SubtitleStudio
             MediaTool conv = new MediaTool();
             conv.Group = Lang.T("שיתוף והקטנה");
             conv.Name = Lang.T("המרת פורמט");
-            conv.Desc = Lang.T("לשנות את סוג הקובץ, כדי שייפתח בכל מקום - סרט או קול");
+            conv.Desc = Lang.T("לשנות את סוג הקובץ, כדי שייפתח בכל מקום - וידאו או קול");
             conv.Icon = Ico.Refresh;
             conv.ParamKind = 2;
             conv.Options = new string[]
@@ -618,7 +618,7 @@ namespace SubtitleStudio
             MediaTool comp = new MediaTool();
             comp.Group = Lang.T("שיתוף והקטנה");
             comp.Name = Lang.T("דחיסה - הקטנת נפח הקובץ");
-            comp.Desc = Lang.T("קובץ קטן יותר לשליחה ולשמירה - סרט או קול");
+            comp.Desc = Lang.T("קובץ קטן יותר לשליחה ולשמירה - וידאו או קול");
             comp.Icon = Ico.Download;
             // **שלוש רמות במילים** (0.8.34) במקום ״רמת דחיסה 18-32״ - מספר שרק מי שמכיר crf מבין. כל רמה: crf ותקרה ביחס למקור
             // (״בינוני״ = מה שהיה ברירת המחדל: crf 24 ולא יותר מ-0.7)
@@ -692,7 +692,7 @@ namespace SubtitleStudio
             MediaTool rot = new MediaTool();
             rot.Group = Lang.T("תמונה");
             rot.Name = Lang.T("סיבוב הווידאו");
-            rot.Desc = Lang.T("לתיקון סרטון שצולם בטלפון והתהפך");
+            rot.Desc = Lang.T("לתיקון וידאו שצולם בטלפון והתהפך");
             rot.Icon = Ico.Redo;
             rot.ParamKind = 2;
             rot.Options = new string[] { Lang.T("90° עם כיוון השעון"), Lang.T("90° נגד כיוון השעון"), "180°", Lang.T("היפוך מראה") };
@@ -717,7 +717,7 @@ namespace SubtitleStudio
             snap.OutSuffix = Lang.T(" - תמונה");
             snap.Hint = delegate (ToolCtx c)
             {
-                return Lang.F("התמונה מהרגע {0} בסרט - איפה שהנגן עומד. לרגע אחר: סוגרים, מזיזים את הנגן, ופותחים שוב.", Tc.Short(c.Pos));
+                return Lang.F("התמונה מהרגע {0} בווידאו - איפה שהנגן עומד. לרגע אחר: סוגרים, מזיזים את הנגן, ופותחים שוב.", Tc.Short(c.Pos));
             };
             snap.Build = delegate (ToolCtx c)
             {
@@ -755,7 +755,7 @@ namespace SubtitleStudio
             MediaTool phone = new MediaTool();
             phone.Group = Lang.T("שיתוף והקטנה");
             phone.Name = Lang.T("הכנה לשליחה בוואטסאפ");
-            phone.Desc = Lang.T("קובץ קטן שנפתח בכל טלפון - סרט או קול");
+            phone.Desc = Lang.T("קובץ קטן שנפתח בכל טלפון - וידאו או קול");
             phone.Icon = Ico.Upload;
             phone.OutExt = ".mp4";
             phone.ShrinksAudio = true;
@@ -842,7 +842,7 @@ namespace SubtitleStudio
             {
                 // לקובץ קול - קול, וגם הקול שבתוך סרט
                 return AudioOnly(mi)
-                    ? Lang.T("סרטים וקובצי קול") + "|" + FileTypes.Pattern(FileTypes.Audio, FileTypes.Video) + "|" + Lang.T("כל הקבצים") + "|*.*"
+                    ? Lang.T("קובצי וידאו וקול") + "|" + FileTypes.Pattern(FileTypes.Audio, FileTypes.Video) + "|" + Lang.T("כל הקבצים") + "|*.*"
                     : join.FileFilter;
             };
             join.CheckExtra = delegate (ToolCtx c) { return NeedsInExtra(c, !AudioOnly(c.Mi)); };
@@ -984,7 +984,7 @@ namespace SubtitleStudio
             fit.ShrinksAudio = true;
             fit.ExtForMi = delegate (MediaInfo mi, int i) { return AudioOnly(mi) ? AudioShrink.ExtFor(mi) : null; };
             fit.OutSuffix = Lang.T(" - מוקטן");
-            fit.StepNames = new string[] { Lang.T("בדיקת הסרט"), Lang.T("שמירה בגודל המבוקש") };
+            fit.StepNames = new string[] { Lang.T("בדיקת הווידאו"), Lang.T("שמירה בגודל המבוקש") };
             fit.Hint = delegate (ToolCtx c) { return AudioOnly(c.Mi) ? AudioShrink.ForSize(c.Mi, c.Val).Describe() : FitPlan(c).Describe(); };
             fit.Block = delegate (ToolCtx c)
             {
@@ -1030,7 +1030,7 @@ namespace SubtitleStudio
                 if (sec <= 60) return null;
                 return c.HasRange
                     ? Lang.T("הקטע המסומן ארוך מדקה - GIF כזה יוצא ענק. סמנו קטע קצר יותר (עד חצי דקה).")
-                    : Lang.T("לא סומן קטע, והסרט ארוך מדקה - GIF של כל הסרט יוצא ענק. סמנו על הציר קטע קצר (I ו-O), עד חצי דקה.");
+                    : Lang.T("לא סומן קטע, והווידאו ארוך מדקה - GIF של כל הווידאו יוצא ענק. סמנו על הציר קטע קצר (I ו-O), עד חצי דקה.");
             };
             gif.Hint = delegate (ToolCtx c)
             {
@@ -1086,7 +1086,7 @@ namespace SubtitleStudio
                 Lang.T("הכנה לשליחה בוואטסאפ"), Lang.T("התאמה לגודל קובץ מבוקש"), Lang.T("דחיסה - הקטנת נפח הקובץ"), Lang.T("המרת פורמט"),
                 Lang.T("שינוי מהירות"), Lang.T("חיבור שני קבצים"), Lang.T("דהייה בהתחלה ובסוף"), Lang.T("היפוך לאחור (ריוורס)"),
                 Lang.T("חילוץ הפסקול לקובץ אודיו"), Lang.T("שינוי עוצמת השמע"), Lang.T("ניקוי רעש רקע מהקול"), Lang.T("איזון עוצמה אוטומטי"),
-                Lang.T("הוספת מוזיקת רקע"), Lang.T("החלפת הפסקול"), Lang.T("בחירת ערוץ שמע"), Lang.T("הסרת הקול מהסרט"),
+                Lang.T("הוספת מוזיקת רקע"), Lang.T("החלפת הפסקול"), Lang.T("בחירת ערוץ שמע"), Lang.T("הסרת הקול מהווידאו"),
                 Lang.T("שינוי רזולוציה"), Lang.T("סיבוב הווידאו"), Lang.T("יצירת GIF מהקטע המסומן"), Lang.T("שמירת התמונה שעל המסך")
             };
         }
@@ -1106,7 +1106,7 @@ namespace SubtitleStudio
         private readonly long _a, _b, _pos;
 
         public ToolsDlg(MainForm main, MediaInfo mi, long a, long b, long pos)
-            : base(Lang.T("כל הכלים"), Ico.Sliders, 600)
+            : base(Lang.T("כלים נוספים"), Ico.Sliders, 600)
         {
             _main = main; _mi = mi; _a = a; _b = b; _pos = pos;
             Subtitle = mi != null ? Theme.FileName(Path.GetFileName(mi.Path)) : "";

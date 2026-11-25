@@ -69,7 +69,7 @@ namespace SubtitleStudio
             if (m.Success || Has(t, "Encoder not found") || Has(t, "Filter not found"))
             {
                 string part = m.Success ? (m.Groups[1].Value + m.Groups[2].Value + m.Groups[3].Value) : "";
-                return Lang.F("מנוע הווידאו שבשימוש חסר רכיב שהפעולה צריכה{0}. אם הונח ליד התוכנה קובץ {1} אחר - הסירו אותו, ולתוכנה יש מנוע משלה.", (part.Length > 0 ? " (" + Theme.Ltr(part) + ")" : ""), Theme.Ltr("ffmpeg.exe"));
+                return Lang.F("מנוע העיבוד שבשימוש חסר רכיב שהפעולה צריכה{0}. אם הונח ליד התוכנה קובץ {1} אחר - הסירו אותו, ולתוכנה יש מנוע משלה.", (part.Length > 0 ? " (" + Theme.Ltr(part) + ")" : ""), Theme.Ltr("ffmpeg.exe"));
             }
 
             if (Has(t, "matches no streams") || Has(t, "does not contain any stream"))
@@ -96,7 +96,7 @@ namespace SubtitleStudio
 
             // התהליך עצמו לא עלה (Win32Exception מ-Process.Start)
             if (Has(t, "cannot find the file specified"))
-                return Lang.T("מנוע הווידאו לא נמצא. הפעילו את התוכנה מחדש, והיא תכין אותו שוב.");
+                return Lang.T("מנוע העיבוד לא נמצא. הפעילו את התוכנה מחדש, והיא תכין אותו שוב.");
             return null;
         }
 
