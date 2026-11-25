@@ -45,6 +45,8 @@ foreach ($c in @(@(1000, 4000, 'שלום לכולם, וברוכים הבאים')
 $style = NewOf 'SubStyle' @()
 $media = Join-Path $env:TEMP 'ss-gallery\test.mp4'
 if (-not (Test-Path $media)) { powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-testmedia.ps1') | Out-Null }
+# קובץ אחר, למשל קובץ קול: SHOT_MEDIA=נתיב, עם -Tools או -Only Tools,FitSize,Export (0.8.48)
+if ($env:SHOT_MEDIA) { $media = $env:SHOT_MEDIA }
 [void](TY 'Runtime').GetMethod('Prepare', $ST).Invoke($null, @())
 $mi = (TY 'Ff').GetMethod('ProbeFile', $ST).Invoke($null, @([string]$media))
 # לפי השם המלא בעברית, דרך התרגום. עם תבנית עברית הצילום באנגלית לא מצא את הכלי
@@ -96,8 +98,8 @@ function MenuSample
     $list = [Activator]::CreateInstance([System.Collections.Generic.List`1].MakeGenericType($mt))
     # פריטים אמיתיים מתפריט הכתוביות (MainForm.SubtitleMenuItems), עם כותרת קטע
     $list.Add($mt.GetMethod('Group', $ST).Invoke($null, @((L 'קובץ'))))
-    $list.Add($mk.Invoke($null, @((L 'פרויקט חדש'), (L 'סוגר את הסרט והכתוביות וחוזר למסך הפתיחה (Ctrl+N)'), [Enum]::Parse((TY 'Ico'), 'Plus'), $null)))
-    $list.Add($mk.Invoke($null, @((L 'שמירת הפרויקט'), (L 'הסרט, הכתוביות והעיצוב בקובץ אחד - כדי להמשיך אחר כך'), [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
+    $list.Add($mk.Invoke($null, @((L 'פרויקט חדש'), (L 'סוגר את הקובץ והכתוביות וחוזר למסך הפתיחה (Ctrl+N)'), [Enum]::Parse((TY 'Ico'), 'Plus'), $null)))
+    $list.Add($mk.Invoke($null, @((L 'שמירת הפרויקט'), (L 'קובץ המקור, הכתוביות והעיצוב יחד - כדי להמשיך אחר כך'), [Enum]::Parse((TY 'Ico'), 'Save'), $null)))
     $list.Add($mt.GetMethod('Sep', $ST).Invoke($null, @()))
     $list.Add($mk.Invoke($null, @((L 'חיפוש בכתוביות'), (L 'לקפוץ לכתובית שמכילה מילה (Ctrl+F)'), [Enum]::Parse((TY 'Ico'), 'Search'), $null)))
     $list.Add($mk.Invoke($null, @((L 'תרגום אוטומטי עם AI'), (L 'בוחרים שפה והכתוביות מתורגמות במקום - התזמונים נשמרים'), [Enum]::Parse((TY 'Ico'), 'Sparkles'), $null)))
@@ -164,6 +166,7 @@ $forms = @(
 if ($Tools) {
     $allTools = @((TY 'MediaTools').GetMethod('All', $ST).Invoke($null, @()))
     for ($k = 0; $k -lt $allTools.Count; $k++) {
+        if ((TY 'ToolsDlg').GetMethod('Unfit', $ST).Invoke($null, @($allTools[$k], $mi))) { continue }      # בקובץ קול - רק מה שעובד עליו
         $forms += @{ n = ('Tool' + ($k + 1).ToString('00')); idx = $k; make = { NewOf 'ToolRunDlg' @($null, $allTools[$f.idx], $mi, [int64]1000, [int64]6000, [int64]0) } }
     }
 }

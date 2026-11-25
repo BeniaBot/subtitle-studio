@@ -262,7 +262,7 @@ namespace SubtitleStudio
             // ברתמה למודל קטן: 38 מתוך 40 בקשות, 1-3 שניות לבקשה על ארבע ליבות; זיכרון פרטי 1.6GB, ובמחשב עם מעט זיכרון (``--no-repack``)
             // 0.6GB ו-2.7 שניות על שתי ליבות. ``engine-llama`` - אותו מנוע של המתרגם המדויק
             r.Add(Pack(LocalAssist.PackId, ModelTask.Assistant, ModelTier.Balanced, Lang.T("העוזר החכם על המחשב"),
-                       Lang.T("בלי אינטרנט ובלי מפתח: מבין בקשות ועושה אותן. פחות חכם מהעוזר של גוגל, ולא רואה ולא שומע את הסרט."), "he",
+                       Lang.T("בלי אינטרנט ובלי מפתח: מבין בקשות ועושה אותן. פחות חכם מהעוזר של גוגל, ולא רואה ולא שומע את הקובץ."), "he",
                        2770, 3000, "Apache 2.0", "", "engine-llama", true));
             p = r[r.Count - 1];
             p.Credit = "Google Gemma 4 · ggml-org (GGUF) · llama.cpp";

@@ -33,7 +33,7 @@ namespace SubtitleStudio
             string known = FromFfmpeg((log ?? "") + "\n" + (msg ?? ""));
             if (known != null) return known;
             if (HasHebrew(msg)) return msg;
-            return Lang.T("מנוע הווידאו לא הצליח לעבד את הקובץ. הפרטים המלאים ביומן.");
+            return Lang.T("התוכנה לא הצליחה לעבד את הקובץ. הפרטים המלאים ביומן.");
         }
 
         /// <summary>כמו <see cref="Ffmpeg(string)"/>, ובמקום ״ביומן״ - שתי השורות
@@ -43,7 +43,7 @@ namespace SubtitleStudio
             string known = FromFfmpeg(log);
             if (known != null) return known;
             string tail = Ff.LastLines(log, 2);
-            return Lang.F("מנוע הווידאו לא הצליח לעבד את הקובץ.{0}", (tail.Length > 0 ? Environment.NewLine + Theme.Ltr(tail) : ""));
+            return Lang.F("התוכנה לא הצליחה לעבד את הקובץ.{0}", (tail.Length > 0 ? Environment.NewLine + Theme.Ltr(tail) : ""));
         }
 
         /// <summary>null = לא זוהה. נבדקות רק השורות האחרונות: אזהרה על

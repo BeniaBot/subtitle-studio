@@ -484,6 +484,84 @@ $leftM = (TY 'Tc').GetMethod('Left', $ST); $l300 = [string]$leftM.Invoke($null, 
 Rep 'burn and other long jobs: how long is left in words instead of "speed x1.5"' ($l300 -match '\b5\b' -and $l300 -match 'דקות' -and $l42 -match '45' -and $l42 -match 'שניות' -and $l0 -eq '') ($l300 + ' |' + $l42 + ' |' + $l0)
 $zd.Dispose()
 
+# ---- כל מה שסומן נראה, והרשימה נגללת (0.8.48). בנימין: ״האזור שסומן לטשטוש לא מוצג מתוך התוכנה... אם אני מסמן הרבה אזורים - כל אחד מטוטש
+# בפרק זמן אחר - אני לא אראה כלום״; ״רשימת האזורים לא מופיעה כרשימת גלילה. בשביל לעבור ביניהם צריך למחוק חלק״
+$many = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($zT))
+for ($q = 0; $q -lt 12; $q++) { $many.Add((Zone (0.02 + 0.08 * $q) 0.3 0.07 0.3 ($q * 200) ($q * 200 + 150) 2 $false)) }
+for ($q = 0; $q -lt 5; $q++) { $fz = Zone 0.1 0.8 0.1 0.1 ($q * 300) ($q * 300 + 100) 2 $false; $fz.Kind = 'face'; $many.Add($fz) }
+$margv = New-Object object[] 3; $margv[1] = $zmi; $margv[2] = $many
+$md = [Activator]::CreateInstance((TY 'ZonesDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $margv, $null); $mdT = $md.GetType()
+$mcv = $mdT.GetField('_canvas', $IN).GetValue($md); $mcT = $mcv.GetType(); $ml = $mdT.GetField('_list', $IN).GetValue($md); $mlT = $ml.GetType()
+$white = New-Object Drawing.Bitmap 320, 180; $gw = [Drawing.Graphics]::FromImage($white); $gw.Clear([Drawing.Color]::White); $gw.Dispose()
+$fa1 = New-Object object[] 1; $fa1[0] = $white.psobject.BaseObject; [void]$mcT.GetMethod('SetFrame').Invoke($mcv, $fa1)
+function MSel([int]$i) { [void]$mdT.GetMethod('Select', $IN, $null, [Type[]]@([int]), $null).Invoke($md, @($i)) }
+function MCall($m, $a) { return $mdT.GetMethod($m, $IN).Invoke($md, $a) }
+function MPos { return [long]$mdT.GetField('_pos', $IN).GetValue($md) }
+# הבהירות במרכז אזור, כמו שהקנבס מצייר אותה עכשיו
+function MLook([int]$i) { $b = New-Object Drawing.Bitmap $mcv.Width, $mcv.Height; $mcv.DrawToBitmap($b, (New-Object Drawing.Rectangle 0, 0, $mcv.Width, $mcv.Height)); $vr = $mcv.VideoRect(); $z = $many[$i].Area; $c = $b.GetPixel([int]($vr.X + ($z.X + $z.Width / 2) * $vr.Width), [int]($vr.Y + ($z.Y + $z.Height * 0.7) * $vr.Height)); $b.Dispose(); return $c.GetBrightness() }
+[void](MCall 'Seek' @([long]0)); MSel 5
+$offSel = MLook 5; $offOther = MLook 7
+$mcv.Playing = $true; $offPlay = MLook 5; $mcv.Playing = $false
+Rep 'zones window: the selected area is drawn hidden also outside its time (stopped player); while playing, and other areas - only in their time' ($offSel -lt 0.1 -and $offPlay -gt 0.8 -and $offOther -gt 0.8) ("selected {0:0.00}, playing {1:0.00}, other {2:0.00}" -f $offSel, $offPlay, $offOther)
+$gm = $mcT.GetMethod('Ghosts', $IN); $gh = $gm.Invoke($mcv, @()); $mcv.Playing = $true; $gh2 = $gm.Invoke($mcv, @()); $mcv.Playing = $false
+Rep 'zones window: areas of other times get a thin outline and number - the hand-marked ones, not faces, not while playing' ($gh.Count -eq 10 -and @($gh | Where-Object { $_ -ge 12 -or $_ -eq 5 -or $_ -eq 0 }).Count -eq 0 -and $gh2.Count -eq 0) (($gh -join ',') + ' / ' + $gh2.Count)
+# לחיצה על שורה ברשימה - הנגן עובר לזמן של האזור; גם כשהוא כבר נבחר
+function LMouse($m, [int]$x, [int]$y) { $e = [Windows.Forms.MouseEventArgs]::new([Windows.Forms.MouseButtons]::Left, 1, $x, $y, 0); [void]$mlT.GetMethod($m, $IN).Invoke($ml, @($e)) }
+$rowH = [int]$mlT.GetProperty('RowH', $IN).GetValue($ml, $null); $padV = [int]$mlT.GetProperty('PadV', $IN).GetValue($ml, $null); $viewH = [int]$mlT.GetProperty('ViewH', $IN).GetValue($ml, $null)
+MSel 0; LMouse 'OnMouseDown' 150 ($padV + $rowH * 2 + 10); $p2 = MPos; $s2 = [int]$mdT.GetProperty('Selected', $IN).GetValue($md, $null); $l2 = MLook 2
+[void](MCall 'Seek' @([long]2900)); LMouse 'OnMouseDown' 150 ($padV + $rowH * 2 + 10); $p3 = MPos
+Rep 'zones window: clicking an area in the list takes the player to its time (also when already selected), and it shows hidden there' ($p2 -eq 400 -and $s2 -eq 2 -and $l2 -lt 0.1 -and $p3 -eq 400) ("{0} sel {1} look {2:0.00} again {3}" -f $p2, $s2, $l2, $p3)
+# הסוף בפנים: ״סוף כאן״ - התמונה שעליה לחצו נשארת מוסתרת
+MSel 11; [void](MCall 'Seek' @([long]2300)); [void](MCall 'MarkHere' @($false)); MSel 3
+$endIn = $many[0].ActiveAt(150) -and -not $many[0].ActiveAt(151); $mz = (MCall 'get_Zones' @())[11]; $l11 = MLook 11
+Rep 'zones window: "end here" keeps the picture it was pressed on hidden (the end is inside, as in burning)' ($endIn -and $mz.ToMs -eq 2300 -and $mz.ActiveAt(2300) -and $l11 -lt 0.1) ("to {0}, look {1:0.00}" -f $mz.ToMs, $l11)
+# הרשימה: פס גלילה שרואים וגוררים, עמוד בלחיצה, גלגלת, ומגיעים לאחרון
+$scr = [bool]$mlT.GetProperty('Scrollable', $IN).GetValue($ml, $null); $thM = $mlT.GetMethod('BarThumb', $IN); $spP = $mlT.GetProperty('ScrollPos', $IN); $maxS = $many.Count * $rowH - $viewH
+[void]$mlT.GetMethod('ScrollRows', $IN).Invoke($ml, @([int]-100)); $s0 = $spP.GetValue($ml, $null); $th0 = $thM.Invoke($ml, @())
+LMouse 'OnMouseDown' ([int]($th0.X + 3)) ([int]($th0.Y + 8)); LMouse 'OnMouseMove' ([int]($th0.X + 3)) ([int]($ml.Height + 200)); LMouse 'OnMouseUp' ([int]($th0.X + 3)) ([int]($ml.Height + 200)); $s1 = $spP.GetValue($ml, $null)
+$b = New-Object Drawing.Bitmap $ml.Width, $ml.Height; $ml.DrawToBitmap($b, (New-Object Drawing.Rectangle 0, 0, $ml.Width, $ml.Height)); $th1 = $thM.Invoke($ml, @())
+$inBar = $b.GetPixel([int]($th1.X + $th1.Width / 2), [int]($th1.Y + $th1.Height / 2)); $above = $b.GetPixel([int]($th1.X + $th1.Width / 2), [int]($padV + 2)); $b.Dispose()
+$barSeen = [Math]::Abs($inBar.GetBrightness() - $above.GetBrightness()) -gt 0.12
+LMouse 'OnMouseDown' ([int]($th1.X + 3)) ([int]($padV + 2)); LMouse 'OnMouseUp' ([int]($th1.X + 3)) ([int]($padV + 2)); $s2b = $spP.GetValue($ml, $null)
+[void]$mlT.GetMethod('ScrollRows', $IN).Invoke($ml, @([int]100)); LMouse 'OnMouseDown' 150 ($ml.Height - $padV - 12); $lastSel = [int]$mdT.GetProperty('Selected', $IN).GetValue($md, $null)
+$tr = $mlT.GetMethod('TrashRect', $IN).Invoke($ml, @([int]($many.Count - 1))); $noOverlap = -not $thM.Invoke($ml, @()).IntersectsWith([Drawing.RectangleF]$tr)
+$cap = [string]$mdT.GetField('_listCap', $IN).GetValue($md).Text
+Rep 'zones window: the list scrolls - a visible bar that can be dragged, a page on clicking beside it, the last area reachable without deleting any' ($scr -and $s0 -eq 0 -and $s1 -eq $maxS -and $barSeen -and $s2b -lt $s1 -and $lastSel -eq ($many.Count - 1) -and $noOverlap -and $cap -match '17') ("scroll {0} -> {1} of {2} -> {3}, bar {4}, last {5}, overlap {6}, [{7}]" -f $s0, $s1, $maxS, $s2b, $barSeen, $lastSel, (-not $noOverlap), $cap)
+$md.Dispose()
+$fewT = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($zT)); $fewT.Add((Zone 0.1 0.1 0.2 0.2 -1 -1 2 $false))
+$margv[2] = $fewT; $fd2 = [Activator]::CreateInstance((TY 'ZonesDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $margv, $null); $fl2 = $fd2.GetType().GetField('_list', $IN).GetValue($fd2)
+Rep 'zones window: a short list has no scroll bar' (-not [bool]$mlT.GetProperty('Scrollable', $IN).GetValue($fl2, $null)) ''
+$fd2.Dispose()
+
+# **הפריים של ״סוף כאן״ מוסתר גם בצריבה** (0.8.48). בעצירה הנגן מראה את הפריים הראשון מהמקום שלו והלאה: עצירה ב-2.51 (25 פריימים בשנייה) מראה
+# את 2.52, והצריבה הסתירה עד 2.51 - הפריים שראו מוסתר יצא גלוי. הבא אחריו (2.56) - גלוי. גם במסכה (הרבה אזורים)
+Push-Location $dir
+$p = Start-Process $ffx -ArgumentList '-hide_banner -loglevel error -y -f lavfi -i color=c=white:s=640x360:r=25:d=4 -c:v libx264 -pix_fmt yuv420p tail.mp4' -NoNewWindow -Wait -PassThru
+$p = Start-Process $ffx -ArgumentList '-hide_banner -loglevel error -y -f lavfi -i color=c=white:s=640x360:r=30000/1001:d=4 -c:v libx264 -pix_fmt yuv420p tail30.mp4' -NoNewWindow -Wait -PassThru
+Pop-Location
+$grabM = (TY 'FrameGrabber').GetMethod('Grab', $ST, $null, [Type[]]@([string], [long], [int], [int]), $null)
+function GrabLum($f, [long]$ms) { $fb = $grabM.Invoke($null, @([string]$f, $ms, 64, 36)); $l = $fb.GetPixel(32, 18).GetBrightness(); $fb.Dispose(); return $l }
+$tailRes = @()
+foreach ($tc in @(@('tail.mp4', 2510, 25.0, 1), @('tail.mp4', 2520, 25.0, 1), @('tail.mp4', 2510, 25.0, 10), @('tail30.mp4', 2010, 29.97, 1))) {
+    $tmi = ProbeIt (Join-Path $dir $tc[0]); $tst = [Activator]::CreateInstance((TY 'SubStyle')); for ($q = 0; $q -lt $tc[3]; $q++) { $tst.Zones.Add((Zone 0 0 1 1 1000 $tc[1] 2 $false)) }
+    $tdoc = [Activator]::CreateInstance((TY 'Doc'))
+    $targv = New-Object object[] 6; $targv[0] = $null; $targv[1] = $tdoc.psobject.BaseObject; $targv[2] = $tmi.psobject.BaseObject; $targv[3] = $tst.psobject.BaseObject; $targv[4] = [long]-1; $targv[5] = [long]-1
+    $ted = [Activator]::CreateInstance((TY 'ExportVideoDlg'), $IN -bor [Reflection.BindingFlags]::CreateInstance, $null, $targv, $null)
+    $tout = Join-Path $dir ('tail-out-' + $tc[1] + '-' + $tc[3] + '.mp4'); $tj = $ted.GetType().GetMethod('BuildJob', $IN).Invoke($ted, @([string]$tout)); $ted.Dispose()
+    $ja = New-Object object[] 1; $ja[0] = $tj; [void](TY 'Ff').GetMethod('RunJob', $ST).Invoke($null, $ja); while (-not $tj.Done) { Start-Sleep -Milliseconds 50 }
+    $at = GrabLum $tout $tc[1]; $after = GrabLum $tout ($tc[1] + [int](1000 / $tc[2]) + 2)
+    $tailRes += ('{0}@{1} x{2}: {3:0.00}/{4:0.00}' -f $tc[0], $tc[1], $tc[3], $at, $after)
+    if ($at -gt 0.1 -or $after -lt 0.9) { $tailRes += 'BAD' }
+}
+Rep 'burn: the frame shown when "end here" was pressed is hidden in the result, the one after it is not (25 and 29.97 fps, one area and ten)' ($tailRes -notcontains 'BAD') ($tailRes -join '  ')
+# **אזורים על הציר הראשי** (0.8.48): פס בצבע של האזור, בזמן שלו בלבד
+$tlT = TY 'TimelineControl'; $tlc = [Activator]::CreateInstance($tlT); $tlc.Width = 800; $tlc.Height = 200; $tst2 = [Activator]::CreateInstance((TY 'SubStyle')); $tst2.Zones.Add((Zone 0 0 1 1 2000 4000 2 $false)); $tlc.Style = $tst2; $tlc.DurationMs = 10000; [void]$tlT.GetMethod('ZoomToFit').Invoke($tlc, @())
+$tb = New-Object Drawing.Bitmap 800, 200; $tlc.DrawToBitmap($tb, (New-Object Drawing.Rectangle 0, 0, 800, 200))
+$ttop = [int]$tlT.GetProperty('TrackTop', $IN).GetValue($tlc, $null); $mxM = $tlT.GetMethod('MsToX', $IN); $zc = (TY 'ZonesDlg').GetMethod('ColorOf', $ST).Invoke($null, @([int]0))
+function TlHit([long]$ms) { $x = [int]$mxM.Invoke($tlc, @($ms)); for ($y = $ttop - 1; $y -gt $ttop - 16; $y--) { $c = $tb.GetPixel([Math]::Min(799, $x), $y); if ([Math]::Abs($c.R - $zc.R) + [Math]::Abs($c.G - $zc.G) + [Math]::Abs($c.B - $zc.B) -lt 130) { return $true } }; return $false }
+$tlIn = TlHit 3000; $tlOut = TlHit 6000; $tb.Dispose(); $tlc.Dispose()
+Rep 'main timeline: a hidden area has a bar in its colour, only in its time' ($tlIn -and -not $tlOut) ("in {0} out {1}" -f $tlIn, $tlOut)
+
 # ---- החלון ״סנכרון לפי הסרט״ (0.8.35): הכול בתוכו - המשפט שמחכים לו, ״עכשיו״, הפער והפעולה; ומתיחה לפי נקודה שנייה בסוף ----
 function SyncDoc() { $sdoc = [Activator]::CreateInstance((TY 'Doc')); $sc = (TY 'Doc').GetField('Cues', $IN).GetValue($sdoc); foreach ($s in 10000, 40000, 100000) { $sc.Add([Activator]::CreateInstance($cueT, @([int64]$s, [int64]($s + 2000), [string]('משפט ' + $s)))) }; return ,$sdoc }
 function SyncCues($sdoc) { return ,((TY 'Doc').GetField('Cues', $IN).GetValue($sdoc)) }

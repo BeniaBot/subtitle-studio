@@ -145,6 +145,29 @@ foreach ($f in $files) {
         }
     }
 
+    if (-not $vid -and $mi.HasAudio -and $dur -le 400) {
+        # ---- קובץ קול: סרט עם הכתוביות על רקע (0.8.48; עד אז הצריבה נכשלה) ----
+        $dlg = NewOf 'ExportVideoDlg' @($null, $doc, $mi, $style, [long]-1, [long]-1)
+        $cbg = $dlg.GetType().GetField('_bg', $IN).GetValue($dlg)
+        for ($bi = 0; $bi -lt $cbg.Items.Count; $bi++) {
+            $cbg.SelectedIndex = $bi
+            if ($bi -eq $cbg.Items.Count - 1) { $dlg.GetType().GetField('_bgFile', $IN).GetValue($dlg).Text = (Join-Path (Split-Path $root -Parent) '_ss-sweep\media\cover.png') }
+            $o = Join-Path $Out ($tag + '-movie' + $bi + '.mp4')
+            $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $o = $job.OutputPath
+            $sw = [Diagnostics.Stopwatch]::StartNew(); $err = RunJob $job
+            if ($err) { Rep $name ('movie ' + $bi) $false $err; continue }
+            $mo = Probe $o
+            # הכתובית בזמנה, ובלי כתובית לפניה
+            $t = ($times[1] + [Math]::Min(2500, $dur * 100) / 2) / 1000.0
+            $pa = Join-Path $Out ($tag + '-mv-a.png'); $pb = Join-Path $Out ($tag + '-mv-b.png')
+            $fa = Frame $o ($times[1] / 1000.0 - [Math]::Min(0.5, $dur * 0.1)) $pa; $fb = Frame $o $t $pb
+            $d = if ($fa -and $fb) { BottomDiff $pa $pb } else { @(-1, -1) }
+            $good = (Near $mo.DurationSec $dur ([Math]::Max(0.6, $dur * 0.01))) -and $mo.HasAudio -and $mo.Width -eq 1920 -and $mo.Height -eq 1080 -and $d[1] -gt 1.5 -and $d[0] -lt 0.5
+            Rep $name ('movie ' + $bi) $good ('{0:0}s  dur {1:0.00}/{2:0.00}  {3}x{4} audio {5}  diff top {6:0.0} bottom {7:0.0}  {8:N0} KB  "{9}"' -f $sw.Elapsed.TotalSeconds, $mo.DurationSec, $dur, $mo.Width, $mo.Height, $mo.HasAudio, $d[0], $d[1], ((Get-Item $o).Length / 1KB), $cbg.Text)
+        }
+        $dlg.Dispose()
+    }
+
     if ($vid) {
         # ---- ערוץ כתוביות נפרד, ל-MP4 ול-MKV ----
         foreach ($ext in '.mp4', '.mkv') {
@@ -213,26 +236,36 @@ foreach ($f in $files) {
             $ti++
             $tn = $tool.Name
             if ($tool.NeedsVideo -and -not $vid) { continue }
+            # קובץ קול: **כל האפשרויות** של תיבת הבחירה (המרה לכל פורמט, כל רמות הדחיסה), ו״התאמה לגודל״ בשלושה יעדים (0.8.48)
+            $variants = @(-1)
+            if (-not $vid) {
+                if ($tn -match 'גודל קובץ') { $variants = @(1, 2, 3) }
+                elseif ($tool.ParamKind -eq 2) { $d0 = NewOf 'ToolRunDlg' @($null, $tool, $mi, $a, $b, [long]($dur * 500)); $cb0 = $d0.GetType().GetField('_combo', $IN).GetValue($d0); if ($cb0) { $variants = @(0..($cb0.Items.Count - 1)) }; $d0.Dispose() }
+            }
+            foreach ($vr in $variants) {
             $dlg = NewOf 'ToolRunDlg' @($null, $tool, $mi, $a, $b, [long]($dur * 500))
+            if (-not $vid -and $vr -ge 0 -and $tool.ParamKind -eq 2) { $cb1 = $dlg.GetType().GetField('_combo', $IN).GetValue($dlg); $cb1.SelectedIndex = $vr }
             if ($tool.ParamKind -eq 3) {
                 $ff = $dlg.GetType().GetField('_fileField', $IN).GetValue($dlg)
-                $other = if ($tn -match 'חיבור') { $extraVideo } else { $extraAudio }
+                $other = if ($tn -match 'חיבור' -and $vid) { $extraVideo } else { $extraAudio }
                 if (-not $other) { $dlg.Dispose(); continue }
                 $ff.Text = $other
             }
             # ״התאמה לגודל״: יעד של חצי מהמקור (בצעדים של 5 מגה, לא פחות מ-5) - כדי שהכלי באמת יעבוד, ונבדוק שנכנס
             $slider0 = $dlg.GetType().GetField('_slider', $IN).GetValue($dlg)
             $srcMb = (Get-Item $f).Length / 1MB
-            if ($tn -match 'גודל קובץ' -and $slider0) { $slider0.Value = [Math]::Max(5, [Math]::Floor($srcMb * 0.5 / 5) * 5) }
+            if ($tn -match 'גודל קובץ' -and $slider0 -and -not $vid) { $slider0.Value = [Math]::Round([Math]::Max($slider0.Min, $srcMb * @(0.0, 0.25, 0.5, 0.8)[$vr]), 2) }
+            elseif ($tn -match 'גודל קובץ' -and $slider0) { $slider0.Value = [Math]::Max(5, [Math]::Floor($srcMb * 0.5 / 5) * 5) }
             # ״הפעלה״ כבויה (MediaTool.Block, 8.10): מותר רק כשבאמת אין מה לעשות - קובץ שכבר קטן מהיעד
             $blocked = $dlg.GetType().GetProperty('Blocked', $IN).GetValue($dlg, $null)
             if ($blocked) {
                 # וכלי קול בסרט בלי קול (‏NeedsAudio, ‏0.8.10)
-                $okBlock = ($tn -match 'גודל קובץ' -and $srcMb -le $slider0.Value) -or ($tn -match 'שינוי רזולוציה' -and [Math]::Min($mi.Width, $mi.Height) -le 360) -or ($tool.NeedsAudio -and -not $mi.HasAudio)
+                $okBlock = ($tn -match 'גודל קובץ' -and $srcMb -le $slider0.Value) -or ($tn -match 'שינוי רזולוציה' -and [Math]::Min($mi.Width, $mi.Height) -le 360) -or ($tool.NeedsAudio -and -not $mi.HasAudio) -or
+                    ($tn -match 'ערוץ שמע' -and (Streams $mi 'audio').Count -eq 1) -or (-not $vid -and $tn -match 'המרת פורמט|דחיסה|וואטסאפ|גודל קובץ' -and $blocked -match 'כבר')
                 Rep $name ('tool ' + $ti + ' ' + $tn) $okBlock ('blocked: ' + $blocked); $dlg.Dispose(); continue
             }
             $sugg = $dlg.GetType().GetField('_out', $IN).GetValue($dlg).Text
-            $o = Join-Path $Out ($tag + '-tool' + $ti + [IO.Path]::GetExtension($sugg))
+            $o = Join-Path $Out ($tag + '-tool' + $ti + $(if ($vr -ge 0) { '-' + $vr } else { '' }) + [IO.Path]::GetExtension($sugg))
             $job = $dlg.GetType().GetMethod('BuildJob', $IN).Invoke($dlg, @([string]$o)); $o = $job.OutputPath
             $combo = $dlg.GetType().GetField('_combo', $IN).GetValue($dlg)
             $slider = $dlg.GetType().GetField('_slider', $IN).GetValue($dlg)
@@ -268,12 +301,15 @@ foreach ($f in $files) {
             if ($tn -match 'וואטסאפ|לשליחה' -and [Math]::Min($mo.Width, $mo.Height) -gt 720) { $good = $false; $note += '  !over-720' }
             # לא גדול מהמקור: ״דחיסה״ תמיד, ״וואטסאפ״ כשהמקור לא גדול מ-720p (עד 8.10 שניהם יצאו גדולים מסרטון רגיל מהרשת)
             if ($tn -match 'דחיסה' -and $ratio -ge 1) { $good = $false; $note += '  !not-smaller' }
-            if ($tn -match 'וואטסאפ|לשליחה' -and [Math]::Min($mi.Width, $mi.Height) -le 720 -and $ratio -gt 1) { $good = $false; $note += '  !bigger' }
+            if ($vid -and $tn -match 'וואטסאפ|לשליחה' -and [Math]::Min($mi.Width, $mi.Height) -le 720 -and $ratio -gt 1) { $good = $false; $note += '  !bigger' }
             # ״שייכנס ל-X״ - בלי סובלנות: מי שצריך לעמוד במגבלה של מייל, 1% מעל זה כישלון
             if ($tn -match 'גודל קובץ' -and $val -gt 0 -and ((Get-Item $o).Length / 1MB) -gt $val) { $good = $false; $note += '  !over-target' }
             if ($tn -match 'ערוץ שמע' -and $as.Count -ne 1) { $good = $false; $note += '  !tracks' }
             if ($vid -and -not ($tn -match 'חילוץ הפסקול|תמונה') -and $vs.Count -eq 0 -and $o -notmatch '\.(mp3|wav|m4a)$') { $good = $false; $note += '  !lost-video' }
+            # קובץ קול נשאר קול: בלי ערוץ תמונה (חוץ מעטיפה), והתוצאה לא ״סרט״
+            if (-not $vid -and $mo.HasVideo) { $good = $false; $note += '  !became-video' }
             Rep $name $label $good $note
+            }
         }
     }
 }
