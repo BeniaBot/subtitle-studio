@@ -210,6 +210,21 @@ $sum = (Probe (Join-Path $dir 'a.mp3')).Summary()
 Check 'התיאור של קובץ קול - בלי ״25 fps״' ($sum -notmatch 'fps') $sum
 [void]$mf.GetMethod('CloseEverything', $IN).Invoke($m, @()); $m.Dispose()
 
+# ---- סרטון של תמונות JPEG הוא וידאו, עטיפה לא (0.8.48; עד אז סרטון ממצלמה ישנה נפתח כקובץ קול) ----
+Write-Host 'סרטון MJPEG'
+Ffm '-f lavfi -i testsrc2=s=320x240:r=15:d=3 -i a.wav -shortest -c:v mjpeg -q:v 5 -c:a pcm_s16le cam.avi'
+Ffm '-f lavfi -i testsrc2=s=320x240:r=15:d=3 -i a.wav -shortest -c:v mjpeg -q:v 5 -c:a aac cam.mov'
+Ffm '-f lavfi -i testsrc2=s=320x240:r=15:d=3 -i a.wav -i cover.png -map 0:v -map 1:a -map 2:v -t 3 -c:v:0 libx264 -c:v:1 png -pix_fmt:v:0 yuv420p -c:a aac -disposition:v:1 attached_pic withcover.mp4'
+Ffm '-i a.wma -i cover.png -map 0:a -map 1:v -c copy cover.wma'
+Ffm '-i a.flac -i cover.png -map 0:a -map 1:v -c copy -disposition:v attached_pic cover.flac'
+$ma = Probe (Join-Path $dir 'cam.avi'); $mm = Probe (Join-Path $dir 'cam.mov'); $mc4 = Probe (Join-Path $dir 'withcover.mp4')
+Check 'סרטון MJPEG (AVI ו-MOV): וידאו, עם המידות והקצב שלו' ($ma.HasVideo -and $ma.HasAudio -and $ma.Width -eq 320 -and $ma.Fps -eq 15 -and $mm.HasVideo -and $mm.Height -eq 240) ("" + $ma.HasVideo + ' ' + $ma.Width + ' ' + $ma.Fps + ' / ' + $mm.HasVideo)
+Check 'תמונת עטיפה - לא וידאו (MP3, ‏FLAC, ו-WMA שלא מסמן אותה); ובווידאו עם עטיפה - הווידאו עצמו' (-not $mp3.HasVideo -and -not (Probe (Join-Path $dir 'cover.flac')).HasVideo -and -not (Probe (Join-Path $dir 'cover.wma')).HasVideo -and $mc4.HasVideo -and $mc4.FirstVideo().Codec -eq 'h264') ''
+$dMj = NewOf 'ToolRunDlg' @($null, (ToolNamed 'הכנה לשליחה בוואטסאפ'), $ma, [int64]-1, [int64]-1, [int64]0)
+$jMj = $dMj.GetType().GetMethod('BuildJob', $IN).Invoke($dMj, @([string](Join-Path $dir 'cam-out.mp4'))); $dMj.Dispose()
+$eMj = RunJob $jMj; $oMj = if (-not $eMj) { Probe $jMj.OutputPath } else { $null }
+Check 'וכלי וידאו רץ עליו: וואטסאפ מוציא MP4 עם תמונה וקול' ($oMj -and $oMj.HasVideo -and $oMj.HasAudio -and $oMj.FirstVideo().Codec -eq 'h264') $eMj
+
 [GC]::Collect()
 try { Remove-Item $dir -Recurse -Force -ErrorAction Stop } catch { }
 Write-Host ''
