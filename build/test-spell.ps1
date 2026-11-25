@@ -7,7 +7,7 @@
 # **לא נוגעים ב-%TEMP%\ss-test-dict**, התיקייה שמצב הבדיקה של התוכנה משתמש בה.
 # מילון שנשאר שם היה נטען ברקע בכל בדיקת ממשק אחרת, ומוסיף ״בעיות״ באמצע מדידה.
 # כאן הכול דרך Spell.FolderOverride לתיקיות זמניות.
-# צפוי: 67 בדיקות.
+# צפוי: 76 בדיקות.
 $ErrorActionPreference = 'Stop'
 $env:SUBSTUDIO_TEST = '1'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -488,6 +488,18 @@ $gone = -not ((MyWords) -contains 'צפצפון'); $undoBtn = $dT.GetField('_und
 [void]$dT.GetMethod('Undo', $IF).Invoke($dd, @())
 Check 'פח מוציא, ״להחזיר״ מחזיר - והחלון מסמן שמשהו השתנה' ($gone -and $undoShown -and ((MyWords) -contains 'צפצפון') -and [bool]$dT.GetField('Changed', $IF).GetValue($dd)) ''
 $dd.Dispose()
+# **פס הגלילה נגרר** (0.8.48; עד אז הוא רק צויר): הידית נגררת עד הסוף, לחיצה לידה - עמוד, והמילה האחרונה נבחרת
+$wl = [Activator]::CreateInstance((T 'WordList'), $IF -bor [Reflection.BindingFlags]::CreateInstance, $null, @(), $null); $wlT = $wl.GetType()
+$wl.Width = 300; $wl.Height = 200
+$wi = New-Object 'System.Collections.Generic.List[string]'; for ($q = 0; $q -lt 60; $q++) { $wi.Add('מילה' + $q) }
+[void]$wlT.GetMethod('SetItems').Invoke($wl, (Pack $wi))
+function WM($m, [int]$x, [int]$y) { $e = [Windows.Forms.MouseEventArgs]::new([Windows.Forms.MouseButtons]::Left, 1, $x, $y, 0); [void]$wlT.GetMethod($m, $IF).Invoke($wl, @($e)) }
+$wTh = $wlT.GetMethod('BarThumb', $IF); $wSp = $wlT.GetProperty('ScrollPos', $IF); $wMax = $wlT.GetProperty('TotalH', $IF).GetValue($wl, $null) - $wlT.GetProperty('ViewH', $IF).GetValue($wl, $null)
+$wt = $wTh.Invoke($wl, @()); WM 'OnMouseDown' ([int]($wt.X + 3)) ([int]($wt.Y + 5)); WM 'OnMouseMove' ([int]($wt.X + 3)) 600; WM 'OnMouseUp' ([int]($wt.X + 3)) 600; $w1 = $wSp.GetValue($wl, $null)
+$wt2 = $wTh.Invoke($wl, @()); WM 'OnMouseDown' ([int]($wt2.X + 3)) 8; WM 'OnMouseUp' ([int]($wt2.X + 3)) 8; $w2 = $wSp.GetValue($wl, $null); $selBar = $wl.Selected
+WM 'OnMouseMove' 150 100; $w3 = $wSp.GetValue($wl, $null)
+Check 'פס הגלילה: נגרר עד הסוף, לחיצה לידו - עמוד, ולא בוחר מילה; אחרי שעוזבים - לא ממשיך לגלול' ($w1 -eq $wMax -and $w2 -lt $w1 -and $w2 -gt 0 -and $selBar -eq -1 -and $w3 -eq $w2) ("$w1 of $wMax -> $w2 -> $w3 sel $selBar")
+$wl.Dispose()
 $spT.GetField('UserFileOverride', $SF).SetValue($null, $null)
 
 Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

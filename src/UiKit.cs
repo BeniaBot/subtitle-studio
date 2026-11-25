@@ -1251,6 +1251,50 @@ namespace SubtitleStudio
 
 namespace SubtitleStudio
 {
+    /// <summary>פס הגלילה הדק של הרשימות המצוירות (`ZoneList`, ‏`WordList`): ידית שרואים, נגררת, ולחיצה מעליה או מתחתיה - עמוד. בצד השמאלי בעברית,
+    /// בימני באנגלית. עד 0.8.48 ב״המילון שלי״ הפס רק צויר, וברשימת האזורים לא היה בכלל.</summary>
+    internal class ThinBar
+    {
+        public bool Dragging, Hover;
+        private int _y, _from;
+
+        public static int W { get { return Theme.S(8); } }
+
+        public static RectangleF Thumb(int width, int top, int view, int total, int scroll)
+        {
+            float th = Math.Max(Theme.S(24), view * (float)view / Math.Max(1, total));
+            float ty = top + (view - th) * (scroll / (float)Math.Max(1, total - view));
+            return new RectangleF(Lang.Rtl ? Theme.S(4) : width - Theme.S(4) - W, ty, W, th);
+        }
+
+        /// <summary>האזור שלוכד את העכבר - רחב מהידית, שיהיה קל לתפוס.</summary>
+        public static bool In(Point p, int width)
+        {
+            int w = W + Theme.S(8);
+            return Lang.Rtl ? p.X < w : p.X >= width - w;
+        }
+
+        /// <summary>לחיצה בפס: על הידית - מתחילה גרירה (0); מעליה ‎-1‎, מתחתיה ‎1‎ - לגלול עמוד.</summary>
+        public int Down(int y, RectangleF thumb, int scroll)
+        {
+            if (y < thumb.Top) return -1;
+            if (y > thumb.Bottom) return 1;
+            Dragging = true; _y = y; _from = scroll;
+            return 0;
+        }
+
+        /// <summary>הגלילה בזמן גרירה (לפני הגבלה לקצוות).</summary>
+        public int DragTo(int y, RectangleF thumb, int view, int total)
+        {
+            return _from + (int)Math.Round((y - _y) / Math.Max(1, view - thumb.Height) * Math.Max(0, total - view));
+        }
+
+        public void Paint(Graphics g, RectangleF thumb)
+        {
+            Theme.FillRound(g, thumb, W / 2f, Theme.Mix(Theme.PanelAlt, Theme.TextDim, Dragging || Hover ? 0.9f : 0.6f));
+        }
+    }
+
     internal class MenuItem
     {
         public string Text = "";

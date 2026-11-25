@@ -1412,9 +1412,8 @@ namespace SubtitleStudio
         private int _hover = -1, _scroll;
         // **פס גלילה** (0.8.48). בנימין: ״רשימת האזורים לא מופיעה כרשימת גלילה. בשביל לעבור ביניהם צריך למחוק חלק״ - היא נגללה רק בגלגלת,
         // ורק כשהמיקוד עליה, ובלי שום פס: ארבע שורות נראו כמו כל הרשימה
-        private bool _dragBar, _hoverBar;
-        private int _dragY, _dragScroll;
-        private int BarW { get { return Theme.S(8); } }
+        private readonly ThinBar _bar = new ThinBar();
+        private int BarW { get { return ThinBar.W; } }
         private int TotalH { get { return Zones.Count * RowH; } }
         internal bool Scrollable { get { return TotalH > ViewH; } }
         internal int ScrollPos { get { return _scroll; } }
@@ -1423,21 +1422,8 @@ namespace SubtitleStudio
 
         internal void ScrollRows(int rows) { _scroll += rows * RowH; ClampScroll(); Invalidate(); }
 
-        /// <summary>הידית של הפס - בצד השמאלי בעברית, בימני באנגלית.</summary>
-        internal RectangleF BarThumb()
-        {
-            float th = Math.Max(Theme.S(24), ViewH * (float)ViewH / Math.Max(1, TotalH));
-            float ty = PadV + (ViewH - th) * (_scroll / (float)Math.Max(1, TotalH - ViewH));
-            return new RectangleF(Lang.Rtl ? Theme.S(4) : Width - Theme.S(4) - BarW, ty, BarW, th);
-        }
-
-        /// <summary>האזור שלוכד את העכבר - רחב מהידית, שיהיה קל לתפוס.</summary>
-        private bool InBar(Point p)
-        {
-            if (!Scrollable) return false;
-            int w = BarW + Theme.S(8);
-            return Lang.Rtl ? p.X < w : p.X >= Width - w;
-        }
+        internal RectangleF BarThumb() { return ThinBar.Thumb(Width, PadV, ViewH, TotalH, _scroll); }
+        private bool InBar(Point p) { return Scrollable && ThinBar.In(p, Width); }
         private bool _hoverTrash;
 
         public ZoneList()
@@ -1516,11 +1502,9 @@ namespace SubtitleStudio
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            if (_dragBar)
+            if (_bar.Dragging)
             {
-                RectangleF th = BarThumb();
-                float room = Math.Max(1, ViewH - th.Height);
-                _scroll = _dragScroll + (int)Math.Round((e.Y - _dragY) / room * Math.Max(0, TotalH - ViewH));
+                _scroll = _bar.DragTo(e.Y, BarThumb(), ViewH, TotalH);
                 ClampScroll();
                 Invalidate();
                 return;
@@ -1528,19 +1512,19 @@ namespace SubtitleStudio
             bool bar = InBar(e.Location);
             int h = bar ? -1 : RowAt(e.Y);
             bool t = h >= 0 && TrashRect(h).Contains(e.Location);
-            if (h != _hover || t != _hoverTrash || bar != _hoverBar) { _hover = h; _hoverTrash = t; _hoverBar = bar; Cursor = t ? Cursors.Hand : Cursors.Default; Invalidate(); }
+            if (h != _hover || t != _hoverTrash || bar != _bar.Hover) { _hover = h; _hoverTrash = t; _bar.Hover = bar; Cursor = t ? Cursors.Hand : Cursors.Default; Invalidate(); }
             base.OnMouseMove(e);
         }
 
         protected override void OnMouseLeave(EventArgs e)
         {
-            _hover = -1; _hoverTrash = false; _hoverBar = false; Invalidate();
+            _hover = -1; _hoverTrash = false; _bar.Hover = false; Invalidate();
             base.OnMouseLeave(e);
         }
 
         protected override void OnMouseUp(MouseEventArgs e)
         {
-            if (_dragBar) { _dragBar = false; Invalidate(); }
+            if (_bar.Dragging) { _bar.Dragging = false; Invalidate(); }
             base.OnMouseUp(e);
         }
 
@@ -1549,12 +1533,7 @@ namespace SubtitleStudio
             Focus();
             if (e.Button == MouseButtons.Left && InBar(e.Location))
             {
-                RectangleF th = BarThumb();
-                // לחיצה מעל הידית או מתחתיה - עמוד; על הידית - גרירה
-                if (e.Y < th.Top) ScrollRows(-Math.Max(1, ViewH / RowH));
-                else if (e.Y > th.Bottom) ScrollRows(Math.Max(1, ViewH / RowH));
-                else { _dragBar = true; _dragY = e.Y; _dragScroll = _scroll; }
-                Invalidate();
+                ScrollRows(_bar.Down(e.Y, BarThumb(), _scroll) * Math.Max(1, ViewH / RowH));
                 return;
             }
             int r = RowAt(e.Y);
@@ -1618,7 +1597,7 @@ namespace SubtitleStudio
             }
             g.Clip = old;
             if (Scrollable)
-                Theme.FillRound(g, BarThumb(), BarW / 2f, Theme.Mix(Theme.PanelAlt, Theme.TextDim, _dragBar || _hoverBar ? 0.9f : 0.6f));
+                _bar.Paint(g, BarThumb());
         }
     }
 }
