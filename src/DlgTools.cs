@@ -42,6 +42,7 @@ namespace SubtitleStudio
         public double TypeMin = double.NaN, TypeMax = double.NaN;
         public string Suffix = "";
         public string[] Options;
+        /// <summary>האפשרויות לפי הקובץ. null מהפונקציה - אין מה לבחור בקובץ הזה, ותיבת הבחירה לא מוצגת.</summary>
         public Func<MediaInfo, string[]> OptionsFor;
         public int DefOption;
         /// <summary>האפשרות שהחלון נפתח עליה לפי הקובץ (null - DefOption).</summary>
@@ -51,6 +52,14 @@ namespace SubtitleStudio
         public string OutSuffix = Lang.T(" - חדש");
         public string OutExt;              // null = כמו המקור
         public Func<int, string> ExtFor;
+        /// <summary>הסיומת לפי הקובץ ולפי הבחירה (קודמת ל-ExtFor ול-OutExt). null מהפונקציה - כמו בלעדיה.</summary>
+        public Func<MediaInfo, int, string> ExtForMi;
+        /// <summary>מסנן בחירת הקובץ הנוסף לפי הקובץ הפתוח (״חיבור״: לסרט - סרטים, לקול - גם קול). null - FileFilter.</summary>
+        public Func<MediaInfo, string> FileFilterFor;
+        /// <summary>למה הקובץ הנוסף שנבחר לא מתאים (null = מתאים). נבדק ב״הפעלה״, לפני שמתחילים.</summary>
+        public Func<ToolCtx, string> CheckExtra;
+        /// <summary>מקטין קול: הקידוד תמיד דחוס, ולכן הסיומת תמיד אחת מהדחוסות (<see cref="AudioShrink.IsTarget"/>).</summary>
+        public bool ShrinksAudio;
         public bool UseRange;
         /// <summary>טווח הפס לפי הקובץ: {מינימום, מקסימום, ברירת מחדל, צעד}. null - Min/Max/Def/Step הקבועים.</summary>
         public Func<MediaInfo, double[]> RangeFor;
@@ -123,6 +132,53 @@ namespace SubtitleStudio
 
     internal static class MediaTools
     {
+        /// <summary>קובץ קול (גם עם תמונת עטיפה): אין תמונה שזזה.</summary>
+        internal static bool AudioOnly(MediaInfo mi) { return mi != null && mi.HasAudio && !mi.HasVideo; }
+
+        /// <summary>הקובץ הנוסף (חיבור, פסקול, מוזיקה): קיים, ויש בו מה שהכלי צריך. עד 0.8.48 - ״בקובץ אין את מה שהפעולה צריכה״, אחרי
+        /// שהמנוע נכשל.</summary>
+        private static string NeedsInExtra(ToolCtx c, bool video)
+        {
+            if (string.IsNullOrEmpty(c.Extra) || !File.Exists(c.Extra)) return Lang.T("הקובץ שנבחר לא נמצא.");
+            MediaInfo m = null;
+            try { m = Ff.ProbeFile(c.Extra); }
+            catch { }
+            if (m == null || m.Streams.Count == 0) return Lang.T("הקובץ שנבחר הוא לא וידאו ולא קול.");
+            if (video && !m.HasVideo) return Lang.T("בקובץ שנבחר אין תמונה, רק קול.");
+            if (!video && !m.HasAudio) return Lang.T("בקובץ שנבחר אין קול.");
+            return null;
+        }
+
+        // ״המרת פורמט״ של קובץ קול
+        private static readonly string[] AudioExts = { ".mp3", ".m4a", ".wav", ".flac", ".ogg" };
+
+        private static string AudioExt(int opt) { return AudioExts[Math.Max(0, Math.Min(AudioExts.Length - 1, opt))]; }
+
+        /// <summary>הקול כבר בקידוד של היעד - מעתיקים, בלי לאבד כלום (AAC ל-M4A, ‏Vorbis/Opus ל-OGG). **לא FLAC:** העתקה מ-OGG לא כותבת את
+        /// האורך בכותרת (נמדד: ‏‎.oga‎ שהועתק יצא ״באורך 0״), וקידוד FLAC ממילא לא מאבד כלום.</summary>
+        internal static bool AudioCopyable(MediaInfo mi, string ext)
+        {
+            MediaStream a = mi != null ? mi.FirstAudio() : null;
+            if (a == null) return false;
+            string c = a.Codec.ToLowerInvariant();
+            switch (ext)
+            {
+                case ".mp3": return c == "mp3";
+                case ".m4a": return c == "aac" || c == "alac";
+                case ".ogg": return c == "opus" || c == "vorbis";
+            }
+            return false;
+        }
+
+        /// <summary>המקור בלי אובדן (WAV, ‏FLAC, ‏ALAC...) - המרה ל-WAV או FLAC לא מאבדת, ולא ״מנפחת״ לשווא.</summary>
+        internal static bool Lossless(MediaInfo mi)
+        {
+            MediaStream a = mi != null ? mi.FirstAudio() : null;
+            if (a == null) return false;
+            string c = a.Codec.ToLowerInvariant();
+            return c.StartsWith("pcm_") || c == "flac" || c == "alac" || c == "wavpack" || c == "tta" || c == "ape" || c == "wmalossless";
+        }
+
         /// <summary>״דחיסה״ (0.8.34): קצת / בינוני / הרבה - ‏crf, ותקרה ביחס לקצב התמונה במקור (״בינוני״ = מה שהיה: 24 ו-0.7).</summary>
         internal static readonly int[] CompCrf = { 21, 24, 28 };
         internal static readonly double[] CompK = { 0.85, 0.7, 0.4 };
@@ -259,6 +315,15 @@ namespace SubtitleStudio
         internal static double[] FitRange(MediaInfo mi)
         {
             double src = mi != null ? mi.SizeBytes / 1024.0 / 1024.0 : 0;
+            if (AudioOnly(mi) && src > 0.1)
+            {
+                // קובץ קול קטן בהרבה, ולכן צעדים קטנים; והפס מתחיל בגודל הקטן ביותר שעוד נשמע
+                double st = src < 5 ? 0.1 : src < 40 ? 0.5 : src < 100 ? 1 : 5;
+                double lo = Math.Max(st, Math.Ceiling(AudioShrink.MinMb(mi) / st) * st);
+                double hi = Math.Max(lo, Math.Floor(src / st + 1e-6) * st);
+                double mid = Math.Max(lo, Math.Min(hi, Math.Round(src / 2 / st) * st));
+                return new double[] { Math.Round(lo, 2), Math.Round(hi, 2), Math.Round(mid, 2), st };
+            }
             if (src <= 1) return new double[] { 5, 500, 200, 5 };
             double step = src < 40 ? 0.5 : src < 400 ? 5 : src < 4000 ? 50 : 500;
             double max = Math.Max(step, Math.Floor(src / step) * step);
@@ -279,7 +344,7 @@ namespace SubtitleStudio
             foreach (MediaStream st in c.Mi.Streams) if (st.Type == "video") cover = true;
             if (!cover) return "";
             string e = Path.GetExtension(c.Out ?? "").ToLowerInvariant();
-            return e == ".mp3" || e == ".m4a" || e == ".flac" ? "-c:v copy -disposition:v:0 attached_pic " : "-vn ";
+            return e == ".mp3" || e == ".m4a" || e == ".m4b" || e == ".flac" ? "-c:v copy -disposition:v:0 attached_pic " : "-vn ";
         }
 
         public static List<MediaTool> All()
@@ -289,7 +354,7 @@ namespace SubtitleStudio
             MediaTool vol = new MediaTool();
             vol.Group = Lang.T("קול");
             vol.Name = Lang.T("שינוי עוצמת השמע");
-            vol.Desc = Lang.T("להגביר סרט חלש או להנמיך סרט צורם - בלי לפגוע בווידאו");
+            vol.Desc = Lang.T("להגביר קול חלש או להנמיך קול צורם");
             vol.Icon = Ico.Speaker;
             vol.ParamKind = 1; vol.Min = -20; vol.Max = 20; vol.Def = 6; vol.Step = 0.5; vol.Suffix = " dB";
             vol.ParamLabel = Lang.T("כמה להגביר? (מינוס = להנמיך)");
@@ -348,6 +413,8 @@ namespace SubtitleStudio
             ext.OutSuffix = Lang.T(" - אודיו");
             ext.UseRange = true;
             ext.NeedsAudio = true;
+            // בקובץ קול זה ״המרת פורמט״ (עם כל הפורמטים) - אין שם ״פסקול״ לחלץ
+            ext.NeedsVideo = true;
             ext.Build = delegate (ToolCtx c)
             {
                 string enc = c.Opt == 0 ? "-codec:a libmp3lame -q:a 0" : (c.Opt == 1 ? "-codec:a pcm_s16le" : "-codec:a aac -b:a 256k");
@@ -378,6 +445,7 @@ namespace SubtitleStudio
             swap.NeedsVideo = true;
             swap.OutSuffix = Lang.T(" - פסקול חדש");
             swap.KeepsVideo = true;
+            swap.CheckExtra = delegate (ToolCtx c) { return NeedsInExtra(c, false); };
             swap.Build = delegate (ToolCtx c)
             {
                 // הקול החדש הוא קובץ אחר - מספר הערוצים שלו (Speex ו-TTA בלי ‏-ac נכשלו, ראו Burn.LayoutArgs)
@@ -405,9 +473,10 @@ namespace SubtitleStudio
             music.FileFilter = swap.FileFilter;
             music.OutSuffix = Lang.T(" - עם מוזיקה");
             music.KeepsVideo = true;
+            music.CheckExtra = swap.CheckExtra;
             music.Hint = delegate (ToolCtx c)
             {
-                return Lang.T("הדיבור נשאר כמו שהוא. מוזיקה קצרה מהסרט - חוזרת מההתחלה, והכול נגמר עם הסרט.");
+                return Lang.T("הדיבור נשאר כמו שהוא. מוזיקה קצרה מדי - חוזרת מההתחלה, והכול נגמר יחד עם הקובץ.");
             };
             music.Build = delegate (ToolCtx c)
             {
@@ -430,9 +499,9 @@ namespace SubtitleStudio
             t.Add(music);
 
             MediaTool conv = new MediaTool();
-            conv.Group = Lang.T("וידאו");
+            conv.Group = Lang.T("שיתוף והקטנה");
             conv.Name = Lang.T("המרת פורמט");
-            conv.Desc = Lang.T("לשנות את סוג הקובץ - למשל ל-MP4, שנפתח בכל טלפון ומחשב");
+            conv.Desc = Lang.T("לשנות את סוג הקובץ, כדי שייפתח בכל מקום - סרט או קול");
             conv.Icon = Ico.Refresh;
             conv.ParamKind = 2;
             conv.Options = new string[]
@@ -442,12 +511,31 @@ namespace SubtitleStudio
                 Lang.T("MP4 מהיר - בלי לגעת באיכות")
             };
             conv.ParamLabel = Lang.T("פורמט היעד");
-            conv.ExtFor = delegate (int i) { return i == 1 ? ".mkv" : ".mp4"; };
+            // **קובץ קול - פורמטים של קול** (0.8.48). עד אז החלון הציע להפוך MP3 ל-MP4 או ל-MKV, בלי אף פורמט קול
+            conv.OptionsFor = delegate (MediaInfo mi)
+            {
+                if (!AudioOnly(mi)) return conv.Options;
+                return new string[]
+                {
+                    Lang.T("MP3 - נפתח בכל מכשיר"), Lang.T("M4A (AAC) - לאייפון ולמחשב"), Lang.T("WAV - בלי דחיסה, קובץ גדול"),
+                    Lang.T("FLAC - דחיסה בלי אובדן איכות"), Lang.T("OGG - קטן מאוד, לא כל נגן פותח")
+                };
+            };
+            conv.ExtForMi = delegate (MediaInfo mi, int i) { return AudioOnly(mi) ? AudioExt(i) : i == 1 ? ".mkv" : ".mp4"; };
             conv.OutSuffix = Lang.T(" - מומר");
             // **MP4 שכבר נפתח בכל מקום - ״MP4 מהיר״.** עד 0.8.11 תמיד קידוד מחדש, שלא משפר כלום ורק לוקח זמן (docs/EXPERIMENTS.md)
-            conv.DefFor = delegate (MediaInfo mi) { return Mp4Ready(mi) ? 2 : 0; };
+            conv.DefFor = delegate (MediaInfo mi) { return AudioOnly(mi) ? 0 : Mp4Ready(mi) ? 2 : 0; };
             conv.Block = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi))
+                {
+                    string src = "";
+                    try { src = Path.GetExtension(c.Mi.Path).ToLowerInvariant(); }
+                    catch { }
+                    return src == AudioExt(c.Opt)
+                        ? Lang.F("הקובץ כבר {0}. כדי להקטין אותו - ״דחיסה״ או ״התאמה לגודל קובץ מבוקש״.", Theme.Ltr(src.TrimStart('.').ToUpperInvariant()))
+                        : null;
+                }
                 if (c.Mi == null || !c.Mi.HasVideo) return null;
                 // ״MP4 מהיר״ על WMV, ‏WEBM של VP8, ‏OGV - ‏ffmpeg נכשל בשגיאה סתומה
                 if (c.Opt == 2 && !Mp4Copyable(c.Mi))
@@ -459,6 +547,14 @@ namespace SubtitleStudio
             };
             conv.Hint = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi))
+                {
+                    string e = AudioExt(c.Opt);
+                    if (AudioCopyable(c.Mi, e)) return Lang.T("תוך שניות, בלי שום שינוי באיכות: הקול מועתק כמו שהוא.");
+                    if (e == ".wav" || e == ".flac")
+                        return Lossless(c.Mi) ? Lang.T("בלי שום אובדן איכות.") : Lang.T("הקובץ יגדל, והאיכות לא תשתפר: הקול במקור כבר דחוס.");
+                    return Lang.T("באיכות של המקור, כמה שהפורמט מאפשר.");
+                }
                 if (c.Mi == null || !c.Mi.HasVideo) return "";
                 if (c.Opt == 0)
                     return Mp4Ready(c.Mi)
@@ -472,7 +568,13 @@ namespace SubtitleStudio
                 // קובץ קול (גם עם תמונת עטיפה): בלי ערוץ תמונה. עד 0.8.1 העטיפה קודדה כסרט
                 // של פריים אחד, וההמרה נכשלה
                 if (c.Mi != null && !c.Mi.HasVideo)
-                    return "-i " + Ff.Q(c.In) + " " + (CoverArgs(c).Length > 0 ? CoverArgs(c) : "-vn ") + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
+                {
+                    string ae = "";
+                    try { ae = Path.GetExtension(c.Out).ToLowerInvariant(); }
+                    catch { }
+                    return "-i " + Ff.Q(c.In) + " " + (CoverArgs(c).Length > 0 ? CoverArgs(c) : "-vn ") +
+                           (AudioCopyable(c.Mi, ae) ? "-c:a copy" : Burn.AudioFor(c.Out, c.Mi)) + " " + Ff.Q(c.Out);
+                }
                 // כל ערוצי הקול וכתוביות הטקסט נשארים (0.8.11; עד אז רק הערוץ הראשון, והכתוביות ירדו - נמצא בניסוי על MKV)
                 if (c.Opt == 0)
                     return "-i " + Ff.Q(c.In) + " " + CopyMaps(c.Mi, true) + Burn.MaxVideoFor(c.Mi, 0) + " " + Burn.AudioFor(c.Out, c.Mi) + " " +
@@ -484,7 +586,7 @@ namespace SubtitleStudio
             t.Add(conv);
 
             MediaTool res = new MediaTool();
-            res.Group = Lang.T("וידאו");
+            res.Group = Lang.T("תמונה");
             res.Name = Lang.T("שינוי רזולוציה");
             res.Desc = Lang.T("מקטין את התמונה - באיכות הכי גבוהה שאפשר ברזולוציה שנבחרה");
             res.Icon = Ico.Image;
@@ -514,9 +616,9 @@ namespace SubtitleStudio
             t.Add(res);
 
             MediaTool comp = new MediaTool();
-            comp.Group = Lang.T("וידאו");
+            comp.Group = Lang.T("שיתוף והקטנה");
             comp.Name = Lang.T("דחיסה - הקטנת נפח הקובץ");
-            comp.Desc = Lang.T("קובץ קטן יותר לשליחה ולשמירה - התמונה נשארת באותו גודל");
+            comp.Desc = Lang.T("קובץ קטן יותר לשליחה ולשמירה - סרט או קול");
             comp.Icon = Ico.Download;
             // **שלוש רמות במילים** (0.8.34) במקום ״רמת דחיסה 18-32״ - מספר שרק מי שמכיר crf מבין. כל רמה: crf ותקרה ביחס למקור
             // (״בינוני״ = מה שהיה ברירת המחדל: crf 24 ולא יותר מ-0.7)
@@ -524,10 +626,21 @@ namespace SubtitleStudio
             comp.ParamLabel = Lang.T("כמה לדחוס");
             comp.Options = new string[] { Lang.T("קצת - האיכות כמעט לא משתנה"), Lang.T("בינוני - מומלץ"), Lang.T("הרבה - קובץ קטן מאוד, האיכות יורדת") };
             comp.DefOption = 1;
-            comp.NeedsVideo = true;
             comp.OutSuffix = Lang.T(" - דחוס");
+            comp.ShrinksAudio = true;
+            comp.ExtForMi = delegate (MediaInfo mi, int i) { return AudioOnly(mi) ? AudioShrink.ExtFor(mi) : null; };
+            comp.Block = delegate (ToolCtx c)
+            {
+                return AudioOnly(c.Mi) && AudioShrink.ForLevel(c.Mi, c.Opt).AlreadySmall ? Lang.T("הקובץ כבר דחוס מאוד - אי אפשר להקטין אותו עוד.") : null;
+            };
             comp.Hint = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi))
+                {
+                    AudioShrink f = AudioShrink.ForLevel(c.Mi, c.Opt);
+                    if (f.DurationSec <= 0.5) return "";
+                    return Lang.F("ייצא בערך {0} (עכשיו {1})", FitInfo.Mb(f.OutMb), FitInfo.Mb(f.SourceMb)) + "  ·  " + f.QualityWord();
+                }
                 if (c.Mi == null || c.Mi.SizeBytes <= 0) return Lang.T("לגודל מדויק - ״התאמה לגודל קובץ מבוקש״.");
                 // התקרה היא של התמונה; הקול והמעטפת מוסיפים - נמדד על שלושה סרטונים: 0.90/0.75/0.46 מול תקרות 0.85/0.7/0.4
                 long est = (long)(c.Mi.SizeBytes * CompK[Math.Max(0, Math.Min(2, c.Opt))] * 1.1);
@@ -536,6 +649,7 @@ namespace SubtitleStudio
             };
             comp.Build = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi)) return AudioShrink.ForLevel(c.Mi, c.Opt).Build(c);
                 // **לא יותר מ-0.7 מהמקור** (״בינוני״). עד 0.8.8 רק crf, ו״הקטנת נפח״ של סרטון רגיל מהרשת יצאה **גדולה** ממנו
                 // (נמדד 8.10: פי 1.21-1.24; עם התקרה פי 0.74-0.75, דמיון למקור 0.986-0.991)
                 int o = Math.Max(0, Math.Min(2, c.Opt));
@@ -547,7 +661,7 @@ namespace SubtitleStudio
             t.Add(comp);
 
             MediaTool speed = new MediaTool();
-            speed.Group = Lang.T("וידאו");
+            speed.Group = Lang.T("עריכה");
             speed.Name = Lang.T("שינוי מהירות");
             speed.Desc = Lang.T("להאיץ הרצאה או להאט קטע מהיר (הקול נשאר תקין)");
             speed.Icon = Ico.Next;
@@ -559,7 +673,7 @@ namespace SubtitleStudio
             {
                 if (c.Mi == null || c.Mi.DurationSec <= 0 || c.Val <= 0) return "";
                 if (Math.Abs(c.Val - 1) < 0.001) return Lang.T("בלי שינוי במהירות.");
-                return Lang.F("הסרט יימשך {0} במקום {1}.", Tc.Short((long)(c.Mi.DurationSec * 1000 / c.Val)), Tc.Short(c.Mi.DurationMs));
+                return Lang.F("האורך יהיה {0} במקום {1}.", Tc.Short((long)(c.Mi.DurationSec * 1000 / c.Val)), Tc.Short(c.Mi.DurationMs));
             };
             speed.Build = delegate (ToolCtx c)
             {
@@ -576,7 +690,7 @@ namespace SubtitleStudio
             t.Add(speed);
 
             MediaTool rot = new MediaTool();
-            rot.Group = Lang.T("וידאו");
+            rot.Group = Lang.T("תמונה");
             rot.Name = Lang.T("סיבוב הווידאו");
             rot.Desc = Lang.T("לתיקון סרטון שצולם בטלפון והתהפך");
             rot.Icon = Ico.Redo;
@@ -594,7 +708,7 @@ namespace SubtitleStudio
             t.Add(rot);
 
             MediaTool snap = new MediaTool();
-            snap.Group = Lang.T("לשיתוף");
+            snap.Group = Lang.T("תמונה");
             snap.Name = Lang.T("שמירת התמונה שעל המסך");
             snap.Desc = Lang.T("שומר כתמונה את הפריים שבו הנגן עומד");
             snap.Icon = Ico.Image;
@@ -612,13 +726,12 @@ namespace SubtitleStudio
             t.Add(snap);
 
             MediaTool fade = new MediaTool();
-            fade.Group = Lang.T("וידאו");
+            fade.Group = Lang.T("עריכה");
             fade.Name = Lang.T("דהייה בהתחלה ובסוף");
-            fade.Desc = Lang.T("פתיחה וסגירה רכות מתוך שחור - נראה הרבה יותר מקצועי");
+            fade.Desc = Lang.T("פתיחה וסגירה רכות, בתמונה ובקול");
             fade.Icon = Ico.Sun;
             fade.ParamKind = 1; fade.Min = 0.3; fade.Max = 4; fade.Def = 1; fade.Step = 0.1; fade.Suffix = Lang.T(" שנ׳");
             fade.ParamLabel = Lang.T("אורך הדהייה");
-            fade.NeedsVideo = true;
             fade.OutSuffix = Lang.T(" - עם דהייה");
             fade.Build = delegate (ToolCtx c)
             {
@@ -627,6 +740,9 @@ namespace SubtitleStudio
                 double outAt = Math.Max(0, total - d);
                 string ds = d.ToString("0.##", CultureInfo.InvariantCulture);
                 string os = outAt.ToString("0.##", CultureInfo.InvariantCulture);
+                if (AudioOnly(c.Mi))
+                    return "-i " + Ff.Q(c.In) + " -af \"afade=t=in:st=0:d=" + ds + ",afade=t=out:st=" + os + ":d=" + ds + "\" " +
+                           CoverArgs(c) + Burn.AudioFor(c.Out, c.Mi) + " " + Ff.Q(c.Out);
                 string vf = "fade=t=in:st=0:d=" + ds + ",fade=t=out:st=" + os + ":d=" + ds;
                 string af = c.Mi != null && c.Mi.HasAudio
                     ? " -af \"afade=t=in:st=0:d=" + ds + ",afade=t=out:st=" + os + ":d=" + ds + "\" " + Burn.AudioFor(c.Out, c.Mi)
@@ -637,15 +753,28 @@ namespace SubtitleStudio
             t.Add(fade);
 
             MediaTool phone = new MediaTool();
-            phone.Group = Lang.T("לשיתוף");
+            phone.Group = Lang.T("שיתוף והקטנה");
             phone.Name = Lang.T("הכנה לשליחה בוואטסאפ");
-            phone.Desc = Lang.T("מקטין ל-720p בתאימות מלאה לטלפונים - קובץ קטן שנפתח בכל מקום");
+            phone.Desc = Lang.T("קובץ קטן שנפתח בכל טלפון - סרט או קול");
             phone.Icon = Ico.Upload;
-            phone.NeedsVideo = true;
             phone.OutExt = ".mp4";
+            phone.ShrinksAudio = true;
+            phone.ExtForMi = delegate (MediaInfo mi, int i) { return AudioOnly(mi) ? ".mp3" : null; };
+            phone.Block = delegate (ToolCtx c)
+            {
+                return AudioOnly(c.Mi) && AudioShrink.ForPhone(c.Mi).AlreadySmall ? Lang.T("הקובץ כבר MP3 קטן - אפשר לשלוח אותו כמו שהוא.") : null;
+            };
+            phone.Hint = delegate (ToolCtx c)
+            {
+                if (!AudioOnly(c.Mi)) return Lang.T("התמונה מוקטנת עד 720p, בתאימות מלאה לטלפונים.");
+                AudioShrink f = AudioShrink.ForPhone(c.Mi);
+                if (f.DurationSec <= 0.5) return "";
+                return Lang.F("ייצא MP3, בערך {0} (עכשיו {1})", FitInfo.Mb(f.OutMb), FitInfo.Mb(f.SourceMb)) + "  ·  " + f.QualityWord();
+            };
             phone.OutSuffix = Lang.T(" - לוואטסאפ");
             phone.Build = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi)) return AudioShrink.ForPhone(c.Mi).Build(c);
                 // 720 על הצלע הקצרה. עד 0.8.1 הרוחב הוגבל ל-1280, וסרטון עומד של 1080×1920
                 // נשאר בגודלו - ״מקטין ל-720p״ לא הקטין כלום
                 string sc = Burn.ScaleShort(c.Mi, 720);
@@ -662,11 +791,10 @@ namespace SubtitleStudio
             MediaTool track = new MediaTool();
             track.Group = Lang.T("קול");
             track.Name = Lang.T("בחירת ערוץ שמע");
-            track.Desc = Lang.T("לסרטים עם כמה שפות - משאיר רק את הערוץ שבחרתם");
+            track.Desc = Lang.T("לקבצים עם כמה שפות - משאיר רק את הערוץ שבחרתם");
             track.Icon = Ico.Layers;
             track.ParamKind = 2;
             track.ParamLabel = Lang.T("איזה ערוץ שמע להשאיר");
-            track.NeedsVideo = true;
             track.NeedsAudio = true;
             track.OutSuffix = Lang.T(" - ערוץ נבחר");
             track.KeepsVideo = true;
@@ -689,24 +817,52 @@ namespace SubtitleStudio
                 if (names.Count == 0) names.Add(Lang.T("אין ערוצי שמע בקובץ"));
                 return names.ToArray();
             };
+            track.Block = delegate (ToolCtx c)
+            {
+                int n = 0;
+                if (c.Mi != null) foreach (MediaStream st in c.Mi.Streams) if (st.Type == "audio") n++;
+                return n == 1 ? Lang.T("בקובץ הזה יש רק ערוץ שמע אחד - אין מה לבחור.") : null;
+            };
             track.Build = delegate (ToolCtx c)
             {
-                return "-i " + Ff.Q(c.In) + " -map 0:v -map 0:a:" + c.Opt + " -c copy " + Ff.Q(c.Out);
+                string pic = c.Mi == null || c.Mi.HasVideo ? "-map 0:v " : CoverArgs(c).StartsWith("-c:v copy") ? "-map 0:v -disposition:v:0 attached_pic " : "";
+                return "-i " + Ff.Q(c.In) + " " + pic + "-map 0:a:" + c.Opt + " -c copy " + Ff.Q(c.Out);
             };
             t.Add(track);
 
             MediaTool join = new MediaTool();
-            join.Group = Lang.T("וידאו");
-            join.Name = Lang.T("חיבור שני סרטים");
-            join.Desc = Lang.T("מדביק סרט נוסף בסוף הסרט הנוכחי");
+            join.Group = Lang.T("עריכה");
+            join.Name = Lang.T("חיבור שני קבצים");
+            join.Desc = Lang.T("מדביק קובץ נוסף בסוף הקובץ הנוכחי");
             join.Icon = Ico.Merge;
             join.ParamKind = 3;
-            join.ParamLabel = Lang.T("הסרט שיתחבר בסוף");
+            join.ParamLabel = Lang.T("הקובץ שיתחבר בסוף");
             join.FileFilter = Lang.T("קובצי וידאו") + "|" + FileTypes.Pattern(FileTypes.Video) + "|" + Lang.T("כל הקבצים") + "|*.*";
-            join.NeedsVideo = true;
+            join.FileFilterFor = delegate (MediaInfo mi)
+            {
+                // לקובץ קול - קול, וגם הקול שבתוך סרט
+                return AudioOnly(mi)
+                    ? Lang.T("סרטים וקובצי קול") + "|" + FileTypes.Pattern(FileTypes.Audio, FileTypes.Video) + "|" + Lang.T("כל הקבצים") + "|*.*"
+                    : join.FileFilter;
+            };
+            join.CheckExtra = delegate (ToolCtx c) { return NeedsInExtra(c, !AudioOnly(c.Mi)); };
             join.OutSuffix = Lang.T(" - מחובר");
             join.Build = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi))
+                {
+                    // **שני קובצי קול** (0.8.48): באותה דגימה, ובסטריאו כשאחד מהם סטריאו
+                    MediaInfo e2 = null;
+                    try { e2 = Ff.ProbeFile(c.Extra); }
+                    catch { }
+                    MediaStream s1 = c.Mi.FirstAudio(), s2 = e2 != null ? e2.FirstAudio() : null;
+                    int hz = s1 != null && s1.SampleRate >= 8000 && s1.SampleRate <= 48000 ? s1.SampleRate : 48000;
+                    bool mono = s1 != null && s1.Channels == 1 && (s2 == null || s2.Channels == 1);
+                    string one = "aresample=" + hz + ",aformat=sample_fmts=fltp:channel_layouts=" + (mono ? "mono" : "stereo");
+                    return "-i " + Ff.Q(c.In) + " -i " + Ff.Q(c.Extra) + " -filter_complex \"[0:a:0]" + one + "[a0];[1:a:0]" + one +
+                           "[a1];[a0][a1]concat=n=2:v=0:a=1[a]\" " + (CoverArgs(c).StartsWith("-c:v copy") ? "-map 0:v " + CoverArgs(c) : "") +
+                           "-map \"[a]\" " + Burn.AudioCodec(c.Out, c.Mi) + " " + Ff.Q(c.Out);
+                }
                 // **חיבור דורש שני סרטים זהים במבנה**: אותה רזולוציה, יחס פיקסל, קצב פריימים
                 // ודגימת קול. עד 0.8.1 הם חוברו כמו שהם, וכל זוג שונה נכשל ב״הפעולה לא
                 // הצליחה״ (נמצא בסבב: TS של 740×414 עם MP4 עומד). עכשיו השני מותאם לראשון:
@@ -768,13 +924,14 @@ namespace SubtitleStudio
             t.Add(denoise);
 
             MediaTool reverse = new MediaTool();
-            reverse.Group = Lang.T("וידאו");
+            reverse.Group = Lang.T("עריכה");
             reverse.Name = Lang.T("היפוך לאחור (ריוורס)");
-            reverse.Desc = Lang.T("מריץ את הסרט מהסוף להתחלה");
+            reverse.Desc = Lang.T("מריץ את הקובץ מהסוף להתחלה");
             reverse.Icon = Ico.Undo;
             reverse.ParamKind = 2;
             reverse.ParamLabel = Lang.T("מה להפוך");
             reverse.Options = new string[] { Lang.T("את התמונה ואת הקול"), Lang.T("רק את התמונה (הקול נשאר רגיל)"), Lang.T("רק את הקול") };
+            reverse.OptionsFor = delegate (MediaInfo mi) { return AudioOnly(mi) ? null : reverse.Options; };
             reverse.UseRange = true;
             reverse.OutSuffix = Lang.T(" - הפוך");
             reverse.Hint = delegate (ToolCtx c)
@@ -814,7 +971,7 @@ namespace SubtitleStudio
             t.Add(reverse);
 
             MediaTool fit = new MediaTool();
-            fit.Group = Lang.T("לשיתוף");
+            fit.Group = Lang.T("שיתוף והקטנה");
             fit.Name = Lang.T("התאמה לגודל קובץ מבוקש");
             fit.Desc = Lang.T("\"שייכנס ל-200MB\" - התוכנה מחשבת את האיכות הכי טובה שנכנסת בגודל הזה");
             fit.Icon = Ico.Download;
@@ -823,14 +980,21 @@ namespace SubtitleStudio
             fit.RangeFor = FitRange;
             fit.Presets = FitPresets;
             fit.ParamLabel = Lang.T("לאיזה גודל להגיע");
-            fit.NeedsVideo = true;
             fit.OutExt = ".mp4";
+            fit.ShrinksAudio = true;
+            fit.ExtForMi = delegate (MediaInfo mi, int i) { return AudioOnly(mi) ? AudioShrink.ExtFor(mi) : null; };
             fit.OutSuffix = Lang.T(" - מוקטן");
             fit.StepNames = new string[] { Lang.T("בדיקת הסרט"), Lang.T("שמירה בגודל המבוקש") };
-            fit.Hint = delegate (ToolCtx c) { return FitPlan(c).Describe(); };
-            fit.Block = delegate (ToolCtx c) { FitInfo f = FitPlan(c); return f.AlreadySmall ? f.Describe() : null; };
+            fit.Hint = delegate (ToolCtx c) { return AudioOnly(c.Mi) ? AudioShrink.ForSize(c.Mi, c.Val).Describe() : FitPlan(c).Describe(); };
+            fit.Block = delegate (ToolCtx c)
+            {
+                // בקול ״קטן מדי״ חוסם: מתחת לריצפה הקובץ פשוט לא ייכנס (בסרט - יוצא מטושטש, אבל יוצא)
+                if (AudioOnly(c.Mi)) { AudioShrink a = AudioShrink.ForSize(c.Mi, c.Val); return a.AlreadySmall || a.TooSmall ? a.Describe() : null; }
+                FitInfo f = FitPlan(c); return f.AlreadySmall ? f.Describe() : null;
+            };
             fit.BuildSteps = delegate (ToolCtx c)
             {
+                if (AudioOnly(c.Mi)) return new string[] { AudioShrink.ForSize(c.Mi, c.Val).Build(c) };
                 FitInfo f = FitPlan(c);
                 string log = "fit_" + DateTime.Now.Ticks.ToString();
                 string sc = f.Height > 0 ? Burn.ScaleShort(c.Mi, f.Height) : "";
@@ -846,7 +1010,7 @@ namespace SubtitleStudio
             t.Add(fit);
 
             MediaTool gif = new MediaTool();
-            gif.Group = Lang.T("לשיתוף");
+            gif.Group = Lang.T("תמונה");
             gif.Name = Lang.T("יצירת GIF מהקטע המסומן");
             gif.Desc = Lang.T("ממיר את הטווח שסימנתם על הציר לאנימציה קצרה");
             gif.Icon = Ico.Sparkles;
@@ -904,12 +1068,14 @@ namespace SubtitleStudio
         }
 
         /// <summary>**הסדר בחלון: מה שמחפשים קודם, ראשון** (0.8.34). עד אז ״קול״ ראשון ו״החלפת הפסקול״ בראש הרשימה, ו״וואטסאפ״ ו״דחיסה״
-        /// בתחתית, אחרי גלילה. לשיתוף ← וידאו (דחיסה והמרה קודם) ← קול (חילוץ הפסקול קודם).</summary>
+        /// בתחתית, אחרי גלילה. **הקבוצות לפי מה עושים** (0.8.48; בנימין: הכלים ״רלוונטיים לא רק לסרט״): עד אז דחיסה, המרה, מהירות, דהייה,
+        /// חיבור והיפוך - שעובדים גם על קול - ישבו תחת ״וידאו״. עכשיו ״תמונה״ היא רק מה שבאמת צריך תמונה, ובקובץ קול היא לא מוצגת.</summary>
         private static int Rank(string g)
         {
-            if (g == Lang.T("לשיתוף")) return 0;
-            if (g == Lang.T("וידאו")) return 1;
-            return 2;
+            if (g == Lang.T("שיתוף והקטנה")) return 0;
+            if (g == Lang.T("עריכה")) return 1;
+            if (g == Lang.T("קול")) return 2;
+            return 3;
         }
 
         // השמות כמו שהכלים מקבלים אותם (Lang.T עם טקסט כתוב - test-source דורשת)
@@ -917,11 +1083,11 @@ namespace SubtitleStudio
         {
             return new string[]
             {
-                Lang.T("הכנה לשליחה בוואטסאפ"), Lang.T("התאמה לגודל קובץ מבוקש"), Lang.T("יצירת GIF מהקטע המסומן"), Lang.T("שמירת התמונה שעל המסך"),
-                Lang.T("דחיסה - הקטנת נפח הקובץ"), Lang.T("המרת פורמט"), Lang.T("שינוי רזולוציה"), Lang.T("סיבוב הווידאו"), Lang.T("שינוי מהירות"),
-                Lang.T("דהייה בהתחלה ובסוף"), Lang.T("חיבור שני סרטים"), Lang.T("היפוך לאחור (ריוורס)"),
+                Lang.T("הכנה לשליחה בוואטסאפ"), Lang.T("התאמה לגודל קובץ מבוקש"), Lang.T("דחיסה - הקטנת נפח הקובץ"), Lang.T("המרת פורמט"),
+                Lang.T("שינוי מהירות"), Lang.T("חיבור שני קבצים"), Lang.T("דהייה בהתחלה ובסוף"), Lang.T("היפוך לאחור (ריוורס)"),
                 Lang.T("חילוץ הפסקול לקובץ אודיו"), Lang.T("שינוי עוצמת השמע"), Lang.T("ניקוי רעש רקע מהקול"), Lang.T("איזון עוצמה אוטומטי"),
-                Lang.T("הוספת מוזיקת רקע"), Lang.T("החלפת הפסקול"), Lang.T("בחירת ערוץ שמע"), Lang.T("הסרת הקול מהסרט")
+                Lang.T("הוספת מוזיקת רקע"), Lang.T("החלפת הפסקול"), Lang.T("בחירת ערוץ שמע"), Lang.T("הסרת הקול מהסרט"),
+                Lang.T("שינוי רזולוציה"), Lang.T("סיבוב הווידאו"), Lang.T("יצירת GIF מהקטע המסומן"), Lang.T("שמירת התמונה שעל המסך")
             };
         }
 
@@ -940,7 +1106,7 @@ namespace SubtitleStudio
         private readonly long _a, _b, _pos;
 
         public ToolsDlg(MainForm main, MediaInfo mi, long a, long b, long pos)
-            : base(Lang.T("כלים לסרט ולקול"), Ico.Sliders, 600)
+            : base(Lang.T("כל הכלים"), Ico.Sliders, 600)
         {
             _main = main; _mi = mi; _a = a; _b = b; _pos = pos;
             Subtitle = mi != null ? Theme.FileName(Path.GetFileName(mi.Path)) : "";
@@ -956,6 +1122,8 @@ namespace SubtitleStudio
             foreach (MediaTool tool in tools)
             {
                 MediaTool captured = tool;
+                // בקובץ קול - רק מה שעובד על קול. עד 0.8.48 חצי מהרשימה הייתה כבויה (״אין ערוץ וידאו בקובץ״)
+                if (tool.NeedsVideo && (mi == null || !mi.HasVideo)) continue;
                 if (tool.Group != group)
                 {
                     group = tool.Group;
@@ -967,12 +1135,10 @@ namespace SubtitleStudio
                     host.Controls.Add(gl);
                     y += Theme.S(32);
                 }
-                bool noVideo = tool.NeedsVideo && (mi == null || !mi.HasVideo);
-                bool noAudio = tool.NeedsAudio && mi != null && !mi.HasAudio;
-                bool ok = !noVideo && !noAudio;
+                bool ok = !(tool.NeedsAudio && mi != null && !mi.HasAudio);
                 Btn btn = new Btn();
                 btn.Text = tool.Name;
-                btn.Sub = ok ? tool.Desc : (noVideo ? Lang.T("לא זמין - אין ערוץ וידאו בקובץ") : Lang.T("לא זמין - אין קול בקובץ"));
+                btn.Sub = ok ? tool.Desc : Lang.T("לא זמין - אין קול בקובץ");
                 btn.Icon = tool.Icon;
                 btn.Kind = BtnKind.Subtle;
                 btn.Enabled = ok;
@@ -1002,12 +1168,23 @@ namespace SubtitleStudio
             d.Dispose();
         }
 
+        /// <summary>למה הכלי לא מתאים לקובץ הפתוח (null = מתאים). **גם כשפותחים אותו ישירות** - מהתפריט או מהעוזר: עד 0.8.48 רק הרשימה
+        /// בדקה, ו״הקטנה לגודל מבוקש״ מהתפריט נפתחה על MP3, רצה ונכשלה.</summary>
+        internal static string Unfit(MediaTool t, MediaInfo mi)
+        {
+            if (t.NeedsVideo && mi != null && !mi.HasVideo) return Lang.T("הכלי הזה עובד על התמונה, ובקובץ הפתוח יש רק קול.");
+            if (t.NeedsAudio && mi != null && !mi.HasAudio) return Lang.T("בקובץ הזה אין קול.");
+            return null;
+        }
+
         /// <summary>פתיחת כלי בודד ישירות, בלי לעבור דרך רשימת הכלים.</summary>
         public static void RunNamed(MainForm main, string name, MediaInfo mi, long a, long b, long pos)
         {
             foreach (MediaTool t in MediaTools.All())
             {
                 if (t.Name != name) continue;
+                string no = Unfit(t, mi);
+                if (no != null) { Ui.Info(main, t.Name, no); return; }
                 ToolRunDlg d = new ToolRunDlg(main, t, mi, a, b, pos);
                 d.ShowDialog(main);
                 d.Dispose();
@@ -1055,16 +1232,16 @@ namespace SubtitleStudio
                 _slider.Suffix = tool.Suffix;
                 // אפשר גם להקליד ערך מדויק (0.8.9): המספר שבצד הוא שדה
                 _slider.Editable = true;
-                _slider.TypeMin = tool.TypeMin; _slider.TypeMax = tool.TypeMax;
+                _slider.TypeMin = double.IsNaN(tool.TypeMin) ? tool.TypeMin : Math.Min(tool.TypeMin, _slider.Min); _slider.TypeMax = tool.TypeMax;
                 if (tool.Hint != null || tool.Block != null) _slider.ValueChanged += delegate { UpdateHint(); };
                 Row(_slider, 30, tool.Presets != null ? 6 : 14);
                 if (tool.Presets != null) PresetRow(tool.Presets);
             }
-            else if (tool.ParamKind == 2)
+            else if (tool.ParamKind == 2 && OptionsOf(tool, mi) != null)
             {
                 Section(tool.ParamLabel);
                 _combo = new Combo();
-                _combo.Items.AddRange(tool.OptionsFor != null ? tool.OptionsFor(mi) : tool.Options);
+                _combo.Items.AddRange(OptionsOf(tool, mi));
                 _combo.SelectedIndex = FirstUsable(tool.DefFor != null ? tool.DefFor(mi) : tool.DefOption);
                 _combo.SelectedIndexChanged += delegate { UpdateOut(); UpdateHint(); };
                 Row(_combo, 32, 14);
@@ -1072,7 +1249,7 @@ namespace SubtitleStudio
             else if (tool.ParamKind == 3)
             {
                 Section(tool.ParamLabel);
-                _fileField = FilePicker(Lang.T("בחרו קובץ"), "", tool.FileFilter, false);
+                _fileField = FilePicker(Lang.T("בחרו קובץ"), "", tool.FileFilterFor != null ? tool.FileFilterFor(mi) : tool.FileFilter, false);
             }
 
             if (tool.Hint != null || tool.Block != null)
@@ -1086,6 +1263,11 @@ namespace SubtitleStudio
 
             _ok = Buttons(Lang.T("הפעלה"), Ico.Play, Lang.T("ביטול"));
             UpdateHint();
+        }
+
+        private static string[] OptionsOf(MediaTool tool, MediaInfo mi)
+        {
+            return tool.OptionsFor != null ? tool.OptionsFor(mi) : tool.Options;
         }
 
         /// <summary>כפתורים קטנים מתחת לפס: יעדים נפוצים שבטווח (עד חמישה, מהקטן), לחיצה קובעת. לפני השיקוף של
@@ -1161,13 +1343,16 @@ namespace SubtitleStudio
         {
             get
             {
-                if (_tool.NeedsAudio && _mi != null && !_mi.HasAudio) return Lang.T("בקובץ הזה אין קול.");
+                string no = ToolsDlg.Unfit(_tool, _mi);
+                if (no != null) return no;
                 return _tool.Block != null ? _tool.Block(Ctx()) : null;
             }
         }
 
         private string Ext(int opt)
         {
+            string own = _tool.ExtForMi != null ? _tool.ExtForMi(_mi, opt) : null;
+            if (own != null) return own;
             if (_tool.ExtFor != null) return _tool.ExtFor(opt);
             if (!string.IsNullOrEmpty(_tool.OutExt)) return _tool.OutExt;
             string ext;
@@ -1181,13 +1366,23 @@ namespace SubtitleStudio
 
         private bool ReencodesVideo
         {
-            get { return !_tool.KeepsVideo && _tool.ExtFor == null && string.IsNullOrEmpty(_tool.OutExt) && _mi != null && _mi.HasVideo; }
+            get
+            {
+                if (_mi == null || !_mi.HasVideo || _tool.KeepsVideo || _tool.ExtFor != null || !string.IsNullOrEmpty(_tool.OutExt)) return false;
+                return _tool.ExtForMi == null || _tool.ExtForMi(_mi, 0) == null;
+            }
         }
 
         /// <summary>השם שבאמת ייכתב (גם אם המשתמש הקליד ‎.webm לכלי שמקודד תמונה).</summary>
         internal string FinalPath(string outPath)
         {
             if (string.IsNullOrEmpty(outPath)) return outPath;
+            // הקטנה של קול: ‏WAV או FLAC שהוקלדו ביד לא ניתנים להקטנה - הסיומת של הכלי
+            if (_tool.ShrinksAudio && MediaTools.AudioOnly(_mi))
+            {
+                try { return AudioShrink.IsTarget(Path.GetExtension(outPath)) ? outPath : Path.ChangeExtension(outPath, _tool.ExtForMi(_mi, 0)); }
+                catch { return outPath; }
+            }
             return ReencodesVideo ? Burn.ReencodePath(outPath) : Burn.WritablePath(outPath, _mi == null || !_mi.HasVideo);
         }
 
@@ -1214,6 +1409,11 @@ namespace SubtitleStudio
             if (outPath.Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור.")); return false; }
             if (_tool.ParamKind == 3 && (_fileField == null || _fileField.Text.Trim().Length == 0))
             { Ui.Error(this, Lang.T("חסר קובץ"), Lang.T("בחרו את הקובץ הנדרש לפעולה.")); return false; }
+            if (_tool.ParamKind == 3 && _tool.CheckExtra != null)
+            {
+                string bad = _tool.CheckExtra(Ctx());
+                if (bad != null) { Ui.Error(this, Lang.T("הקובץ לא מתאים"), bad); return false; }
+            }
             try
             {
                 if (string.Equals(Path.GetFullPath(outPath), Path.GetFullPath(_mi.Path), StringComparison.OrdinalIgnoreCase))

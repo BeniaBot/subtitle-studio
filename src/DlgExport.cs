@@ -187,6 +187,17 @@ namespace SubtitleStudio
             return "-c:a copy";
         }
 
+        /// <summary>הקול לסרט שנוצר מקובץ קול (0.8.48). מעתיקים רק AAC, ו-MP3 שה-MP4 מקבל: ‏MP3 של 8kHz (טלפון) נכתב ריק, וקול בלי סידור
+        /// ערוצים (Speex, ‏TTA) צריך ‎-ac (נמצא בסבב על 20 סוגי קול).</summary>
+        internal static string MovieAudio(MediaInfo mi, string outPath, bool seeking)
+        {
+            MediaStream a = mi != null ? mi.FirstAudio() : null;
+            if (a == null) return "-an";
+            string codec = a.Codec.ToLowerInvariant();
+            bool copy = !seeking && (codec == "aac" || (codec == "mp3" && a.SampleRate >= 16000));
+            return copy ? "-c:a copy" : "-c:a aac -b:a 192k" + (a.SampleRate > 0 && a.SampleRate < 16000 ? " -ar 48000" : "") + LayoutArgs(mi);
+        }
+
         /// <summary>האם אפשר לשים H.264 ו-AAC במיכל הזה. ‏WEBM, ‏OGG ו-MPEG-PS לא
         /// מקבלים אותם: חיתוך מדויק של קובץ WEBM נכשל עד 0.8.1 ב״הפעולה לא הצליחה״.</summary>
         public static bool TakesH264(string ext)
@@ -424,24 +435,34 @@ namespace SubtitleStudio
         private long _inMs, _outMs;
         /// <summary>המקור גדול מ-1080p (‏4K, ‏1440p) - יש מה להקטין.</summary>
         private readonly bool _big;
+        /// <summary>**קובץ קול** (0.8.48): אין תמונה לצרוב עליה. עד אז הכפתור הירוק היה פעיל על MP3 עם כתוביות, והצריבה נכשלה. עכשיו
+        /// נוצר סרט: הקול, רקע (כהה, תמונת העטיפה או תמונה מהמחשב) והכתוביות עליו, ב-16:9 - כמו בתצוגה המקדימה.</summary>
+        private readonly bool _audio;
+        private Combo _bg;
+        private Field _bgFile;
+        /// <summary>מספר האפשרות ״תמונת העטיפה״ (‎-1 = אין עטיפה) ו״תמונה מהמחשב״.</summary>
+        private int _bgCover = -1, _bgPick = -1;
+        internal const int AudioW = 1920, AudioH = 1080;
 
         /// <summary>**להקטין ל-1080p** (0.8.33): צריבה של 4K ארוכה פי כמה מאורך הסרט (נמדד ב-0.8.1: פי 5.7). נמדד על 15 שניות 4K
         /// בהגדרות ״איכות מקסימלית״: 53 שניות ו-97 מגה מול 15 שניות ו-17 מגה. כבוי כברירת מחדל - לא משנים רזולוציה בלי שביקשו.</summary>
         internal bool Down1080 { get { return _burn && _big && _down.Checked; } }
 
         public ExportVideoDlg(MainForm main, Doc doc, MediaInfo mi, SubStyle style, long inMs, long outMs)
-            : base(doc != null && doc.Cues.Count == 0 ? Lang.T("יצירת סרט עם טשטוש") : Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
+            : base(MediaTools.AudioOnly(mi) ? Lang.T("יצירת סרט מקובץ הקול")
+                   : doc != null && doc.Cues.Count == 0 ? Lang.T("יצירת סרט עם טשטוש") : Lang.T("הטמעת הכתוביות בסרט"), Ico.Flame, 560)
         {
             _main = main; _doc = doc; _mi = mi; _style = style;
             _inMs = inMs; _outMs = outMs;
             // **רק טשטוש, בלי כתוביות** (0.8.44) - החלון לא מדבר על כתוביות: בלי ״0 כתוביות״, ובלי הבחירה בין צריבה לערוץ נפרד (אין מה
             // לשים בערוץ; הטשטוש תמיד נצרב). בנימין: ״למה לכפתור קוראים 'יצירת סרט עם כתוביות'? הרי יש עוד פעולות כמו צנזור״ - ומשתמש
             // שלח צילום של החלון הזה עם ״הטמעת הכתוביות בסרט · 0 כתוביות״
+            _audio = MediaTools.AudioOnly(mi);
             bool blurOnly = doc.Cues.Count == 0;
             Subtitle = blurOnly ? (mi != null ? mi.Summary() : "")
                 : (doc.Cues.Count == 1 ? Lang.T("כתובית אחת") : Lang.F("{0} כתוביות", doc.Cues.Count)) + " · " + (mi != null ? mi.Summary() : "");
 
-            if (!blurOnly) Section(Lang.T("איך להטמיע?"));
+            if (!blurOnly && !_audio) Section(Lang.T("איך להטמיע?"));
             _modeBurn = new Btn();
             _modeBurn.Text = Lang.T("צריבה בתמונה");
             _modeBurn.Sub = Lang.T("הכתוביות הופכות לחלק מהפיקסלים · עובד בכל נגן ובכל טלפון");
@@ -451,7 +472,7 @@ namespace SubtitleStudio
             _modeBurn.Checkable = false;
             _modeBurn.Checked = true;
             _modeBurn.Click += delegate { SetMode(true); };
-            if (!blurOnly) Row(_modeBurn, 56, 8);
+            if (!blurOnly && !_audio) Row(_modeBurn, 56, 8);
 
             _modeSoft = new Btn();
             _modeSoft.Text = Lang.T("ערוץ כתוביות נפרד");
@@ -460,13 +481,29 @@ namespace SubtitleStudio
             _modeSoft.Kind = BtnKind.Subtle;
             _modeSoft.Radio = true;
             _modeSoft.Click += delegate { SetMode(false); };
-            if (!blurOnly) Row(_modeSoft, 56, 16);
+            if (!blurOnly && !_audio) Row(_modeSoft, 56, 16);
+
+            if (_audio)
+            {
+                Section(Lang.T("מה יוצג מאחורי הכתוביות"));
+                _bg = new Combo();
+                _bg.Items.Add(Lang.T("רקע כהה"));
+                foreach (MediaStream st in mi.Streams)
+                    if (st.Type == "video") { _bgCover = _bg.Items.Count; _bg.Items.Add(Lang.T("תמונת העטיפה של הקובץ")); break; }
+                _bgPick = _bg.Items.Count;
+                _bg.Items.Add(Lang.T("תמונה מהמחשב"));
+                _bg.SelectedIndex = _bgCover >= 0 ? _bgCover : 0;
+                _bg.SelectedIndexChanged += delegate { ShowBgFile(); };
+                Row(_bg, 32, 8);
+                _bgFile = FilePicker(Lang.T("בחרו תמונה"), "", Lang.T("תמונות") + "|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif|" + Lang.T("כל הקבצים") + "|*.*", false);
+            }
 
             Section(Lang.T("קובץ היעד"));
             string sug = SuggestPath(true);
             _out = FilePicker(Lang.T("נתיב קובץ היעד"), sug, Lang.T("וידאו MP4|*.mp4|Matroska MKV|*.mkv|כל הקבצים|*.*"), true);
 
-            _qualityLabel = Section(Lang.T("איכות"));
+            _qualityLabel = new Lbl();
+            if (!_audio) _qualityLabel = Section(Lang.T("איכות"));
             _quality = new Combo();
             _quality.Items.AddRange(new object[]
             {
@@ -475,9 +512,9 @@ namespace SubtitleStudio
                 Lang.T("הכי קטן (איכות סבירה)")
             });
             _quality.SelectedIndex = 0;
-            Row(_quality, 32, 12);
+            if (!_audio) Row(_quality, 32, 12);
 
-            _big = mi != null && Burn.ScaleShort(mi, 1080).Length > 0;
+            _big = !_audio && mi != null && Burn.ScaleShort(mi, 1080).Length > 0;
             _down = new Toggle();
             _down.Text = Lang.T("להקטין ל-1080p - מהיר פי 3 בערך, וקובץ קטן בהרבה");
             _down.Visible = _big;
@@ -510,8 +547,17 @@ namespace SubtitleStudio
             Row(_note, 34, 4);
             UpdateNote();
 
-            Buttons(blurOnly ? Lang.T("יצירת הסרט") : Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
+            Buttons(blurOnly || _audio ? Lang.T("יצירת הסרט") : Lang.T("התחלת ההטמעה"), Ico.Flame, Lang.T("ביטול"));
             SetMode(true);
+            ShowBgFile();
+        }
+
+        /// <summary>שדה התמונה - רק כשבחרו ״תמונה מהמחשב״.</summary>
+        private void ShowBgFile()
+        {
+            if (!_audio) return;
+            ShowPicker(_bgFile, _bg.SelectedIndex == _bgPick);
+            Restack();
         }
 
         private string SuggestPath(bool burn)
@@ -522,7 +568,7 @@ namespace SubtitleStudio
                 string name = Path.GetFileNameWithoutExtension(_mi.Path);
                 string ext = burn ? ".mp4" : Path.GetExtension(_mi.Path);
                 if (!burn && ext.ToLowerInvariant() != ".mp4" && ext.ToLowerInvariant() != ".mkv") ext = ".mkv";
-                return Path.Combine(dir, name + (burn ? Lang.T(" - עם כתוביות צרובות") : Lang.T(" - עם כתוביות")) + ext);
+                return Path.Combine(dir, name + (burn && !_audio ? Lang.T(" - עם כתוביות צרובות") : Lang.T(" - עם כתוביות")) + ext);
             }
             catch { return ""; }
         }
@@ -534,7 +580,7 @@ namespace SubtitleStudio
             _modeSoft.Checked = !burn;
             _modeBurn.Tint = Theme.Accent;
             _modeSoft.Tint = Theme.Accent;
-            _quality.Visible = burn;
+            if (!_audio) _quality.Visible = burn;
             _down.Visible = burn && _big;
             _lang.Visible = !burn;
             _qualityLabel.Text = burn ? Lang.T("איכות") : Lang.T("שפת הכתוביות");
@@ -550,6 +596,7 @@ namespace SubtitleStudio
         private void UpdateNote()
         {
             _note.Color = Theme.TextFaint;
+            if (_audio) { _note.Text = Lang.T("נוצר סרט חדש: הקול של הקובץ, והכתוביות על הרקע שבחרתם. עובד בכל מקום, כולל וואטסאפ ויוטיוב."); _note.Invalidate(); return; }
             // **ערוץ נפרד לא מסתיר כלום** (23.10): הטשטוש ואזורי הצנזורה נעשים רק בצריבה. עד כאן הערוץ הנפרד יצא בשקט בלי הטשטוש -
             // ומי שבחר את הדרך המהירה בסרט עם פנים לטשטש קיבל אותן גלויות
             if (!_burn && _style != null && (_style.Zones.Count > 0 || _style.BlurOn))
@@ -572,6 +619,8 @@ namespace SubtitleStudio
             bool zonesOnly = _burn && _style != null && _style.Zones.Count > 0;
             if (_doc.Cues.Count == 0 && !zonesOnly) { Ui.Error(this, Lang.T("אין כתוביות"), Lang.T("אין מה להטמיע - הרשימה ריקה.")); return false; }
             if (_out.Text.Trim().Length == 0) { Ui.Error(this, Lang.T("חסר קובץ יעד"), Lang.T("בחרו לאן לשמור את הקובץ.")); return false; }
+            if (_audio && _bg.SelectedIndex == _bgPick && (_bgFile.Text.Trim().Length == 0 || !File.Exists(_bgFile.Text.Trim())))
+            { Ui.Error(this, Lang.T("חסרה תמונה"), Lang.T("בחרו תמונה לרקע, או רקע אחר.")); return false; }
             string outPath = FinalPath(_out.Text.Trim());
             try
             {
@@ -604,6 +653,12 @@ namespace SubtitleStudio
         internal string FinalPath(string outPath)
         {
             if (string.IsNullOrEmpty(outPath)) return outPath;
+            // מקובץ קול: סרט, גם אם הוקלדה סיומת של קול
+            if (_audio)
+            {
+                try { string e = Path.GetExtension(outPath).ToLowerInvariant(); return e == ".mkv" || e == ".mov" || e == ".m4v" ? outPath : Path.ChangeExtension(outPath, ".mp4"); }
+                catch { return outPath; }
+            }
             if (_burn) return Burn.ReencodePath(outPath);
             try
             {
@@ -635,7 +690,36 @@ namespace SubtitleStudio
             List<Cue> cues = new List<Cue>(_doc.Cues);
             cues.Sort(delegate (Cue x, Cue y) { return x.Start.CompareTo(y.Start); });
 
-            if (_burn)
+            if (_audio)
+            {
+                string dir;
+                string ass = Burn.WriteTempAss(cues, _style, AudioW, AudioH, a, out dir);
+                string pic = _bg.SelectedIndex == _bgPick ? _bgFile.Text.Trim() : _bg.SelectedIndex == _bgCover ? _mi.Path : "";
+                StringBuilder sb = new StringBuilder();
+                string size = AudioW + "x" + AudioH;
+                // הצבע של אזור התצוגה (VideoPreview)
+                if (pic.Length == 0) sb.Append("-f lavfi -i color=c=0x12141A:s=").Append(size).Append(":r=25 ");
+                else sb.Append("-i ").Append(Ff.Q(pic)).Append(" ");
+                if (ranged) sb.Append("-ss ").Append(Tc.Ff(a)).Append(" ");
+                sb.Append("-i ").Append(Ff.Q(_mi.Path)).Append(" ");
+                // תמונה: מוקטנת לתוך המסגרת, פעם אחת, ואותו פריים חוזר (loop) - בלי לפענח אותה 25 פעם בשנייה
+                string vf = pic.Length == 0 ? "" :
+                    "[0:v:0]scale=" + AudioW + ":" + AudioH + ":force_original_aspect_ratio=decrease,pad=" + AudioW + ":" + AudioH +
+                    ":(ow-iw)/2:(oh-ih)/2:color=0x12141A,setsar=1,format=yuv420p,trim=end_frame=1,loop=loop=-1:size=1:start=0,setpts=N/25/TB,fps=25,";
+                sb.Append("-filter_complex \"").Append(pic.Length == 0 ? "[0:v]" : vf).Append("subtitles=").Append(ass).Append("[v]\" -map \"[v]\" -map 1:a:0 ");
+                sb.Append("-c:v libx264 -preset veryfast -crf 20 -tune stillimage -pix_fmt yuv420p -r 25 ");
+                // האורך. קול מועתק - ``shortest`` מדויק, ולא האורך המדווח (ב-AAC גולמי הוא ניחוש, ושנייה מהסוף נחתכה). קול מקודד - ``shortest`` לבד
+                // עובר ב-1.3 שניות (המקודדים רצים במקביל; נמדד על FLAC), ולכן גם האורך המדווח
+                string au = Burn.MovieAudio(_mi, outPath, ranged);
+                long len = ranged ? b - a : au.StartsWith("-c:a copy") ? 0 : _mi.DurationMs;
+                sb.Append(au).Append(len > 0 ? " -t " + Tc.Ff(len) : "").Append(" -shortest ");
+                if (Path.GetExtension(outPath).ToLowerInvariant() == ".mp4") sb.Append("-movflags +faststart ");
+                sb.Append(Ff.Q(outPath));
+                job.Args = sb.ToString();
+                job.WorkDir = dir;
+                job.Title = Lang.T("יוצר סרט מקובץ הקול");
+            }
+            else if (_burn)
             {
                 string dir;
                 string ass = Burn.WriteTempAss(cues, _style, _mi.Width, _mi.Height, a, out dir);

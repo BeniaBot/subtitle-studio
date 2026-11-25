@@ -32,7 +32,7 @@ namespace SubtitleStudio
 
         private static readonly string[][] Steps = new string[][]
         {
-            new string[] { Lang.T("פותחים סרט"), Lang.T("גרירה לחלון או ״עיון בקבצים״") },
+            new string[] { Lang.T("פותחים סרט או קובץ קול"), Lang.T("גרירה לחלון או ״עיון בקבצים״") },
             new string[] { Lang.T("כותבים כתוביות"), Lang.T("או טוענים קובץ כתוביות קיים") },
             new string[] { Lang.T("שומרים סרט חדש"), Lang.T("עם הכתוביות בפנים, מוכן לשליחה") }
         };
@@ -244,7 +244,7 @@ namespace SubtitleStudio
             Icons.Draw(g, Ico.Upload,
                 new RectangleF(z.X + (z.Width - iconSize) / 2f, z.Y + Theme.S(30), iconSize, iconSize),
                 DropHover ? Theme.Accent : Theme.TextDim, 1.7f);
-            Theme.Str(g, Lang.T("גררו לכאן סרט או קובץ כתוביות"), Theme.F(14f, FontStyle.Bold), Theme.Text,
+            Theme.Str(g, Lang.T("גררו לכאן סרט, קובץ קול או כתוביות"), Theme.F(14f, FontStyle.Bold), Theme.Text,
                 new RectangleF(z.X, z.Y + Theme.S(88), z.Width, Theme.S(30)), Theme.SfCenter);
             Theme.Str(g, "MP4 · MKV · AVI · MOV · MP3 · SRT · ASS · VTT", Theme.Small, Theme.TextFaint,
                 new RectangleF(z.X, z.Y + Theme.S(116), z.Width, Theme.S(20)), Theme.SfCenter);

@@ -672,7 +672,7 @@ namespace SubtitleStudio
             }
             if (DurationMs <= 1)
             {
-                Theme.Str(g, Lang.T("כאן יופיע ציר הזמן של הסרט"), Theme.Big, Theme.TextDim,
+                Theme.Str(g, Lang.T("כאן יופיע ציר הזמן"), Theme.Big, Theme.TextDim,
                     new RectangleF(0, Height / 2f - 26, Width, 24), Theme.SfCenter);
                 Theme.Str(g, Lang.T("פתחו קובץ וידאו או אודיו כדי להתחיל"), Theme.Ui, Theme.TextFaint,
                     new RectangleF(0, Height / 2f + 2, Width, 22), Theme.SfCenter);

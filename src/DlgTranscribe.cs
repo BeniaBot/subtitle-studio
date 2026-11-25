@@ -45,7 +45,7 @@ namespace SubtitleStudio
         public TranscribeDlg(MediaInfo mi, int existingCues, string context, long inMs, long outMs) : base(Lang.T("תמלול אוטומטי"), Ico.Sparkles, 620)
         {
             _mi = mi;
-            Subtitle = Lang.T("התוכנה מקשיבה לסרט וכותבת את הכתוביות");
+            Subtitle = Lang.T("התוכנה מקשיבה וכותבת את הכתוביות");
             _choice = Stt.Current.Id;
 
             // **הבחירה כאן ולא בהגדרות.** חלון ההגדרות כבר על גבול הגובה, והמקום
@@ -102,7 +102,7 @@ namespace SubtitleStudio
             _range.Enabled = marked;
             _range.Text = marked
                 ? Lang.F("רק הקטע המסומן על הציר: {0}", Theme.Ltr(Tc.Short(_a) + " – " + Tc.Short(_b)))
-                : Lang.T("רק חלק מהסרט? מסמנים אותו קודם על הציר");
+                : Lang.T("רק חלק מהקובץ? מסמנים אותו קודם על הציר");
             _range.CheckedChanged += delegate { Refresh_(); };
             if (mi != null)
             {
@@ -199,8 +199,8 @@ namespace SubtitleStudio
                 _connect.Visible = true;
                 // אחרי Groq גם הטקסט הולך לגוגל, לבדיקת שגיאות השמיעה (TranscribeRunDlg.ProofreadOn) - זה נאמר כאן, לא קורה בשקט
                 _warn.Text = TranscribeRunDlg.ProofreadOn(p)
-                    ? Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + Lang.T(", והטקסט - לגוגל, לבדיקת שמות.")
-                    : Theme.Pfx(Lang.T("הקול מהסרט יישלח ל"), p.Name) + ".";
+                    ? Theme.Pfx(Lang.T("הקול יישלח ל"), p.Name) + Lang.T(", והטקסט - לגוגל, לבדיקת שמות.")
+                    : Theme.Pfx(Lang.T("הקול יישלח ל"), p.Name) + ".";
                 _warn.Color = Theme.Warn;
             }
             _connect.Invalidate();
@@ -266,7 +266,7 @@ namespace SubtitleStudio
         {
             if (_mi == null || _mi.DurationMs <= 0)
             {
-                Ui.Error(this, Lang.T("אין סרט"), Lang.T("צריך לפתוח קודם סרט או קובץ קול."));
+                Ui.Error(this, Lang.T("אין קובץ פתוח"), Lang.T("צריך לפתוח קודם סרט או קובץ קול."));
                 return false;
             }
             // לפני HasKey: ״מותקן?״ של התמלול המקומי שואל על המודל שנבחר
